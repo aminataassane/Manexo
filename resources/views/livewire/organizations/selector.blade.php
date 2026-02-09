@@ -169,7 +169,11 @@
 
                 <!-- Join Action Footer -->
                 <div class="pt-4 mt-auto border-t border-slate-200/60">
-                    <button type="button" class="w-full text-center text-xs font-medium text-slate-500 transition-colors flex items-center justify-center gap-1.5 py-1 hover:text-[color:var(--accent)]">
+                    <button
+                        type="button"
+                        wire:click="openInviteModal"
+                        class="w-full text-center text-xs font-medium text-slate-500 transition-colors flex items-center justify-center gap-1.5 py-1 hover:text-[color:var(--accent)]"
+                    >
                         <!-- Lucide Icon: Key -->
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"></circle><path d="m21 2-9.6 9.6"></path><path d="m15.5 7.5 3 3L22 7l-3-3"></path></svg>
                         Rejoindre avec un code d'invitation
@@ -191,3 +195,48 @@
         </div>
     </div>
 </div>
+
+<!-- Invite Modal -->
+@if ($showInviteModal)
+    <div class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" wire:click="closeInviteModal"></div>
+
+        <div class="relative mx-auto flex min-h-full max-w-lg items-center justify-center px-6">
+            <div class="w-full rounded-2xl border border-white/30 bg-white/95 p-6 shadow-2xl ring-1 ring-black/5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-900">Rejoindre une entreprise</h3>
+                        <p class="mt-1 text-[11px] text-slate-500">Entrez le code d’invitation fourni par l’administrateur.</p>
+                    </div>
+                    <button type="button" wire:click="closeInviteModal" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" aria-label="Fermer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                    </button>
+                </div>
+
+                <form wire:submit.prevent="joinWithInviteCode" class="mt-5 space-y-3">
+                    <div class="space-y-1">
+                        <label for="invite_code" class="block text-[11px] font-medium text-slate-700">Code d’invitation</label>
+                        <input
+                            id="invite_code"
+                            type="text"
+                            wire:model.defer="invite_code"
+                            placeholder="Ex: MANEXO-8F3K2"
+                            class="block w-full rounded-lg border-0 bg-slate-50 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset text-sm transition-all"
+                            style="--tw-ring-color: var(--accent);"
+                        >
+                        <x-input-error :messages="$errors->get('invite_code')" />
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 pt-2">
+                        <button type="button" wire:click="closeInviteModal" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                            Annuler
+                        </button>
+                        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors" style="background-color: var(--accent);">
+                            Rejoindre
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endif

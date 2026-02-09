@@ -36,6 +36,17 @@
             box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px white;
             transform: scale(1.1);
         }
+
+        /* Hide scrollbar but keep scroll */
+        .custom-scrollbar {
+            -ms-overflow-style: none;   /* IE/Edge */
+            scrollbar-width: none;      /* Firefox */
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 0 !important;
+            height: 0 !important;
+            display: none;
+        }
     </style>
 </head>
 

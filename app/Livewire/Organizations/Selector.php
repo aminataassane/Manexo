@@ -16,6 +16,10 @@ class Selector extends Component
 
     public ?string $primary_color = '#005F02';
 
+    public bool $showInviteModal = false;
+
+    public string $invite_code = '';
+
     public function selectOrganization(int $organizationId): void
     {
         $user = Auth::user();
@@ -140,6 +144,30 @@ class Selector extends Component
         session()->put('current_organization_id', $org->id);
 
         $this->redirectRoute('dashboard', navigate: true);
+    }
+
+    public function openInviteModal(): void
+    {
+        $this->resetErrorBag();
+        $this->showInviteModal = true;
+    }
+
+    public function closeInviteModal(): void
+    {
+        $this->resetErrorBag();
+        $this->showInviteModal = false;
+        $this->invite_code = '';
+    }
+
+    public function joinWithInviteCode(): void
+    {
+        $validated = $this->validate([
+            'invite_code' => ['required', 'string', 'max:64'],
+        ]);
+
+        // TODO: Implement real invite flow (token lookup + attach user to org).
+        $this->addError('invite_code', "Ce système d'invitation n'est pas encore implémenté.");
+        $this->showInviteModal = true;
     }
 
     public function render()
