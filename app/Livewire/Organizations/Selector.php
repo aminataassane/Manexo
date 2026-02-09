@@ -14,7 +14,7 @@ class Selector extends Component
 {
     public string $name = '';
 
-    public ?string $primary_color = null;
+    public ?string $primary_color = '#005F02';
 
     public function selectOrganization(int $organizationId): void
     {
@@ -48,8 +48,12 @@ class Selector extends Component
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'primary_color' => ['nullable', 'string', 'max:32'],
+            'primary_color' => ['nullable', 'string', 'max:7', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
         ]);
+
+        $validated['primary_color'] = $validated['primary_color']
+            ? strtoupper($validated['primary_color'])
+            : null;
 
         $slugBase = Str::slug($validated['name']);
         $slug = $slugBase ?: Str::random(8);
