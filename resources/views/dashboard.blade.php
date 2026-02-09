@@ -44,10 +44,17 @@
 @php
     $accent = ($currentOrganization?->primary_color ?? '#005F02');
 @endphp
-<body class="flex h-screen w-full flex-col overflow-hidden bg-white text-slate-800 antialiased" style="--accent: {{ $accent }};">
+<body
+    class="flex h-screen w-full flex-col overflow-hidden bg-white text-slate-800 antialiased"
+    style="
+        --accent: {{ $accent }};
+        --accent-surface: #002e01;
+        --accent-surface: color-mix(in srgb, var(--accent) 55%, #002e01);
+    "
+>
 
     <!-- Top Bar -->
-    <div class="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-[#002e01] px-4 text-white">
+    <div class="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4 text-white" style="background-color: var(--accent-surface);">
         <div class="flex items-center gap-4">
             <a href="{{ route('dashboard') }}" class="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-[#F2E3BB] to-[#d6c79e] text-[#002e01] shadow-sm hover:opacity-90 transition-opacity">
                 <span class="font-serif font-bold">M</span>
@@ -62,7 +69,7 @@
         <div class="flex items-center gap-4">
             <div class="relative group">
                 <iconify-icon icon="solar:bell-linear" class="text-xl text-white/60 group-hover:text-white cursor-pointer transition-colors"></iconify-icon>
-                <span class="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 border border-[#002e01]"></span>
+                <span class="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 border" style="border-color: var(--accent-surface);"></span>
             </div>
 
             <!-- User Profile Link -->
@@ -77,7 +84,7 @@
     <div class="flex flex-1 overflow-hidden">
 
         <!-- Sidebar -->
-        <div class="flex w-16 flex-col items-center border-r border-white/10 bg-[#002e01] py-4 gap-6 z-10">
+        <div class="flex w-16 flex-col items-center border-r border-white/10 py-4 gap-6 z-10" style="background-color: var(--accent-surface);">
             <a href="{{ route('tickets.index') }}" class="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg bg-[#F2E3BB]/10 text-[#F2E3BB] transition-all hover:bg-[#F2E3BB] hover:text-[#002e01]" title="Tickets">
                 <iconify-icon icon="solar:inbox-line-linear" class="text-xl"></iconify-icon>
             </a>

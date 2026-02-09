@@ -16,7 +16,7 @@ new class extends Component
     }
 }; ?>
 
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
+<nav x-data="{ open: false }" class="bg-white border-b border-gray-100" style="border-color: var(--accent-soft);">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -44,7 +44,7 @@ new class extends Component
                 <a
                     href="{{ route('organizations.select') }}"
                     wire:navigate
-                    class="me-4 text-sm text-gray-600 hover:text-gray-900"
+                    class="me-4 text-sm text-gray-600 hover:text-[color:var(--accent)] transition-colors"
                     title="Switch organization"
                 >
                     {{ $currentOrganization->name ?? __('No organization') }}

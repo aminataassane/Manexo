@@ -15,7 +15,17 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @livewireStyles
     </head>
-    <body class="font-sans antialiased">
+    @php
+        $accent = ($currentOrganization?->primary_color ?? '#005F02');
+    @endphp
+    <body
+        class="font-sans antialiased"
+        style="
+            --accent: {{ $accent }};
+            --accent-soft: rgba(0, 95, 2, 0.10);
+            --accent-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+        "
+    >
         <div class="min-h-screen bg-gray-100">
             <livewire:layout.navigation />
 
