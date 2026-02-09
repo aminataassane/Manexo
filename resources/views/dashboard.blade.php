@@ -15,16 +15,36 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .font-serif { font-family: 'Playfair Display', serif; }
-        
+
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #E5E7EB; border-radius: 20px; }
-        
+
         .cursor-blink { animation: blink 1s step-end infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* Organization accent color (CSS variable: --accent) */
+        ::selection { background: #F2E3BB; color: var(--accent); }
+
+        .accent-ring-soft {
+            --tw-ring-color: rgba(0, 95, 2, 0.10);
+            --tw-ring-color: color-mix(in srgb, var(--accent) 10%, transparent);
+        }
+        .accent-focus:focus-within {
+            --tw-ring-color: rgba(0, 95, 2, 0.22);
+            --tw-ring-color: color-mix(in srgb, var(--accent) 22%, transparent);
+            border-color: var(--accent);
+        }
+        .accent-hover-soft:hover {
+            background-color: rgba(0, 95, 2, 0.06);
+            background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+        }
     </style>
 </head>
-<body class="flex h-screen w-full flex-col overflow-hidden bg-white text-slate-800 antialiased selection:bg-[#F2E3BB] selection:text-[#005F02]">
+@php
+    $accent = ($currentOrganization?->primary_color ?? '#005F02');
+@endphp
+<body class="flex h-screen w-full flex-col overflow-hidden bg-white text-slate-800 antialiased" style="--accent: {{ $accent }};">
 
     <!-- Top Bar -->
     <div class="flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-[#002e01] px-4 text-white">
@@ -44,7 +64,7 @@
                 <iconify-icon icon="solar:bell-linear" class="text-xl text-white/60 group-hover:text-white cursor-pointer transition-colors"></iconify-icon>
                 <span class="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 border border-[#002e01]"></span>
             </div>
-            
+
             <!-- User Profile Link -->
             <a href="{{ route('profile') }}" class="flex items-center gap-2 cursor-pointer hover:bg-white/5 rounded-full pr-3 pl-1 py-1 transition-colors">
                 <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0D8ABC&color=fff" alt="Profile" class="h-7 w-7 rounded-full border border-white/20">
@@ -70,7 +90,7 @@
             <a href="#" class="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-white/40 transition-all hover:bg-white/10 hover:text-[#F2E3BB]" title="Rapports">
                 <iconify-icon icon="solar:graph-up-linear" class="text-xl"></iconify-icon>
             </a>
-            
+
             <div class="mt-auto">
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
@@ -96,8 +116,8 @@
             <!-- Ticket Items -->
             <div class="flex-1 overflow-y-auto px-2 py-2 space-y-2 custom-scrollbar">
                 <!-- Active Ticket -->
-                <div class="group cursor-pointer rounded-lg border border-[#005F02]/20 bg-white p-3 shadow-md ring-1 ring-[#005F02]/5 relative overflow-hidden transition-all hover:-translate-y-0.5">
-                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-[#005F02]"></div>
+                <div class="group cursor-pointer rounded-lg border bg-white p-3 shadow-md ring-1 accent-ring-soft relative overflow-hidden transition-all hover:-translate-y-0.5" style="border-color: color-mix(in srgb, var(--accent) 20%, transparent);">
+                    <div class="absolute left-0 top-0 bottom-0 w-1" style="background-color: var(--accent);"></div>
                     <div class="flex justify-between mb-1 pl-2">
                         <div class="flex items-center gap-1">
                             <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
@@ -108,7 +128,7 @@
                     <h4 class="text-sm font-semibold text-slate-900 line-clamp-1 pl-2">Erreur 504 Gateway Timeout</h4>
                     <p class="text-[11px] text-slate-500 pl-2 mt-1 line-clamp-1">Le serveur ne répond pas lors de la requête API...</p>
                     <div class="mt-2 flex items-center gap-2 pl-2">
-                        <div class="flex items-center gap-1 text-[10px] font-medium text-[#005F02] bg-[#F2E3BB]/30 px-1.5 py-0.5 rounded">
+                        <div class="flex items-center gap-1 text-[10px] font-medium text-[color:var(--accent)] bg-[#F2E3BB]/30 px-1.5 py-0.5 rounded">
                             OPS-102
                         </div>
                         <div class="ml-auto flex -space-x-1">
@@ -122,7 +142,7 @@
                     <div class="flex justify-between mb-1">
                         <span class="text-[10px] text-slate-400">2h</span>
                     </div>
-                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[#005F02] transition-colors">Problème d'authentification SSO</h4>
+                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[color:var(--accent)] transition-colors">Problème d'authentification SSO</h4>
                     <p class="text-[11px] text-slate-500 mt-1 line-clamp-1">Impossible de se connecter via Okta ce matin.</p>
                     <div class="mt-2 flex items-center gap-2">
                         <div class="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
@@ -135,19 +155,19 @@
                     <div class="flex justify-between mb-1">
                         <span class="text-[10px] text-slate-400">1j</span>
                     </div>
-                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[#005F02] transition-colors">Demande de licence Adobe</h4>
+                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[color:var(--accent)] transition-colors">Demande de licence Adobe</h4>
                     <div class="mt-2 flex items-center gap-2">
                         <div class="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                             LIC-921
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="group cursor-pointer rounded-lg border border-transparent bg-white/50 p-3 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all duration-200">
                     <div class="flex justify-between mb-1">
                         <span class="text-[10px] text-slate-400">2j</span>
                     </div>
-                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[#005F02] transition-colors">Exportation données incomplète</h4>
+                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[color:var(--accent)] transition-colors">Exportation données incomplète</h4>
                     <div class="mt-2 flex items-center gap-2">
                         <div class="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                             DATA-044
@@ -169,7 +189,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button class="text-slate-400 hover:text-[#005F02]"><iconify-icon icon="solar:menu-dots-bold" class="text-xl"></iconify-icon></button>
+                    <button class="text-slate-400 hover:text-[color:var(--accent)]"><iconify-icon icon="solar:menu-dots-bold" class="text-xl"></iconify-icon></button>
                 </div>
             </div>
 
@@ -196,7 +216,7 @@
 
                     <!-- Message Agent -->
                     <div class="flex gap-4 flex-row-reverse">
-                        <div class="h-10 w-10 rounded-full bg-[#005F02] flex-shrink-0 flex items-center justify-center text-white font-bold text-xs">
+                        <div class="h-10 w-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs" style="background-color: var(--accent);">
                             {{ substr(Auth::user()->name, 0, 2) }}
                         </div>
                         <div class="flex-1 text-right max-w-xl">
@@ -204,7 +224,7 @@
                                 <h3 class="text-sm font-bold text-slate-900">Vous</h3>
                                 <span class="text-xs text-slate-400">14:02</span>
                             </div>
-                            <div class="rounded-br-xl rounded-l-xl bg-[#005F02] p-4 shadow-md text-sm text-white text-left inline-block">
+                            <div class="rounded-br-xl rounded-l-xl p-4 shadow-md text-sm text-white text-left inline-block" style="background-color: var(--accent);">
                                 <p>Merci pour le signalement. Nous avons identifié un pic de charge sur le load balancer. Je regarde ça immédiatement.</p>
                             </div>
                         </div>
@@ -225,7 +245,7 @@
 
             <!-- Reply Box -->
             <div class="border-t border-slate-200 bg-white p-4">
-                <div class="mx-auto max-w-3xl rounded-lg border border-slate-300 bg-white shadow-sm ring-4 ring-[#005F02]/5 focus-within:ring-[#005F02]/20 focus-within:border-[#005F02] transition-all">
+                <div class="mx-auto max-w-3xl rounded-lg border border-slate-300 bg-white shadow-sm ring-4 accent-ring-soft accent-focus transition-all">
                     <div class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-3 py-2">
                         <button class="p-1 rounded hover:bg-slate-200 text-slate-500"><iconify-icon icon="solar:text-bold-linear"></iconify-icon></button>
                         <button class="p-1 rounded hover:bg-slate-200 text-slate-500"><iconify-icon icon="solar:link-linear"></iconify-icon></button>
@@ -236,11 +256,11 @@
                     </div>
                     <div class="flex justify-between items-center px-3 py-2 border-t border-slate-50">
                         <div class="flex items-center gap-2">
-                            <button class="text-xs font-medium text-slate-500 hover:text-[#005F02] flex items-center gap-1 px-2 py-1 rounded hover:bg-[#005F02]/5 transition-colors">
+                            <button class="text-xs font-medium text-slate-500 hover:text-[color:var(--accent)] flex items-center gap-1 px-2 py-1 rounded accent-hover-soft transition-colors">
                                 <iconify-icon icon="solar:magic-stick-linear"></iconify-icon> IA Suggestion
                             </button>
                         </div>
-                        <button class="bg-[#005F02] hover:bg-[#004d02] text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-lg shadow-[#005F02]/20 flex items-center gap-2">
+                        <button class="text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all hover:brightness-95 shadow-lg flex items-center gap-2" style="background-color: var(--accent); box-shadow: 0 18px 35px color-mix(in srgb, var(--accent) 22%, transparent);">
                             Envoyer <iconify-icon icon="solar:plain-linear"></iconify-icon>
                         </button>
                     </div>
@@ -252,3 +272,4 @@
     @livewireScripts
 </body>
 </html>
+
