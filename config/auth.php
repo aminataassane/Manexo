@@ -112,4 +112,17 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email verification by OTP
+    |--------------------------------------------------------------------------
+    |
+    | MANEXO uses an OTP code to verify email addresses after registration.
+    |
+    */
+    'email_otp_expires_minutes' => env('AUTH_EMAIL_OTP_EXPIRES_MINUTES', 10),
+    'email_otp_resend_seconds' => env('AUTH_EMAIL_OTP_RESEND_SECONDS', 60),
+    'email_otp_max_attempts' => env('AUTH_EMAIL_OTP_MAX_ATTEMPTS', 5),
+    'email_otp_redis_connection' => env('AUTH_EMAIL_OTP_REDIS_CONNECTION', 'cache'),
+
 ];

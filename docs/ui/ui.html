@@ -1,0 +1,682 @@
+<html lang="fr" class="scroll-smooth"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MANEXO - Base UI &amp; Design System Reference</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+
+        /* Custom Controls */
+        .custom-checkbox:checked + div { background-color: #005F02; border-color: #005F02; }
+        .custom-checkbox:checked + div svg { display: block; }
+        .custom-checkbox:disabled + div { background-color: #f1f5f9; border-color: #cbd5e1; cursor: not-allowed; }
+
+        .custom-radio:checked + div { border-color: #005F02; }
+        .custom-radio:checked + div .dot { transform: scale(1); }
+        .custom-radio:disabled + div { border-color: #cbd5e1; cursor: not-allowed; opacity: 0.6; }
+
+        .custom-switch:checked + div { background-color: #005F02; }
+        .custom-switch:checked + div .dot { transform: translateX(100%); }
+        .custom-switch:disabled + div { opacity: 0.5; cursor: not-allowed; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+
+        /* Utilities */
+        .dashed-border { background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' ry='8' stroke='%23CBD5E1FF' stroke-width='1' stroke-dasharray='8%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e"); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 selection:bg-[#F2E3BB] selection:text-[#005F02] antialiased flex h-screen overflow-hidden">
+
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 border-r border-slate-200 bg-white h-full overflow-y-auto hidden lg:flex flex-col flex-shrink-0 z-20">
+        <div class="p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
+            <div class="flex items-center gap-2 text-[#005F02] mb-1">
+                <iconify-icon icon="solar:layers-minimalistic-linear" width="24" height="24"></iconify-icon>
+                <span class="font-serif font-semibold text-lg tracking-tight">Manexo UI</span>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-[#005F02]/10 text-[#005F02]">v1.2 Ref</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">Base Complète</span>
+            </div>
+        </div>
+        <nav class="p-4 space-y-0.5">
+            <p class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Fondations</p>
+            <a href="#colors" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:palette-linear"></iconify-icon> 1. Couleurs</a>
+            <a href="#typography" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:text-field-linear"></iconify-icon> 2. Typographie</a>
+
+            <p class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 mt-4">Composants</p>
+            <a href="#buttons" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:cursor-square-linear"></iconify-icon> 3. Boutons</a>
+            <a href="#inputs" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:pen-new-square-linear"></iconify-icon> 4. Inputs &amp; Forms</a>
+            <a href="#cards" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:card-linear"></iconify-icon> 5. Cartes</a>
+            <a href="#badges" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:tag-linear"></iconify-icon> 6. Badges &amp; Tags</a>
+            <a href="#tables" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:list-check-linear"></iconify-icon> 8. Tableaux</a>
+
+            <p class="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 mt-4">Système</p>
+            <a href="#feedback" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:bell-linear"></iconify-icon> 9. Feedback</a>
+            <a href="#modals" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:window-frame-linear"></iconify-icon> 10. Modals</a>
+            <a href="#business" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:case-linear"></iconify-icon> 11. UI Métier</a>
+            <a href="#states" class="flex items-center gap-3 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-[#005F02] rounded-lg transition-colors"><iconify-icon icon="solar:file-remove-linear"></iconify-icon> 12. États Page</a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-8 lg:p-12 relative scroll-smooth bg-white">
+
+        <div class="max-w-6xl mx-auto space-y-20 pb-32">
+
+            <!-- Intro Header -->
+            <div class="border-slate-200 border-b pb-10 space-y-6" style="transition: outline 0.1s ease-in-out">
+                <h1 class="font-serif text-4xl font-medium tracking-tight text-[#002e01]">Référence UI Complète</h1>
+                <div class="p-6 bg-slate-50 border border-slate-200 rounded-xl relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-[#005F02]"></div>
+                    <p class="text-sm text-slate-600 leading-relaxed font-medium max-w-3xl">
+                        Une base UI complète a été définie afin de couvrir l’ensemble des composants nécessaires au développement de l’application. Cette base inclut tous les états possibles des éléments (pleins, vides, chargement, erreur), garantissant une cohérence visuelle et fonctionnelle lors du codage.
+                    </p>
+                </div>
+            </div>
+
+            <!-- 1. COLORS -->
+            <section id="colors" class="space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">1. Couleurs (Tokens)</h2>
+                    <span class="text-xs text-slate-400 font-mono">Tailwind Config</span>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Branding -->
+                    <div class="space-y-2 col-span-2 md:col-span-1">
+                        <div class="h-20 rounded-lg bg-[#005F02] shadow-sm flex items-end p-3 text-white text-xs font-mono">#005F02<br>Primary</div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="h-10 rounded bg-[#004d02]"></div>
+                            <div class="h-10 rounded bg-[#005F02]/10 border border-[#005F02]/20"></div>
+                            <div class="h-10 rounded bg-[#F2E3BB]"></div>
+                        </div>
+                        <p class="text-[10px] text-slate-500">Hover / Soft / Accent</p>
+                    </div>
+                    <!-- Semantic -->
+                    <div class="space-y-2">
+                        <div class="h-10 rounded bg-emerald-500 shadow-sm"></div>
+                        <div class="h-10 rounded bg-red-500 shadow-sm"></div>
+                        <div class="h-10 rounded bg-amber-500 shadow-sm"></div>
+                        <p class="text-[10px] text-slate-500">Success / Error / Warning</p>
+                    </div>
+                    <!-- Text/Background -->
+                    <div class="space-y-2">
+                        <div class="h-10 rounded bg-slate-900 shadow-sm"></div>
+                        <div class="h-10 rounded bg-slate-500 shadow-sm"></div>
+                        <div class="h-10 rounded bg-slate-50 border border-slate-200"></div>
+                        <p class="text-[10px] text-slate-500">Txt Main / Txt Sec / Bg Main</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. TYPOGRAPHY -->
+            <section id="typography" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">2. Typographie</h2>
+                </div>
+                <div class="grid md:grid-cols-2 gap-12">
+                    <div class="space-y-6">
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-mono block mb-1">H1 - Page Title (Playfair)</span>
+                            <h1 class="font-serif text-3xl md:text-4xl text-slate-900 tracking-tight">Gérer votre entreprise</h1>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-mono block mb-1">H2 - Section (Inter)</span>
+                            <h2 class="text-2xl font-semibold text-slate-900 tracking-tight">Vue d'ensemble</h2>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 font-mono block mb-1">H3 - Subsection</span>
+                            <h3 class="text-lg font-medium text-slate-900">Détails du ticket</h3>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <p class="text-sm text-slate-900"><strong>Texte Normal:</strong> Le design system permet une cohérence parfaite.</p>
+                        <p class="text-sm text-slate-500"><strong>Texte Secondaire:</strong> Utilisé pour les descriptions moins importantes.</p>
+                        <p class="text-xs text-slate-400"><strong>Texte Muted/Helper:</strong> Information technique ou aide.</p>
+                        <p class="text-xs text-red-600"><strong>Texte Erreur:</strong> Ce champ est requis.</p>
+                        <div class="flex gap-4 text-sm">
+                            <a href="#" class="text-[#005F02] hover:underline">Lien Normal</a>
+                            <a href="#" class="text-slate-400 cursor-not-allowed">Lien Désactivé</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. BUTTONS -->
+            <section id="buttons" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">3. Boutons &amp; États</h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="text-slate-400 font-medium border-b border-slate-100">
+                            <tr>
+                                <th class="pb-3 pr-4">Type</th>
+                                <th class="pb-3 px-4">Normal</th>
+                                <th class="pb-3 px-4">Hover/Active</th>
+                                <th class="pb-3 px-4">Disabled</th>
+                                <th class="pb-3 px-4">Loading</th>
+                                <th class="pb-3 px-4">Avec Icône</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <!-- Primary -->
+                            <tr>
+                                <td class="py-4 font-medium text-slate-700">Principal</td>
+                                <td class="px-4"><button class="px-4 py-2 bg-[#005F02] text-white rounded-lg text-sm font-medium shadow-sm">Action</button></td>
+                                <td class="px-4"><button class="px-4 py-2 bg-[#004d02] text-white rounded-lg text-sm font-medium shadow-sm ring-2 ring-[#005F02]/20">Action</button></td>
+                                <td class="px-4"><button disabled="" class="px-4 py-2 bg-slate-100 text-slate-400 rounded-lg text-sm font-medium cursor-not-allowed">Action</button></td>
+                                <td class="px-4"><button class="px-4 py-2 bg-[#005F02]/80 text-white rounded-lg text-sm font-medium flex gap-2"><iconify-icon icon="solar:spinner-linear" class="animate-spin"></iconify-icon> Wait</button></td>
+                                <td class="px-4"><button class="px-4 py-2 bg-[#005F02] text-white rounded-lg text-sm font-medium flex items-center gap-2"><iconify-icon icon="solar:add-circle-linear"></iconify-icon> Créer</button></td>
+                            </tr>
+                            <!-- Secondary -->
+                            <tr>
+                                <td class="py-4 font-medium text-slate-700">Secondaire</td>
+                                <td class="px-4"><button class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium shadow-sm">Annuler</button></td>
+                                <td class="px-4"><button class="px-4 py-2 bg-slate-50 border border-[#005F02]/30 text-[#005F02] rounded-lg text-sm font-medium">Annuler</button></td>
+                                <td class="px-4"><button disabled="" class="px-4 py-2 bg-slate-50 border border-slate-100 text-slate-300 rounded-lg text-sm font-medium">Annuler</button></td>
+                                <td class="px-4"><button class="px-4 py-2 bg-white border border-slate-200 text-slate-400 rounded-lg text-sm font-medium flex gap-2 justify-center"><iconify-icon icon="solar:spinner-linear" class="animate-spin"></iconify-icon></button></td>
+                                <td class="px-4"><button class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center gap-2"><iconify-icon icon="solar:upload-linear"></iconify-icon> Export</button></td>
+                            </tr>
+                            <!-- Ghost -->
+                            <tr>
+                                <td class="py-4 font-medium text-slate-700">Ghost</td>
+                                <td class="px-4"><button class="px-4 py-2 text-slate-600 rounded-lg text-sm font-medium">Détails</button></td>
+                                <td class="px-4"><button class="px-4 py-2 bg-slate-100 text-slate-900 rounded-lg text-sm font-medium">Détails</button></td>
+                                <td class="px-4"><button disabled="" class="px-4 py-2 text-slate-300 rounded-lg text-sm font-medium">Détails</button></td>
+                                <td class="px-4"><button class="px-4 py-2 text-slate-400 rounded-lg text-sm font-medium"><iconify-icon icon="solar:spinner-linear" class="animate-spin"></iconify-icon></button></td>
+                                <td class="px-4"><button class="px-4 py-2 text-slate-600 rounded-lg text-sm font-medium flex items-center gap-2"><iconify-icon icon="solar:eye-linear"></iconify-icon> Voir</button></td>
+                            </tr>
+                            <!-- Danger -->
+                            <tr>
+                                <td class="py-4 font-medium text-slate-700">Danger</td>
+                                <td class="px-4"><button class="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-sm font-medium">Supprimer</button></td>
+                                <td class="px-4"><button class="px-4 py-2 bg-red-100 text-red-700 border border-red-200 rounded-lg text-sm font-medium">Supprimer</button></td>
+                                <td class="px-4"><button disabled="" class="px-4 py-2 bg-slate-50 text-slate-300 border border-slate-100 rounded-lg text-sm font-medium">Supprimer</button></td>
+                                <td class="px-4">--</td>
+                                <td class="px-4"><button class="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-sm font-medium flex items-center gap-2"><iconify-icon icon="solar:trash-bin-trash-linear"></iconify-icon> Supprimer</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 4. INPUTS & FORMS -->
+            <section id="inputs" class="space-y-8">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">4. Inputs &amp; Formulaires</h2>
+                </div>
+
+                <!-- Input States Matrix -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-slate-700">Vide (Normal)</label>
+                        <input type="text" placeholder="Placeholder..." class="block w-full rounded-lg border-0 bg-white py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-[#005F02] text-sm">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-slate-700">Focus / Active</label>
+                        <input type="text" value="Saisie en cours" class="block w-full rounded-lg border-0 bg-white py-2 px-3 text-slate-900 shadow-sm ring-2 ring-inset ring-[#005F02] text-sm">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-slate-700">Erreur</label>
+                        <div class="relative">
+                            <input type="text" value="Invalide" class="block w-full rounded-lg border-0 bg-white py-2 px-3 text-red-900 shadow-sm ring-1 ring-inset ring-red-300 placeholder:text-red-300 focus:ring-2 focus:ring-red-500 text-sm">
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><iconify-icon icon="solar:danger-circle-linear" class="text-red-500"></iconify-icon></div>
+                        </div>
+                        <p class="text-[10px] text-red-600">Message d'erreur explicite</p>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-slate-400">Désactivé / Read-only</label>
+                        <input type="text" value="Lecture seule" disabled="" class="block w-full rounded-lg border-0 bg-slate-50 py-2 px-3 text-slate-500 shadow-sm ring-1 ring-inset ring-slate-200 cursor-not-allowed text-sm">
+                    </div>
+                </div>
+
+                <hr class="border-slate-100">
+
+                <!-- Complex Inputs -->
+                <div class="grid md:grid-cols-3 gap-6">
+                    <!-- Select -->
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-slate-700">Select (Dropdown)</label>
+                        <div class="relative">
+                            <select class="block w-full appearance-none rounded-lg border-0 bg-slate-50 py-2 pl-3 pr-10 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:bg-white focus:ring-2 focus:ring-[#005F02] text-sm">
+                                <option>Option 1</option>
+                                <option>Option 2</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                <iconify-icon icon="solar:alt-arrow-down-linear"></iconify-icon>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Picker (Simulated) -->
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-slate-700">Date Picker</label>
+                        <div class="relative">
+                            <input type="text" placeholder="JJ/MM/AAAA" class="block w-full rounded-lg border-0 bg-white py-2 pl-10 pr-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-[#005F02] text-sm">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                <iconify-icon icon="solar:calendar-linear" width="16"></iconify-icon>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="space-y-1">
+                        <label class="text-xs font-medium text-slate-700">Recherche</label>
+                        <div class="relative">
+                            <input type="search" placeholder="Rechercher..." class="block w-full rounded-lg border-0 bg-slate-50 py-2 pl-9 pr-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:bg-white focus:ring-2 focus:ring-[#005F02] text-sm">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                <iconify-icon icon="solar:magnifer-linear" width="16"></iconify-icon>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Toggles & Checks -->
+                <div class="flex flex-wrap items-center gap-8 p-4 border border-slate-100 rounded-xl bg-slate-50/50">
+
+                    <!-- Checkbox -->
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" class="custom-checkbox sr-only peer">
+                            <div class="h-5 w-5 rounded border border-slate-300 bg-white flex items-center justify-center transition-all peer-focus:ring-2 peer-focus:ring-[#005F02] peer-focus:ring-offset-1">
+                                <svg class="hidden w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <span class="text-sm text-slate-700">Checkbox vide</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" class="custom-checkbox sr-only peer" checked="">
+                            <div class="h-5 w-5 rounded border border-slate-300 bg-white flex items-center justify-center transition-all peer-focus:ring-2 peer-focus:ring-[#005F02] peer-focus:ring-offset-1">
+                                <svg class="hidden w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <span class="text-sm text-slate-700">Checkbox pleine</span>
+                        </label>
+                    </div>
+
+                    <!-- Radio -->
+                    <div class="space-y-3">
+                        <label class="flex items-center gap-3 cursor-pointer group">
+                            <input type="radio" name="rd1" class="custom-radio sr-only peer" checked="">
+                            <div class="h-5 w-5 rounded-full border border-slate-300 bg-white flex items-center justify-center transition-all peer-focus:ring-2 peer-focus:ring-[#005F02] peer-focus:ring-offset-1">
+                                <div class="dot h-2.5 w-2.5 rounded-full bg-[#005F02] transform scale-0 transition-transform"></div>
+                            </div>
+                            <span class="text-sm text-slate-700">Radio On</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer group">
+                            <input type="radio" name="rd1" class="custom-radio sr-only peer">
+                            <div class="h-5 w-5 rounded-full border border-slate-300 bg-white flex items-center justify-center transition-all peer-focus:ring-2 peer-focus:ring-[#005F02] peer-focus:ring-offset-1">
+                                <div class="dot h-2.5 w-2.5 rounded-full bg-[#005F02] transform scale-0 transition-transform"></div>
+                            </div>
+                            <span class="text-sm text-slate-700">Radio Off</span>
+                        </label>
+                    </div>
+
+                    <!-- Switch -->
+                    <div class="space-y-3">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" class="custom-switch sr-only peer">
+                            <div class="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#005F02] rounded-full peer transition-colors">
+                                <div class="dot absolute top-[2px] left-[2px] bg-white border border-gray-300 h-5 w-5 rounded-full transition-transform"></div>
+                            </div>
+                            <span class="ml-3 text-sm font-medium text-slate-700">Switch Off</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" class="custom-switch sr-only peer" checked="">
+                            <div class="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#005F02] rounded-full peer transition-colors">
+                                <div class="dot absolute top-[2px] left-[2px] bg-white border border-gray-300 h-5 w-5 rounded-full transition-transform"></div>
+                            </div>
+                            <span class="ml-3 text-sm font-medium text-slate-700">Switch On</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- File Upload -->
+                <div class="dashed-border rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors cursor-pointer group">
+                    <div class="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:text-[#005F02] group-hover:bg-[#005F02]/10 mb-2 transition-colors">
+                        <iconify-icon icon="solar:upload-linear" width="20"></iconify-icon>
+                    </div>
+                    <p class="text-sm font-medium text-slate-700">Cliquez pour upload ou glissez un fichier</p>
+                    <p class="text-xs text-slate-400 mt-1">SVG, PNG, JPG ou GIF (max. 5MB)</p>
+                </div>
+            </section>
+
+            <!-- 5. CARDS -->
+            <section id="cards" class="space-y-8">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">5. Cartes (Dashboard Base)</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Simple Card with Header -->
+                    <div class="rounded-xl border border-slate-200 bg-white shadow-sm flex flex-col">
+                        <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+                            <h3 class="text-sm font-semibold text-slate-900">Carte Header</h3>
+                            <button class="text-slate-400 hover:text-[#005F02]"><iconify-icon icon="solar:menu-dots-linear"></iconify-icon></button>
+                        </div>
+                        <div class="p-5 flex-1">
+                            <p class="text-sm text-slate-600">Contenu standard de la carte. Texte descriptif ici.</p>
+                        </div>
+                        <div class="px-5 py-3 bg-slate-50 rounded-b-xl border-t border-slate-100 flex justify-end gap-2">
+                            <button class="text-xs font-medium text-slate-500 hover:text-[#005F02]">Annuler</button>
+                            <button class="text-xs font-medium text-[#005F02]">Sauvegarder</button>
+                        </div>
+                    </div>
+
+                    <!-- KPI Card -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="h-10 w-10 rounded-lg bg-[#F2E3BB]/50 flex items-center justify-center text-[#005F02]">
+                                <iconify-icon icon="solar:wallet-money-linear" width="22"></iconify-icon>
+                            </div>
+                            <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">+12%</span>
+                        </div>
+                        <div class="text-slate-500 text-xs font-medium uppercase tracking-wide">Revenu Total</div>
+                        <div class="text-2xl font-bold text-slate-900 mt-1">24,500 €</div>
+                    </div>
+
+                    <!-- Skeleton Card (Loading State) -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div class="animate-pulse space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="h-10 w-10 bg-slate-200 rounded-lg"></div>
+                                <div class="h-4 w-12 bg-slate-200 rounded"></div>
+                            </div>
+                            <div class="h-3 bg-slate-200 rounded w-1/3"></div>
+                            <div class="h-6 bg-slate-200 rounded w-2/3"></div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State Card -->
+                    <div class="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-6 flex flex-col items-center justify-center text-center h-full min-h-[160px]">
+                        <div class="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 mb-3">
+                            <iconify-icon icon="solar:add-square-linear"></iconify-icon>
+                        </div>
+                        <p class="text-sm font-medium text-slate-600">Aucune donnée</p>
+                        <button class="text-xs text-[#005F02] hover:underline mt-1 font-medium">Ajouter un élément</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 6. BADGES & TAGS -->
+            <section id="badges" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">6. Badges &amp; Tags</h2>
+                </div>
+
+                <div class="flex flex-wrap gap-4 items-center">
+                    <!-- Status -->
+                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-100">Résolu</span>
+                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 border border-amber-100">En cours</span>
+                    <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700 border border-red-100">Urgent</span>
+                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 border border-slate-200">Brouillon</span>
+
+                    <!-- Roles -->
+                    <span class="inline-flex items-center gap-1 rounded bg-[#005F02]/10 px-2 py-1 text-xs font-semibold text-[#005F02]">
+                        <iconify-icon icon="solar:shield-star-linear"></iconify-icon> Admin
+                    </span>
+
+                    <!-- Outline -->
+                    <span class="inline-flex items-center rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-600">Tag Outline</span>
+                </div>
+            </section>
+
+            <!-- 7. NAVIGATION BLOCKS -->
+            <section id="navigation" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">7. Navigation (Components)</h2>
+                </div>
+
+                <!-- Breadcrumbs -->
+                <nav class="flex" aria-label="Breadcrumb">
+                    <ol class="flex items-center space-x-2 text-xs text-slate-500">
+                        <li><a href="#" class="hover:text-[#005F02]">Dashboard</a></li>
+                        <li><iconify-icon icon="solar:alt-arrow-right-linear" class="text-slate-300 text-xs"></iconify-icon></li>
+                        <li><a href="#" class="hover:text-[#005F02]">Tickets</a></li>
+                        <li><iconify-icon icon="solar:alt-arrow-right-linear" class="text-slate-300 text-xs"></iconify-icon></li>
+                        <li class="font-medium text-slate-900">#1234</li>
+                    </ol>
+                </nav>
+
+                <!-- Tabs -->
+                <div class="border-b border-slate-200">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <a href="#" class="border-b-2 border-[#005F02] py-2 px-1 text-sm font-medium text-[#005F02]" aria-current="page">Détails</a>
+                        <a href="#" class="border-b-2 border-transparent py-2 px-1 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700">Historique</a>
+                        <a href="#" class="border-b-2 border-transparent py-2 px-1 text-sm font-medium text-slate-500 hover:border-slate-300 hover:text-slate-700">Fichiers <span class="ml-1 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">2</span></a>
+                    </nav>
+                </div>
+            </section>
+
+            <!-- 8. TABLES -->
+            <section id="tables" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">8. Tableaux &amp; Listes</h2>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                    <!-- Table Toolbar -->
+                    <div class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between gap-4">
+                        <div class="relative max-w-xs w-full">
+                            <input type="text" placeholder="Filtrer..." class="block w-full rounded-md border-0 bg-slate-50 py-1.5 pl-8 text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-1 focus:ring-[#005F02] text-xs">
+                            <iconify-icon icon="solar:magnifer-linear" class="absolute left-2.5 top-2 text-slate-400 text-xs"></iconify-icon>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="p-1.5 rounded bg-white border border-slate-200 text-slate-500 hover:text-[#005F02]"><iconify-icon icon="solar:filter-linear"></iconify-icon></button>
+                            <button class="p-1.5 rounded bg-white border border-slate-200 text-slate-500 hover:text-[#005F02]"><iconify-icon icon="solar:sort-linear"></iconify-icon></button>
+                        </div>
+                    </div>
+
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-50 text-xs uppercase text-slate-500 font-semibold">
+                            <tr>
+                                <th class="px-6 py-3 w-8"><input type="checkbox" class="custom-checkbox rounded border-slate-300"></th>
+                                <th class="px-6 py-3">Nom</th>
+                                <th class="px-6 py-3">Statut</th>
+                                <th class="px-6 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <!-- Selected Row -->
+                            <tr class="bg-[#005F02]/5">
+                                <td class="px-6 py-3"><input type="checkbox" class="custom-checkbox rounded border-slate-300" checked=""></td>
+                                <td class="px-6 py-3 font-medium text-[#005F02]">Agence Design (Sélectionné)</td>
+                                <td class="px-6 py-3"><span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">Actif</span></td>
+                                <td class="px-6 py-3 text-right"><button class="text-slate-400 hover:text-[#005F02]"><iconify-icon icon="solar:menu-dots-linear"></iconify-icon></button></td>
+                            </tr>
+                            <!-- Hover Row -->
+                            <tr class="hover:bg-slate-50 transition-colors cursor-pointer">
+                                <td class="px-6 py-3"><input type="checkbox" class="custom-checkbox rounded border-slate-300"></td>
+                                <td class="px-6 py-3 font-medium text-slate-900">Tech Solutions</td>
+                                <td class="px-6 py-3"><span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">En attente</span></td>
+                                <td class="px-6 py-3 text-right"><button class="text-slate-400 hover:text-[#005F02]"><iconify-icon icon="solar:menu-dots-linear"></iconify-icon></button></td>
+                            </tr>
+                            <!-- Loading Row -->
+                            <tr>
+                                <td class="px-6 py-3" colspan="4">
+                                    <div class="animate-pulse flex space-x-4">
+                                        <div class="h-2 bg-slate-200 rounded w-full"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <!-- Empty State for Table -->
+                    <div class="p-8 text-center border-t border-slate-100 hidden">
+                        <iconify-icon icon="solar:box-minimalistic-linear" class="text-slate-300 text-3xl mb-2"></iconify-icon>
+                        <p class="text-sm text-slate-500">Aucun résultat trouvé.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 9. FEEDBACK & ALERTS -->
+            <section id="feedback" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">9. Feedback &amp; Système</h2>
+                </div>
+
+                <!-- Alerts -->
+                <div class="space-y-3">
+                    <div class="rounded-lg bg-emerald-50 p-4 border border-emerald-100 flex items-start gap-3">
+                        <iconify-icon icon="solar:check-circle-linear" class="text-emerald-600 mt-0.5" width="20"></iconify-icon>
+                        <div>
+                            <h3 class="text-sm font-medium text-emerald-800">Succès</h3>
+                            <p class="text-xs text-emerald-600 mt-1">L'opération a été effectuée correctement.</p>
+                        </div>
+                    </div>
+                    <div class="rounded-lg bg-amber-50 p-4 border border-amber-100 flex items-start gap-3">
+                        <iconify-icon icon="solar:danger-triangle-linear" class="text-amber-600 mt-0.5" width="20"></iconify-icon>
+                        <div>
+                            <h3 class="text-sm font-medium text-amber-800">Attention</h3>
+                            <p class="text-xs text-amber-600 mt-1">Votre session va bientôt expirer.</p>
+                        </div>
+                    </div>
+                    <div class="rounded-lg bg-red-50 p-4 border border-red-100 flex items-start gap-3">
+                        <iconify-icon icon="solar:close-circle-linear" class="text-red-600 mt-0.5" width="20"></iconify-icon>
+                        <div>
+                            <h3 class="text-sm font-medium text-red-800">Erreur Critique</h3>
+                            <p class="text-xs text-red-600 mt-1">Impossible de charger les données.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty States (Generic) -->
+                <div class="rounded-xl border border-slate-200 bg-white p-10 flex flex-col items-center text-center">
+                    <div class="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 mb-4">
+                        <iconify-icon icon="solar:inbox-linear" width="24"></iconify-icon>
+                    </div>
+                    <h3 class="text-sm font-medium text-slate-900">Aucun ticket</h3>
+                    <p class="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Il n'y a pas encore de tickets dans cette vue. Créez-en un pour commencer.</p>
+                    <button class="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-[#005F02] px-4 py-2 text-xs font-medium text-white hover:bg-[#004d02]">
+                        <iconify-icon icon="solar:add-circle-linear"></iconify-icon> Créer un ticket
+                    </button>
+                </div>
+            </section>
+
+            <!-- 10. MODALS (Visual) -->
+            <section id="modals" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">10. Modales (Visuel)</h2>
+                </div>
+
+                <div class="bg-slate-100 rounded-xl p-8 flex items-center justify-center border border-slate-200 dashed-border">
+                    <!-- Static Modal Representation -->
+                    <div class="bg-white rounded-xl shadow-lg w-full max-w-md border border-slate-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                            <h3 class="text-sm font-semibold text-slate-900">Confirmer la suppression</h3>
+                            <button class="text-slate-400 hover:text-slate-600"><iconify-icon icon="solar:close-linear"></iconify-icon></button>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-sm text-slate-600">Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.</p>
+                        </div>
+                        <div class="px-6 py-3 bg-slate-50 flex justify-end gap-3">
+                            <button class="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium">Annuler</button>
+                            <button class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">Supprimer</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 11. BUSINESS UI (MANEXO) -->
+            <section id="business" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">11. UI Métier (Tickets &amp; Entreprise)</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Ticket Card Full -->
+                    <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:border-[#005F02]/30 transition-colors group">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs font-mono text-slate-400">#T-992</span>
+                            <span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700">En cours</span>
+                        </div>
+                        <h4 class="text-sm font-medium text-slate-900 mb-2 group-hover:text-[#005F02] transition-colors">Erreur de synchronisation API</h4>
+                        <div class="flex items-center gap-2 text-xs text-slate-500 mb-4">
+                            <div class="flex items-center gap-1"><iconify-icon icon="solar:user-circle-linear"></iconify-icon> Jean Dupont</div>
+                            <span class="text-slate-300">•</span>
+                            <div class="flex items-center gap-1"><iconify-icon icon="solar:clock-circle-linear"></iconify-icon> 2h</div>
+                        </div>
+                        <div class="border-t border-slate-100 pt-3 flex items-center justify-between text-xs">
+                            <div class="flex -space-x-2">
+                                <div class="h-6 w-6 rounded-full bg-slate-200 border border-white"></div>
+                                <div class="h-6 w-6 rounded-full bg-[#005F02] text-white flex items-center justify-center border border-white text-[9px]">JD</div>
+                            </div>
+                            <div class="flex gap-3 text-slate-400">
+                                <span class="flex items-center gap-1 hover:text-[#005F02]"><iconify-icon icon="solar:paperclip-linear"></iconify-icon> 2</span>
+                                <span class="flex items-center gap-1 hover:text-[#005F02]"><iconify-icon icon="solar:chat-round-dots-linear"></iconify-icon> 5</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Company Selector -->
+                    <div class="space-y-4">
+                        <div class="w-full rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-3 shadow-sm cursor-pointer hover:border-[#005F02]">
+                            <div class="h-10 w-10 rounded-lg bg-[#005F02] text-white flex items-center justify-center font-serif text-lg">M</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-slate-900 truncate">Manexo Agency</div>
+                                <div class="text-[10px] text-slate-500 truncate">Siren: 123 456 789</div>
+                            </div>
+                            <iconify-icon icon="solar:alt-arrow-down-linear" class="text-slate-400 mr-2"></iconify-icon>
+                        </div>
+
+                        <!-- Chat Message Agent -->
+                        <div class="flex gap-3">
+                            <div class="h-8 w-8 rounded-full bg-[#005F02] text-white flex items-center justify-center text-xs shrink-0 mt-1">M</div>
+                            <div class="flex flex-col gap-1">
+                                <div class="bg-slate-50 border border-slate-200 rounded-r-xl rounded-bl-xl p-3 text-sm text-slate-700">
+                                    Bonjour, je prends en charge votre demande.
+                                </div>
+                                <span class="text-[10px] text-slate-400">10:42 • Agent</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+             <!-- 12. PAGE STATES -->
+             <section id="states" class="space-y-6">
+                <div class="border-b border-slate-100 pb-2">
+                    <h2 class="text-sm font-bold text-slate-900 uppercase tracking-widest">12. États de Page (Miniatures)</h2>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Loading Page -->
+                    <div class="aspect-[3/4] rounded-lg border border-slate-200 bg-white p-4 space-y-4 flex flex-col items-center justify-center">
+                        <div class="animate-spin text-[#005F02]"><iconify-icon icon="solar:spinner-linear" width="24"></iconify-icon></div>
+                        <span class="text-[10px] text-slate-400 uppercase tracking-wide">Chargement...</span>
+                    </div>
+
+                    <!-- Empty Page -->
+                    <div class="aspect-[3/4] rounded-lg border border-slate-200 bg-slate-50 flex flex-col items-center justify-center text-center p-4">
+                        <iconify-icon icon="solar:file-remove-linear" class="text-slate-300 text-3xl mb-2"></iconify-icon>
+                        <span class="text-[10px] font-medium text-slate-500">Page Vide</span>
+                    </div>
+
+                    <!-- Error 404 -->
+                    <div class="aspect-[3/4] rounded-lg border border-slate-200 bg-white flex flex-col items-center justify-center text-center p-4 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-red-50/50"></div>
+                        <h1 class="font-serif text-2xl text-red-900/20 font-bold">404</h1>
+                        <span class="text-[10px] font-medium text-red-800 z-10">Introuvable</span>
+                    </div>
+
+                    <!-- Maintenance -->
+                    <div class="aspect-[3/4] rounded-lg border border-slate-200 bg-slate-900 flex flex-col items-center justify-center text-center p-4">
+                        <iconify-icon icon="solar:settings-linear" class="text-[#F2E3BB] text-2xl mb-2 animate-pulse"></iconify-icon>
+                        <span class="text-[10px] font-medium text-[#F2E3BB]">Maintenance</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+
+</body></html>

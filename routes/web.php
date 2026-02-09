@@ -5,28 +5,47 @@ use App\Livewire\Tickets\Create as CreateTicket;
 use App\Livewire\Tickets\Index as TicketsIndex;
 use Illuminate\Support\Facades\Route;
 
+/*
+|--------------------------------------------------------------------------
+| Web Routes (Public + App)
+|--------------------------------------------------------------------------
+|
+| - Public pages (no auth)
+| - Application pages (auth/verified/organization)
+| - Auth routes are defined in routes/auth.php (included at the end)
+|
+*/
+
+/**
+ * Public routes
+ */
 Route::view('/', 'home')->name('home');
 
-Route::view('/organizations', 'organizations.select')
-    ->middleware(['auth', 'verified'])
-    ->name('organizations.select');
+/**
+ * Application routes (must be logged in + email verified)
+ */
+Route::middleware(['auth', 'verified'])->group(function () {
+    // Organization selection (no ensure.organization yet)
+    Route::view('/organizations', 'organizations.select')->name('organizations.select');
 
-Route::view('/dashboard', 'dashboard')
-    ->middleware(['auth', 'verified', 'ensure.organization'])
-    ->name('dashboard');
+    // Profile
+    Route::view('/profile', 'profile')->name('profile');
 
-Route::get('/tickets', TicketsIndex::class)
-    ->middleware(['auth', 'verified', 'ensure.organization'])
-    ->name('tickets.index');
+    // Everything below requires an organization selected
+    Route::middleware(['ensure.organization'])->group(function () {
+        Route::view('/dashboard', 'dashboard')->name('dashboard');
 
-Route::get('/tickets/create', CreateTicket::class)
-    ->middleware(['auth', 'verified', 'ensure.organization'])
-    ->name('tickets.create');
+        Route::get('/tickets', TicketsIndex::class)->name('tickets.index');
+        Route::get('/tickets/create', CreateTicket::class)->name('tickets.create');
+    });
+});
 
-Route::view('/profile', 'profile')
-    ->middleware(['auth', 'verified'])
-    ->name('profile');
-
+/**
+ * Dev / sandbox routes
+ */
 Route::get('/test', Test::class);
 
+/**
+ * Auth routes (login/register/logout/forgot password/verify email)
+ */
 require __DIR__.'/auth.php';

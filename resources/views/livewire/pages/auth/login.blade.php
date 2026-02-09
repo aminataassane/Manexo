@@ -9,99 +9,81 @@ new #[Layout('layouts.guest')] class extends Component
 {
     public LoginForm $form;
 
-    /**
-     * Handle an incoming authentication request.
-     */
     public function login(): void
     {
         $this->validate();
-
         $this->form->authenticate();
-
         Session::regenerate();
-
         $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
     }
 }; ?>
 
-<div>
-    <h1 class="text-3xl font-semibold tracking-tight text-gray-900">
-        Welcome back
-    </h1>
-    <p class="mt-2 text-sm text-gray-500">
-        Log in to access your dashboard and manage your tickets.
-    </p>
-
-    <!-- Session Status -->
-    <x-auth-session-status class="mt-6" :status="session('status')" />
-
-    <form wire:submit="login">
-        <!-- Email Address -->
-        <div class="mt-6">
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input wire:model="form.email" id="email" class="block mt-1 w-full h-11 px-3" type="email" name="email" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('form.email')" class="mt-2" />
-        </div>
-
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-
-            <x-text-input wire:model="form.password" id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
-
-            <x-input-error :messages="$errors->get('form.password')" class="mt-2" />
-        </div>
-
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember" class="inline-flex items-center">
-                <input wire:model="form.remember" id="remember" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
-                <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
-            </label>
-        </div>
-
-        <div class="mt-6 flex items-center justify-between">
-            @if (Route::has('password.request'))
-                <a class="text-sm text-gray-600 hover:text-gray-900 underline" href="{{ route('password.request') }}" wire:navigate>
-                    {{ __('Forgot your password?') }}
-                </a>
-            @endif
-        </div>
-
-        <div class="mt-4">
-            <x-primary-button class="w-full justify-center bg-[#2F39F3] hover:bg-[#2630d6] focus:bg-[#2630d6] active:bg-[#1f28b8] normal-case text-sm tracking-normal py-3">
-                {{ __('Log in') }}
-            </x-primary-button>
-        </div>
-
-        <div class="mt-6">
-            <div class="relative">
-                <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-gray-200"></div>
-                </div>
-                <div class="relative flex justify-center text-xs">
-                    <span class="bg-white px-2 text-gray-400">Or Login With</span>
+<div class="relative z-10 w-full max-w-[400px] px-4">
+    <div class="fade-in shadow-slate-200/50 sm:p-8 bg-white w-full border-slate-100 border rounded-xl p-6 shadow-2xl">
+        
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <div class="inline-flex items-center gap-1.5 mb-3">
+                <div class="relative flex items-center justify-center h-8 w-8 rounded-md bg-[#005F02]/5">
+                    <iconify-icon icon="solar:layers-linear" class="text-[#005F02] text-lg" stroke-width="1.5"></iconify-icon>
                 </div>
             </div>
+            <h1 class="font-serif text-xl font-medium tracking-tight text-[#002e01]">Bon retour</h1>
+            <p class="mt-1 text-xs text-slate-500">Connectez-vous pour accéder à votre espace.</p>
+        </div>
 
-            <div class="mt-4 grid grid-cols-2 gap-3">
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    <span class="font-medium">Google</span>
-                </button>
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    <span class="font-medium">Apple</span>
+        <!-- Session Status -->
+        <x-auth-session-status class="mb-4" :status="session('status')" />
+
+        <!-- Form -->
+        <form wire:submit="login" class="space-y-4">
+            
+            <div class="space-y-1.5">
+                <label for="email" class="block text-[11px] font-medium text-slate-700">Adresse e-mail</label>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <iconify-icon icon="solar:letter-linear" class="text-slate-400 text-sm" stroke-width="1.5"></iconify-icon>
+                    </div>
+                    <input wire:model="form.email" id="email" type="email" autocomplete="email" placeholder="exemple@entreprise.com" required class="block w-full rounded-md border-0 bg-slate-50 py-2 pl-9 pr-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#005F02] text-sm transition-all duration-200">
+                </div>
+                <x-input-error :messages="$errors->get('form.email')" class="mt-1" />
+            </div>
+
+            <div class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                    <label for="password" class="block text-[11px] font-medium text-slate-700">Mot de passe</label>
+                    @if (Route::has('password.request'))
+                        <a href="{{ route('password.request') }}" wire:navigate class="text-[10px] font-medium text-slate-500 hover:text-[#005F02] transition-colors">Mot de passe oublié ?</a>
+                    @endif
+                </div>
+                <div class="relative">
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        <iconify-icon icon="solar:lock-password-linear" class="text-slate-400 text-sm" stroke-width="1.5"></iconify-icon>
+                    </div>
+                    <input wire:model="form.password" id="password" type="password" required class="block w-full rounded-md border-0 bg-slate-50 py-2 pl-9 pr-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#005F02] text-sm transition-all duration-200">
+                </div>
+                <x-input-error :messages="$errors->get('form.password')" class="mt-1" />
+            </div>
+
+            <div class="flex items-center">
+                <input wire:model="form.remember" id="remember" type="checkbox" class="h-3 w-3 rounded border-slate-300 text-[#005F02] focus:ring-[#005F02]">
+                <label for="remember" class="ml-2 block text-[10px] text-slate-500">Se souvenir de moi</label>
+            </div>
+
+            <div class="pt-2">
+                <button type="submit" class="group flex w-full items-center justify-center gap-2 rounded-lg bg-[#005F02] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#004d02] hover:shadow-lg hover:shadow-[#005F02]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005F02] transition-all duration-200 active:scale-[0.98]">
+                    Se connecter
+                    <iconify-icon icon="solar:arrow-right-linear" class="text-white text-sm transition-transform group-hover:translate-x-1" stroke-width="1.5"></iconify-icon>
                 </button>
             </div>
-        </div>
+        </form>
 
-        <div class="mt-6 text-center text-sm text-gray-500">
-            New here?
-            <a class="text-[#2F39F3] hover:text-[#2630d6] font-medium" href="{{ route('register') }}" wire:navigate>
-                Create an account
-            </a>
+        <div class="mt-5 text-center pt-4 border-t border-slate-50">
+            <p class="text-[11px] text-slate-500">
+                Pas encore de compte ? 
+                <a href="{{ route('register') }}" wire:navigate class="font-normal text-[#005F02] hover:underline hover:text-[#004d02] transition-colors">Créer un compte</a>
+            </p>
         </div>
-    </form>
+    </div>
+    <!-- Footer removed here to avoid duplication with layout -->
 </div>

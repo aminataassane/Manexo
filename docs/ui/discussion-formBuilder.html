@@ -1,0 +1,498 @@
+<html lang="fr" class="h-full bg-slate-50 antialiased text-slate-900"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Kit - Discussion &amp; Form Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Playfair+Display:ital,wght@0,600;1,400&amp;display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+        
+        /* Dot Pattern for Canvas */
+        .bg-dot-pattern {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Custom Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #10b981;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #10b981;
+        }
+        
+        /* Hide scrollbar for clean UI but keep functionality */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Animation */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="flex flex-col gap-12 p-6 lg:p-12 w-full max-w-[1600px] mx-auto">
+
+    <!-- HEADER: UI KIT TITLE -->
+    <header class="mb-4">
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">UI Kit Modules</h1>
+        <p class="text-sm text-slate-500 mt-1">Components for Messaging System &amp; Form Builder</p>
+    </header>
+
+    <!-- MODULE 1: DISCUSSION UI -->
+    <section class="grid lg:grid-cols-3 gap-8 items-start">
+        
+        <!-- MAIN CHAT CONTAINER -->
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-xl shadow-slate-200/60 border border-slate-200 overflow-hidden flex flex-col h-[600px] fade-in relative">
+            
+            <!-- 2) Header Discussion -->
+            <div class="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                        Ticket #4092
+                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">Ouvert</span>
+                    </h2>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Dernière activité il y a 2 min</p>
+                </div>
+                
+                <!-- Tabs -->
+                <div class="flex p-1 bg-slate-100 rounded-lg">
+                    <button class="px-3 py-1.5 text-xs font-medium text-slate-900 bg-white rounded-md shadow-sm transition-all">Discussion</button>
+                    <button class="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-all flex items-center gap-1.5">
+                        <iconify-icon icon="solar:lock-password-linear"></iconify-icon> Notes (2)
+                    </button>
+                </div>
+            </div>
+
+            <!-- 1) Zone Messages (Scrollable) -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6 bg-slate-50/30">
+                
+                <!-- 6) Empty State (Hidden via logic, shown here for structure) -->
+                <!-- 
+                <div class="flex flex-col items-center justify-center h-full text-center">
+                    <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3 text-slate-400">
+                        <iconify-icon icon="solar:chat-round-line-linear" width="24"></iconify-icon>
+                    </div>
+                    <p class="text-sm font-medium text-slate-900">Aucun message</p>
+                    <p class="text-xs text-slate-500 mt-1">Démarrez la conversation.</p>
+                </div> 
+                -->
+
+                <!-- 3D) Message Système (Timeline) -->
+                <div class="flex items-center justify-center gap-4">
+                    <div class="h-px bg-slate-200 w-12"></div>
+                    <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Aujourd'hui</span>
+                    <div class="h-px bg-slate-200 w-12"></div>
+                </div>
+
+                <!-- 3A) Message Utilisateur -->
+                <div class="flex items-end gap-3 group">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" class="w-8 h-8 rounded-full border border-slate-200 bg-white">
+                    <div class="flex flex-col gap-1 max-w-[80%]">
+                        <div class="flex items-baseline gap-2 mb-0.5">
+                            <span class="text-xs font-medium text-slate-700">Sophie Martin</span>
+                            <span class="text-[10px] text-slate-400">10:42</span>
+                        </div>
+                        <div class="bg-white border border-slate-200 px-4 py-2.5 rounded-2xl rounded-bl-sm shadow-sm text-sm text-slate-600 leading-relaxed group-hover:shadow-md transition-shadow relative">
+                            Bonjour, j'ai un problème avec la synchronisation de mes fichiers.
+                            
+                            <!-- 7) Actions on hover -->
+                            <div class="absolute -top-3 -right-2 opacity-0 group-hover:opacity-100 transition-opacity flex bg-white rounded-lg shadow-sm border border-slate-200 p-0.5">
+                                <button class="p-1 hover:bg-slate-50 rounded text-slate-400 hover:text-slate-600"><iconify-icon icon="solar:reply-linear"></iconify-icon></button>
+                                <button class="p-1 hover:bg-slate-50 rounded text-slate-400 hover:text-slate-600"><iconify-icon icon="solar:copy-linear"></iconify-icon></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D) Message Système -->
+                <div class="flex justify-center">
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[10px] font-medium text-slate-500">
+                        <iconify-icon icon="solar:user-plus-linear" width="12"></iconify-icon>
+                        Ticket assigné à Marc Dubois
+                    </span>
+                </div>
+
+                <!-- 3C) Message Interne (Private Note) -->
+                <div class="flex items-start gap-3 justify-end group">
+                    <div class="flex flex-col gap-1 items-end max-w-[80%]">
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <iconify-icon icon="solar:lock-keyhole-minimalistic-linear" class="text-amber-500 text-xs"></iconify-icon>
+                            <span class="text-[10px] font-medium text-amber-600 uppercase tracking-wide">Note Interne</span>
+                            <span class="text-[10px] text-slate-400">10:45</span>
+                        </div>
+                        <div class="bg-[#FFFBEB] border border-[#FDE68A] px-4 py-2.5 rounded-2xl rounded-br-sm text-sm text-[#92400E] leading-relaxed relative">
+                            J'ai vérifié les logs, c'est une erreur API 503. Je regarde ça.
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-slate-400">Par Marc Dubois</span>
+                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Marc" alt="Agent" class="w-5 h-5 rounded-full border border-slate-200 grayscale opacity-70">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3B) Message Agent + 4) Attachments -->
+                <div class="flex items-end gap-3 justify-end group">
+                    <div class="flex flex-col gap-1 items-end max-w-[80%]">
+                        <div class="flex items-baseline gap-2 mb-0.5 flex-row-reverse">
+                            <span class="text-xs font-medium text-slate-900">Marc Dubois</span>
+                            <span class="text-[10px] text-slate-400">10:48</span>
+                        </div>
+                        <div class="bg-slate-900 text-white px-4 py-2.5 rounded-2xl rounded-br-sm shadow-md text-sm leading-relaxed">
+                            <p>Pouvez-vous m'envoyer une capture d'écran du message d'erreur ?</p>
+                        </div>
+                    </div>
+                     <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Marc" alt="Agent" class="w-8 h-8 rounded-full border-2 border-white shadow-sm bg-slate-100">
+                </div>
+
+                <!-- 3A) User Response with Attachment -->
+                <div class="flex items-end gap-3">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" class="w-8 h-8 rounded-full border border-slate-200 bg-white">
+                    <div class="flex flex-col gap-1 max-w-[80%]">
+                        <div class="bg-white border border-slate-200 p-1.5 rounded-2xl rounded-bl-sm shadow-sm">
+                            <!-- Attachment UI -->
+                            <div class="relative group cursor-pointer overflow-hidden rounded-xl border border-slate-100 mb-1">
+                                <div class="bg-slate-100 h-24 w-48 flex items-center justify-center text-slate-400">
+                                    <iconify-icon icon="solar:gallery-linear" width="24"></iconify-icon>
+                                </div>
+                                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <iconify-icon icon="solar:eye-linear" width="20"></iconify-icon>
+                                </div>
+                            </div>
+                            <div class="px-2.5 pb-1">
+                                <p class="text-sm text-slate-600">Voici la capture demandée.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 5) Composer -->
+            <div class="p-4 bg-white border-t border-slate-200">
+                <div class="relative rounded-xl border border-slate-300 bg-white shadow-sm focus-within:ring-2 focus-within:ring-slate-900/10 focus-within:border-slate-400 transition-all">
+                    <!-- Textarea -->
+                    <textarea rows="1" class="block w-full resize-none border-0 bg-transparent py-3 px-3 text-slate-900 placeholder:text-slate-400 focus:ring-0 sm:text-sm sm:leading-6" placeholder="Écrivez votre réponse..."></textarea>
+
+                    <!-- Composer Toolbar -->
+                    <div class="flex items-center justify-between py-2 px-2 border-t border-slate-100/50">
+                        <div class="flex items-center gap-1">
+                            <button class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="Joindre un fichier">
+                                <iconify-icon icon="solar:paperclip-linear" width="18"></iconify-icon>
+                            </button>
+                            <button class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="Emoji">
+                                <iconify-icon icon="solar:smile-circle-linear" width="18"></iconify-icon>
+                            </button>
+                            <!-- Note Switcher -->
+                            <div class="h-4 w-px bg-slate-200 mx-1"></div>
+                            <button class="flex items-center gap-1.5 px-2 py-1 text-[11px] font-medium text-amber-600 hover:bg-amber-50 rounded-md transition-colors">
+                                <iconify-icon icon="solar:lock-keyhole-minimalistic-linear"></iconify-icon>
+                                Note interne
+                            </button>
+                        </div>
+                        <button class="inline-flex items-center justify-center rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 transition-all gap-1.5">
+                            Envoyer
+                            <iconify-icon icon="solar:plain-3-bold" width="14"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+                <div class="text-center mt-2">
+                    <p class="text-[10px] text-slate-400">Appuyez sur <span class="font-medium text-slate-500">Cmd + Enter</span> pour envoyer</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIDEBAR INFO (Context) -->
+        <div class="space-y-6">
+            <!-- Customer Card -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Client</h3>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="h-10 w-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-serif text-lg">S</div>
+                    <div>
+                        <div class="text-sm font-medium text-slate-900">Sophie Martin</div>
+                        <div class="text-xs text-slate-500">sophie@company.com</div>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-500">Entreprise</span>
+                        <span class="font-medium text-slate-700">TechFlow Inc.</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-slate-500">Abonnement</span>
+                        <span class="font-medium text-slate-700">Pro Plan</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attachments List -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                 <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Fichiers (3)</h3>
+                 <ul class="space-y-3">
+                     <li class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group">
+                        <div class="h-8 w-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center">
+                            <iconify-icon icon="solar:file-text-linear" width="16"></iconify-icon>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs font-medium text-slate-700 truncate group-hover:text-slate-900">logs_error.pdf</p>
+                            <p class="text-[10px] text-slate-400">2.4 MB</p>
+                        </div>
+                        <button class="ml-auto text-slate-300 hover:text-slate-600"><iconify-icon icon="solar:download-linear"></iconify-icon></button>
+                     </li>
+                     <li class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group">
+                        <div class="h-8 w-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
+                            <iconify-icon icon="solar:gallery-linear" width="16"></iconify-icon>
+                        </div>
+                        <div class="overflow-hidden">
+                            <p class="text-xs font-medium text-slate-700 truncate group-hover:text-slate-900">screenshot_01.png</p>
+                            <p class="text-[10px] text-slate-400">1.1 MB</p>
+                        </div>
+                     </li>
+                 </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- DIVIDER -->
+    <div class="w-full h-px bg-slate-200 my-4"></div>
+
+    <!-- MODULE 2: FORM BUILDER UI -->
+    <section>
+        <header class="mb-6 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-medium text-slate-900">Éditeur de Formulaire</h2>
+                <p class="text-xs text-slate-500">Glissez-déposez des éléments pour construire votre formulaire.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-slate-500 flex items-center gap-1.5">
+                    <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+                    Non enregistré
+                </span>
+                <button class="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-sm transition-all">Aperçu</button>
+                <button class="px-3 py-1.5 text-xs font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 shadow-sm transition-all">Sauvegarder</button>
+            </div>
+        </header>
+
+        <div class="h-[700px] border border-slate-200 bg-white rounded-2xl shadow-xl shadow-slate-200/50 flex overflow-hidden">
+            
+            <!-- 2) & 4) SIDEBAR LEFT: Field Palette & Form List -->
+            <div class="w-64 border-r border-slate-200 bg-white flex flex-col">
+                <!-- Search -->
+                <div class="p-4 border-b border-slate-100">
+                    <div class="relative">
+                        <iconify-icon icon="solar:magnifer-linear" class="absolute left-2.5 top-2.5 text-slate-400 text-sm"></iconify-icon>
+                        <input type="text" placeholder="Rechercher un champ..." class="w-full bg-slate-50 text-xs py-2 pl-8 pr-3 rounded-lg border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all placeholder:text-slate-400">
+                    </div>
+                </div>
+
+                <!-- Palette -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+                    <h3 class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-3">Champs de base</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <!-- Field Item Drag -->
+                        <div class="cursor-grab hover:bg-slate-50 hover:border-slate-300 border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all group active:cursor-grabbing active:scale-95">
+                            <iconify-icon icon="solar:text-field-linear" class="text-slate-500 group-hover:text-slate-900 text-xl"></iconify-icon>
+                            <span class="text-[10px] font-medium text-slate-600 group-hover:text-slate-900">Texte court</span>
+                        </div>
+                        <div class="cursor-grab hover:bg-slate-50 hover:border-slate-300 border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all group">
+                            <iconify-icon icon="solar:text-square-linear" class="text-slate-500 group-hover:text-slate-900 text-xl"></iconify-icon>
+                            <span class="text-[10px] font-medium text-slate-600 group-hover:text-slate-900">Paragraphe</span>
+                        </div>
+                        <div class="cursor-grab hover:bg-slate-50 hover:border-slate-300 border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all group">
+                            <iconify-icon icon="solar:list-arrow-down-linear" class="text-slate-500 group-hover:text-slate-900 text-xl"></iconify-icon>
+                            <span class="text-[10px] font-medium text-slate-600 group-hover:text-slate-900">Sélection</span>
+                        </div>
+                         <div class="cursor-grab hover:bg-slate-50 hover:border-slate-300 border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all group">
+                            <iconify-icon icon="solar:check-square-linear" class="text-slate-500 group-hover:text-slate-900 text-xl"></iconify-icon>
+                            <span class="text-[10px] font-medium text-slate-600 group-hover:text-slate-900">Case à cocher</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-3 mt-6">Avancé</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="cursor-grab hover:bg-slate-50 hover:border-slate-300 border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all group">
+                            <iconify-icon icon="solar:calendar-linear" class="text-slate-500 group-hover:text-slate-900 text-xl"></iconify-icon>
+                            <span class="text-[10px] font-medium text-slate-600 group-hover:text-slate-900">Date</span>
+                        </div>
+                        <div class="cursor-grab hover:bg-slate-50 hover:border-slate-300 border border-slate-200 rounded-lg p-3 flex flex-col items-center justify-center gap-2 text-center transition-all group">
+                            <iconify-icon icon="solar:upload-linear" class="text-slate-500 group-hover:text-slate-900 text-xl"></iconify-icon>
+                            <span class="text-[10px] font-medium text-slate-600 group-hover:text-slate-900">Fichier</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5) CENTER: CANVAS (Editor) -->
+            <div class="flex-1 bg-slate-50 bg-dot-pattern flex flex-col relative overflow-y-auto custom-scrollbar p-8">
+                
+                <!-- Form Container -->
+                <div class="w-full max-w-xl mx-auto space-y-4 pb-20">
+                    
+                    <!-- Form Meta Card -->
+                    <div class="bg-white border-t-4 border-slate-900 rounded-lg shadow-sm border-x border-b border-slate-200 p-6 mb-6">
+                        <h1 class="text-2xl font-serif text-slate-900 mb-2">Formulaire de contact</h1>
+                        <p class="text-sm text-slate-500">Remplissez ce formulaire pour entrer en contact avec notre équipe support.</p>
+                    </div>
+
+                    <!-- 6) Block Champ (Field Item) - Active/Selected -->
+                    <div class="group relative bg-white ring-2 ring-slate-900 rounded-lg shadow-lg p-5 cursor-default transition-all">
+                        <!-- Drag Handle -->
+                        <div class="absolute -left-8 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-slate-500 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">
+                            <iconify-icon icon="solar:menu-dots-linear" width="20"></iconify-icon>
+                        </div>
+                        
+                        <!-- Field Preview -->
+                        <div class="pointer-events-none">
+                            <label class="block text-sm font-medium text-slate-900 mb-1.5">
+                                Nom complet <span class="text-red-500">*</span>
+                            </label>
+                            <div class="block w-full rounded-md border-0 bg-slate-50 py-2 px-3 text-slate-400 shadow-sm ring-1 ring-inset ring-slate-200 text-sm">
+                                Entrez votre nom...
+                            </div>
+                        </div>
+
+                        <!-- Actions Inline -->
+                        <div class="absolute top-2 right-2 flex gap-1">
+                            <button class="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><iconify-icon icon="solar:trash-bin-trash-linear"></iconify-icon></button>
+                            <button class="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"><iconify-icon icon="solar:copy-linear"></iconify-icon></button>
+                        </div>
+                    </div>
+
+                    <!-- Block Champ - Normal -->
+                    <div class="group relative bg-white border border-slate-200 hover:border-slate-300 rounded-lg shadow-sm p-5 cursor-pointer hover:shadow-md transition-all">
+                        <!-- Drag Handle -->
+                        <div class="absolute -left-8 top-1/2 -translate-y-1/2 p-1 text-slate-300 hover:text-slate-500 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity">
+                            <iconify-icon icon="solar:menu-dots-linear" width="20"></iconify-icon>
+                        </div>
+                        
+                        <div class="pointer-events-none opacity-80">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                                Adresse Email
+                            </label>
+                            <div class="block w-full rounded-md border-0 bg-slate-50 py-2 px-3 text-slate-400 shadow-sm ring-1 ring-inset ring-slate-200 text-sm">
+                                exemple@email.com
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Block Champ - Select -->
+                    <div class="group relative bg-white border border-slate-200 hover:border-slate-300 rounded-lg shadow-sm p-5 cursor-pointer hover:shadow-md transition-all">
+                        <div class="pointer-events-none opacity-80">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">
+                                Type de demande
+                            </label>
+                            <div class="relative">
+                                <div class="block w-full rounded-md border-0 bg-slate-50 py-2 px-3 text-slate-400 shadow-sm ring-1 ring-inset ring-slate-200 text-sm flex justify-between items-center">
+                                    Sélectionnez une option
+                                    <iconify-icon icon="solar:alt-arrow-down-linear" class="text-slate-400"></iconify-icon>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Drop Zone Placeholder -->
+                    <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50 hover:bg-slate-100/50 hover:border-slate-400 transition-all">
+                        <iconify-icon icon="solar:add-circle-linear" class="mb-2 text-2xl"></iconify-icon>
+                        <span class="text-xs font-medium">Glissez un champ ici</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 7) RIGHT: PROPERTIES PANEL -->
+            <div class="w-72 border-l border-slate-200 bg-white flex flex-col overflow-y-auto custom-scrollbar">
+                <div class="p-4 border-b border-slate-100">
+                    <h3 class="text-sm font-semibold text-slate-900">Propriétés</h3>
+                    <p class="text-[11px] text-slate-500">Configuration du champ sélectionné</p>
+                </div>
+
+                <div class="p-4 space-y-5">
+                    
+                    <!-- Label Input -->
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-medium text-slate-700 uppercase tracking-wide">Label du champ</label>
+                        <input type="text" value="Nom complet" class="block w-full rounded-md border-0 bg-white py-1.5 px-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-slate-900 sm:text-xs sm:leading-6">
+                    </div>
+
+                    <!-- Placeholder Input -->
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-medium text-slate-700 uppercase tracking-wide">Texte indicatif</label>
+                        <input type="text" value="Entrez votre nom..." class="block w-full rounded-md border-0 bg-white py-1.5 px-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-inset focus:ring-slate-900 sm:text-xs sm:leading-6">
+                    </div>
+
+                    <!-- Toggles -->
+                    <div class="space-y-3 pt-2">
+                        <div class="flex items-center justify-between">
+                            <span class="flex flex-col">
+                                <span class="text-xs font-medium text-slate-900">Obligatoire</span>
+                                <span class="text-[10px] text-slate-500">L'utilisateur doit remplir</span>
+                            </span>
+                            <div class="relative inline-block w-8 h-4 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="toggle1" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:border-slate-900 transition-colors duration-200" checked="">
+                                <label for="toggle1" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <span class="flex flex-col">
+                                <span class="text-xs font-medium text-slate-900">Caché</span>
+                                <span class="text-[10px] text-slate-500">Visible uniquement par admin</span>
+                            </span>
+                            <div class="relative inline-block w-8 h-4 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="toggle2" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:border-slate-900 transition-colors duration-200">
+                                <label for="toggle2" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-300 cursor-pointer"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-100 pt-4 mt-4">
+                        <div class="space-y-1.5">
+                            <label class="text-[11px] font-medium text-slate-700 uppercase tracking-wide">Validation</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span class="text-[10px] text-slate-400 mb-0.5 block">Min car.</span>
+                                    <input type="number" class="block w-full rounded-md border-0 bg-white py-1 px-2 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-slate-900 text-xs">
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-slate-400 mb-0.5 block">Max car.</span>
+                                    <input type="number" class="block w-full rounded-md border-0 bg-white py-1 px-2 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 focus:ring-2 focus:ring-slate-900 text-xs">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 8) Visibility Rules (Radio) -->
+                    <div class="border-t border-slate-100 pt-4 mt-4">
+                        <label class="text-[11px] font-medium text-slate-700 uppercase tracking-wide mb-2 block">Visibilité</label>
+                        <div class="space-y-2">
+                            <div class="flex items-center">
+                                <input id="vis-public" name="visibility" type="radio" class="h-3 w-3 border-slate-300 text-slate-900 focus:ring-slate-900" checked="">
+                                <label for="vis-public" class="ml-2 block text-xs text-slate-700">Public</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input id="vis-internal" name="visibility" type="radio" class="h-3 w-3 border-slate-300 text-slate-900 focus:ring-slate-900">
+                                <label for="vis-internal" class="ml-2 block text-xs text-slate-700">Interne uniquement</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input id="vis-targeted" name="visibility" type="radio" class="h-3 w-3 border-slate-300 text-slate-900 focus:ring-slate-900">
+                                <label for="vis-targeted" class="ml-2 block text-xs text-slate-700">Ciblé (Rôles)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+
+</body></html>
