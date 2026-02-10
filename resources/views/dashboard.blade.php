@@ -1,282 +1,499 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-slate-50">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tableau de bord - MANEXO</title>
+{{-- resources/views/dashboard.blade.php --}}
+<x-manexo-app-layout>
+    <x-slot name="title">Tableau de bord</x-slot>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
+    @php
+        $user = Auth::user();
+        $org = request()->attributes->get('currentOrganization')
+            ?? \App\Models\Organization::find(session('current_organization_id'));
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .font-serif { font-family: 'Playfair Display', serif; }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #E5E7EB; border-radius: 20px; }
-
-        .cursor-blink { animation: blink 1s step-end infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-
-        /* Organization accent color (CSS variable: --accent) */
-        ::selection { background: #F2E3BB; color: var(--accent); }
-
-        .accent-ring-soft {
-            --tw-ring-color: rgba(0, 95, 2, 0.10);
-            --tw-ring-color: color-mix(in srgb, var(--accent) 10%, transparent);
+        $role = 'member';
+        if ($org && $user) {
+            $role = $user->organizations()->whereKey($org->id)->first()?->pivot?->role ?: 'member';
         }
-        .accent-focus:focus-within {
-            --tw-ring-color: rgba(0, 95, 2, 0.22);
-            --tw-ring-color: color-mix(in srgb, var(--accent) 22%, transparent);
-            border-color: var(--accent);
-        }
-        .accent-hover-soft:hover {
-            background-color: rgba(0, 95, 2, 0.06);
-            background-color: color-mix(in srgb, var(--accent) 8%, transparent);
-        }
-    </style>
-</head>
-@php
-    $accent = ($currentOrganization?->primary_color ?? '#005F02');
-@endphp
-<body
-    class="flex h-screen w-full flex-col overflow-hidden bg-white text-slate-800 antialiased"
-    style="
-        --accent: {{ $accent }};
-        --accent-surface: #002e01;
-        --accent-surface: color-mix(in srgb, var(--accent) 55%, #002e01);
-    "
->
 
-    <!-- Top Bar -->
-    <div class="flex h-14 shrink-0 items-center justify-between border-b border-white/10 px-4 text-white" style="background-color: var(--accent-surface);">
-        <div class="flex items-center gap-4">
-            <a href="{{ route('dashboard') }}" class="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-[#F2E3BB] to-[#d6c79e] text-[#002e01] shadow-sm hover:opacity-90 transition-opacity">
-                <span class="font-serif font-bold">M</span>
+        $orgId = $org?->id;
+        $orgName = $org?->name ?? '—';
+
+        $statusLabel = function (string $status): string {
+            return match ($status) {
+                'open' => 'Ouvert',
+                'in_progress' => 'En cours',
+                'pending' => 'En attente',
+                'resolved' => 'Résolu',
+                'closed' => 'Fermé',
+                default => ucfirst(str_replace('_', ' ', $status)),
+            };
+        };
+
+        $statusPill = function (string $status): array {
+            return match ($status) {
+                'open' => ['bg' => 'bg-red-50', 'text' => 'text-red-700', 'border' => 'border-red-100'],
+                'in_progress' => ['bg' => 'bg-[color:var(--accent-soft)]', 'text' => 'text-[color:var(--accent)]', 'border' => 'border-[color:var(--accent-soft)]'],
+                'pending' => ['bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-100'],
+                'resolved', 'closed' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-100'],
+                default => ['bg' => 'bg-slate-50', 'text' => 'text-slate-700', 'border' => 'border-slate-200'],
+            };
+        };
+    @endphp
+
+    <!-- HEADER -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-xl font-semibold text-[#111827] tracking-tight">Tableau de bord</h1>
+            <p class="text-sm text-[#6B7280] mt-1">
+                Vue d'ensemble de l'activité de support pour
+                <span class="font-medium text-[#111827]">{{ $orgName }}</span>.
+            </p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <a href="{{ route('tickets.index') }}"
+               class="h-9 sm:h-8 px-3 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-medium rounded-md shadow-sm hover:bg-[#F9FAFB] transition-all flex items-center justify-center sm:justify-start gap-2 w-full sm:w-auto">
+                <iconify-icon icon="solar:list-linear" width="16"></iconify-icon>
+                Voir tous les tickets
             </a>
-        </div>
 
-        <div class="flex w-96 items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-xs text-white/60 ring-1 ring-white/10 focus-within:ring-[#F2E3BB] focus-within:bg-white/15 transition-all">
-            <iconify-icon icon="solar:magnifer-linear" class="text-base"></iconify-icon>
-            <input type="text" placeholder="Rechercher..." class="bg-transparent w-full border-none outline-none placeholder-white/40 text-white focus:ring-0">
-        </div>
-
-        <div class="flex items-center gap-4">
-            <div class="relative group">
-                <iconify-icon icon="solar:bell-linear" class="text-xl text-white/60 group-hover:text-white cursor-pointer transition-colors"></iconify-icon>
-                <span class="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 border" style="border-color: var(--accent-surface);"></span>
-            </div>
-
-            <!-- User Profile Link -->
-            <a href="{{ route('profile') }}" class="flex items-center gap-2 cursor-pointer hover:bg-white/5 rounded-full pr-3 pl-1 py-1 transition-colors">
-                <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=0D8ABC&color=fff" alt="Profile" class="h-7 w-7 rounded-full border border-white/20">
-                <span class="text-xs font-medium hidden sm:block">{{ Auth::user()->name }}</span>
+            <a href="{{ route('tickets.create') }}"
+               class="h-9 sm:h-8 px-3 text-white text-[13px] font-medium rounded-md shadow-sm transition-colors flex items-center justify-center sm:justify-start gap-2 w-full sm:w-auto bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]">
+                <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
+                Créer un ticket
             </a>
         </div>
     </div>
 
-    <!-- Interface -->
-    <div class="flex flex-1 overflow-hidden">
+    {{-- ===================== ADMIN / OWNER ===================== --}}
+    @if (in_array($role, ['owner', 'admin'], true))
+        @php
+            $open = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('status', 'open')->count();
+            $inProgress = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('status', 'in_progress')->count();
+            $pending = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('status', 'pending')->count();
+            $resolved7d = \App\Models\Ticket::query()
+                ->where('organization_id', $orgId)
+                ->whereIn('status', ['resolved', 'closed'])
+                ->where('updated_at', '>=', now()->subDays(7))
+                ->count();
 
-        <!-- Sidebar -->
-        <div class="flex w-16 flex-col items-center border-r border-white/10 py-4 gap-6 z-10" style="background-color: var(--accent-surface);">
-            <a href="{{ route('tickets.index') }}" class="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg bg-[#F2E3BB]/10 text-[#F2E3BB] transition-all hover:bg-[#F2E3BB] hover:text-[#002e01]" title="Tickets">
-                <iconify-icon icon="solar:inbox-line-linear" class="text-xl"></iconify-icon>
-            </a>
-            <a href="#" class="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-white/40 transition-all hover:bg-white/10 hover:text-[#F2E3BB]" title="Tâches">
-                <iconify-icon icon="solar:checklist-minimalistic-linear" class="text-xl"></iconify-icon>
-            </a>
-            <a href="#" class="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-white/40 transition-all hover:bg-white/10 hover:text-[#F2E3BB]" title="Équipe">
-                <iconify-icon icon="solar:users-group-rounded-linear" class="text-xl"></iconify-icon>
-            </a>
-            <a href="#" class="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-white/40 transition-all hover:bg-white/10 hover:text-[#F2E3BB]" title="Rapports">
-                <iconify-icon icon="solar:graph-up-linear" class="text-xl"></iconify-icon>
-            </a>
+            // Postgres-compatible: tri par niveau de priorité (ticket_priorities.level)
+            $priorityTickets = \App\Models\Ticket::query()
+                ->where('tickets.organization_id', $orgId)
+                ->whereIn('tickets.status', ['open', 'in_progress', 'pending'])
+                ->join('ticket_priorities', 'tickets.ticket_priority_id', '=', 'ticket_priorities.id')
+                ->orderByDesc('ticket_priorities.level')
+                ->orderByDesc('tickets.updated_at')
+                ->select('tickets.*')
+                ->with(['priority'])
+                ->limit(5)
+                ->get();
+        @endphp
 
-            <div class="mt-auto">
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-white/40 transition-all hover:bg-red-500/10 hover:text-red-400" title="Déconnexion">
-                        <iconify-icon icon="solar:logout-2-linear" class="text-xl"></iconify-icon>
+        <!-- KPI CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:border-red-200 transition-colors group cursor-pointer">
+                <div class="flex justify-between items-start">
+                    <span class="text-[13px] font-medium text-[#6B7280]">Ouverts</span>
+                    <div class="w-6 h-6 rounded bg-red-50 text-red-600 flex items-center justify-center group-hover:bg-red-100 transition-colors">
+                        <iconify-icon icon="solar:danger-circle-linear" width="14"></iconify-icon>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $open }}</span>
+                    <span class="text-[11px] text-[#6B7280] ml-1">à traiter</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-[color:var(--accent-soft-2)]">
+                <div class="flex justify-between items-start">
+                    <span class="text-[13px] font-medium text-[#6B7280]">En cours</span>
+                    <div class="w-6 h-6 rounded flex items-center justify-center" style="background: var(--accent-soft); color: var(--accent);">
+                        <iconify-icon icon="solar:clock-circle-linear" width="14"></iconify-icon>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $inProgress }}</span>
+                    <span class="text-[11px] text-[#6B7280] ml-1">actifs</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:border-amber-200 transition-colors group cursor-pointer">
+                <div class="flex justify-between items-start">
+                    <span class="text-[13px] font-medium text-[#6B7280]">En attente</span>
+                    <div class="w-6 h-6 rounded bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
+                        <iconify-icon icon="solar:pause-circle-linear" width="14"></iconify-icon>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $pending }}</span>
+                    <span class="text-[11px] text-[#6B7280] ml-1">réponse client</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between hover:border-[color:var(--accent)] transition-colors group cursor-pointer">
+                <div class="flex justify-between items-start">
+                    <span class="text-[13px] font-medium text-[#6B7280]">Résolus (7j)</span>
+                    <div class="w-6 h-6 rounded flex items-center justify-center" style="background: var(--accent-soft); color: var(--accent);">
+                        <iconify-icon icon="solar:check-circle-linear" width="14"></iconify-icon>
+                    </div>
+                </div>
+                <div class="mt-3 flex items-end justify-between">
+                    <div>
+                        <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $resolved7d }}</span>
+                        <span class="text-[11px] font-medium ml-1" style="color: var(--accent);">—</span>
+                    </div>
+                    <div class="text-[10px] text-[#6B7280] font-medium">Avg. —</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN SPLIT LAYOUT -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <!-- LEFT -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- GRAPH -->
+                <div class="bg-white rounded-lg border border-[#E5E7EB] p-4 shadow-sm">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-sm font-semibold text-[#111827]">Activité des tickets</h3>
+                        <div class="flex bg-[#F9FAFB] p-0.5 rounded-md border border-[#E5E7EB]">
+                            <button class="px-2 py-0.5 text-[11px] font-medium bg-white rounded shadow-sm text-[#111827]">7 jours</button>
+                            <button class="px-2 py-0.5 text-[11px] font-medium text-[#6B7280] hover:text-[#111827]">30 jours</button>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 w-full h-32 pr-2 pl-2 items-end justify-between">
+                        @foreach (['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'] as $i => $day)
+                            @php
+                                $outer = [40,65,50,80,45,30,20][$i];
+                                $inner = [60,40,80,30,50,20,10][$i];
+                            @endphp
+                            <div class="flex flex-col items-center gap-2 w-full group">
+                                <div class="w-full max-w-[24px] bg-[#F9FAFB] rounded-sm bar relative" style="height: {{ $outer }}%;">
+                                    <div class="absolute bottom-0 w-full rounded-sm" style="background: var(--accent); height: {{ $inner }}%;"></div>
+                                </div>
+                                <span class="text-[10px] text-[#6B7280]">{{ $day }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <!-- PRIORITY TICKETS -->
+                <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-[#111827]">Tickets prioritaires</h3>
+                        <a class="text-xs font-medium hover:opacity-80" style="color: var(--accent);" href="{{ route('tickets.index') }}">Voir tout</a>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full min-w-[640px] text-left border-collapse">
+                            <thead class="bg-[#F9FAFB] text-[11px] uppercase text-[#6B7280] font-medium tracking-wider whitespace-nowrap">
+                            <tr>
+                                <th class="px-4 py-2 font-medium w-24">ID</th>
+                                <th class="px-4 py-2 font-medium">Sujet</th>
+                                <th class="px-4 py-2 font-medium w-28">Statut</th>
+                                <th class="px-4 py-2 font-medium w-28 text-right">Activité</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-[#E5E7EB]">
+                            @forelse ($priorityTickets as $t)
+                                @php $pill = $statusPill((string) $t->status); @endphp
+                                <tr class="group hover:bg-[#F9FAFB] cursor-pointer transition-colors">
+                                    <td class="px-4 py-3 text-xs font-mono text-[#6B7280] group-hover:text-[#111827]">#{{ $t->id }}</td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-medium text-[#111827] truncate max-w-[260px] sm:max-w-xs">{{ $t->subject }}</span>
+                                            @if (($t->priority?->level ?? 0) >= 80)
+                                                <iconify-icon icon="solar:fire-bold" class="text-red-500" width="12"></iconify-icon>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
+                                            {{ $statusLabel((string) $t->status) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right text-xs text-[#6B7280]">{{ $t->updated_at?->diffForHumans() }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="4" class="px-4 py-6 text-center text-sm text-[#6B7280]">Aucun ticket.</td></tr>
+                            @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT -->
+            <div class="space-y-6">
+                <!-- DISCUSSIONS (mock) -->
+                <div class="bg-white border-[#E5E7EB] border rounded-lg p-4 shadow-sm">
+                    <div class="flex mb-4 items-center justify-between">
+                        <h3 class="text-sm font-semibold text-[#111827] flex items-center gap-2">
+                            Discussions
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                        </h3>
+                        <iconify-icon icon="solar:chat-line-linear" class="text-[#6B7280]"></iconify-icon>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="group flex gap-3 cursor-pointer p-2 -mx-2 hover:bg-[#F9FAFB] rounded-md transition-colors">
+                            <div class="relative">
+                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie" class="w-8 h-8 rounded-full bg-[#F9FAFB] border border-[#E5E7EB]" alt="">
+                                <div class="absolute -bottom-0.5 -right-0.5 bg-blue-500 rounded-full p-[2px] border border-white">
+                                    <iconify-icon icon="solar:chat-round-linear" class="text-white text-[8px]"></iconify-icon>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-baseline mb-0.5">
+                                    <span class="text-xs font-medium text-[#111827]">Sophie (Client)</span>
+                                    <span class="text-[10px] text-[#6B7280]">10m</span>
+                                </div>
+                                <p class="text-[11px] text-[#6B7280] truncate">Merci, ça fonctionne maintenant !</p>
+                                <p class="text-[10px] text-[#6B7280] mt-0.5">Ticket #2940</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="w-full mt-3 py-2 text-xs font-medium text-[#6B7280] hover:text-[#111827] border border-[#E5E7EB] hover:bg-[#F9FAFB] rounded transition-all">
+                        Voir toutes les discussions
                     </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Ticket List (Static Mockup for now, as requested "visual dashboard") -->
-        <div class="flex w-80 flex-col border-r border-slate-200 bg-slate-50/50 hidden md:flex">
-            <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                <div class="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-tight">
-                    Vues Tickets
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-slate-400">En direct</span>
-                    <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-                </div>
-            </div>
-
-            <!-- Ticket Items -->
-            <div class="flex-1 overflow-y-auto px-2 py-2 space-y-2 custom-scrollbar">
-                <!-- Active Ticket -->
-                <div class="group cursor-pointer rounded-lg border bg-white p-3 shadow-md ring-1 accent-ring-soft relative overflow-hidden transition-all hover:-translate-y-0.5" style="border-color: color-mix(in srgb, var(--accent) 20%, transparent);">
-                    <div class="absolute left-0 top-0 bottom-0 w-1" style="background-color: var(--accent);"></div>
-                    <div class="flex justify-between mb-1 pl-2">
-                        <div class="flex items-center gap-1">
-                            <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
-                            <span class="text-[10px] text-slate-400 font-medium">En cours</span>
-                        </div>
-                        <span class="text-[10px] text-slate-400">12m</span>
-                    </div>
-                    <h4 class="text-sm font-semibold text-slate-900 line-clamp-1 pl-2">Erreur 504 Gateway Timeout</h4>
-                    <p class="text-[11px] text-slate-500 pl-2 mt-1 line-clamp-1">Le serveur ne répond pas lors de la requête API...</p>
-                    <div class="mt-2 flex items-center gap-2 pl-2">
-                        <div class="flex items-center gap-1 text-[10px] font-medium text-[color:var(--accent)] bg-[#F2E3BB]/30 px-1.5 py-0.5 rounded">
-                            OPS-102
-                        </div>
-                        <div class="ml-auto flex -space-x-1">
-                            <div class="h-5 w-5 rounded-full bg-slate-200 border border-white"></div>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Other Tickets -->
-                <div class="group cursor-pointer rounded-lg border border-transparent bg-white/50 p-3 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all duration-200">
-                    <div class="flex justify-between mb-1">
-                        <span class="text-[10px] text-slate-400">2h</span>
-                    </div>
-                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[color:var(--accent)] transition-colors">Problème d'authentification SSO</h4>
-                    <p class="text-[11px] text-slate-500 mt-1 line-clamp-1">Impossible de se connecter via Okta ce matin.</p>
-                    <div class="mt-2 flex items-center gap-2">
-                        <div class="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            APPS-216
+                <!-- RECENT ACTIVITY (mock) -->
+                <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4">
+                    <h3 class="text-sm font-semibold text-[#111827] mb-4">Activité récente</h3>
+                    <div class="relative pl-4 border-l border-[#E5E7EB] space-y-6">
+                        <div class="relative">
+                            <div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full ring-4 ring-white" style="background: var(--accent);"></div>
+                            <p class="text-xs text-[#111827]">Ticket <span class="font-medium">#—</span> résolu</p>
+                            <p class="text-[10px] text-[#6B7280] mt-0.5">Il y a 5 min</p>
                         </div>
-                    </div>
-                </div>
-
-                <div class="group cursor-pointer rounded-lg border border-transparent bg-white/50 p-3 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all duration-200">
-                    <div class="flex justify-between mb-1">
-                        <span class="text-[10px] text-slate-400">1j</span>
-                    </div>
-                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[color:var(--accent)] transition-colors">Demande de licence Adobe</h4>
-                    <div class="mt-2 flex items-center gap-2">
-                        <div class="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            LIC-921
+                        <div class="relative">
+                            <div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full bg-[#E5E7EB] ring-4 ring-white"></div>
+                            <p class="text-xs text-[#111827]">Nouveau ticket créé</p>
+                            <p class="text-[10px] text-[#6B7280] mt-0.5">Il y a 12 min</p>
                         </div>
-                    </div>
-                </div>
-
-                <div class="group cursor-pointer rounded-lg border border-transparent bg-white/50 p-3 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all duration-200">
-                    <div class="flex justify-between mb-1">
-                        <span class="text-[10px] text-slate-400">2j</span>
-                    </div>
-                    <h4 class="text-sm font-medium text-slate-700 group-hover:text-[color:var(--accent)] transition-colors">Exportation données incomplète</h4>
-                    <div class="mt-2 flex items-center gap-2">
-                        <div class="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            DATA-044
+                        <div class="relative">
+                            <div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full ring-4 ring-white" style="background: var(--accent-soft-2);"></div>
+                            <p class="text-xs text-[#111827]">Assignation modifiée</p>
+                            <p class="text-[10px] text-[#6B7280] mt-0.5">Il y a 1h</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Conversation Area (Animated) -->
-        <div class="flex flex-1 flex-col bg-white">
-            <div class="border-b border-slate-100 px-6 py-4 flex justify-between items-center bg-white sticky top-0 z-10">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-900">Erreur 504 Gateway Timeout</h2>
-                    <div class="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                        <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Haute Priorité</span>
-                        <span>•</span>
-                        <span>Client: TechFlow SAS</span>
-                    </div>
+    {{-- ===================== AGENT ===================== --}}
+    @elseif ($role === 'agent')
+        @php
+            $open = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('status', 'open')->count();
+
+            $assignedToMe = \App\Models\Ticket::query()
+                ->where('organization_id', $orgId)
+                ->where('assigned_to', $user?->id)
+                ->whereIn('status', ['open', 'pending', 'in_progress'])
+                ->count();
+
+            $maxLevel = \App\Models\TicketPriority::query()->where('organization_id', $orgId)->max('level') ?? 0;
+
+            $urgent = \App\Models\Ticket::query()
+                ->where('organization_id', $orgId)
+                ->whereIn('status', ['open', 'pending', 'in_progress'])
+                ->whereHas('priority', fn ($q) => $q->where('level', '>=', max(0, (int) $maxLevel)))
+                ->count();
+
+            $waitingClient = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('status', 'pending')->count();
+
+            $ticketsToTreat = \App\Models\Ticket::query()
+                ->where('organization_id', $orgId)
+                ->whereIn('status', ['open', 'pending', 'in_progress'])
+                ->with(['priority'])
+                ->orderByDesc('updated_at')
+                ->limit(5)
+                ->get();
+        @endphp
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div class="text-[13px] font-medium text-[#6B7280]">Tickets ouverts</div>
+                <div class="mt-2 text-2xl font-semibold text-[#111827] tracking-tight">{{ $open }}</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div class="text-[13px] font-medium text-[#6B7280]">Assignés à moi</div>
+                <div class="mt-2 text-2xl font-semibold text-[#111827] tracking-tight">{{ $assignedToMe }}</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div class="text-[13px] font-medium text-[#6B7280]">Urgents</div>
+                <div class="mt-2 text-2xl font-semibold text-[#111827] tracking-tight">{{ $urgent }}</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div class="text-[13px] font-medium text-[#6B7280]">En attente client</div>
+                <div class="mt-2 text-2xl font-semibold text-[#111827] tracking-tight">{{ $waitingClient }}</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div class="lg:col-span-2 bg-white rounded-lg border border-[#E5E7EB] shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-[#111827]">Tickets à traiter</h3>
+                    <a class="text-xs font-medium hover:opacity-80" style="color: var(--accent);" href="{{ route('tickets.index') }}">Voir tout</a>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button class="text-slate-400 hover:text-[color:var(--accent)]"><iconify-icon icon="solar:menu-dots-bold" class="text-xl"></iconify-icon></button>
+
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full min-w-[640px] text-left border-collapse">
+                        <thead class="bg-[#F9FAFB] text-[11px] uppercase text-[#6B7280] font-medium tracking-wider whitespace-nowrap">
+                        <tr>
+                            <th class="px-4 py-2 font-medium w-24">ID</th>
+                            <th class="px-4 py-2 font-medium">Sujet</th>
+                            <th class="px-4 py-2 font-medium w-28">Statut</th>
+                            <th class="px-4 py-2 font-medium w-28 text-right">Activité</th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E5E7EB]">
+                        @forelse ($ticketsToTreat as $t)
+                            @php $pill = $statusPill((string) $t->status); @endphp
+                            <tr class="group hover:bg-[#F9FAFB] cursor-pointer transition-colors">
+                                <td class="px-4 py-3 text-xs font-mono text-[#6B7280] group-hover:text-[#111827]">#{{ $t->id }}</td>
+                                <td class="px-4 py-3">
+                                    <span class="text-xs font-medium text-[#111827] truncate max-w-[320px]">{{ $t->subject }}</span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
+                                        {{ $statusLabel((string) $t->status) }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right text-xs text-[#6B7280]">{{ $t->updated_at?->diffForHumans() }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="px-4 py-6 text-center text-sm text-[#6B7280]">Aucun ticket.</td></tr>
+                        @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
-                <div class="space-y-6 max-w-3xl mx-auto">
-                    <!-- Date Separator -->
-                    <div class="flex items-center justify-center">
-                        <span class="text-[10px] font-medium text-slate-400 bg-slate-100 px-3 py-1 rounded-full">Aujourd'hui</span>
-                    </div>
-
-                    <!-- Message Client -->
-                    <div class="flex gap-4">
-                        <div class="h-10 w-10 rounded-full bg-slate-200 flex-shrink-0 flex items-center justify-center text-slate-500 text-xs font-bold">AH</div>
-                        <div class="flex-1 max-w-xl">
-                            <div class="flex items-baseline justify-between mb-1">
-                                <h3 class="text-sm font-bold text-slate-900">Allie Harmon</h3>
-                                <span class="text-xs text-slate-400">13:30</span>
-                            </div>
-                            <div class="rounded-bl-xl rounded-r-xl bg-white p-4 shadow-sm border border-slate-100 text-sm text-slate-600">
-                                <p>Bonjour, nous rencontrons toujours des latences sur le serveur principal depuis la mise à jour de ce matin. Impossible d'accéder au back-office par moment.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Message Agent -->
-                    <div class="flex gap-4 flex-row-reverse">
-                        <div class="h-10 w-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs" style="background-color: var(--accent);">
-                            {{ substr(Auth::user()->name, 0, 2) }}
-                        </div>
-                        <div class="flex-1 text-right max-w-xl">
-                            <div class="flex items-baseline justify-between flex-row-reverse mb-1">
-                                <h3 class="text-sm font-bold text-slate-900">Vous</h3>
-                                <span class="text-xs text-slate-400">14:02</span>
-                            </div>
-                            <div class="rounded-br-xl rounded-l-xl p-4 shadow-md text-sm text-white text-left inline-block" style="background-color: var(--accent);">
-                                <p>Merci pour le signalement. Nous avons identifié un pic de charge sur le load balancer. Je regarde ça immédiatement.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Typing Indicator -->
-                    <div class="flex gap-4">
-                        <div class="h-8 w-8 flex items-center justify-center">
-                            <div class="flex gap-1">
-                                <span class="h-1.5 w-1.5 rounded-full bg-slate-300 animate-bounce"></span>
-                                <span class="h-1.5 w-1.5 rounded-full bg-slate-300 animate-bounce" style="animation-delay: 0.2s"></span>
-                                <span class="h-1.5 w-1.5 rounded-full bg-slate-300 animate-bounce" style="animation-delay: 0.4s"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Reply Box -->
-            <div class="border-t border-slate-200 bg-white p-4">
-                <div class="mx-auto max-w-3xl rounded-lg border border-slate-300 bg-white shadow-sm ring-4 accent-ring-soft accent-focus transition-all">
-                    <div class="flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-3 py-2">
-                        <button class="p-1 rounded hover:bg-slate-200 text-slate-500"><iconify-icon icon="solar:text-bold-linear"></iconify-icon></button>
-                        <button class="p-1 rounded hover:bg-slate-200 text-slate-500"><iconify-icon icon="solar:link-linear"></iconify-icon></button>
-                        <button class="p-1 rounded hover:bg-slate-200 text-slate-500"><iconify-icon icon="solar:paperclip-linear"></iconify-icon></button>
-                    </div>
-                    <div class="p-3">
-                        <textarea class="w-full resize-none border-none bg-transparent p-0 text-sm text-slate-600 focus:ring-0 min-h-[80px]" placeholder="Rédigez votre réponse..."></textarea>
-                    </div>
-                    <div class="flex justify-between items-center px-3 py-2 border-t border-slate-50">
-                        <div class="flex items-center gap-2">
-                            <button class="text-xs font-medium text-slate-500 hover:text-[color:var(--accent)] flex items-center gap-1 px-2 py-1 rounded accent-hover-soft transition-colors">
-                                <iconify-icon icon="solar:magic-stick-linear"></iconify-icon> IA Suggestion
-                            </button>
-                        </div>
-                        <button class="text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all hover:brightness-95 shadow-lg flex items-center gap-2" style="background-color: var(--accent); box-shadow: 0 18px 35px color-mix(in srgb, var(--accent) 22%, transparent);">
-                            Envoyer <iconify-icon icon="solar:plain-linear"></iconify-icon>
-                        </button>
+            <div class="space-y-6">
+                <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4">
+                    <h3 class="text-sm font-semibold text-[#111827] mb-4">Raccourcis</h3>
+                    <div class="grid gap-3">
+                        <a href="{{ route('tickets.index') }}"
+                           class="h-9 rounded-md border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] transition-colors text-[13px] font-medium text-[#111827] flex items-center justify-between px-3">
+                            Mes tickets
+                            <iconify-icon icon="solar:arrow-right-linear" width="16" class="text-[#6B7280]"></iconify-icon>
+                        </a>
+                        <a href="{{ route('tickets.create') }}"
+                           class="h-9 rounded-md text-white transition-colors text-[13px] font-medium flex items-center justify-between px-3 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]">
+                            Créer un ticket
+                            <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    @livewireScripts
-</body>
-</html>
+    {{-- ===================== MEMBER / CLIENT ===================== --}}
+    @else
+        @php
+            $totalMine = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('created_by', $user?->id)->count();
+            $openMine = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('created_by', $user?->id)->where('status', 'open')->count();
+            $inProgressMine = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('created_by', $user?->id)->where('status', 'in_progress')->count();
+            $resolvedMine = \App\Models\Ticket::query()->where('organization_id', $orgId)->where('created_by', $user?->id)->whereIn('status', ['resolved', 'closed'])->count();
 
+            $lastTickets = \App\Models\Ticket::query()
+                ->where('organization_id', $orgId)
+                ->where('created_by', $user?->id)
+                ->orderByDesc('updated_at')
+                ->limit(5)
+                ->get();
+        @endphp
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div class="text-[13px] font-medium text-[#6B7280]">Total de mes tickets</div>
+                <div class="mt-2 text-2xl font-semibold text-[#111827] tracking-tight">{{ $totalMine }}</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div class="text-[13px] font-medium text-[#6B7280]">Tickets ouverts</div>
+                <div class="mt-2 text-2xl font-semibold text-[#111827] tracking-tight">{{ $openMine }}</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div class="text-[13px] font-medium text-[#6B7280]">En cours</div>
+                <div class="mt-2 text-2xl font-semibold text-[#111827] tracking-tight">{{ $inProgressMine }}</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div class="text-[13px] font-medium text-[#6B7280]">Résolus</div>
+                <div class="mt-2 text-2xl font-semibold text-[#111827] tracking-tight">{{ $resolvedMine }}</div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div class="lg:col-span-2 bg-white rounded-lg border border-[#E5E7EB] shadow-sm overflow-hidden">
+                <div class="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-[#111827]">Mes derniers tickets</h3>
+                    <a class="text-xs font-medium hover:opacity-80" style="color: var(--accent);" href="{{ route('tickets.index') }}">Voir tout</a>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full min-w-[640px] text-left border-collapse">
+                        <thead class="bg-[#F9FAFB] text-[11px] uppercase text-[#6B7280] font-medium tracking-wider whitespace-nowrap">
+                        <tr>
+                            <th class="px-4 py-2 font-medium w-24">ID</th>
+                            <th class="px-4 py-2 font-medium">Sujet</th>
+                            <th class="px-4 py-2 font-medium w-28">Statut</th>
+                            <th class="px-4 py-2 font-medium w-28 text-right">Maj</th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y divide-[#E5E7EB]">
+                        @forelse ($lastTickets as $t)
+                            @php $pill = $statusPill((string) $t->status); @endphp
+                            <tr class="group hover:bg-[#F9FAFB] cursor-pointer transition-colors">
+                                <td class="px-4 py-3 text-xs font-mono text-[#6B7280] group-hover:text-[#111827]">#{{ $t->id }}</td>
+                                <td class="px-4 py-3"><span class="text-xs font-medium text-[#111827]">{{ $t->subject }}</span></td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
+                                        {{ $statusLabel((string) $t->status) }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right text-xs text-[#6B7280]">{{ $t->updated_at?->diffForHumans() }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="px-4 py-6 text-center text-sm text-[#6B7280]">Aucun ticket.</td></tr>
+                        @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4">
+                    <h3 class="text-sm font-semibold text-[#111827] mb-4">Notifications récentes</h3>
+                    <div class="space-y-3">
+                        <div class="flex gap-3">
+                            <span class="mt-1 w-2 h-2 rounded-full" style="background: var(--accent);"></span>
+                            <div>
+                                <p class="text-xs text-[#111827]">Un agent a répondu à votre ticket.</p>
+                                <p class="text-[10px] text-[#6B7280] mt-0.5">—</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="mt-1 w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <div>
+                                <p class="text-xs text-[#111827]">Ticket résolu.</p>
+                                <p class="text-[10px] text-[#6B7280] mt-0.5">—</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg p-4 text-white shadow-sm"
+                     style="background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 40%, #111827), #111827);">
+                    <h3 class="text-sm font-semibold">Besoin d'aide ?</h3>
+                    <p class="mt-1 text-xs text-white/80">Créez un nouveau ticket pour contacter notre équipe support.</p>
+                    <a href="{{ route('tickets.create') }}"
+                       class="mt-3 inline-flex items-center justify-center rounded-md bg-white px-3 py-2 text-[13px] font-semibold text-[#111827] hover:bg-[#F9FAFB] transition-colors w-full">
+                        <iconify-icon icon="solar:add-circle-linear" class="mr-2" width="16"></iconify-icon>
+                        Nouveau ticket
+                    </a>
+                </div>
+            </div>
+        </div>
+    @endif
+</x-manexo-app-layout>
