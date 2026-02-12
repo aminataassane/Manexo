@@ -7,13 +7,9 @@ use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
 use Illuminate\Support\Facades\Auth;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
 use Livewire\Component;
 
-#[Layout('layouts.manexo-app')]
-#[Title('Créer un ticket')]
-class Create extends Component
+class CreateForm extends Component
 {
     public int $ticket_category_id;
     public int $ticket_priority_id;
@@ -22,13 +18,8 @@ class Create extends Component
 
     public function mount(): void
     {
-        // UX: la création se fait via un drawer sur /tickets
-        $this->redirectRoute('tickets.index', ['createDrawer' => 1], navigate: true);
-        return;
+        $orgId = (int) session('current_organization_id');
 
-        $orgId = session('current_organization_id');
-
-        // Preselect first active options if available
         if ($orgId) {
             $category = TicketCategory::query()
                 ->where('organization_id', $orgId)
@@ -39,15 +30,15 @@ class Create extends Component
             $priority = TicketPriority::query()
                 ->where('organization_id', $orgId)
                 ->where('is_active', true)
-                ->orderBy('level')
+                ->orderByDesc('level')
                 ->first();
 
             if ($category) {
-                $this->ticket_category_id = $category->id;
+                $this->ticket_category_id = (int) $category->id;
             }
 
             if ($priority) {
-                $this->ticket_priority_id = $priority->id;
+                $this->ticket_priority_id = (int) $priority->id;
             }
         }
     }
@@ -55,10 +46,10 @@ class Create extends Component
     public function submit(): void
     {
         $user = Auth::user();
-        $orgId = session('current_organization_id');
+        $orgId = (int) session('current_organization_id');
 
         if (! $user || ! $orgId) {
-            $this->redirectRoute('organizations.select', navigate: true);
+            $this->dispatch('tickets:closeCreateDrawer');
             return;
         }
 
@@ -69,7 +60,6 @@ class Create extends Component
             'description' => ['required', 'string'],
         ]);
 
-        // Enforce scoping to current organization
         $categoryOk = TicketCategory::query()
             ->where('id', $validated['ticket_category_id'])
             ->where('organization_id', $orgId)
@@ -81,7 +71,7 @@ class Create extends Component
             ->exists();
 
         if (! $categoryOk || ! $priorityOk) {
-            $this->addError('ticket_category_id', 'Invalid selection for current organization.');
+            $this->addError('ticket_category_id', "Sélection invalide pour l'entreprise.");
             return;
         }
 
@@ -95,12 +85,15 @@ class Create extends Component
             'description' => $validated['description'],
         ]);
 
-        $this->redirectRoute('tickets.index', navigate: true);
+        $this->reset(['subject', 'description']);
+
+        $this->dispatch('tickets:created');
+        $this->dispatch('tickets:closeCreateDrawer');
     }
 
     public function render()
     {
-        $orgId = session('current_organization_id');
+        $orgId = (int) session('current_organization_id');
 
         $categories = $orgId
             ? TicketCategory::query()
@@ -114,13 +107,14 @@ class Create extends Component
             ? TicketPriority::query()
                 ->where('organization_id', $orgId)
                 ->where('is_active', true)
-                ->orderBy('level')
+                ->orderByDesc('level')
                 ->get()
             : collect();
 
-        return view('livewire.tickets.create', [
+        return view('livewire.tickets.create-form', [
             'categories' => $categories,
             'priorities' => $priorities,
         ]);
     }
 }
+

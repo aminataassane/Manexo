@@ -1,5 +1,8 @@
 @php
     $org = request()->attributes->get('currentOrganization') ?? \App\Models\Organization::find(session('current_organization_id'));
+    $user = auth()->user();
+    $orgRole = ($org && $user) ? ($user->organizations()->whereKey($org->id)->first()?->pivot?->role ?? 'member') : 'member';
+    $isStaff = in_array($orgRole, ['owner', 'admin'], true);
 @endphp
 
 <aside
@@ -82,27 +85,50 @@
             <span x-show="sidebarOpen">Clients</span>
         </a>
 
-        <div class="px-2 mt-6 mb-2 text-[10px] font-medium text-[#6B7280] uppercase tracking-wider" x-show="sidebarOpen">Admin</div>
+        @if ($isStaff)
+            <div class="px-2 mt-6 mb-2 text-[10px] font-medium text-[#6B7280] uppercase tracking-wider" x-show="sidebarOpen">Admin</div>
 
-        <!-- Rapports (placeholder) -->
-        <a
-            href="#"
-            class="flex items-center gap-2.5 px-2 py-1.5 text-[13px] font-medium text-[#6B7280] hover:text-[#111827] hover:bg-[#F9FAFB] rounded-md transition-colors"
-            :class="sidebarOpen ? '' : 'justify-center'"
-        >
-            <iconify-icon icon="solar:chart-2-linear" width="16"></iconify-icon>
-            <span x-show="sidebarOpen">Rapports</span>
-        </a>
+            @php
+                $isAdminUsers = request()->routeIs('admin.users');
+            @endphp
 
-        <!-- Paramètres (placeholder) -->
-        <a
-            href="#"
-            class="flex items-center gap-2.5 px-2 py-1.5 text-[13px] font-medium text-[#6B7280] hover:text-[#111827] hover:bg-[#F9FAFB] rounded-md transition-colors"
-            :class="sidebarOpen ? '' : 'justify-center'"
-        >
-            <iconify-icon icon="solar:settings-linear" width="16"></iconify-icon>
-            <span x-show="sidebarOpen">Paramètres</span>
-        </a>
+            <!-- Équipe / Utilisateurs -->
+            <a
+                href="{{ route('admin.users') }}"
+                class="flex items-center gap-2.5 px-2 py-1.5 text-[13px] font-medium rounded-md transition-colors border border-transparent"
+                :class="sidebarOpen ? '' : 'justify-center'"
+                style="{{ $isAdminUsers ? 'color: var(--accent); background: var(--accent-soft); border-color: var(--accent-soft);' : '' }}"
+            >
+                <iconify-icon icon="solar:users-group-rounded-linear" width="16"></iconify-icon>
+                <span x-show="sidebarOpen">Équipe</span>
+            </a>
+
+            @php
+                $isReports = request()->routeIs('reports.*');
+            @endphp
+
+            <!-- Rapports -->
+            <a
+                href="{{ route('reports.index') }}"
+                class="flex items-center gap-2.5 px-2 py-1.5 text-[13px] font-medium rounded-md transition-colors border border-transparent"
+                :class="sidebarOpen ? '' : 'justify-center'"
+                style="{{ $isReports ? 'color: var(--accent); background: var(--accent-soft); border-color: var(--accent-soft);' : '' }}"
+            >
+                <iconify-icon icon="solar:chart-2-linear" width="16"></iconify-icon>
+                <span x-show="sidebarOpen">Rapports</span>
+            </a>
+
+            <!-- Paramètres (placeholder) -->
+            <a
+                href="{{ route('admin.settings') }}"
+                class="flex items-center gap-2.5 px-2 py-1.5 text-[13px] font-medium rounded-md transition-colors border border-transparent"
+                :class="sidebarOpen ? '' : 'justify-center'"
+                style="{{ request()->routeIs('admin.settings') ? 'color: var(--accent); background: var(--accent-soft); border-color: var(--accent-soft);' : '' }}"
+            >
+                <iconify-icon icon="solar:settings-linear" width="16"></iconify-icon>
+                <span x-show="sidebarOpen">Paramètres</span>
+            </a>
+        @endif
     </div>
 
     <!-- Sidebar Bottom Footer -->

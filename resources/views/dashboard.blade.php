@@ -194,7 +194,10 @@
                             </thead>
                             <tbody class="divide-y divide-[#E5E7EB]">
                             @forelse ($priorityTickets as $t)
-                                @php $pill = $statusPill((string) $t->status); @endphp
+                                @php
+                                    $statusValue = is_object($t->status) ? $t->status->value : (string) $t->status;
+                                    $pill = $statusPill($statusValue);
+                                @endphp
                                 <tr class="group hover:bg-[#F9FAFB] cursor-pointer transition-colors">
                                     <td class="px-4 py-3 text-xs font-mono text-[#6B7280] group-hover:text-[#111827]">#{{ $t->id }}</td>
                                     <td class="px-4 py-3">
@@ -207,7 +210,7 @@
                                     </td>
                                     <td class="px-4 py-3">
                                         <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
-                                            {{ $statusLabel((string) $t->status) }}
+                                            {{ $statusLabel($statusValue) }}
                                         </span>
                                     </td>
                                     <td class="px-4 py-3 text-right text-xs text-[#6B7280]">{{ $t->updated_at?->diffForHumans() }}</td>
@@ -349,7 +352,10 @@
                         </thead>
                         <tbody class="divide-y divide-[#E5E7EB]">
                         @forelse ($ticketsToTreat as $t)
-                            @php $pill = $statusPill((string) $t->status); @endphp
+                            @php
+                                $statusValue = is_object($t->status) ? $t->status->value : (string) $t->status;
+                                $pill = $statusPill($statusValue);
+                            @endphp
                             <tr class="group hover:bg-[#F9FAFB] cursor-pointer transition-colors">
                                 <td class="px-4 py-3 text-xs font-mono text-[#6B7280] group-hover:text-[#111827]">#{{ $t->id }}</td>
                                 <td class="px-4 py-3">
@@ -357,7 +363,7 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
-                                        {{ $statusLabel((string) $t->status) }}
+                                        {{ $statusLabel($statusValue) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right text-xs text-[#6B7280]">{{ $t->updated_at?->diffForHumans() }}</td>
@@ -443,13 +449,16 @@
                         </thead>
                         <tbody class="divide-y divide-[#E5E7EB]">
                         @forelse ($lastTickets as $t)
-                            @php $pill = $statusPill((string) $t->status); @endphp
+                            @php
+                                $statusValue = is_object($t->status) ? $t->status->value : (string) $t->status;
+                                $pill = $statusPill($statusValue);
+                            @endphp
                             <tr class="group hover:bg-[#F9FAFB] cursor-pointer transition-colors">
                                 <td class="px-4 py-3 text-xs font-mono text-[#6B7280] group-hover:text-[#111827]">#{{ $t->id }}</td>
                                 <td class="px-4 py-3"><span class="text-xs font-medium text-[#111827]">{{ $t->subject }}</span></td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
-                                        {{ $statusLabel((string) $t->status) }}
+                                        {{ $statusLabel($statusValue) }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right text-xs text-[#6B7280]">{{ $t->updated_at?->diffForHumans() }}</td>

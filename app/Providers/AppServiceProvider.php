@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Locale from session (FR/EN)
+        if (! app()->runningInConsole() && request()->hasSession()) {
+            app()->setLocale((string) request()->session()->get('locale', config('app.locale')));
+        }
     }
 }

@@ -14,8 +14,16 @@ class Organization extends Model
         'slug',
         'primary_color',
         'logo_path',
+        'settings',
         'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'settings' => 'array',
+        ];
+    }
 
     public function creator(): BelongsTo
     {
