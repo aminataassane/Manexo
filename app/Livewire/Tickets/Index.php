@@ -138,7 +138,7 @@ class Index extends Component
             ->orderByDesc('updated_at')
             ->limit(50)
             ->pluck('id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->all();
     }
 
@@ -197,7 +197,7 @@ class Index extends Component
                 ->whereIn('tickets.status', ['open', 'in_progress', 'pending'])
                 ->where('tickets.updated_at', '<', Carbon::now()->subDays(7));
         } elseif ($this->viewKey === 'high_priority') {
-            $query->whereHas('priority', fn ($p) => $p->where('level', '>=', 3));
+            $query->whereHas('priority', fn($p) => $p->where('level', '>=', 3));
         } elseif ($this->viewKey === 'unassigned') {
             $query->whereNull('tickets.assigned_to');
         }
@@ -212,8 +212,8 @@ class Index extends Component
                 }
 
                 $q->orWhere('tickets.subject', 'ilike', "%{$search}%")
-                    ->orWhereHas('creator', fn ($u) => $u->where('name', 'ilike', "%{$search}%"))
-                    ->orWhereHas('assignee', fn ($u) => $u->where('name', 'ilike', "%{$search}%"));
+                    ->orWhereHas('creator', fn($u) => $u->where('name', 'ilike', "%{$search}%"))
+                    ->orWhereHas('assignee', fn($u) => $u->where('name', 'ilike', "%{$search}%"));
             });
         }
 
@@ -239,10 +239,10 @@ class Index extends Component
 
         $priorities = $orgId
             ? TicketPriority::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderByDesc('level')
-                ->get(['id', 'name', 'level'])
+            ->where('organization_id', $orgId)
+            ->where('is_active', true)
+            ->orderByDesc('level')
+            ->get(['id', 'name', 'level'])
             : collect();
 
         $assignees = $org
@@ -251,13 +251,13 @@ class Index extends Component
 
         $statsRow = ($user && $orgId)
             ? Ticket::query()
-                ->where('tickets.organization_id', $orgId)
-                ->when(! $isStaff, fn ($q) => $q->where('tickets.created_by', $user->id))
-                ->selectRaw("count(*) filter (where status = 'open') as open_count")
-                ->selectRaw("count(*) filter (where status = 'in_progress') as in_progress_count")
-                ->selectRaw("count(*) filter (where status = 'pending') as pending_count")
-                ->selectRaw("count(*) filter (where status in ('resolved','closed') and updated_at >= ?) as resolved_7d_count", [Carbon::now()->subDays(7)])
-                ->first()
+            ->where('tickets.organization_id', $orgId)
+            ->when(! $isStaff, fn($q) => $q->where('tickets.created_by', $user->id))
+            ->selectRaw("count(*) filter (where status = 'open') as open_count")
+            ->selectRaw("count(*) filter (where status = 'in_progress') as in_progress_count")
+            ->selectRaw("count(*) filter (where status = 'pending') as pending_count")
+            ->selectRaw("count(*) filter (where status in ('resolved','closed') and updated_at >= ?) as resolved_7d_count", [Carbon::now()->subDays(7)])
+            ->first()
             : null;
 
         $stats = [
@@ -269,15 +269,15 @@ class Index extends Component
 
         $viewsRow = ($user && $orgId)
             ? Ticket::query()
-                ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
-                ->where('tickets.organization_id', $orgId)
-                ->when(! $isStaff, fn ($q) => $q->where('tickets.created_by', $user->id))
-                ->selectRaw('count(*) as all_count')
-                ->selectRaw("count(*) filter (where tickets.assigned_to = ?) as my_count", [$user->id])
-                ->selectRaw("count(*) filter (where tickets.status in ('open','in_progress','pending') and tickets.updated_at < ?) as past_due_count", [Carbon::now()->subDays(7)])
-                ->selectRaw("count(*) filter (where tp.level >= 3) as high_priority_count")
-                ->selectRaw("count(*) filter (where tickets.assigned_to is null) as unassigned_count")
-                ->first()
+            ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
+            ->where('tickets.organization_id', $orgId)
+            ->when(! $isStaff, fn($q) => $q->where('tickets.created_by', $user->id))
+            ->selectRaw('count(*) as all_count')
+            ->selectRaw("count(*) filter (where tickets.assigned_to = ?) as my_count", [$user->id])
+            ->selectRaw("count(*) filter (where tickets.status in ('open','in_progress','pending') and tickets.updated_at < ?) as past_due_count", [Carbon::now()->subDays(7)])
+            ->selectRaw("count(*) filter (where tp.level >= 3) as high_priority_count")
+            ->selectRaw("count(*) filter (where tickets.assigned_to is null) as unassigned_count")
+            ->first()
             : null;
 
         $viewCounts = [
