@@ -4,6 +4,7 @@
     @php
         $user = Auth::user();
         $currentSessionId = session()->getId();
+        $currentLocale = strtoupper((string) app()->getLocale());
 
         $organizations = $user?->organizations()
             ->withPivot(['role'])
@@ -21,13 +22,13 @@
         $ticketsCreated = \App\Models\Ticket::query()
             ->where('created_by', $user?->id)
             ->latest('created_at')
-            ->limit(50)
+            ->limit(25)
             ->get(['id', 'subject', 'status', 'created_at', 'updated_at']);
 
         $ticketsAssigned = \App\Models\Ticket::query()
             ->where('assigned_to', $user?->id)
             ->latest('updated_at')
-            ->limit(50)
+            ->limit(25)
             ->get(['id', 'subject', 'status', 'created_at', 'updated_at']);
 
         $events = collect();
@@ -38,7 +39,7 @@
                     'label' => 'Ticket créé',
                     'ticket_id' => $t->id,
                     'subject' => $t->subject,
-                    'status' => (string) $t->status,
+                    'status' => is_object($t->status) ? $t->status->value : (string) $t->status,
                     'at' => $t->created_at,
                 ]);
             }
@@ -50,7 +51,7 @@
                     'label' => 'Ticket assigné à vous',
                     'ticket_id' => $t->id,
                     'subject' => $t->subject,
-                    'status' => (string) $t->status,
+                    'status' => is_object($t->status) ? $t->status->value : (string) $t->status,
                     'at' => $t->updated_at,
                 ]);
             }
@@ -64,7 +65,7 @@
         $events = $events
             ->filter(fn ($e) => filled($e['at'] ?? null))
             ->sortByDesc('at')
-            ->take(50)
+            ->take(5)
             ->values();
 
         $statusLabel = function (string $status): string {
@@ -176,16 +177,29 @@
             </div>
 
             <!-- Historique d’activité (accordéon) -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm overflow-hidden" x-data="{ open: true }">
+            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm overflow-hidden" x-data="{ open: false }">
                 <button type="button" class="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-[#F9FAFB] transition-colors" @click="open = !open">
                     <div class="text-left">
                         <h2 class="text-sm font-semibold text-[#111827]">Historique d’activité</h2>
-                        <p class="text-xs text-[#6B7280] mt-1">Journal centré sur vous (limité à 50 événements).</p>
+                        <p class="text-xs text-[#6B7280] mt-1">{{ __("Aperçu (5 derniers).") }}</p>
                     </div>
-                    <iconify-icon :icon="open ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="text-[#6B7280]" width="16"></iconify-icon>
+                    <div class="flex items-center gap-2">
+                        <span class="hidden sm:inline text-[12px] font-semibold" style="color: var(--accent);" x-text="open ? '{{ __('Fermer') }}' : '{{ __('Ouvrir') }}'"></span>
+                        <iconify-icon :icon="open ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="text-[#6B7280]" width="16"></iconify-icon>
+                    </div>
                 </button>
 
-                <div x-show="open" x-transition.opacity class="px-4 sm:px-6 pb-5">
+                <div x-cloak x-show="open" x-transition.opacity class="px-4 sm:px-6 pb-5">
+                    <div class="flex items-center justify-between gap-3 mb-4">
+                        <p class="text-[11px] text-[#6B7280]">
+                            {{ __("Filtrez l’aperçu, puis cliquez sur “Voir tout” pour l’historique complet.") }}
+                        </p>
+                        <a href="{{ route('profile.history', array_filter(['type' => $activityFilter !== 'all' ? $activityFilter : null])) }}"
+                           class="shrink-0 h-8 px-3 rounded-md text-white text-[12px] font-semibold inline-flex items-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] transition-colors">
+                            <iconify-icon icon="solar:history-linear" width="16"></iconify-icon>
+                            {{ __('Voir tout') }}
+                        </a>
+                    </div>
                     <div class="flex flex-wrap gap-2 mb-4">
                         @php $filters = [['all','Tous'], ['tickets','Tickets'], ['commentaires','Commentaires'], ['assignations','Assignations']]; @endphp
                         @foreach ($filters as [$key, $label])
@@ -227,6 +241,41 @@
 
         <!-- RIGHT: security -->
         <div class="space-y-4 sm:space-y-6">
+            <!-- Langue -->
+            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 sm:p-6">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="text-sm font-semibold text-[#111827]">{{ __('Langue') }}</h2>
+                        <p class="text-xs text-[#6B7280] mt-1">{{ __("Change la langue de l’interface.") }}</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-1 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] grid grid-cols-2 gap-1">
+                    <a
+                        href="{{ route('locale.switch', ['locale' => 'fr']) }}"
+                        class="h-10 rounded-lg inline-flex items-center justify-center gap-2 text-[13px] font-semibold transition cursor-pointer
+                            {{ $currentLocale === 'FR'
+                                ? 'bg-white shadow-sm text-[color:var(--accent)] ring-1 ring-[color:var(--accent-soft)]'
+                                : 'text-[#111827] hover:bg-white/60' }}"
+                        @if ($currentLocale === 'FR') aria-current="page" @endif
+                    >
+                        <span class="inline-flex items-center justify-center h-6 w-6 rounded-md border border-[#E5E7EB] bg-white text-[11px] font-bold">FR</span>
+                        <span class="truncate">Français</span>
+                    </a>
+                    <a
+                        href="{{ route('locale.switch', ['locale' => 'en']) }}"
+                        class="h-10 rounded-lg inline-flex items-center justify-center gap-2 text-[13px] font-semibold transition cursor-pointer
+                            {{ $currentLocale === 'EN'
+                                ? 'bg-white shadow-sm text-[color:var(--accent)] ring-1 ring-[color:var(--accent-soft)]'
+                                : 'text-[#111827] hover:bg-white/60' }}"
+                        @if ($currentLocale === 'EN') aria-current="page" @endif
+                    >
+                        <span class="inline-flex items-center justify-center h-6 w-6 rounded-md border border-[#E5E7EB] bg-white text-[11px] font-bold">EN</span>
+                        <span class="truncate">English</span>
+                    </a>
+                </div>
+            </div>
+
             <!-- Sécurité & connexions -->
             <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 sm:p-6">
                 <div class="flex items-center justify-between mb-4">

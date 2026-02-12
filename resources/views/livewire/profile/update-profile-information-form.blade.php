@@ -63,26 +63,20 @@ new class extends Component
 }; ?>
 
 <section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900">
-            {{ __('Profile Information') }}
-        </h2>
+    @php
+        $field = 'block w-full rounded-md border-0 bg-slate-50 py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200';
+    @endphp
 
-        <p class="mt-1 text-sm text-gray-600">
-            {{ __("Update your account's profile information and email address.") }}
-        </p>
-    </header>
-
-    <form wire:submit="updateProfileInformation" class="mt-6 space-y-6">
+    <form wire:submit="updateProfileInformation" class="space-y-5">
         <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input wire:model="name" id="name" name="name" type="text" class="mt-1 block w-full" required autofocus autocomplete="name" />
+            <label for="name" class="block text-[11px] font-medium text-slate-700">{{ __('Nom') }}</label>
+            <input wire:model="name" id="name" name="name" type="text" class="mt-1 {{ $field }}" required autofocus autocomplete="name" />
             <x-input-error class="mt-2" :messages="$errors->get('name')" />
         </div>
 
         <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input wire:model="email" id="email" name="email" type="email" class="mt-1 block w-full" required autocomplete="username" />
+            <label for="email" class="block text-[11px] font-medium text-slate-700">{{ __('Email') }}</label>
+            <input wire:model="email" id="email" name="email" type="email" class="mt-1 {{ $field }}" required autocomplete="username" />
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
 
             @if (auth()->user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! auth()->user()->hasVerifiedEmail())
@@ -105,7 +99,12 @@ new class extends Component
         </div>
 
         <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+            <button
+                type="submit"
+                class="h-10 px-4 rounded-lg bg-[color:var(--accent)] text-white text-sm font-medium shadow-sm hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)] transition-all duration-200 active:scale-[0.98]"
+            >
+                {{ __('Enregistrer') }}
+            </button>
 
             <x-action-message class="me-3" on="profile-updated">
                 {{ __('Saved.') }}

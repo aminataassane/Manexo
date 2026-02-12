@@ -1,10 +1,11 @@
 {
   "Ticket views": "Vues tickets",
-  "My Tickets": "Mes tickets",
   "Past Due": "En retard",
   "High Priority": "Haute priorité",
   "Unassigned": "Non assignés",
   "All Tickets": "Tous les tickets",
+  "Created by me": "Créés par moi",
+  "Assigned to me": "Assignés à moi",
 
   "Ouvert": "Ouvert",
   "Ouverts": "Ouverts",
@@ -34,6 +35,10 @@
   "Dernière activité": "Dernière activité",
   "Par": "Par",
   "Assigné à": "Assigné à",
+  "Liste": "Liste",
+  "Kanban": "Kanban",
+  "Glisser-déposer une carte pour changer le statut.": "Glisser-déposer une carte pour changer le statut.",
+  "Filtres et recherche s’appliquent aussi ici.": "Filtres et recherche s’appliquent aussi ici.",
   "Aucun ticket.": "Aucun ticket.",
   "Par page": "Par page",
   "Critique": "Critique",

@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Test;
+use App\Livewire\Admin\FormBuilder as AdminFormBuilder;
 use App\Livewire\Admin\Users as AdminUsers;
 use App\Livewire\Admin\Settings as AdminSettings;
 use App\Livewire\Reports\Index as ReportsIndex;
@@ -28,6 +29,30 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'home')->name('home');
 
 /**
+ * Locale switch (FR/EN)
+ */
+Route::get('/locale/{locale}', function (Request $request, string $locale) {
+    $locale = strtolower($locale);
+
+    if (! in_array($locale, ['fr', 'en'], true)) {
+        $locale = (string) config('app.locale', 'fr');
+    }
+
+    $request->session()->put('locale', $locale);
+
+    $fallback = Auth::check()
+        ? route('organizations.select')
+        : route('home');
+
+    $previous = url()->previous();
+
+    return redirect()
+        ->to($previous ?: $fallback)
+        ->withCookie(cookie('locale', $locale, 60 * 24 * 365)) // 1 year
+        ->with('profile_status', $locale === 'en' ? 'Language switched to English.' : 'Langue changée en français.');
+})->where('locale', 'fr|en')->name('locale.switch');
+
+/**
  * Application routes (must be logged in + email verified)
  */
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -36,6 +61,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Profile
     Route::view('/profile', 'profile')->name('profile');
+    Route::get('/profile/history', \App\Livewire\Profile\History::class)->name('profile.history');
     Route::post('/profile/sessions/logout-all', function (Request $request) {
         $userId = Auth::id();
         if (! $userId) {
@@ -61,6 +87,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('/admin/users', AdminUsers::class)->name('admin.users');
         Route::get('/admin/settings', AdminSettings::class)->name('admin.settings');
+        Route::get('/admin/forms', AdminFormBuilder::class)->name('admin.forms');
         Route::get('/reports', ReportsIndex::class)->name('reports.index');
     });
 });

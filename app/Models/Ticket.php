@@ -18,12 +18,20 @@ class Ticket extends Model
         'status',
         'subject',
         'description',
+        'custom_fields',
+        'attachments',
+        'start_date',
+        'due_date',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => TicketStatus::class,
+            'custom_fields' => 'array',
+            'attachments' => 'array',
+            'start_date' => 'date',
+            'due_date' => 'date',
         ];
     }
 

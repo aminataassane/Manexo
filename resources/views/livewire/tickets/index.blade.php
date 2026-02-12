@@ -37,7 +37,7 @@
 
 <div
     class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8"
-    x-data="{ open: @entangle('showCreateDrawer').live }"
+    x-data="{ open: @entangle('showCreateDrawer').live, dragId: null, viewsOpen: true }"
 >
     <div class="flex items-start justify-between gap-4">
         <div>
@@ -45,14 +45,57 @@
             <p class="mt-1 text-sm text-[#6B7280]">{{ __('Gérez et suivez les demandes.') }}</p>
         </div>
 
-        <button
-            type="button"
-            class="h-10 px-4 text-white text-[13px] font-semibold rounded-md shadow-sm transition-colors flex items-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
-            wire:click="openCreateDrawer"
-        >
-            <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
-            {{ __('Créer un ticket') }}
-        </button>
+        <div class="flex items-center gap-2">
+            <!-- Display mode (segmented control) -->
+            <div
+                class="hidden sm:flex items-center rounded-2xl border border-[#E5E7EB] bg-white/70 p-1 shadow-sm"
+                style="background-color: color-mix(in srgb, var(--accent) 6%, white);"
+            >
+                <button
+                    type="button"
+                    class="h-9 px-4 rounded-xl text-[13px] font-semibold transition inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-ring)]"
+                    wire:click="setDisplayMode('list')"
+                    @class([
+                        'text-[#6B7280] hover:text-[#111827] hover:bg-white/70' => ($displayMode ?? 'list') !== 'list',
+                        'bg-white text-[color:var(--accent)] shadow-sm ring-1 ring-[color:var(--accent-soft-2)]' => ($displayMode ?? 'list') === 'list',
+                    ])
+                >
+                    <iconify-icon icon="solar:list-check-linear" width="16"></iconify-icon>
+                    {{ __('Liste') }}
+                </button>
+                <button
+                    type="button"
+                    class="h-9 px-4 rounded-xl text-[13px] font-semibold transition inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-ring)]"
+                    wire:click="setDisplayMode('kanban')"
+                    @class([
+                        'text-[#6B7280] hover:text-[#111827] hover:bg-white/70' => ($displayMode ?? 'list') !== 'kanban',
+                        'bg-white text-[color:var(--accent)] shadow-sm ring-1 ring-[color:var(--accent-soft-2)]' => ($displayMode ?? 'list') === 'kanban',
+                    ])
+                >
+                    <iconify-icon icon="solar:widget-2-linear" width="16"></iconify-icon>
+                    {{ __('Kanban') }}
+                </button>
+            </div>
+
+            <button
+                type="button"
+                class="h-10 px-3 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-semibold rounded-xl shadow-sm hover:bg-[#F9FAFB] transition inline-flex items-center gap-2"
+                @click="viewsOpen = !viewsOpen"
+            >
+                <iconify-icon icon="solar:sidebar-minimalistic-linear" width="16"></iconify-icon>
+                <span x-show="viewsOpen">{{ __('Masquer vues') }}</span>
+                <span x-show="!viewsOpen">{{ __('Afficher vues') }}</span>
+            </button>
+
+            <a
+                href="{{ route('tickets.create') }}"
+                class="h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors inline-flex items-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
+                wire:navigate
+            >
+                <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
+                {{ __('Créer un ticket') }}
+            </a>
+        </div>
     </div>
 
     <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -109,14 +152,23 @@
         </div>
     </div>
 
-    <div class="mt-6 grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
+    <div class="mt-6 grid grid-cols-1 gap-4 sm:gap-6" :class="viewsOpen ? 'lg:grid-cols-4' : 'lg:grid-cols-1'">
         <!-- LEFT: fixed ticket views -->
-        <div class="lg:col-span-1">
+        <div class="lg:col-span-1" x-cloak x-show="viewsOpen">
             <div class="sticky top-20">
                 <div class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
-                    <div class="px-4 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB]">
-                        <div class="text-[11px] uppercase tracking-wider text-[#6B7280] font-semibold">{{ __('Ticket views') }}</div>
+                    <div class="w-full px-4 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB] flex items-center justify-between">
+                        <div class="text-[11px] uppercase tracking-wider text-[#6B7280] font-semibold">{{ __('Vues tickets') }}</div>
+                        <button
+                            type="button"
+                            class="h-8 px-2 rounded-md text-[12px] font-semibold text-[#111827] hover:bg-white/70 transition inline-flex items-center gap-1.5"
+                            @click="viewsOpen = false"
+                        >
+                            <iconify-icon icon="solar:double-alt-arrow-left-linear" width="14" class="text-[#6B7280]"></iconify-icon>
+                            {{ __('Masquer') }}
+                        </button>
                     </div>
+
                     <div class="p-2 space-y-1">
                         @php
                             $itemBase = 'w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition border';
@@ -124,20 +176,29 @@
                             $isActive = fn (string $k) => ($viewKey ?? 'all') === $k;
                         @endphp
 
-                        <button type="button" wire:click="setView('my')"
-                            class="{{ $itemBase }} {{ $isActive('my') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
+                        <button type="button" wire:click="setView('created_by_me')"
+                            class="{{ $itemBase }} {{ $isActive('created_by_me') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
                             <span class="flex items-center gap-2">
-                                <iconify-icon icon="solar:user-linear" width="16" class="text-[#6B7280]"></iconify-icon>
-                                {{ __('My Tickets') }}
+                                <iconify-icon icon="solar:pen-linear" width="16" class="text-[#6B7280]"></iconify-icon>
+                                {{ __('Créés par moi') }}
                             </span>
-                            <span class="{{ $badgeBase }} {{ $isActive('my') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['my'] ?? 0 }}</span>
+                            <span class="{{ $badgeBase }} {{ $isActive('created_by_me') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['created_by_me'] ?? 0 }}</span>
+                        </button>
+
+                        <button type="button" wire:click="setView('assigned_to_me')"
+                            class="{{ $itemBase }} {{ $isActive('assigned_to_me') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
+                            <span class="flex items-center gap-2">
+                                <iconify-icon icon="solar:user-check-linear" width="16" class="text-[#6B7280]"></iconify-icon>
+                                {{ __('Assignés à moi') }}
+                            </span>
+                            <span class="{{ $badgeBase }} {{ $isActive('assigned_to_me') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['assigned_to_me'] ?? 0 }}</span>
                         </button>
 
                         <button type="button" wire:click="setView('past_due')"
                             class="{{ $itemBase }} {{ $isActive('past_due') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
                             <span class="flex items-center gap-2">
                                 <iconify-icon icon="solar:calendar-search-linear" width="16" class="text-[#6B7280]"></iconify-icon>
-                                {{ __('Past Due') }}
+                                {{ __('En retard') }}
                             </span>
                             <span class="{{ $badgeBase }} {{ $isActive('past_due') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['past_due'] ?? 0 }}</span>
                         </button>
@@ -146,7 +207,7 @@
                             class="{{ $itemBase }} {{ $isActive('high_priority') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
                             <span class="flex items-center gap-2">
                                 <iconify-icon icon="solar:danger-triangle-linear" width="16" class="text-[#6B7280]"></iconify-icon>
-                                {{ __('High Priority') }}
+                                {{ __('Haute priorité') }}
                             </span>
                             <span class="{{ $badgeBase }} {{ $isActive('high_priority') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['high_priority'] ?? 0 }}</span>
                         </button>
@@ -155,7 +216,7 @@
                             class="{{ $itemBase }} {{ $isActive('unassigned') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
                             <span class="flex items-center gap-2">
                                 <iconify-icon icon="solar:user-minus-linear" width="16" class="text-[#6B7280]"></iconify-icon>
-                                {{ __('Unassigned') }}
+                                {{ __('Non assignés') }}
                             </span>
                             <span class="{{ $badgeBase }} {{ $isActive('unassigned') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['unassigned'] ?? 0 }}</span>
                         </button>
@@ -164,7 +225,7 @@
                             class="{{ $itemBase }} {{ $isActive('all') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
                             <span class="flex items-center gap-2">
                                 <iconify-icon icon="solar:layers-linear" width="16" class="text-[#6B7280]"></iconify-icon>
-                                {{ __('All Tickets') }}
+                                {{ __('Tous les tickets') }}
                             </span>
                             <span class="{{ $badgeBase }} {{ $isActive('all') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['all'] ?? 0 }}</span>
                         </button>
@@ -173,9 +234,104 @@
             </div>
         </div>
 
-        <!-- RIGHT: list -->
-        <div class="lg:col-span-3">
-            <div class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
+        <!-- RIGHT: list / kanban -->
+        <div :class="viewsOpen ? 'lg:col-span-3' : 'lg:col-span-1'">
+            <!-- When views are hidden, provide quick reopen -->
+            <div x-cloak x-show="!viewsOpen" class="mb-3">
+                <button
+                    type="button"
+                    class="w-full sm:w-auto h-10 px-3 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-semibold rounded-xl shadow-sm hover:bg-[#F9FAFB] transition inline-flex items-center gap-2"
+                    @click="viewsOpen = true"
+                >
+                    <iconify-icon icon="solar:sidebar-minimalistic-linear" width="16"></iconify-icon>
+                    {{ __('Afficher vues tickets') }}
+                </button>
+            </div>
+
+            @if (($displayMode ?? 'list') === 'kanban')
+                <div class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
+                    <div class="p-4 sm:p-6 border-b border-[#E5E7EB] flex items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-[13px] font-semibold text-[#111827]">{{ __('Kanban') }}</h2>
+                            <p class="mt-1 text-[12px] text-[#6B7280]">{{ __('Glisser-déposer une carte pour changer le statut.') }}</p>
+                        </div>
+                        <div class="text-[12px] text-[#6B7280] hidden sm:block">
+                            {{ __('Filtres et recherche s’appliquent aussi ici.') }}
+                        </div>
+                    </div>
+
+                    <div class="p-4 sm:p-6">
+                        <!-- Horizontal scroll board (wider, less cramped) -->
+                        <div class="-mx-4 sm:-mx-6 px-4 sm:px-6 pb-2 overflow-x-auto custom-scrollbar">
+                            <div class="flex gap-4 min-w-max">
+                                @foreach (($statusColumns ?? []) as $colStatus)
+                                    @php
+                                        [$colLabel, $colIcon] = $statusLabel($colStatus);
+                                        $colPill = $statusPill($colStatus);
+                                        $cards = $kanbanTickets[$colStatus] ?? [];
+                                    @endphp
+                                    <div
+                                        class="w-[320px] sm:w-[340px] shrink-0 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] overflow-hidden flex flex-col h-[70vh] min-h-[520px]"
+                                        @dragover.prevent
+                                        @drop.prevent="
+                                            if (dragId) { $wire.moveTicket(dragId, '{{ $colStatus }}'); dragId = null; }
+                                        "
+                                    >
+                                        <div class="px-4 py-3 border-b border-[#E5E7EB] bg-white flex items-center justify-between">
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border {{ $colPill['bg'] }} {{ $colPill['text'] }} {{ $colPill['border'] }}">
+                                                <iconify-icon icon="{{ $colIcon }}" width="14"></iconify-icon>
+                                                {{ $colLabel }}
+                                            </span>
+                                            <span class="text-[12px] font-semibold text-[#6B7280]">{{ count($cards) }}</span>
+                                        </div>
+
+                                        <div class="p-3 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+                                            @forelse ($cards as $t)
+                                                @php
+                                                    $prio = $priorityMeta($t->priority?->level);
+                                                @endphp
+                                                <div
+                                                    class="rounded-lg border border-[#E5E7EB] bg-white p-3.5 shadow-sm hover:border-[color:var(--accent-soft-2)] transition cursor-grab active:cursor-grabbing"
+                                                    draggable="true"
+                                                    @dragstart="dragId = {{ (int) $t->id }}"
+                                                    @dragend="dragId = null"
+                                                    title="#{{ $t->id }}"
+                                                >
+                                                    <div class="flex items-start justify-between gap-3">
+                                                        <div class="min-w-0">
+                                                            <div class="text-[13px] font-semibold text-[#111827] leading-snug break-words">
+                                                                #{{ $t->id }} · {{ $t->subject }}
+                                                            </div>
+                                                            <div class="mt-1.5 text-[11px] text-[#6B7280] leading-snug">
+                                                                <span class="whitespace-nowrap">{{ __('Par') }}</span> {{ $t->creator?->name ?? '—' }}
+                                                                @if ($t->assignee)
+                                                                    <span class="mx-1">•</span>
+                                                                    <span class="whitespace-nowrap">{{ __('Assigné à') }}</span> {{ $t->assignee->name }}
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                        <span class="w-3 h-3 rounded-full {{ $prio['dot'] }} mt-1" title="{{ $prio['label'] }}"></span>
+                                                    </div>
+
+                                                    <div class="mt-3 flex items-center justify-between text-[11px] text-[#6B7280] gap-2">
+                                                        <span class="min-w-0 truncate">{{ $t->category?->name ?? '—' }}</span>
+                                                        <span class="whitespace-nowrap">{{ $t->updated_at?->diffForHumans() }}</span>
+                                                    </div>
+                                                </div>
+                                            @empty
+                                                <div class="px-2 py-10 text-center text-[12px] text-[#9CA3AF]">
+                                                    {{ __('Aucun ticket.') }}
+                                                </div>
+                                            @endforelse
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @else
+                <div class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
                 <div class="p-4 sm:p-6 border-b border-[#E5E7EB]">
                     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div class="flex-1 flex flex-col sm:flex-row gap-2">
@@ -311,7 +467,9 @@
                         {{ $tickets->links() }}
                     </div>
                 </div>
-            </div>
+                </div>
+            @endif
+        </div>
     </div>
 
     <div

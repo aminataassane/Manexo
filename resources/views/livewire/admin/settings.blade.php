@@ -47,6 +47,10 @@
                         <iconify-icon icon="solar:flag-linear" width="16"></iconify-icon>
                         Priorités / SLA
                     </button>
+                    <button type="button" class="{{ $navItem }}" :class="tab==='forms' ? 'text-[color:var(--accent)] bg-[color:var(--accent-soft)] border-[color:var(--accent-soft)]' : 'text-[#111827] hover:bg-[#F9FAFB]'" @click="tab='forms'">
+                        <iconify-icon icon="solar:widget-2-linear" width="16"></iconify-icon>
+                        Formulaires
+                    </button>
                     <button type="button" class="{{ $navItem }}" :class="tab==='integrations' ? 'text-[color:var(--accent)] bg-[color:var(--accent-soft)] border-[color:var(--accent-soft)]' : 'text-[#111827] hover:bg-[#F9FAFB]'" @click="tab='integrations'">
                         <iconify-icon icon="solar:plug-circle-linear" width="16"></iconify-icon>
                         Intégrations
@@ -78,6 +82,7 @@
                     </div>
                 </div>
             </div>
+
         </div>
 
         <!-- RIGHT CONTENT -->
@@ -298,6 +303,23 @@
                 </div>
             </div>
 
+            <!-- FORMULAIRES : lien vers page dédiée -->
+            <div x-show="tab==='forms'" x-cloak class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
+                <div class="px-4 sm:px-6 py-4 border-b border-[#E5E7EB]">
+                    <h2 class="text-[13px] font-semibold text-[#111827]">Formulaires</h2>
+                    <p class="mt-1 text-[12px] text-[#6B7280]">Gérez les formulaires de création de ticket sur une page dédiée.</p>
+                </div>
+                <div class="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <p class="text-[13px] text-[#6B7280]">
+                        Crée des champs par entreprise et catégorie, et optionnellement réservez un formulaire à une personne.
+                    </p>
+                    <a href="{{ route('admin.forms') }}"
+                       class="inline-flex items-center justify-center gap-2 h-10 px-4 text-white text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 shadow-sm transition-colors">
+                        <iconify-icon icon="solar:widget-2-linear" width="18"></iconify-icon>
+                        Ouvrir l'éditeur de formulaires
+                    </a>
+                </div>
+            </div>
             <div x-show="tab==='integrations'" x-cloak class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
                 <div class="px-4 sm:px-6 py-4 border-b border-[#E5E7EB]">
                     <h2 class="text-[13px] font-semibold text-[#111827]">Intégrations</h2>

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Tickets;
 
+use App\Enums\TicketStatus;
 use App\Models\Organization;
 use App\Models\Ticket;
 use App\Models\TicketPriority;
@@ -20,6 +21,9 @@ use Livewire\WithPagination;
 class Index extends Component
 {
     use WithPagination;
+
+    #[Url(history: true)]
+    public string $displayMode = 'list'; // list | kanban
 
     #[Url(history: true)]
     public string $viewKey = 'all';
@@ -93,8 +97,19 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatedDisplayMode(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatedViewKey(): void
     {
+        $this->resetPage();
+    }
+
+    public function updatingViewKey(): void
+    {
+        // When changing view, keep UX consistent
         $this->resetPage();
     }
 
@@ -148,9 +163,59 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function setDisplayMode(string $mode): void
+    {
+        $this->displayMode = in_array($mode, ['list', 'kanban'], true) ? $mode : 'list';
+        $this->resetPage();
+    }
+
+    public function moveTicket(int $ticketId, string $status): void
+    {
+        $user = Auth::user();
+        if (! $user instanceof \App\Models\User) {
+            abort(403);
+        }
+
+        $orgId = (int) session('current_organization_id');
+        if (! $orgId) {
+            abort(403);
+        }
+
+        $allowed = array_map(fn (TicketStatus $s) => $s->value, TicketStatus::cases());
+        if (! in_array($status, $allowed, true)) {
+            return;
+        }
+
+        $ticket = Ticket::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($ticketId)
+            ->firstOrFail();
+
+        $role = 'member';
+        $org = Organization::query()->find($orgId);
+        if ($org) {
+            $role = $user->organizations()->whereKey($org->id)->first()?->pivot?->role ?: 'member';
+        }
+
+        $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
+        $isCreator = (int) $ticket->created_by === (int) $user->id;
+        $isAssignee = (int) ($ticket->assigned_to ?? 0) === (int) $user->id;
+
+        if (! ($isStaff || $isCreator || $isAssignee)) {
+            abort(403);
+        }
+
+        $ticket->update(['status' => $status]);
+    }
+
     public function setView(string $key): void
     {
-        $allowed = ['my', 'past_due', 'high_priority', 'unassigned', 'all'];
+        // Backward-compat alias
+        if ($key === 'my') {
+            $key = 'assigned_to_me';
+        }
+
+        $allowed = ['created_by_me', 'assigned_to_me', 'past_due', 'high_priority', 'unassigned', 'all'];
         if (! in_array($key, $allowed, true)) {
             $key = 'all';
         }
@@ -187,18 +252,24 @@ class Index extends Component
         }
 
         // Left menu "views"
-        if ($this->viewKey === 'my') {
+        $viewKey = $this->viewKey === 'my' ? 'assigned_to_me' : $this->viewKey;
+
+        if ($viewKey === 'created_by_me') {
             if ($user) {
-                // "My tickets" = tickets assigned to me
+                $query->where('tickets.created_by', $user->id);
+            }
+        } elseif ($viewKey === 'assigned_to_me') {
+            if ($user) {
+                // Assigned to me
                 $query->where('tickets.assigned_to', $user->id);
             }
-        } elseif ($this->viewKey === 'past_due') {
+        } elseif ($viewKey === 'past_due') {
             $query
                 ->whereIn('tickets.status', ['open', 'in_progress', 'pending'])
                 ->where('tickets.updated_at', '<', Carbon::now()->subDays(7));
-        } elseif ($this->viewKey === 'high_priority') {
+        } elseif ($viewKey === 'high_priority') {
             $query->whereHas('priority', fn($p) => $p->where('level', '>=', 3));
-        } elseif ($this->viewKey === 'unassigned') {
+        } elseif ($viewKey === 'unassigned') {
             $query->whereNull('tickets.assigned_to');
         }
 
@@ -237,6 +308,34 @@ class Index extends Component
             ? $query->orderByDesc('tickets.updated_at')->paginate($this->perPage)
             : new LengthAwarePaginator([], 0, $this->perPage);
 
+        $statusColumns = [
+            TicketStatus::Open->value,
+            TicketStatus::InProgress->value,
+            TicketStatus::Pending->value,
+            TicketStatus::Resolved->value,
+            TicketStatus::Closed->value,
+        ];
+
+        $kanbanTickets = [];
+        if ($this->displayMode === 'kanban' && $user && $orgId) {
+            $rows = (clone $query)
+                ->orderByDesc('tickets.updated_at')
+                ->limit(300)
+                ->get();
+
+            foreach ($statusColumns as $s) {
+                $kanbanTickets[$s] = [];
+            }
+
+            foreach ($rows as $t) {
+                $key = $t->status?->value ?? 'open';
+                if (! isset($kanbanTickets[$key])) {
+                    $kanbanTickets[$key] = [];
+                }
+                $kanbanTickets[$key][] = $t;
+            }
+        }
+
         $priorities = $orgId
             ? TicketPriority::query()
             ->where('organization_id', $orgId)
@@ -273,7 +372,8 @@ class Index extends Component
             ->where('tickets.organization_id', $orgId)
             ->when(! $isStaff, fn($q) => $q->where('tickets.created_by', $user->id))
             ->selectRaw('count(*) as all_count')
-            ->selectRaw("count(*) filter (where tickets.assigned_to = ?) as my_count", [$user->id])
+            ->selectRaw("count(*) filter (where tickets.created_by = ?) as created_by_me_count", [$user->id])
+            ->selectRaw("count(*) filter (where tickets.assigned_to = ?) as assigned_to_me_count", [$user->id])
             ->selectRaw("count(*) filter (where tickets.status in ('open','in_progress','pending') and tickets.updated_at < ?) as past_due_count", [Carbon::now()->subDays(7)])
             ->selectRaw("count(*) filter (where tp.level >= 3) as high_priority_count")
             ->selectRaw("count(*) filter (where tickets.assigned_to is null) as unassigned_count")
@@ -281,7 +381,8 @@ class Index extends Component
             : null;
 
         $viewCounts = [
-            'my' => (int) ($viewsRow?->my_count ?? 0),
+            'created_by_me' => (int) ($viewsRow?->created_by_me_count ?? 0),
+            'assigned_to_me' => (int) ($viewsRow?->assigned_to_me_count ?? 0),
             'past_due' => (int) ($viewsRow?->past_due_count ?? 0),
             'high_priority' => (int) ($viewsRow?->high_priority_count ?? 0),
             'unassigned' => (int) ($viewsRow?->unassigned_count ?? 0),
@@ -296,6 +397,10 @@ class Index extends Component
             'assignees' => $assignees,
             'stats' => $stats,
             'viewCounts' => $viewCounts,
+            'viewKey' => $viewKey,
+            'displayMode' => $this->displayMode,
+            'statusColumns' => $statusColumns,
+            'kanbanTickets' => $kanbanTickets,
         ]);
     }
 }

@@ -42,6 +42,21 @@
         /* CSS Bar Chart */
         .bar { transition: height 0.5s ease; }
         .bar:hover { opacity: 0.9; }
+
+        /* Dot Pattern (Form Builder canvas) */
+        .bg-dot-pattern {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Custom Toggle Switch (Form Builder) */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #0f172a; /* slate-900 */
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #0f172a; /* slate-900 */
+        }
     </style>
 </head>
 @php

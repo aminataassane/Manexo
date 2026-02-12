@@ -39,37 +39,36 @@ new class extends Component
 }; ?>
 
 <section>
-    <header>
-        <h2 class="text-lg font-medium text-gray-900">
-            {{ __('Update Password') }}
-        </h2>
+    @php
+        $field = 'block w-full rounded-md border-0 bg-slate-50 py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200';
+    @endphp
 
-        <p class="mt-1 text-sm text-gray-600">
-            {{ __('Ensure your account is using a long, random password to stay secure.') }}
-        </p>
-    </header>
-
-    <form wire:submit="updatePassword" class="mt-6 space-y-6">
+    <form wire:submit="updatePassword" class="space-y-5">
         <div>
-            <x-input-label for="update_password_current_password" :value="__('Current Password')" />
-            <x-text-input wire:model="current_password" id="update_password_current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" />
+            <label for="update_password_current_password" class="block text-[11px] font-medium text-slate-700">{{ __('Mot de passe actuel') }}</label>
+            <input wire:model="current_password" id="update_password_current_password" name="current_password" type="password" class="mt-1 {{ $field }}" autocomplete="current-password" />
             <x-input-error :messages="$errors->get('current_password')" class="mt-2" />
         </div>
 
         <div>
-            <x-input-label for="update_password_password" :value="__('New Password')" />
-            <x-text-input wire:model="password" id="update_password_password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+            <label for="update_password_password" class="block text-[11px] font-medium text-slate-700">{{ __('Nouveau mot de passe') }}</label>
+            <input wire:model="password" id="update_password_password" name="password" type="password" class="mt-1 {{ $field }}" autocomplete="new-password" />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
         <div>
-            <x-input-label for="update_password_password_confirmation" :value="__('Confirm Password')" />
-            <x-text-input wire:model="password_confirmation" id="update_password_password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+            <label for="update_password_password_confirmation" class="block text-[11px] font-medium text-slate-700">{{ __('Confirmer le mot de passe') }}</label>
+            <input wire:model="password_confirmation" id="update_password_password_confirmation" name="password_confirmation" type="password" class="mt-1 {{ $field }}" autocomplete="new-password" />
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
         </div>
 
         <div class="flex items-center gap-4">
-            <x-primary-button>{{ __('Save') }}</x-primary-button>
+            <button
+                type="submit"
+                class="h-10 px-4 rounded-lg bg-[color:var(--accent)] text-white text-sm font-medium shadow-sm hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)] transition-all duration-200 active:scale-[0.98]"
+            >
+                {{ __('Mettre à jour') }}
+            </button>
 
             <x-action-message class="me-3" on="password-updated">
                 {{ __('Saved.') }}
