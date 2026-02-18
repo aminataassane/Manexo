@@ -5,17 +5,17 @@
     $textarea = 'block w-full rounded-md border-0 bg-slate-50 p-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200';
 @endphp
 
-<div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-    <div class="flex items-start justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-semibold text-[#111827] tracking-tight">{{ __('Créer un ticket') }}</h1>
-            <p class="mt-1 text-sm text-[#6B7280]">{{ __('Créez une demande complète avec dates, assignation et pièces jointes.') }}</p>
+<div class="mx-auto w-full min-w-0 max-w-7xl 2xl:max-w-[90rem] min-[1920px]:max-w-[110rem] py-4 sm:py-6 lg:py-8 px-3 sm:px-6 lg:px-8">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="min-w-0">
+            <h1 class="text-xl font-semibold text-[#111827] tracking-tight sm:text-2xl">{{ __('Créer un ticket') }}</h1>
+            <p class="mt-1 text-xs sm:text-sm text-[#6B7280]">{{ __('Créez une demande complète avec dates, assignation et pièces jointes.') }}</p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:flex-shrink-0">
             <a
                 href="{{ route('tickets.index') }}"
-                class="h-10 px-4 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-semibold rounded-xl shadow-sm hover:bg-[#F9FAFB] transition inline-flex items-center gap-2"
+                class="min-h-[44px] sm:min-h-0 h-10 px-4 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-semibold rounded-xl shadow-sm hover:bg-[#F9FAFB] transition inline-flex items-center justify-center gap-2"
             >
                 <iconify-icon icon="solar:arrow-left-linear" width="16"></iconify-icon>
                 {{ __('Retour') }}
@@ -23,7 +23,7 @@
             <button
                 type="submit"
                 form="ticket-create-form"
-                class="h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors inline-flex items-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
+                class="min-h-[44px] sm:min-h-0 h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors inline-flex items-center justify-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
             >
                 <iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon>
                 {{ __('Envoyer') }}
@@ -31,7 +31,7 @@
         </div>
     </div>
 
-    <form id="ticket-create-form" wire:submit="submit" class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+    <form id="ticket-create-form" wire:submit="submit" class="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <!-- LEFT (main form) -->
         <div class="lg:col-span-2 space-y-6">
             <div class="rounded-2xl border border-[#E5E7EB] bg-white shadow-sm overflow-visible">
@@ -44,148 +44,24 @@
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <x-input-label for="category" :value="__('Catégorie *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
-                            @php
-                                $categoryOptions = $categories->map(fn ($c) => ['value' => (int) $c->id, 'label' => (string) $c->name])->values()->all();
-                            @endphp
-                            <div
-                                class="relative mt-1"
-                                :class="open ? 'z-[9999]' : ''"
-                                x-data="{
-                                    open: false,
-                                    q: '',
-                                    selected: @entangle('ticket_category_id').live,
-                                    options: @js($categoryOptions),
-                                    get label() {
-                                        const hit = this.options.find(o => String(o.value) === String(this.selected));
-                                        return hit ? hit.label : '';
-                                    },
-                                    get filtered() {
-                                        const q = (this.q || '').toLowerCase().trim();
-                                        if (!q) return this.options;
-                                        return this.options.filter(o => (o.label || '').toLowerCase().includes(q));
-                                    }
-                                }"
-                                @keydown.escape.window="open=false"
-                                @click.outside="open=false"
-                            >
-                                <button
-                                    type="button"
-                                    class="{{ $select }} text-left pr-10 cursor-pointer"
-                                    @click="open = !open"
-                                    :aria-expanded="open.toString()"
-                                >
-                                    <span class="block truncate" x-text="label"></span>
-                                </button>
-                                <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="14"></iconify-icon>
-
-                                <div
-                                    x-cloak
-                                    x-show="open"
-                                    x-transition
-                                    class="absolute z-[9999] mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden"
-                                >
-                                    <div class="p-2 border-b border-slate-100">
-                                        <div class="relative">
-                                            <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="14"></iconify-icon>
-                                            <input
-                                                type="text"
-                                                x-model="q"
-                                                class="w-full rounded-lg border-0 bg-slate-50 py-2 pl-9 pr-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200"
-                                                placeholder="{{ __('Rechercher…') }}"
-                                            >
-                                        </div>
-                                    </div>
-                                    <div class="max-h-64 overflow-auto custom-scrollbar p-1">
-                                        <template x-for="opt in filtered" :key="opt.value">
-                                            <button
-                                                type="button"
-                                                class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-left hover:bg-slate-50 transition"
-                                                :class="String(opt.value)===String(selected) ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'text-slate-900'"
-                                                @click="selected = opt.value; open=false; q='';"
-                                            >
-                                                <span class="truncate" x-text="opt.label"></span>
-                                                <iconify-icon x-show="String(opt.value)===String(selected)" icon="solar:check-circle-bold" width="16" style="color: var(--accent);"></iconify-icon>
-                                            </button>
-                                        </template>
-                                        <div x-show="filtered.length===0" class="px-3 py-6 text-center text-[12px] text-slate-500">
-                                            {{ __('Aucun résultat') }}
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="mt-1">
+                                <x-select-input id="category" wire:model="ticket_category_id">
+                                    @foreach ($categories as $c)
+                                        <option value="{{ (int) $c->id }}">{{ $c->name }}</option>
+                                    @endforeach
+                                </x-select-input>
                             </div>
                             <x-input-error :messages="$errors->get('ticket_category_id')" class="mt-2" />
                         </div>
 
                         <div>
                             <x-input-label for="priority" :value="__('Priorité *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
-                            @php
-                                $priorityOptions = $priorities->map(fn ($p) => ['value' => (int) $p->id, 'label' => (string) $p->name])->values()->all();
-                            @endphp
-                            <div
-                                class="relative mt-1"
-                                :class="open ? 'z-[9999]' : ''"
-                                x-data="{
-                                    open: false,
-                                    q: '',
-                                    selected: @entangle('ticket_priority_id').live,
-                                    options: @js($priorityOptions),
-                                    get label() {
-                                        const hit = this.options.find(o => String(o.value) === String(this.selected));
-                                        return hit ? hit.label : '';
-                                    },
-                                    get filtered() {
-                                        const q = (this.q || '').toLowerCase().trim();
-                                        if (!q) return this.options;
-                                        return this.options.filter(o => (o.label || '').toLowerCase().includes(q));
-                                    }
-                                }"
-                                @keydown.escape.window="open=false"
-                                @click.outside="open=false"
-                            >
-                                <button
-                                    type="button"
-                                    class="{{ $select }} text-left pr-10 cursor-pointer"
-                                    @click="open = !open"
-                                    :aria-expanded="open.toString()"
-                                >
-                                    <span class="block truncate" x-text="label"></span>
-                                </button>
-                                <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="14"></iconify-icon>
-
-                                <div
-                                    x-cloak
-                                    x-show="open"
-                                    x-transition
-                                    class="absolute z-[9999] mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden"
-                                >
-                                    <div class="p-2 border-b border-slate-100">
-                                        <div class="relative">
-                                            <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="14"></iconify-icon>
-                                            <input
-                                                type="text"
-                                                x-model="q"
-                                                class="w-full rounded-lg border-0 bg-slate-50 py-2 pl-9 pr-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200"
-                                                placeholder="{{ __('Rechercher…') }}"
-                                            >
-                                        </div>
-                                    </div>
-                                    <div class="max-h-64 overflow-auto custom-scrollbar p-1">
-                                        <template x-for="opt in filtered" :key="opt.value">
-                                            <button
-                                                type="button"
-                                                class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-left hover:bg-slate-50 transition"
-                                                :class="String(opt.value)===String(selected) ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'text-slate-900'"
-                                                @click="selected = opt.value; open=false; q='';"
-                                            >
-                                                <span class="truncate" x-text="opt.label"></span>
-                                                <iconify-icon x-show="String(opt.value)===String(selected)" icon="solar:check-circle-bold" width="16" style="color: var(--accent);"></iconify-icon>
-                                            </button>
-                                        </template>
-                                        <div x-show="filtered.length===0" class="px-3 py-6 text-center text-[12px] text-slate-500">
-                                            {{ __('Aucun résultat') }}
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="mt-1">
+                                <x-select-input id="priority" wire:model="ticket_priority_id">
+                                    @foreach ($priorities as $p)
+                                        <option value="{{ (int) $p->id }}">{{ $p->name }}</option>
+                                    @endforeach
+                                </x-select-input>
                             </div>
                             <x-input-error :messages="$errors->get('ticket_priority_id')" class="mt-2" />
                         </div>
@@ -216,7 +92,20 @@
                         <x-input-error :messages="$errors->get('description')" class="mt-2" />
                     </div>
 
-                    @if (($formFields ?? collect())->count())
+                    @php
+                        $steps = $formSteps ?? collect();
+                        if ($steps->count() === 0 && (($formFields ?? collect())->count() > 0)) {
+                            $steps = collect([(object) [
+                                'id' => 0,
+                                'number' => 1,
+                                'title' => __('Informations supplémentaires'),
+                                'description' => null,
+                                'fields' => $formFields ?? collect(),
+                            ]]);
+                        }
+                    @endphp
+
+                    @if ($steps->count())
                         <div class="pt-4 border-t border-slate-100">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
@@ -230,73 +119,173 @@
                                 </div>
                             </div>
 
-                            <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                                @foreach ($formFields as $f)
+                            <div class="mt-4 space-y-5">
+                                @foreach ($steps as $step)
                                     @php
-                                        $key = (string) $f->key;
-                                        $type = (string) $f->type;
-                                        $label = (string) $f->label;
-                                        $required = (bool) $f->required;
+                                        $fields = $step->fields ?? collect();
                                     @endphp
 
-                                    @if ($type === 'textarea')
-                                        <div class="sm:col-span-2">
-                                            <label class="block text-[11px] font-medium text-slate-700">
-                                                {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
-                                            </label>
-                                            <textarea
-                                                rows="4"
-                                                wire:model="custom.{{ $key }}"
-                                                class="mt-1 {{ $textarea }}"
-                                            ></textarea>
-                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
-                                        </div>
-                                    @elseif ($type === 'checkbox')
-                                        <div class="sm:col-span-2">
-                                            <label class="flex items-center justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
-                                                <div class="min-w-0">
-                                                    <div class="text-[13px] font-semibold text-[#111827]">
-                                                        {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
-                                                    </div>
-                                                    <div class="text-[12px] text-[#6B7280]">{{ __('Activer / désactiver') }}</div>
+                                    <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 sm:p-5">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div class="min-w-0">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-[10px] font-mono text-slate-400">#{{ (int) ($step->number ?? 1) }}</span>
+                                                    <div class="text-[13px] font-semibold text-[#111827] truncate">{{ (string) ($step->title ?? __('Étape')) }}</div>
                                                 </div>
-                                                <input type="checkbox" wire:model="custom.{{ $key }}" class="h-5 w-5 rounded border-[#E5E7EB] text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]" />
-                                            </label>
-                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
-                                        </div>
-                                    @elseif ($type === 'select')
-                                        <div>
-                                            <label class="block text-[11px] font-medium text-slate-700">
-                                                {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
-                                            </label>
-                                            <div class="relative mt-1">
-                                                <select wire:model="custom.{{ $key }}" class="{{ $select }}">
-                                                    <option value="">—</option>
-                                                    @foreach ((array) ($f->options ?? []) as $opt)
-                                                        <option value="{{ $opt }}">{{ $opt }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="14"></iconify-icon>
+                                                @if (!empty($step->description))
+                                                    <div class="mt-1 text-[12px] text-[#6B7280]">{{ $step->description }}</div>
+                                                @endif
                                             </div>
-                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+                                            <span class="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#E5E7EB] bg-white text-[#6B7280]">
+                                                {{ (int) ($fields->count() ?? 0) }} {{ __('champ(s)') }}
+                                            </span>
                                         </div>
-                                    @else
-                                        <div>
-                                            <label class="block text-[11px] font-medium text-slate-700">
-                                                {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
-                                            </label>
-                                            <input
-                                                type="{{ $type === 'email' ? 'email' : ($type === 'number' ? 'number' : ($type === 'date' ? 'date' : 'text')) }}"
-                                                wire:model="custom.{{ $key }}"
-                                                class="mt-1 {{ $field }}"
-                                            >
-                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+
+                                        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                                            @foreach ($fields as $f)
+                                                @php
+                                                    $key = (string) $f->key;
+                                                    $type = (string) $f->type;
+                                                    $label = (string) $f->label;
+                                                    $required = (bool) $f->required;
+                                                @endphp
+
+                                                @if ($type === 'textarea')
+                                                    <div class="sm:col-span-2">
+                                                        <label class="block text-[11px] font-medium text-slate-700">
+                                                            {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                                        </label>
+                                                        <textarea
+                                                            rows="4"
+                                                            wire:model="custom.{{ $key }}"
+                                                            class="mt-1 {{ $textarea }}"
+                                                            placeholder="{{ (string) ($f->placeholder ?? '') }}"
+                                                        ></textarea>
+                                                        @if(!empty($f->help_text))
+                                                            <p class="mt-1 text-[11px] text-[#6B7280]">{{ $f->help_text }}</p>
+                                                        @endif
+                                                        <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+                                                    </div>
+                                                @elseif ($type === 'checkbox')
+                                                    <div class="sm:col-span-2">
+                                                        <label class="flex items-center justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3">
+                                                            <div class="min-w-0">
+                                                                <div class="text-[13px] font-semibold text-[#111827]">
+                                                                    {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                                                </div>
+                                                                <div class="text-[12px] text-[#6B7280]">{{ __('Activer / désactiver') }}</div>
+                                                            </div>
+                                                            <input type="checkbox" wire:model="custom.{{ $key }}" class="h-5 w-5 rounded border-[#E5E7EB] text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]" />
+                                                        </label>
+                                                        @if(!empty($f->help_text))
+                                                            <p class="mt-1 text-[11px] text-[#6B7280]">{{ $f->help_text }}</p>
+                                                        @endif
+                                                        <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+                                                    </div>
+                                                @elseif ($type === 'select')
+                                                    <div>
+                                                        <label class="block text-[11px] font-medium text-slate-700">
+                                                            {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                                        </label>
+                                                        <div class="mt-1">
+                                                            <x-select-input wire:model="custom.{{ $key }}">
+                                                                <option value="">{{ (string) ($f->placeholder ?? '—') }}</option>
+                                                                @foreach ((array) ($f->options ?? []) as $opt)
+                                                                    <option value="{{ $opt }}">{{ $opt }}</option>
+                                                                @endforeach
+                                                            </x-select-input>
+                                                        </div>
+                                                        @if(!empty($f->help_text))
+                                                            <p class="mt-1 text-[11px] text-[#6B7280]">{{ $f->help_text }}</p>
+                                                        @endif
+                                                        <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+                                                    </div>
+                                                @else
+                                                    <div>
+                                                        <label class="block text-[11px] font-medium text-slate-700">
+                                                            {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                                        </label>
+                                                        <input
+                                                            type="{{ $type === 'email' ? 'email' : ($type === 'number' ? 'number' : ($type === 'date' ? 'date' : 'text')) }}"
+                                                            wire:model="custom.{{ $key }}"
+                                                            class="mt-1 {{ $field }}"
+                                                            placeholder="{{ (string) ($f->placeholder ?? '') }}"
+                                                        >
+                                                        @if(!empty($f->help_text))
+                                                            <p class="mt-1 text-[11px] text-[#6B7280]">{{ $f->help_text }}</p>
+                                                        @endif
+                                                        <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+                                                    </div>
+                                                @endif
+                                            @endforeach
                                         </div>
-                                    @endif
+                                    </div>
                                 @endforeach
                             </div>
                         </div>
                     @endif
+
+                    {{-- Checklist (plan d'exécution) --}}
+                    <div class="pt-4 border-t border-slate-100">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-[13px] font-semibold text-[#111827]">{{ __('Checklist') }}</h2>
+                                <p class="mt-1 text-[12px] text-[#6B7280]">{{ __('Optionnel : définissez les étapes à réaliser (ordre, responsable, échéance).') }}</p>
+                            </div>
+                            <button
+                                type="button"
+                                wire:click="addChecklistItem"
+                                class="cursor-pointer h-9 px-3 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111827] hover:bg-[#F9FAFB] transition inline-flex items-center gap-1.5"
+                            >
+                                <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
+                                {{ __('Ajouter un élément') }}
+                            </button>
+                        </div>
+                        @if (count($checklistItems) > 0)
+                            <div class="mt-4 space-y-3">
+                                @foreach ($checklistItems as $idx => $item)
+                                    <div class="flex flex-wrap items-start gap-2 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3" wire:key="checklist-{{ $idx }}">
+                                        <div class="flex-1 min-w-0 grid gap-2 sm:grid-cols-1 md:grid-cols-3">
+                                            <div class="md:col-span-2">
+                                                <input
+                                                    type="text"
+                                                    wire:model="checklistItems.{{ $idx }}.title"
+                                                    class="{{ $field }}"
+                                                    placeholder="{{ __('Intitulé de l’étape') }}"
+                                                />
+                                            </div>
+                                            <div>
+                                                <x-select-input wire:model="checklistItems.{{ $idx }}.assigned_to">
+                                                    <option value="">{{ __('— Responsable') }}</option>
+                                                    @foreach ($assignees as $u)
+                                                        <option value="{{ (int) $u->id }}">{{ $u->name }}</option>
+                                                    @endforeach
+                                                </x-select-input>
+                                            </div>
+                                            <div class="md:col-span-2">
+                                                <input
+                                                    type="date"
+                                                    wire:model="checklistItems.{{ $idx }}.due_date"
+                                                    class="{{ $field }}"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-white hover:text-[color:var(--accent)] transition flex items-center justify-center" wire:click="moveChecklistItemUp({{ $idx }})" title="{{ __('Monter') }}" @if($idx === 0) disabled @endif>
+                                                <iconify-icon icon="solar:alt-arrow-up-linear" width="14"></iconify-icon>
+                                            </button>
+                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-white hover:text-[color:var(--accent)] transition flex items-center justify-center" wire:click="moveChecklistItemDown({{ $idx }})" title="{{ __('Descendre') }}" @if($idx === count($checklistItems) - 1) disabled @endif>
+                                                <iconify-icon icon="solar:alt-arrow-down-linear" width="14"></iconify-icon>
+                                            </button>
+                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-red-600 hover:bg-red-50 transition flex items-center justify-center" wire:click="removeChecklistItem({{ $idx }})" title="{{ __('Supprimer') }}">
+                                                <iconify-icon icon="solar:trash-bin-trash-linear" width="14"></iconify-icon>
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -416,77 +405,13 @@
                 <div class="p-4 space-y-4">
                     <div>
                         <x-input-label for="assigned_to" :value="__('Assigné à')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
-                        @php
-                            $assigneeOptions = collect([['value' => null, 'label' => (string) __('—')]])
-                                ->concat($assignees->map(fn ($u) => ['value' => (int) $u->id, 'label' => (string) $u->name]))
-                                ->values()
-                                ->all();
-                        @endphp
-                        <div
-                            class="relative mt-1"
-                            :class="open ? 'z-[9999]' : ''"
-                            x-data="{
-                                open: false,
-                                q: '',
-                                selected: @entangle('assigned_to').live,
-                                options: @js($assigneeOptions),
-                                get label() {
-                                    const hit = this.options.find(o => String(o.value) === String(this.selected));
-                                    return hit ? hit.label : '{{ __('—') }}';
-                                },
-                                get filtered() {
-                                    const q = (this.q || '').toLowerCase().trim();
-                                    if (!q) return this.options;
-                                    return this.options.filter(o => (o.label || '').toLowerCase().includes(q));
-                                }
-                            }"
-                            @keydown.escape.window="open=false"
-                            @click.outside="open=false"
-                        >
-                            <button
-                                type="button"
-                                class="{{ $select }} text-left pr-10 cursor-pointer"
-                                @click="open = !open"
-                                :aria-expanded="open.toString()"
-                            >
-                                <span class="block truncate" x-text="label"></span>
-                            </button>
-                            <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="14"></iconify-icon>
-
-                            <div
-                                x-cloak
-                                x-show="open"
-                                x-transition
-                                class="absolute z-[9999] mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden"
-                            >
-                                <div class="p-2 border-b border-slate-100">
-                                    <div class="relative">
-                                        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="14"></iconify-icon>
-                                        <input
-                                            type="text"
-                                            x-model="q"
-                                            class="w-full rounded-lg border-0 bg-slate-50 py-2 pl-9 pr-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200"
-                                            placeholder="{{ __('Rechercher…') }}"
-                                        >
-                                    </div>
-                                </div>
-                                <div class="max-h-72 overflow-auto custom-scrollbar p-1">
-                                    <template x-for="opt in filtered" :key="String(opt.value)">
-                                        <button
-                                            type="button"
-                                            class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-left hover:bg-slate-50 transition"
-                                            :class="String(opt.value)===String(selected) ? 'bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'text-slate-900'"
-                                            @click="selected = opt.value; open=false; q='';"
-                                        >
-                                            <span class="truncate" x-text="opt.label"></span>
-                                            <iconify-icon x-show="String(opt.value)===String(selected)" icon="solar:check-circle-bold" width="16" style="color: var(--accent);"></iconify-icon>
-                                        </button>
-                                    </template>
-                                    <div x-show="filtered.length===0" class="px-3 py-6 text-center text-[12px] text-slate-500">
-                                        {{ __('Aucun résultat') }}
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="mt-1">
+                            <x-select-input id="assigned_to" wire:model="assigned_to">
+                                <option value="">{{ __('—') }}</option>
+                                @foreach ($assignees as $u)
+                                    <option value="{{ (int) $u->id }}">{{ $u->name }}</option>
+                                @endforeach
+                            </x-select-input>
                         </div>
                         <x-input-error :messages="$errors->get('assigned_to')" class="mt-2" />
                     </div>

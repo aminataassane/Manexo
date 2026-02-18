@@ -5,6 +5,7 @@ namespace App\Livewire\Tickets;
 use App\Enums\TicketStatus;
 use App\Models\Organization;
 use App\Models\Ticket;
+use App\Models\TicketChecklistItem;
 use App\Models\TicketPriority;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +22,9 @@ use Livewire\WithPagination;
 class Index extends Component
 {
     use WithPagination;
+
+    #[Url(history: true)]
+    public string $box = 'active'; // active | archived
 
     #[Url(history: true)]
     public string $displayMode = 'list'; // list | kanban
@@ -43,54 +47,8 @@ class Index extends Component
     #[Url(history: true)]
     public int $perPage = 10;
 
-    #[Url(history: true)]
-    public int $createDrawer = 0;
-
     public array $selected = [];
     public bool $selectAll = false;
-    public bool $showCreateDrawer = false;
-
-    public function mount(): void
-    {
-        if ($this->createDrawer === 1) {
-            $this->showCreateDrawer = true;
-        }
-    }
-
-    public function updatedShowCreateDrawer($value): void
-    {
-        if (! $value) {
-            $this->createDrawer = 0;
-        } else {
-            $this->createDrawer = 1;
-        }
-    }
-
-    public function openCreateDrawer(): void
-    {
-        $this->showCreateDrawer = true;
-        $this->createDrawer = 1;
-    }
-
-    public function closeCreateDrawer(): void
-    {
-        $this->showCreateDrawer = false;
-        $this->createDrawer = 0;
-    }
-
-    #[On('tickets:closeCreateDrawer')]
-    public function closeCreateDrawerFromEvent(): void
-    {
-        $this->closeCreateDrawer();
-    }
-
-    #[On('tickets:created')]
-    public function onTicketCreated(): void
-    {
-        session()->flash('tickets_status', 'Ticket créé avec succès.');
-        $this->closeCreateDrawer();
-        $this->resetPage();
-    }
 
     public function updatedSearch(): void
     {
@@ -181,7 +139,7 @@ class Index extends Component
             abort(403);
         }
 
-        $allowed = array_map(fn (TicketStatus $s) => $s->value, TicketStatus::cases());
+        $allowed = array_map(fn(TicketStatus $s) => $s->value, TicketStatus::cases());
         if (! in_array($status, $allowed, true)) {
             return;
         }
@@ -225,6 +183,15 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function setBox(string $box): void
+    {
+        $this->box = in_array($box, ['active', 'archived'], true) ? $box : 'active';
+        $this->selected = [];
+        $this->selectAll = false;
+        $this->resetPage();
+    }
+
+    /** @return \Illuminate\Contracts\View\View */
     public function render()
     {
         $user = Auth::user();
@@ -245,6 +212,13 @@ class Index extends Component
         $query = Ticket::query()
             ->with(['category', 'priority', 'creator', 'assignee'])
             ->where('tickets.organization_id', $orgId);
+
+        // Box (Active vs Archived)
+        if ($this->box === 'archived') {
+            $query->whereNotNull('tickets.archived_at');
+        } else {
+            $query->whereNull('tickets.archived_at');
+        }
 
         // Members only see their own tickets
         if (! $isStaff) {
@@ -351,6 +325,7 @@ class Index extends Component
         $statsRow = ($user && $orgId)
             ? Ticket::query()
             ->where('tickets.organization_id', $orgId)
+            ->whereNull('tickets.archived_at')
             ->when(! $isStaff, fn($q) => $q->where('tickets.created_by', $user->id))
             ->selectRaw("count(*) filter (where status = 'open') as open_count")
             ->selectRaw("count(*) filter (where status = 'in_progress') as in_progress_count")
@@ -370,6 +345,7 @@ class Index extends Component
             ? Ticket::query()
             ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
             ->where('tickets.organization_id', $orgId)
+            ->whereNull('tickets.archived_at')
             ->when(! $isStaff, fn($q) => $q->where('tickets.created_by', $user->id))
             ->selectRaw('count(*) as all_count')
             ->selectRaw("count(*) filter (where tickets.created_by = ?) as created_by_me_count", [$user->id])
@@ -380,6 +356,14 @@ class Index extends Component
             ->first()
             : null;
 
+        $archivedCount = ($user && $orgId)
+            ? Ticket::query()
+            ->where('tickets.organization_id', $orgId)
+            ->whereNotNull('tickets.archived_at')
+            ->when(! $isStaff, fn($q) => $q->where('tickets.created_by', $user->id))
+            ->count()
+            : 0;
+
         $viewCounts = [
             'created_by_me' => (int) ($viewsRow?->created_by_me_count ?? 0),
             'assigned_to_me' => (int) ($viewsRow?->assigned_to_me_count ?? 0),
@@ -387,7 +371,23 @@ class Index extends Component
             'high_priority' => (int) ($viewsRow?->high_priority_count ?? 0),
             'unassigned' => (int) ($viewsRow?->unassigned_count ?? 0),
             'all' => (int) ($viewsRow?->all_count ?? 0),
+            'archived' => (int) $archivedCount,
         ];
+
+        $ticketIds = $tickets->pluck('id')->values()->all();
+        if ($this->displayMode === 'kanban' && ! empty($kanbanTickets)) {
+            $kanbanIds = collect($kanbanTickets)->flatten(1)->pluck('id')->unique()->values()->all();
+            $ticketIds = array_values(array_unique(array_merge($ticketIds, $kanbanIds)));
+        }
+        $checklistProgress = collect();
+        if (! empty($ticketIds)) {
+            $rows = TicketChecklistItem::query()
+                ->selectRaw('ticket_id, count(*) as total, sum(case when is_done then 1 else 0 end) as done')
+                ->whereIn('ticket_id', $ticketIds)
+                ->groupBy('ticket_id')
+                ->get();
+            $checklistProgress = $rows->keyBy('ticket_id');
+        }
 
         return view('livewire.tickets.index', [
             'org' => $org,
@@ -401,6 +401,8 @@ class Index extends Component
             'displayMode' => $this->displayMode,
             'statusColumns' => $statusColumns,
             'kanbanTickets' => $kanbanTickets,
+            'box' => $this->box,
+            'checklistProgress' => $checklistProgress,
         ]);
     }
 }

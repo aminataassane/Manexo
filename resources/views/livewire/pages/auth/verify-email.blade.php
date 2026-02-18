@@ -20,7 +20,7 @@ new #[Layout('layouts.guest')] class extends Component
         $user = Auth::user();
 
         if ($user->hasVerifiedEmail()) {
-            $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+            $this->redirectIntended(default: route('dashboard', absolute: false));
 
             return;
         }
@@ -63,7 +63,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::flash('status', 'email-verified');
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: route('dashboard', absolute: false));
     }
 
     /**
@@ -74,7 +74,7 @@ new #[Layout('layouts.guest')] class extends Component
         $user = Auth::user();
 
         if ($user->hasVerifiedEmail()) {
-            $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+            $this->redirectIntended(default: route('dashboard', absolute: false));
 
             return;
         }
@@ -100,7 +100,7 @@ new #[Layout('layouts.guest')] class extends Component
     {
         $logout();
 
-        $this->redirect('/', navigate: true);
+        $this->redirect('/');
     }
 }; ?>
 

@@ -1,507 +1,419 @@
 @php
     $statusLabel = function (string $status): array {
         return match ($status) {
-            'open' => [__('Ouvert'), 'solar:bolt-circle-linear'],
-            'in_progress' => [__('En cours'), 'solar:clock-circle-linear'],
-            'pending' => [__('En attente'), 'solar:hourglass-linear'],
-            'resolved' => [__('Résolu'), 'solar:check-circle-linear'],
-            'closed' => [__('Fermé'), 'solar:lock-keyhole-linear'],
-            default => [ucfirst(str_replace('_', ' ', $status)), 'solar:question-circle-linear'],
+            'open' => [__('Ouvert'), 'solar:bolt-circle-bold-duotone'],
+            'in_progress' => [__('En cours'), 'solar:clock-circle-bold-duotone'],
+            'pending' => [__('En attente'), 'solar:hourglass-bold-duotone'],
+            'resolved' => [__('Résolu'), 'solar:check-circle-bold-duotone'],
+            'closed' => [__('Fermé'), 'solar:lock-keyhole-bold-duotone'],
+            default => [ucfirst(str_replace('_', ' ', $status)), 'solar:question-circle-bold-duotone'],
         };
     };
 
     $statusPill = function (string $status): array {
         return match ($status) {
-            'open' => ['bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'border' => 'border-blue-200'],
-            'in_progress' => ['bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-200'],
-            'pending' => ['bg' => 'bg-violet-50', 'text' => 'text-violet-700', 'border' => 'border-violet-200'],
-            'resolved' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-200'],
-            'closed' => ['bg' => 'bg-gray-50', 'text' => 'text-gray-700', 'border' => 'border-gray-200'],
-            default => ['bg' => 'bg-gray-50', 'text' => 'text-gray-700', 'border' => 'border-gray-200'],
+            'open' => ['bg' => 'bg-red-50', 'text' => 'text-red-700', 'border' => 'border-red-100'],
+            'in_progress' => ['bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'border' => 'border-blue-100'],
+            'pending' => ['bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-100'],
+            'resolved' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-100'],
+            'closed' => ['bg' => 'bg-slate-50', 'text' => 'text-slate-700', 'border' => 'border-slate-100'],
+            default => ['bg' => 'bg-slate-50', 'text' => 'text-slate-700', 'border' => 'border-slate-100'],
         };
     };
 
     $priorityMeta = function (?int $level): array {
         if ($level === null) {
-            return ['label' => '—', 'dot' => 'bg-gray-300', 'text' => 'text-gray-600'];
+            return ['label' => '—', 'dot' => 'bg-slate-300', 'text' => 'text-slate-600'];
         }
 
         return match (true) {
             $level >= 4 => ['label' => __('Critique'), 'dot' => 'bg-red-500', 'text' => 'text-red-700'],
             $level === 3 => ['label' => __('Haute'), 'dot' => 'bg-amber-500', 'text' => 'text-amber-700'],
             $level === 2 => ['label' => __('Moyenne'), 'dot' => 'bg-blue-500', 'text' => 'text-blue-700'],
-            default => ['label' => __('Basse'), 'dot' => 'bg-green-500', 'text' => 'text-green-700'],
+            default => ['label' => __('Basse'), 'dot' => 'bg-emerald-500', 'text' => 'text-emerald-700'],
         };
     };
 @endphp
 
 <div
-    class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8"
-    x-data="{ open: @entangle('showCreateDrawer').live, dragId: null, viewsOpen: true }"
+    class="w-full max-w-full min-w-0 mx-auto"
+    x-data="{ dragId: null, viewsOpen: true }"
 >
-    <div class="flex items-start justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-semibold text-[#111827] tracking-tight">{{ __('Tickets') }}</h1>
-            <p class="mt-1 text-sm text-[#6B7280]">{{ __('Gérez et suivez les demandes.') }}</p>
+    <!-- HEADER (stack on mobile) -->
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+        <div class="min-w-0">
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl lg:text-3xl min-[1920px]:text-4xl">{{ __('Tickets') }}</h1>
+            <p class="mt-1 text-xs sm:text-sm text-slate-500">
+                {{ ($box ?? 'active') === 'archived' ? __('Tickets archivés (lecture / restauration).') : __('Gérez et suivez les demandes de support.') }}
+            </p>
         </div>
 
-        <div class="flex items-center gap-2">
-            <!-- Display mode (segmented control) -->
-            <div
-                class="hidden sm:flex items-center rounded-2xl border border-[#E5E7EB] bg-white/70 p-1 shadow-sm"
-                style="background-color: color-mix(in srgb, var(--accent) 6%, white);"
-            >
-                <button
-                    type="button"
-                    class="h-9 px-4 rounded-xl text-[13px] font-semibold transition inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-ring)]"
-                    wire:click="setDisplayMode('list')"
-                    @class([
-                        'text-[#6B7280] hover:text-[#111827] hover:bg-white/70' => ($displayMode ?? 'list') !== 'list',
-                        'bg-white text-[color:var(--accent)] shadow-sm ring-1 ring-[color:var(--accent-soft-2)]' => ($displayMode ?? 'list') === 'list',
-                    ])
-                >
-                    <iconify-icon icon="solar:list-check-linear" width="16"></iconify-icon>
-                    {{ __('Liste') }}
-                </button>
-                <button
-                    type="button"
-                    class="h-9 px-4 rounded-xl text-[13px] font-semibold transition inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-ring)]"
-                    wire:click="setDisplayMode('kanban')"
-                    @class([
-                        'text-[#6B7280] hover:text-[#111827] hover:bg-white/70' => ($displayMode ?? 'list') !== 'kanban',
-                        'bg-white text-[color:var(--accent)] shadow-sm ring-1 ring-[color:var(--accent-soft-2)]' => ($displayMode ?? 'list') === 'kanban',
-                    ])
-                >
-                    <iconify-icon icon="solar:widget-2-linear" width="16"></iconify-icon>
-                    {{ __('Kanban') }}
-                </button>
-            </div>
-
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
             <button
                 type="button"
-                class="h-10 px-3 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-semibold rounded-xl shadow-sm hover:bg-[#F9FAFB] transition inline-flex items-center gap-2"
+                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0"
                 @click="viewsOpen = !viewsOpen"
             >
-                <iconify-icon icon="solar:sidebar-minimalistic-linear" width="16"></iconify-icon>
-                <span x-show="viewsOpen">{{ __('Masquer vues') }}</span>
-                <span x-show="!viewsOpen">{{ __('Afficher vues') }}</span>
+                <iconify-icon icon="solar:sidebar-minimalistic-bold-duotone" width="18"></iconify-icon>
+                <span x-show="viewsOpen" class="hidden sm:inline">{{ __('Masquer vues') }}</span>
+                <span x-show="!viewsOpen" class="hidden sm:inline">{{ __('Afficher vues') }}</span>
             </button>
 
-            <a
-                href="{{ route('tickets.create') }}"
-                class="h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors inline-flex items-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
-                wire:navigate
-            >
-                <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
-                {{ __('Créer un ticket') }}
+            <a href="{{ route('tickets.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 sm:px-4 text-sm font-semibold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0" style="background-color: var(--accent);">
+                <iconify-icon icon="solar:add-circle-bold" width="18"></iconify-icon>
+                {{ __('Nouveau ticket') }}
             </a>
         </div>
     </div>
 
-    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-blue-200">
-            <div class="flex justify-between items-start">
-                <span class="text-[13px] font-medium text-[#6B7280]">{{ __('Ouverts') }}</span>
-                <div class="w-6 h-6 rounded bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                    <iconify-icon icon="solar:bolt-circle-linear" width="14"></iconify-icon>
+    <!-- STATS CARDS (2 cols mobile, 4 cols lg, responsive gap) -->
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8 lg:grid-cols-4 min-[1920px]:gap-6">
+        <!-- Open -->
+        <div class="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white p-4 sm:p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 min-w-0">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate block">{{ __('Ouverts') }}</span>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl min-[1920px]:text-4xl font-bold text-slate-900">{{ $stats['open'] ?? 0 }}</div>
                 </div>
-            </div>
-            <div class="mt-3">
-                <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $stats['open'] ?? 0 }}</span>
-                <span class="text-[11px] text-[#6B7280] ml-1">{{ __('à traiter') }}</span>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:bolt-circle-bold-duotone" width="20"></iconify-icon>
+                </div>
             </div>
         </div>
 
-        <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-amber-200">
-            <div class="flex justify-between items-start">
-                <span class="text-[13px] font-medium text-[#6B7280]">{{ __('En cours') }}</span>
-                <div class="w-6 h-6 rounded bg-amber-50 text-amber-700 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
-                    <iconify-icon icon="solar:clock-circle-linear" width="14"></iconify-icon>
+        <!-- In Progress -->
+        <div class="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white p-4 sm:p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 min-w-0">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate block">{{ __('En cours') }}</span>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl min-[1920px]:text-4xl font-bold text-slate-900">{{ $stats['in_progress'] ?? 0 }}</div>
                 </div>
-            </div>
-            <div class="mt-3">
-                <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $stats['in_progress'] ?? 0 }}</span>
-                <span class="text-[11px] text-[#6B7280] ml-1">{{ __('actifs') }}</span>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:clock-circle-bold-duotone" width="20"></iconify-icon>
+                </div>
             </div>
         </div>
 
-        <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-violet-200">
-            <div class="flex justify-between items-start">
-                <span class="text-[13px] font-medium text-[#6B7280]">{{ __('En attente') }}</span>
-                <div class="w-6 h-6 rounded bg-violet-50 text-violet-700 flex items-center justify-center group-hover:bg-violet-100 transition-colors">
-                    <iconify-icon icon="solar:hourglass-linear" width="14"></iconify-icon>
+        <!-- Pending -->
+        <div class="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white p-4 sm:p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 min-w-0">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate block">{{ __('En attente') }}</span>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl min-[1920px]:text-4xl font-bold text-slate-900">{{ $stats['pending'] ?? 0 }}</div>
                 </div>
-            </div>
-            <div class="mt-3">
-                <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $stats['pending'] ?? 0 }}</span>
-                <span class="text-[11px] text-[#6B7280] ml-1">{{ __('réponse client') }}</span>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:hourglass-bold-duotone" width="20"></iconify-icon>
+                </div>
             </div>
         </div>
 
-        <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-emerald-200">
-            <div class="flex justify-between items-start">
-                <span class="text-[13px] font-medium text-[#6B7280]">{{ __('Résolus (7j)') }}</span>
-                <div class="w-6 h-6 rounded bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                    <iconify-icon icon="solar:check-circle-linear" width="14"></iconify-icon>
+        <!-- Resolved -->
+        <div class="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white p-4 sm:p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all duration-300 min-w-0">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate block">{{ __('Résolus (7j)') }}</span>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl min-[1920px]:text-4xl font-bold text-slate-900">{{ $stats['resolved_7d'] ?? 0 }}</div>
                 </div>
-            </div>
-            <div class="mt-3">
-                <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $stats['resolved_7d'] ?? 0 }}</span>
-                <span class="text-[11px] text-[#6B7280] ml-1">{{ __('récents') }}</span>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:check-circle-bold-duotone" width="20"></iconify-icon>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="mt-6 grid grid-cols-1 gap-4 sm:gap-6" :class="viewsOpen ? 'lg:grid-cols-4' : 'lg:grid-cols-1'">
-        <!-- LEFT: fixed ticket views -->
-        <div class="lg:col-span-1" x-cloak x-show="viewsOpen">
-            <div class="sticky top-20">
-                <div class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
-                    <div class="w-full px-4 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB] flex items-center justify-between">
-                        <div class="text-[11px] uppercase tracking-wider text-[#6B7280] font-semibold">{{ __('Vues tickets') }}</div>
-                        <button
-                            type="button"
-                            class="h-8 px-2 rounded-md text-[12px] font-semibold text-[#111827] hover:bg-white/70 transition inline-flex items-center gap-1.5"
-                            @click="viewsOpen = false"
-                        >
-                            <iconify-icon icon="solar:double-alt-arrow-left-linear" width="14" class="text-[#6B7280]"></iconify-icon>
-                            {{ __('Masquer') }}
-                        </button>
-                    </div>
+    <!-- MAIN CONTENT (1 col mobile, 4 when sidebar open) -->
+    <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8 transition-all duration-300 min-w-0" :class="viewsOpen ? 'lg:grid-cols-4' : 'lg:grid-cols-1'">
 
+        <!-- SIDEBAR FILTERS -->
+        <div class="lg:col-span-1" x-cloak x-show="viewsOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-x-4" x-transition:enter-end="opacity-100 translate-x-0">
+            <div class="sticky top-24 space-y-6">
+                <!-- Views Menu -->
+                <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-50 bg-slate-50/50">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('Vues rapides') }}</h3>
+                    </div>
                     <div class="p-2 space-y-1">
                         @php
-                            $itemBase = 'w-full flex items-center justify-between gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition border';
-                            $badgeBase = 'min-w-[28px] h-6 px-2 rounded-md text-[12px] font-semibold flex items-center justify-center';
+                            $itemBase = 'w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200';
+                            $badgeBase = 'min-w-[24px] h-6 px-1.5 rounded-lg text-xs font-bold flex items-center justify-center';
                             $isActive = fn (string $k) => ($viewKey ?? 'all') === $k;
+                            $boxKey = $box ?? 'active';
+                            $boxBtn = 'w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200';
                         @endphp
 
+                        <div class="px-1 pb-2">
+                            <div class="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+                                <button type="button" wire:click="setBox('active')"
+                                    class="flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-all {{ $boxKey === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
+                                    <span class="inline-flex items-center gap-2 justify-center w-full">
+                                        <iconify-icon icon="solar:ticket-bold-duotone" width="18"></iconify-icon>
+                                        {{ __('Actifs') }}
+                                    </span>
+                                </button>
+                                <button type="button" wire:click="setBox('archived')"
+                                    class="flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-all {{ $boxKey === 'archived' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
+                                    <span class="inline-flex items-center gap-2 justify-center w-full">
+                                        <iconify-icon icon="solar:archive-bold-duotone" width="18"></iconify-icon>
+                                        {{ __('Archivés') }}
+                                        <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] {{ $boxKey === 'archived' ? 'bg-slate-100 text-slate-700' : 'bg-white/60 text-slate-500' }}">{{ $viewCounts['archived'] ?? 0 }}</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="button" wire:click="setView('all')"
+                            class="{{ $itemBase }} {{ $isActive('all') ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:layers-bold-duotone" width="18"></iconify-icon>
+                                {{ __('Tous les tickets') }}
+                            </span>
+                            <span class="{{ $badgeBase }} {{ $isActive('all') ? 'bg-white/50 text-[var(--accent)]' : 'bg-slate-100 text-slate-500' }}">{{ $viewCounts['all'] ?? 0 }}</span>
+                        </button>
+
                         <button type="button" wire:click="setView('created_by_me')"
-                            class="{{ $itemBase }} {{ $isActive('created_by_me') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
-                            <span class="flex items-center gap-2">
-                                <iconify-icon icon="solar:pen-linear" width="16" class="text-[#6B7280]"></iconify-icon>
+                            class="{{ $itemBase }} {{ $isActive('created_by_me') ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:pen-bold-duotone" width="18"></iconify-icon>
                                 {{ __('Créés par moi') }}
                             </span>
-                            <span class="{{ $badgeBase }} {{ $isActive('created_by_me') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['created_by_me'] ?? 0 }}</span>
+                            <span class="{{ $badgeBase }} {{ $isActive('created_by_me') ? 'bg-white/50 text-[var(--accent)]' : 'bg-slate-100 text-slate-500' }}">{{ $viewCounts['created_by_me'] ?? 0 }}</span>
                         </button>
 
                         <button type="button" wire:click="setView('assigned_to_me')"
-                            class="{{ $itemBase }} {{ $isActive('assigned_to_me') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
-                            <span class="flex items-center gap-2">
-                                <iconify-icon icon="solar:user-check-linear" width="16" class="text-[#6B7280]"></iconify-icon>
+                            class="{{ $itemBase }} {{ $isActive('assigned_to_me') ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:user-check-bold-duotone" width="18"></iconify-icon>
                                 {{ __('Assignés à moi') }}
                             </span>
-                            <span class="{{ $badgeBase }} {{ $isActive('assigned_to_me') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['assigned_to_me'] ?? 0 }}</span>
-                        </button>
-
-                        <button type="button" wire:click="setView('past_due')"
-                            class="{{ $itemBase }} {{ $isActive('past_due') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
-                            <span class="flex items-center gap-2">
-                                <iconify-icon icon="solar:calendar-search-linear" width="16" class="text-[#6B7280]"></iconify-icon>
-                                {{ __('En retard') }}
-                            </span>
-                            <span class="{{ $badgeBase }} {{ $isActive('past_due') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['past_due'] ?? 0 }}</span>
+                            <span class="{{ $badgeBase }} {{ $isActive('assigned_to_me') ? 'bg-white/50 text-[var(--accent)]' : 'bg-slate-100 text-slate-500' }}">{{ $viewCounts['assigned_to_me'] ?? 0 }}</span>
                         </button>
 
                         <button type="button" wire:click="setView('high_priority')"
-                            class="{{ $itemBase }} {{ $isActive('high_priority') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
-                            <span class="flex items-center gap-2">
-                                <iconify-icon icon="solar:danger-triangle-linear" width="16" class="text-[#6B7280]"></iconify-icon>
+                            class="{{ $itemBase }} {{ $isActive('high_priority') ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:danger-triangle-bold-duotone" width="18"></iconify-icon>
                                 {{ __('Haute priorité') }}
                             </span>
-                            <span class="{{ $badgeBase }} {{ $isActive('high_priority') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['high_priority'] ?? 0 }}</span>
-                        </button>
-
-                        <button type="button" wire:click="setView('unassigned')"
-                            class="{{ $itemBase }} {{ $isActive('unassigned') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
-                            <span class="flex items-center gap-2">
-                                <iconify-icon icon="solar:user-minus-linear" width="16" class="text-[#6B7280]"></iconify-icon>
-                                {{ __('Non assignés') }}
-                            </span>
-                            <span class="{{ $badgeBase }} {{ $isActive('unassigned') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['unassigned'] ?? 0 }}</span>
-                        </button>
-
-                        <button type="button" wire:click="setView('all')"
-                            class="{{ $itemBase }} {{ $isActive('all') ? 'border-[color:var(--accent-soft)] bg-[color:var(--accent-soft)] text-[color:var(--accent)]' : 'border-transparent text-[#111827] hover:bg-[#F9FAFB]' }}">
-                            <span class="flex items-center gap-2">
-                                <iconify-icon icon="solar:layers-linear" width="16" class="text-[#6B7280]"></iconify-icon>
-                                {{ __('Tous les tickets') }}
-                            </span>
-                            <span class="{{ $badgeBase }} {{ $isActive('all') ? 'bg-white/70 text-[#111827]' : 'bg-[#F3F4F6] text-[#111827]' }}">{{ $viewCounts['all'] ?? 0 }}</span>
+                            <span class="{{ $badgeBase }} {{ $isActive('high_priority') ? 'bg-white/50 text-[var(--accent)]' : 'bg-slate-100 text-slate-500' }}">{{ $viewCounts['high_priority'] ?? 0 }}</span>
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT: list / kanban -->
+        <!-- TICKET LIST / KANBAN -->
         <div :class="viewsOpen ? 'lg:col-span-3' : 'lg:col-span-1'">
-            <!-- When views are hidden, provide quick reopen -->
-            <div x-cloak x-show="!viewsOpen" class="mb-3">
+
+            <!-- Reopen Button (Mobile/Hidden state) -->
+            <div x-cloak x-show="!viewsOpen" class="mb-4">
                 <button
                     type="button"
-                    class="w-full sm:w-auto h-10 px-3 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-semibold rounded-xl shadow-sm hover:bg-[#F9FAFB] transition inline-flex items-center gap-2"
+                    class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
                     @click="viewsOpen = true"
                 >
-                    <iconify-icon icon="solar:sidebar-minimalistic-linear" width="16"></iconify-icon>
-                    {{ __('Afficher vues tickets') }}
+                    <iconify-icon icon="solar:sidebar-minimalistic-bold-duotone" width="18"></iconify-icon>
+                    {{ __('Afficher le menu') }}
                 </button>
             </div>
 
             @if (($displayMode ?? 'list') === 'kanban')
-                <div class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
-                    <div class="p-4 sm:p-6 border-b border-[#E5E7EB] flex items-start justify-between gap-4">
-                        <div>
-                            <h2 class="text-[13px] font-semibold text-[#111827]">{{ __('Kanban') }}</h2>
-                            <p class="mt-1 text-[12px] text-[#6B7280]">{{ __('Glisser-déposer une carte pour changer le statut.') }}</p>
-                        </div>
-                        <div class="text-[12px] text-[#6B7280] hidden sm:block">
-                            {{ __('Filtres et recherche s’appliquent aussi ici.') }}
-                        </div>
+                <!-- KANBAN VIEW (horizontal scroll on mobile) -->
+                <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden h-[calc(100vh-14rem)] sm:h-[calc(100vh-12rem)] min-h-[400px]">
+                    <div class="p-3 sm:p-4 border-b border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-slate-50/50">
+                        <h2 class="text-sm font-bold text-slate-900">{{ __('Tableau Kanban') }}</h2>
+                        <div class="text-xs text-slate-500 hidden sm:block">{{ __('Glisser-déposer pour changer le statut') }}</div>
                     </div>
-
-                    <div class="p-4 sm:p-6">
-                        <!-- Horizontal scroll board (wider, less cramped) -->
-                        <div class="-mx-4 sm:-mx-6 px-4 sm:px-6 pb-2 overflow-x-auto custom-scrollbar">
-                            <div class="flex gap-4 min-w-max">
-                                @foreach (($statusColumns ?? []) as $colStatus)
-                                    @php
-                                        [$colLabel, $colIcon] = $statusLabel($colStatus);
-                                        $colPill = $statusPill($colStatus);
-                                        $cards = $kanbanTickets[$colStatus] ?? [];
-                                    @endphp
-                                    <div
-                                        class="w-[320px] sm:w-[340px] shrink-0 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] overflow-hidden flex flex-col h-[70vh] min-h-[520px]"
-                                        @dragover.prevent
-                                        @drop.prevent="
-                                            if (dragId) { $wire.moveTicket(dragId, '{{ $colStatus }}'); dragId = null; }
-                                        "
-                                    >
-                                        <div class="px-4 py-3 border-b border-[#E5E7EB] bg-white flex items-center justify-between">
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border {{ $colPill['bg'] }} {{ $colPill['text'] }} {{ $colPill['border'] }}">
-                                                <iconify-icon icon="{{ $colIcon }}" width="14"></iconify-icon>
-                                                {{ $colLabel }}
-                                            </span>
-                                            <span class="text-[12px] font-semibold text-[#6B7280]">{{ count($cards) }}</span>
-                                        </div>
-
-                                        <div class="p-3 space-y-3 overflow-y-auto custom-scrollbar flex-1">
-                                            @forelse ($cards as $t)
-                                                @php
-                                                    $prio = $priorityMeta($t->priority?->level);
-                                                @endphp
-                                                <div
-                                                    class="rounded-lg border border-[#E5E7EB] bg-white p-3.5 shadow-sm hover:border-[color:var(--accent-soft-2)] transition cursor-grab active:cursor-grabbing"
-                                                    draggable="true"
-                                                    @dragstart="dragId = {{ (int) $t->id }}"
-                                                    @dragend="dragId = null"
-                                                    title="#{{ $t->id }}"
-                                                >
-                                                    <div class="flex items-start justify-between gap-3">
-                                                        <div class="min-w-0">
-                                                            <div class="text-[13px] font-semibold text-[#111827] leading-snug break-words">
-                                                                #{{ $t->id }} · {{ $t->subject }}
-                                                            </div>
-                                                            <div class="mt-1.5 text-[11px] text-[#6B7280] leading-snug">
-                                                                <span class="whitespace-nowrap">{{ __('Par') }}</span> {{ $t->creator?->name ?? '—' }}
-                                                                @if ($t->assignee)
-                                                                    <span class="mx-1">•</span>
-                                                                    <span class="whitespace-nowrap">{{ __('Assigné à') }}</span> {{ $t->assignee->name }}
-                                                                @endif
-                                                            </div>
-                                                        </div>
-                                                        <span class="w-3 h-3 rounded-full {{ $prio['dot'] }} mt-1" title="{{ $prio['label'] }}"></span>
-                                                    </div>
-
-                                                    <div class="mt-3 flex items-center justify-between text-[11px] text-[#6B7280] gap-2">
-                                                        <span class="min-w-0 truncate">{{ $t->category?->name ?? '—' }}</span>
-                                                        <span class="whitespace-nowrap">{{ $t->updated_at?->diffForHumans() }}</span>
-                                                    </div>
-                                                </div>
-                                            @empty
-                                                <div class="px-2 py-10 text-center text-[12px] text-[#9CA3AF]">
-                                                    {{ __('Aucun ticket.') }}
-                                                </div>
-                                            @endforelse
-                                        </div>
+                    <div class="p-2 sm:p-4 h-full overflow-x-auto overflow-y-hidden custom-scrollbar scroll-touch">
+                        <div class="flex gap-3 sm:gap-4 h-full min-w-max">
+                            @foreach (($statusColumns ?? []) as $colStatus)
+                                @php
+                                    [$colLabel, $colIcon] = $statusLabel($colStatus);
+                                    $colPill = $statusPill($colStatus);
+                                    $cards = $kanbanTickets[$colStatus] ?? [];
+                                @endphp
+                                <div
+                                    class="w-[280px] min-[400px]:w-[300px] sm:w-[320px] shrink-0 rounded-xl bg-slate-50/50 border border-slate-100 flex flex-col h-full min-h-0"
+                                    @dragover.prevent
+                                    @drop.prevent="if (dragId) { $wire.moveTicket(dragId, '{{ $colStatus }}'); dragId = null; }"
+                                >
+                                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border {{ $colPill['bg'] }} {{ $colPill['text'] }} {{ $colPill['border'] }}">
+                                            {{ $colLabel }}
+                                        </span>
+                                        <span class="text-xs font-bold text-slate-400">{{ count($cards) }}</span>
                                     </div>
-                                @endforeach
-                            </div>
+                                    <div class="p-3 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+                                        @forelse ($cards as $t)
+                                            @php
+                                                $prio = $priorityMeta($t->priority?->level);
+                                                $prog = $checklistProgress[$t->id] ?? null;
+                                                $pct = $prog && (int) $prog->total > 0 ? (int) round(100 * (int) $prog->done / (int) $prog->total) : null;
+                                            @endphp
+                                            <div
+                                                class="rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md hover:border-[var(--accent-soft)] transition-all cursor-grab active:cursor-grabbing group"
+                                                draggable="true"
+                                                @dragstart="dragId = {{ (int) $t->id }}"
+                                                @dragend="dragId = null"
+                                            >
+                                                <div class="flex justify-between items-start mb-2">
+                                                    <span class="text-xs font-mono font-bold text-slate-400">#{{ $t->id }}</span>
+                                                    <span class="h-2 w-2 rounded-full {{ $prio['dot'] }}" title="{{ $prio['label'] }}"></span>
+                                                </div>
+                                                <h4 class="text-sm font-bold text-slate-900 mb-1 line-clamp-2 group-hover:text-[var(--accent)] transition-colors">{{ $t->subject }}</h4>
+                                                @if ($pct !== null)
+                                                    <div class="mb-2">
+                                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold {{ $pct >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
+                                                            <iconify-icon icon="solar:checklist-minimalistic-linear" width="10"></iconify-icon>
+                                                            {{ $pct }}%
+                                                        </span>
+                                                    </div>
+                                                @endif
+                                                <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
+                                                    <div class="flex items-center gap-2">
+                                                        <x-avatar :name="$t->creator?->name ?? 'U'" size="h-5 w-5" class="ring-1 ring-white shadow-sm" />
+                                                        <span class="text-xs text-slate-500 truncate max-w-[100px]">{{ $t->creator?->name }}</span>
+                                                    </div>
+                                                    <span class="text-[10px] text-slate-400">{{ $t->updated_at?->diffForHumans() }}</span>
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <div class="py-8 text-center text-xs text-slate-400 italic">{{ __('Vide') }}</div>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 </div>
             @else
-                <div class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
-                <div class="p-4 sm:p-6 border-b border-[#E5E7EB]">
-                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div class="flex-1 flex flex-col sm:flex-row gap-2">
-                            <div class="relative flex-1">
-                                <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" width="16"></iconify-icon>
-                                <input
-                                    type="text"
-                                    class="w-full h-10 pl-9 pr-3 rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition"
-                                    placeholder="{{ __('Rechercher (id, sujet, auteur, assigné)…') }}"
-                                    wire:model.live="search"
-                                />
-                            </div>
-
-                            <button
-                                type="button"
-                                class="h-10 px-3 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-medium rounded-md shadow-sm hover:bg-[#F9FAFB] transition"
-                                wire:click="resetFilters"
-                            >
-                                {{ __('Réinitialiser') }}
-                            </button>
+                <!-- LIST VIEW -->
+                <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden min-w-0">
+                    <!-- Filters Toolbar -->
+                    <div class="p-3 sm:p-4 border-b border-slate-100 bg-slate-50/30 flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="flex-1 min-w-0 relative">
+                            <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="18"></iconify-icon>
+                            <input
+                                type="text"
+                                class="w-full h-11 pl-10 pr-4 rounded-xl border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-shadow shadow-sm"
+                                placeholder="{{ __('Rechercher un ticket...') }}"
+                                wire:model.live="search"
+                            />
                         </div>
-
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <div class="relative">
-                                <select wire:model.live="status" class="h-10 min-w-[170px] rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] shadow-sm focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition appearance-none pr-9">
-                                    <option value="">{{ __('Tous les statuts') }}</option>
+                        <div class="flex flex-wrap gap-2">
+                            <div class="w-full min-w-0 sm:w-40 flex-1 sm:flex-none">
+                                <x-select-input wire:model.live="status">
+                                    <option value="">{{ __('Statut') }}</option>
                                     <option value="open">{{ __('Ouvert') }}</option>
                                     <option value="in_progress">{{ __('En cours') }}</option>
                                     <option value="pending">{{ __('En attente') }}</option>
                                     <option value="resolved">{{ __('Résolu') }}</option>
                                     <option value="closed">{{ __('Fermé') }}</option>
-                                </select>
-                                <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none" width="14"></iconify-icon>
+                                </x-select-input>
                             </div>
-
-                            <div class="relative">
-                                <select wire:model.live="priority" class="h-10 min-w-[170px] rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] shadow-sm focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition appearance-none pr-9">
-                                    <option value="">{{ __('Toutes les priorités') }}</option>
+                            <div class="w-full min-w-0 sm:w-40 flex-1 sm:flex-none">
+                                <x-select-input wire:model.live="priority">
+                                    <option value="">{{ __('Priorité') }}</option>
                                     @foreach ($priorities as $p)
                                         <option value="{{ $p->id }}">{{ $p->name }}</option>
                                     @endforeach
-                                </select>
-                                <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none" width="14"></iconify-icon>
+                                </x-select-input>
                             </div>
-
-                            <div class="relative">
-                                <select wire:model.live="assignee" class="h-10 min-w-[190px] rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] shadow-sm focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition appearance-none pr-9">
-                                    <option value="">{{ __('Tous les assignés') }}</option>
-                                    <option value="unassigned">{{ __('Non assigné') }}</option>
-                                    @foreach ($assignees as $a)
-                                        <option value="{{ $a->id }}">{{ $a->name }}</option>
-                                    @endforeach
-                                </select>
-                                <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none" width="14"></iconify-icon>
-                            </div>
+                            <button wire:click="resetFilters" class="h-11 min-h-[44px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors shadow-sm touch-target sm:min-h-0">
+                                {{ __('Reset') }}
+                            </button>
                         </div>
                     </div>
-                </div>
 
-                <div class="overflow-x-auto custom-scrollbar">
-                    <table class="min-w-[980px] w-full">
-                        <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-                            <tr class="text-left text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider">
-                                <th class="px-4 py-3 w-16">{{ __('ID') }}</th>
-                                <th class="px-4 py-3">{{ __('Sujet') }}</th>
-                                <th class="px-4 py-3 w-40">{{ __('Catégorie') }}</th>
-                                <th class="px-4 py-3 w-40">{{ __('Priorité') }}</th>
-                                <th class="px-4 py-3 w-36">{{ __('Statut') }}</th>
-                                <th class="px-4 py-3 w-44">{{ __('Dernière activité') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-[#E5E7EB]">
-                            @forelse ($tickets as $t)
-                                @php
-                                    [$label, $icon] = $statusLabel($t->status->value);
-                                    $pill = $statusPill($t->status->value);
-                                    $prio = $priorityMeta($t->priority?->level);
-                                @endphp
-                                <tr class="group hover:bg-[#F9FAFB] transition-colors">
-                                    <td class="px-4 py-3 text-xs font-mono text-[#6B7280] group-hover:text-[#111827]">#{{ $t->id }}</td>
-                                    <td class="px-4 py-3">
-                                        <div class="text-[13px] font-medium text-[#111827]">{{ $t->subject }}</div>
-                                        <div class="mt-1 text-[11px] text-[#6B7280]">
-                                            {{ __('Par') }} <span class="font-medium text-[#111827]">{{ $t->creator?->name ?? '—' }}</span>
-                                            @if ($t->assignee)
-                                                <span class="mx-2">•</span>
-                                                {{ __('Assigné à') }} <span class="font-medium text-[#111827]">{{ $t->assignee->name }}</span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-3 text-[12px] text-[#111827]">{{ $t->category?->name ?? '—' }}</td>
-                                    <td class="px-4 py-3">
-                                        <div class="inline-flex items-center gap-2">
-                                            <span class="w-2 h-2 rounded-full {{ $prio['dot'] }}"></span>
-                                            <span class="text-[12px] font-medium {{ $prio['text'] }}">{{ $t->priority?->name ?? $prio['label'] }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
-                                            <iconify-icon icon="{{ $icon }}" width="12"></iconify-icon>
-                                            {{ $label }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 text-[12px] text-[#6B7280]">
-                                        {{ $t->updated_at?->diffForHumans() }}
-                                    </td>
-                                </tr>
-                            @empty
+                    <!-- Table (horizontal scroll on small screens) -->
+                    <div class="responsive-table-wrap">
+                        <table class="w-full text-left min-w-[640px]">
+                            <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-500 tracking-wider">
                                 <tr>
-                                    <td colspan="6" class="px-4 py-10 text-center text-[13px] text-[#6B7280]">
-                                        {{ __('Aucun ticket.') }}
-                                    </td>
+                                    <th class="px-4 sm:px-6 py-3 sm:py-4">{{ __('Sujet') }}</th>
+                                    <th class="px-4 sm:px-6 py-3 sm:py-4">{{ __('Catégorie') }}</th>
+                                    <th class="px-4 sm:px-6 py-3 sm:py-4">{{ __('Priorité') }}</th>
+                                    <th class="px-4 sm:px-6 py-3 sm:py-4">{{ __('Statut') }}</th>
+                                    <th class="px-4 sm:px-6 py-3 sm:py-4 text-right">{{ __('Activité') }}</th>
                                 </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="px-4 sm:px-6 py-4 border-t border-[#E5E7EB] bg-white flex items-center justify-between gap-4">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[12px] text-[#6B7280]">{{ __('Par page') }}</span>
-                        <div class="relative">
-                            <select wire:model.live="perPage" class="h-9 rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] shadow-sm focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition appearance-none pr-8 pl-3">
-                                <option value="10">10</option>
-                                <option value="25">25</option>
-                                <option value="50">50</option>
-                            </select>
-                            <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-2 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none" width="14"></iconify-icon>
-                        </div>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse ($tickets as $t)
+                                    @php
+                                        [$label, $icon] = $statusLabel($t->status->value);
+                                        $pill = $statusPill($t->status->value);
+                                        $prio = $priorityMeta($t->priority?->level);
+                                    @endphp
+                                    <tr class="group hover:bg-slate-50/80 transition-colors cursor-pointer" onclick="window.location='{{ route('tickets.discussion', $t->id) }}'">
+                                        <td class="px-4 sm:px-6 py-3 sm:py-4">
+                                            <div class="flex items-center gap-2 sm:gap-4 min-w-0">
+                                                <span class="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500 font-mono">
+                                                    #{{ $t->id }}
+                                                </span>
+                                                <div class="min-w-0">
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <span class="text-sm font-bold text-slate-900 group-hover:text-[var(--accent)] transition-colors break-words">{{ $t->subject }}</span>
+                                                        @php $prog = $checklistProgress[$t->id] ?? null; @endphp
+                                                        @if ($prog && (int) $prog->total > 0)
+                                                            @php $pct = (int) round(100 * (int) $prog->done / (int) $prog->total); @endphp
+                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold {{ $pct >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
+                                                                <iconify-icon icon="solar:checklist-minimalistic-linear" width="12"></iconify-icon>
+                                                                {{ $pct }}%
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="text-xs text-slate-500 mt-0.5">
+                                                        {{ $t->creator?->name ?? 'Inconnu' }}
+                                                        @if ($t->assignee)
+                                                            <span class="mx-1 text-slate-300">|</span>
+                                                            {{ __('Assigné à') }} <span class="font-medium text-slate-700">{{ $t->assignee->name }}</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 sm:px-6 py-3 sm:py-4 text-sm text-slate-600 whitespace-nowrap">
+                                            {{ $t->category?->name ?? '—' }}
+                                        </td>
+                                        <td class="px-4 sm:px-6 py-3 sm:py-4">
+                                            <div class="flex items-center gap-2">
+                                                <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $prio['dot'] }}"></span>
+                                                <span class="text-sm font-medium {{ $prio['text'] }}">{{ $t->priority?->name ?? $prio['label'] }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
+                                                <iconify-icon icon="{{ $icon }}" width="14"></iconify-icon>
+                                                {{ $label }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 sm:px-6 py-3 sm:py-4 text-right text-sm text-slate-500 whitespace-nowrap">
+                                            {{ $t->updated_at?->diffForHumans() }}
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 sm:px-6 py-8 sm:py-12 text-center text-slate-500">
+                                            <div class="flex flex-col items-center justify-center">
+                                                <div class="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+                                                    <iconify-icon icon="solar:ticket-linear" width="32" class="text-slate-400"></iconify-icon>
+                                                </div>
+                                                <p class="font-medium text-slate-900">{{ __('Aucun ticket trouvé') }}</p>
+                                                <p class="text-sm text-slate-500 mt-1">{{ __('Essayez de modifier vos filtres ou créez un nouveau ticket.') }}</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
 
-                    <div class="text-[12px] text-[#6B7280]">
+                    <!-- Pagination -->
+                    <div class="px-4 sm:px-6 py-4 border-t border-slate-100 bg-slate-50/30 overflow-x-auto">
                         {{ $tickets->links() }}
                     </div>
-                </div>
                 </div>
             @endif
         </div>
     </div>
 
-    <div
-        x-cloak
-        class="fixed inset-0 z-50"
-        x-show="open"
-        x-transition.opacity
-        @keydown.escape.window="open = false"
-    >
-        <div class="absolute inset-0 bg-black/30" @click="open = false"></div>
-
-        <div class="absolute inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl border-l border-[#E5E7EB] flex flex-col"
-             x-transition:enter="transform transition ease-out duration-200"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transform transition ease-in duration-200"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="translate-x-full"
-        >
-            <div class="px-4 sm:px-6 py-4 border-b border-[#E5E7EB] flex items-start justify-between gap-4">
-                <div>
-                    <h2 class="text-[15px] font-semibold text-[#111827]">Créer un ticket</h2>
-                    <p class="mt-1 text-[12px] text-[#6B7280]">Remplis le formulaire pour envoyer une nouvelle demande.</p>
-                </div>
-                <button type="button" class="w-9 h-9 rounded-md border border-[#E5E7EB] bg-white hover:bg-[#F9FAFB] text-[#111827] flex items-center justify-center transition" @click="open = false">
-                    <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
-                </button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6">
-                <livewire:tickets.create-form />
-            </div>
-        </div>
-    </div>
 </div>

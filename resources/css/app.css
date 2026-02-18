@@ -6,6 +6,132 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    /* Design System docs: Inter + Playfair Display (docs/ui) */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-serif: 'Playfair Display', ui-serif, Georgia, 'Times New Roman', serif;
+
+    /* Couleurs système (docs/MANEXO_ Design System) */
+    --color-surface: #FFFFFF;
+    --color-surface-alt: #F9FAFB;
+    --color-border: #E5E7EB;
+    --color-text: #111827;
+    --color-text-muted: #6B7280;
+
+    /* Responsive: mobile → tablette → desktop → TV */
+    --breakpoint-tv: 1920px;
+    --breakpoint-tv-wide: 2560px;
+}
+
+/* Design System docs/ui + ui-kit + ticket.html : composants réutilisables */
+@layer components {
+    /* Boutons (réf. docs/ui.html §3) */
+    .btn-primary {
+        @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2;
+        background-color: var(--accent);
+    }
+    .btn-primary:hover { background-color: color-mix(in srgb, var(--accent) 90%, black); }
+    .btn-primary:focus-visible { outline-color: var(--accent); }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium bg-white border border-[#E5E7EB] text-[#374151] shadow-sm transition-all hover:bg-[#F9FAFB] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E5E7EB];
+    }
+    .btn-secondary:hover { border-color: color-mix(in srgb, var(--accent) 30%, transparent); color: var(--accent); }
+
+    .btn-ghost {
+        @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-[#6B7280] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827];
+    }
+
+    /* Inputs (réf. docs/ui.html §4) */
+    .input-manexo {
+        @apply block w-full rounded-lg border-0 bg-white py-2 px-3 text-[#111827] shadow-sm text-sm placeholder:text-[#9CA3AF] transition-shadow;
+        box-shadow: 0 0 0 1px #E5E7EB inset;
+    }
+    .input-manexo:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--accent) inset;
+    }
+    .input-manexo.ring-error {
+        box-shadow: 0 0 0 1px #FCA5A5 inset;
+    }
+
+    /* Cartes (réf. docs/ui.html §5) */
+    .card-manexo {
+        @apply rounded-xl border border-[#E5E7EB] bg-white shadow-sm;
+    }
+    .card-manexo-header {
+        @apply px-5 py-4 border-b border-[#F3F4F6] flex justify-between items-center;
+    }
+    .card-manexo-body {
+        @apply p-5;
+    }
+
+    /* Badge actif / statut (réf. docs + ticket.html) */
+    .badge-accent {
+        @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+        background: var(--accent-soft);
+        color: var(--accent);
+        border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+}
+
+/* Responsive container app (mobile → TV) */
+@layer components {
+    .manexo-container {
+        width: 100%;
+        min-width: 0;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+    }
+    @media (min-width: 640px) {
+        .manexo-container { padding-left: max(1.5rem, env(safe-area-inset-left)); padding-right: max(1.5rem, env(safe-area-inset-right)); }
+    }
+    @media (min-width: 768px) {
+        .manexo-container { padding-left: max(2rem, env(safe-area-inset-left)); padding-right: max(2rem, env(safe-area-inset-right)); }
+    }
+    @media (min-width: 1024px) {
+        .manexo-container { padding-left: max(2.5rem, env(safe-area-inset-left)); padding-right: max(2.5rem, env(safe-area-inset-right)); max-width: 1280px; }
+    }
+    @media (min-width: 1280px) {
+        .manexo-container { max-width: 1400px; padding-left: max(3rem, env(safe-area-inset-left)); padding-right: max(3rem, env(safe-area-inset-right)); }
+    }
+    @media (min-width: 1536px) {
+        .manexo-container { max-width: 1600px; padding-left: max(3.5rem, env(safe-area-inset-left)); padding-right: max(3.5rem, env(safe-area-inset-right)); }
+    }
+    @media (min-width: 1920px) {
+        .manexo-container { max-width: 1800px; padding-left: max(4rem, env(safe-area-inset-left)); padding-right: max(4rem, env(safe-area-inset-right)); }
+    }
+    @media (min-width: 2560px) {
+        .manexo-container { max-width: 2000px; padding-left: max(5rem, env(safe-area-inset-left)); padding-right: max(5rem, env(safe-area-inset-right)); }
+    }
+}
+
+/* Responsive utilities: touch targets, scroll containers */
+@layer utilities {
+    .touch-target { min-height: 2.75rem; min-width: 2.75rem; }
+    @media (min-width: 768px) { .touch-target { min-height: auto; min-width: auto; } }
+    .scroll-touch { -webkit-overflow-scrolling: touch; overflow-x: auto; overflow-y: auto; }
+    .responsive-table-wrap { width: 100%; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .page-content-safe {
+        padding-left: calc(0.75rem + env(safe-area-inset-left, 0px));
+        padding-right: calc(0.75rem + env(safe-area-inset-right, 0px));
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    }
+    @media (min-width: 640px) {
+        .page-content-safe { padding-left: calc(1rem + env(safe-area-inset-left, 0px)); padding-right: calc(1rem + env(safe-area-inset-right, 0px)); }
+    }
+    @media (min-width: 768px) {
+        .page-content-safe { padding-left: calc(1.5rem + env(safe-area-inset-left, 0px)); padding-right: calc(1.5rem + env(safe-area-inset-right, 0px)); }
+    }
+    @media (min-width: 1024px) {
+        .page-content-safe { padding-left: calc(2rem + env(safe-area-inset-left, 0px)); padding-right: calc(2rem + env(safe-area-inset-right, 0px)); }
+    }
+    @media (min-width: 1280px) {
+        .page-content-safe { padding-left: calc(2.5rem + env(safe-area-inset-left, 0px)); padding-right: calc(2.5rem + env(safe-area-inset-right, 0px)); }
+    }
+    @media (min-width: 1536px) {
+        .page-content-safe { padding-left: calc(3rem + env(safe-area-inset-left, 0px)); padding-right: calc(3rem + env(safe-area-inset-right, 0px)); }
+    }
 }

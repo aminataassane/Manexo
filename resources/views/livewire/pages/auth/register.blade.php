@@ -13,7 +13,7 @@ new #[Layout('layouts.guest')] class extends Component
     // On sépare Prénom et Nom pour respecter le design
     public string $firstname = '';
     public string $lastname = '';
-    
+
     public string $email = '';
     public string $password = '';
     public string $password_confirmation = '';
@@ -42,13 +42,13 @@ new #[Layout('layouts.guest')] class extends Component
 
         // Envoi email verification
         $user->sendEmailVerificationNotification();
-        $this->redirect(route('verification.notice', absolute: false), navigate: true);
+        $this->redirect(route('verification.notice', absolute: false));
     }
 }; ?>
 
 <div class="relative z-10 w-full max-w-[440px] px-4">
     <div class="fade-in shadow-slate-200/50 sm:p-6 sm:w-[120%] sm:-ml-[10%] bg-white w-full border-slate-100 border rounded-xl p-5 shadow-2xl">
-        
+
         <!-- Header -->
         <div class="text-center mb-4">
             <div class="inline-flex items-center gap-1.5 mb-2 group cursor-pointer">
@@ -64,7 +64,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         <!-- Form -->
         <form wire:submit="register" class="space-y-2.5">
-            
+
             <div class="grid grid-cols-2 gap-2.5">
                 <div class="space-y-1">
                     <label for="firstname" class="block text-[11px] font-medium text-slate-700">Prénom</label>
@@ -119,8 +119,8 @@ new #[Layout('layouts.guest')] class extends Component
 
         <div class="mt-3 text-center">
             <p class="text-[11px] text-slate-500">
-                Déjà un compte ? 
-                <a href="{{ route('login') }}" wire:navigate class="font-normal text-[#005F02] hover:underline hover:text-[#004d02] transition-colors">Se connecter</a>
+                Déjà un compte ?
+                <a href="{{ route('login') }}" class="font-normal text-[#005F02] hover:underline hover:text-[#004d02] transition-colors">Se connecter</a>
             </p>
         </div>
     </div>

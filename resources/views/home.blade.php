@@ -4,16 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MANEXO - Gestion de tickets Multi-entreprises</title>
-
-    {{-- App assets (si Tailwind est déjà compilé via Vite) --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-
-    {{-- CDN (icônes / fonts). Le Tailwind CDN est optionnel si déjà dans app.css --}}
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -44,7 +37,7 @@
             transform: translateY(20px);
         }
 
-        @@keyframes fadeInUp {
+        @keyframes fadeInUp {
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -55,7 +48,7 @@
             animation: float 6s ease-in-out infinite;
         }
 
-        @@keyframes float {
+        @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-10px); }
             100% { transform: translateY(0px); }
@@ -65,7 +58,7 @@
             animation: blink 1s step-end infinite;
         }
 
-        @@keyframes blink {
+        @keyframes blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
         }
@@ -77,7 +70,7 @@
             animation-delay: 1.5s;
         }
 
-        @@keyframes slideInToast {
+        @keyframes slideInToast {
             to {
                 opacity: 1;
                 transform: translateX(0);
@@ -90,7 +83,7 @@
             transform: scaleY(0);
         }
 
-        @@keyframes growBar {
+        @keyframes growBar {
             to { transform: scaleY(1); }
         }
 
@@ -104,34 +97,41 @@
 <body class="bg-white text-slate-900 antialiased selection:bg-[#F2E3BB] selection:text-[#005F02]">
 
     <!-- Floating Navbar -->
-    <nav class="fixed top-6 inset-x-4 z-50 mx-auto max-w-6xl rounded-full bg-[#F4F3EF]/95 backdrop-blur-md shadow-lg ring-1 ring-black/5 transition-all">
-        <div class="flex items-center justify-between px-6 py-3">
-            <a href="{{ route('home') }}" class="flex items-center gap-2 text-[#0f2a10]">
-                <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#4D7C0F] text-white shadow-sm">
-                    <iconify-icon icon="solar:layers-minimalistic-bold" class="text-xl"></iconify-icon>
-                </span>
-                <span class="text-sm font-extrabold tracking-wide uppercase">Manexo</span>
+    <nav class="fixed top-6 left-1/2 z-50 w-[95%] max-w-5xl -translate-x-1/2 transform transition-all duration-300">
+        <div class="relative flex items-center justify-between rounded-full border border-white/10 bg-[#002e01]/85 p-2 pl-6 pr-2 shadow-2xl backdrop-blur-xl ring-1 ring-white/5 transition-all hover:bg-[#002e01]/95 hover:shadow-[0_0_40px_rgba(0,95,2,0.4)]">
+            
+            <!-- Logo -->
+            <a href="{{ route('home') }}" class="flex items-center gap-2 group cursor-pointer">
+                <div class="relative">
+                    <iconify-icon icon="solar:layers-minimalistic-linear" class="text-[#F2E3BB] text-2xl transition-transform group-hover:rotate-180 duration-700"></iconify-icon>
+                    <div class="absolute inset-0 bg-[#F2E3BB] blur-sm opacity-0 group-hover:opacity-50 transition-opacity"></div>
+                </div>
+                <span class="text-lg font-semibold tracking-tight text-white">Manexo</span>
             </a>
 
-            <div class="hidden items-center gap-8 md:flex">
-                <a href="#fonctionnalites" class="text-sm font-medium text-slate-700 hover:text-[#4D7C0F] transition-colors">Fonctionnalités</a>
-                <a href="#multi" class="text-sm font-medium text-slate-700 hover:text-[#4D7C0F] transition-colors">Pour les gérants</a>
-                <a href="#demo" class="text-sm font-medium text-slate-700 hover:text-[#4D7C0F] transition-colors">Tarifs</a>
+            <!-- Centered Links -->
+            <div class="hidden items-center gap-8 md:flex absolute left-1/2 -translate-x-1/2">
+                <a href="#" class="text-xs font-medium text-white/70 hover:text-white transition-colors">Fonctionnalités</a>
+                <a href="#" class="text-xs font-medium text-white/70 hover:text-white transition-colors">Multi-entreprises</a>
+                <a href="#" class="text-xs font-medium text-white/70 hover:text-white transition-colors">Ressources</a>
             </div>
 
-            <div class="flex items-center gap-4">
-                @if (Route::has('login'))
-                    <a href="{{ route('login') }}" class="text-sm font-semibold text-[#4D7C0F] hover:text-[#3F6212] transition-colors">Connexion</a>
-                @endif
-                <a href="#demo" class="rounded-full bg-[#4D7C0F] px-5 py-2 text-sm font-semibold text-white shadow-md hover:bg-[#3F6212] transition-colors">
-                    Essayer gratuitement
+            <!-- Right Actions -->
+            <div class="flex items-center gap-2">
+                @auth
+                    <a href="{{ route('organizations.select') }}" class="hidden px-4 py-2 text-xs font-medium text-white hover:text-[#F2E3BB] transition-colors md:block">Tableau de bord</a>
+                @else
+                    <a href="{{ route('login') }}" class="hidden px-4 py-2 text-xs font-medium text-white hover:text-[#F2E3BB] transition-colors md:block">Connexion</a>
+                @endauth
+                <a href="{{ route('register') }}" class="group relative overflow-hidden rounded-full bg-white px-5 py-2.5 text-xs font-bold text-[#005F02] transition-all hover:bg-[#F2E3BB] hover:shadow-[0_0_15px_rgba(242,227,187,0.4)]">
+                    <span class="relative z-10">Réserver</span>
                 </a>
             </div>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <header class="relative overflow-hidden bg-[#002e01] pt-32 pb-20 lg:pt-40 lg:pb-32 text-white">
+    <!-- Hero Section (Height increased significantly) -->
+    <header class="relative overflow-hidden bg-[#002e01] pt-48 pb-32 lg:pt-64 lg:pb-48 text-white">
         <!-- Animated Background Pattern -->
         <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#F2E3BB 0.5px, transparent 0.5px); background-size: 24px 24px;">
         </div>
@@ -139,7 +139,7 @@
         <div class="absolute bottom-0 left-0 -mb-20 -ml-20 h-96 w-96 rounded-full bg-[#F2E3BB] blur-3xl opacity-10 mix-blend-screen"></div>
 
         <div class="relative z-10 mx-auto max-w-7xl px-6 text-center">
-            <div class="mb-8 flex justify-center fade-in-up">
+            <div class="mb-10 flex justify-center fade-in-up">
                 <span class="group inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-[#F2E3BB] backdrop-blur-sm transition-all hover:bg-white/10 hover:border-[#F2E3BB]/50">
                     <span class="relative flex h-2 w-2">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F2E3BB] opacity-75"></span>
@@ -150,33 +150,33 @@
                 </span>
             </div>
 
-            <h1 class="fade-in-up mx-auto max-w-5xl font-serif text-5xl font-normal leading-tight tracking-tight sm:text-7xl lg:leading-[1.1]">
+            <h1 class="fade-in-up mx-auto max-w-5xl font-serif text-6xl font-normal leading-tight tracking-tight sm:text-8xl lg:leading-[1.1]">
                 Le support client,<br>
                 <span class="italic text-[#F2E3BB] relative inline-block">
                     enfin synchronisé.
-                    <svg class="absolute -bottom-2 left-0 w-full text-[#F2E3BB]" height="6" viewBox="0 0 100 6" preserveAspectRatio="none"><path d="M0,5 Q50,0 100,5" fill="none" stroke="currentColor" stroke-width="2"></path></svg>
+                    <svg class="absolute -bottom-4 left-0 w-full text-[#F2E3BB]" height="8" viewBox="0 0 100 6" preserveAspectRatio="none"><path d="M0,5 Q50,0 100,5" fill="none" stroke="currentColor" stroke-width="2"></path></svg>
                 </span>
             </h1>
 
-            <p class="fade-in-up mx-auto mt-6 max-w-2xl text-lg font-light leading-relaxed text-white/70" style="animation-delay: 0.1s;">
+            <p class="fade-in-up mx-auto mt-8 max-w-2xl text-xl font-light leading-relaxed text-white/70" style="animation-delay: 0.1s;">
                 Manexo transforme le chaos des tickets en une symphonie opérationnelle. Centralisez, automatisez et résolvez plus vite avec la première plateforme conçue pour le multi-entreprises.
             </p>
 
-            <div class="fade-in-up mx-auto mt-10 flex max-w-md flex-col items-center gap-4 sm:flex-row" style="animation-delay: 0.2s;">
+            <div class="fade-in-up mx-auto mt-12 flex max-w-md flex-col items-center gap-4 sm:flex-row" style="animation-delay: 0.2s;">
                 <div class="relative w-full group">
-                    <input type="email" placeholder="email@entreprise.com" class="peer w-full rounded bg-white/10 border border-white/20 py-3.5 pl-4 pr-32 text-sm text-white placeholder-white/40 focus:border-[#F2E3BB] focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-[#F2E3BB] transition-all">
-                    <a href="#demo" class="absolute right-1.5 top-1.5 bottom-1.5 rounded bg-[#005F02] px-5 text-sm font-medium text-white shadow-lg hover:bg-[#427A43] transition-all hover:scale-105 active:scale-95 inline-flex items-center">
+                    <input type="email" placeholder="email@entreprise.com" class="peer w-full rounded bg-white/10 border border-white/20 py-4 pl-4 pr-32 text-sm text-white placeholder-white/40 focus:border-[#F2E3BB] focus:bg-white/15 focus:outline-none focus:ring-1 focus:ring-[#F2E3BB] transition-all">
+                    <button class="absolute right-1.5 top-1.5 bottom-1.5 rounded bg-[#005F02] px-6 text-sm font-medium text-white shadow-lg hover:bg-[#427A43] transition-all hover:scale-105 active:scale-95">
                         Essayer
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
 
         <!-- Dynamic Hero Dashboard Visual -->
-        <div class="relative mx-auto mt-20 max-w-[1200px] px-2 lg:px-4 fade-in-up" style="animation-delay: 0.4s;">
-
+        <div class="relative mx-auto mt-24 max-w-[1200px] px-2 lg:px-4 fade-in-up" style="animation-delay: 0.4s;">
+            
             <!-- Floating Notification Badge (Dynamic Element) -->
-            <div class="slide-in-toast absolute -right-4 top-24 z-30 hidden lg:flex w-72 flex-col rounded-lg border border-white/20 bg-[#002e01]/90 backdrop-blur-xl p-3 shadow-2xl ring-1 ring-white/10">
+            <div class="slide-in-toast absolute -right-8 top-32 z-30 hidden lg:flex w-72 flex-col rounded-lg border border-white/20 bg-[#002e01]/90 backdrop-blur-xl p-3 shadow-2xl ring-1 ring-white/10">
                 <div class="flex items-start gap-3">
                     <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F2E3BB] text-[#002e01]">
                         <iconify-icon icon="solar:bell-bing-bold-duotone"></iconify-icon>
@@ -214,7 +214,7 @@
                                 <span class="font-serif font-bold">M</span>
                             </div>
                         </div>
-
+                        
                         <div class="flex w-96 items-center gap-2 rounded-md bg-white/10 px-3 py-1.5 text-xs text-white/60 ring-1 ring-white/10 focus-within:ring-[#F2E3BB] focus-within:bg-white/15 transition-all">
                             <iconify-icon icon="solar:magnifer-linear" class="text-base"></iconify-icon>
                             <input type="text" placeholder="Rechercher (Cmd+K)" class="bg-transparent w-full border-none outline-none placeholder-white/40 text-white">
@@ -225,13 +225,15 @@
                                 <iconify-icon icon="solar:bell-linear" class="text-xl text-white/60 hover:text-white cursor-pointer transition-colors"></iconify-icon>
                                 <span class="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 border border-[#002e01]"></span>
                             </div>
-                            <img src="https://i.pravatar.cc/150?u=a042581f4e29026024d" alt="Profile" class="h-8 w-8 rounded-full border border-white/20 hover:border-[#F2E3BB] cursor-pointer transition-colors">
+                            <div class="h-8 w-8 rounded-full border border-white/20 bg-white/10 flex items-center justify-center text-[10px] font-extrabold text-[#F2E3BB] hover:border-[#F2E3BB] cursor-pointer transition-colors">
+                                JD
+                            </div>
                         </div>
                     </div>
 
                     <!-- Interface -->
                     <div class="flex flex-1 overflow-hidden">
-
+                        
                         <!-- Sidebar -->
                         <div class="flex w-16 flex-col items-center border-r border-white/10 bg-[#002e01] py-4 gap-6 z-10">
                             <div class="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg bg-[#F2E3BB]/10 text-[#F2E3BB] transition-all hover:bg-[#F2E3BB] hover:text-[#002e01]">
@@ -254,9 +256,9 @@
                                 <div class="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-tight">
                                     Vues Tickets
                                 </div>
-                                <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                                <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div> <!-- Live Indicator -->
                             </div>
-
+                            
                             <!-- Ticket Items -->
                             <div class="flex-1 overflow-y-auto px-2 py-2 space-y-2 custom-scrollbar">
                                 <!-- Active Ticket -->
@@ -275,7 +277,9 @@
                                         <div class="flex items-center gap-1 text-[10px] font-medium text-[#005F02] bg-[#F2E3BB]/30 px-1.5 py-0.5 rounded">
                                             OPS-102
                                         </div>
-                                        <img src="https://i.pravatar.cc/150?u=2" class="ml-auto h-5 w-5 rounded-full border border-white ring-1 ring-slate-100">
+                                            <div class="ml-auto h-5 w-5 rounded-full border border-white ring-1 ring-slate-100 bg-[#005F02] text-white flex items-center justify-center text-[9px] font-extrabold">
+                                                A
+                                            </div>
                                     </div>
                                 </div>
 
@@ -291,7 +295,7 @@
                                         </div>
                                     </div>
                                 </div>
-
+                                
                                 <div class="group cursor-pointer rounded-lg border border-transparent bg-white/50 p-3 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all duration-200">
                                     <div class="flex justify-between mb-1">
                                         <span class="text-[10px] text-slate-400">1j</span>
@@ -318,7 +322,7 @@
                                     </div>
                                 </div>
                                 <div class="flex -space-x-2">
-                                    <img src="https://i.pravatar.cc/150?u=4" class="h-8 w-8 rounded-full border-2 border-white ring-1 ring-slate-100" title="Client">
+                                    <div class="h-8 w-8 rounded-full border-2 border-white ring-1 ring-slate-100 bg-[#F2E3BB] text-[#002e01] flex items-center justify-center text-[10px] font-extrabold" title="Client">AH</div>
                                     <div class="h-8 w-8 rounded-full border-2 border-white bg-[#005F02] text-white flex items-center justify-center text-xs font-bold ring-1 ring-slate-100" title="Agent">MO</div>
                                 </div>
                             </div>
@@ -327,7 +331,7 @@
                                 <div class="space-y-6">
                                     <!-- Message Client -->
                                     <div class="flex gap-4">
-                                        <img src="https://i.pravatar.cc/150?u=4" class="h-10 w-10 rounded-full bg-slate-200">
+                                        <div class="h-10 w-10 rounded-full bg-[#F2E3BB] text-[#002e01] flex items-center justify-center text-xs font-extrabold">AH</div>
                                         <div class="flex-1">
                                             <div class="flex items-baseline justify-between">
                                                 <h3 class="text-sm font-bold text-slate-900">Allie Harmon</h3>
@@ -352,7 +356,7 @@
                                             </div>
                                         </div>
                                     </div>
-
+                                    
                                     <!-- Typing Indicator -->
                                     <div class="flex gap-4">
                                         <div class="h-10 w-10 flex items-center justify-center">
@@ -394,7 +398,7 @@
     </header>
 
     <!-- NEW EXPANDED FEATURES SECTION -->
-    <section id="fonctionnalites" class="py-24 bg-white relative">
+    <section class="py-24 bg-white relative">
         <div class="mx-auto max-w-7xl px-6 relative z-10">
             <div class="mx-auto max-w-2xl text-center mb-16">
                 <span class="inline-block py-1 px-3 rounded-full bg-[#005F02]/5 text-xs font-bold text-[#005F02] uppercase tracking-wider mb-4 border border-[#005F02]/10">Capacités Étendues</span>
@@ -404,7 +408,7 @@
 
             <!-- Detailed Module Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
+                
                 <!-- Module 1: Helpdesk -->
                 <div class="group rounded-2xl border border-slate-200 bg-white p-8 transition-all duration-300 hover:-translate-y-2 hover:border-[#005F02]/30 hover:shadow-xl hover:shadow-slate-200/50 glow-hover">
                     <div class="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#005F02] text-white shadow-lg shadow-[#005F02]/20 transition-transform group-hover:scale-110 group-hover:rotate-3">
@@ -427,7 +431,7 @@
                 </div>
 
                 <!-- Module 2: Multi-Company -->
-                <div id="multi" class="group rounded-2xl border border-slate-200 bg-white p-8 transition-all duration-300 hover:-translate-y-2 hover:border-[#005F02]/30 hover:shadow-xl hover:shadow-slate-200/50 glow-hover">
+                <div class="group rounded-2xl border border-slate-200 bg-white p-8 transition-all duration-300 hover:-translate-y-2 hover:border-[#005F02]/30 hover:shadow-xl hover:shadow-slate-200/50 glow-hover">
                     <div class="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#005F02] border border-slate-200 shadow-lg transition-transform group-hover:scale-110 group-hover:-rotate-3">
                         <iconify-icon icon="solar:city-linear" class="text-3xl"></iconify-icon>
                     </div>
@@ -474,13 +478,13 @@
     <!-- Detailed Functional Deep Dive with Active Visuals -->
     <section class="py-20 bg-[#FAFAFA] border-t border-slate-200 overflow-hidden">
         <div class="mx-auto max-w-7xl px-6">
-
+            
             <!-- Feature Block 1: Form Builder -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
                 <div class="order-2 lg:order-1 relative rounded-2xl bg-white p-2 border border-slate-200 shadow-2xl transition-transform hover:scale-[1.01] duration-500">
                     <!-- Decor elements -->
                     <div class="absolute -left-10 top-10 h-24 w-24 rounded-full bg-[#005F02] opacity-5 blur-2xl"></div>
-
+                    
                     <!-- Fake UI Form Builder -->
                     <div class="bg-slate-50 rounded-xl p-6 border border-slate-100 relative overflow-hidden">
                         <div class="space-y-4">
@@ -505,14 +509,14 @@
                                     <div class="flex-1 h-8 bg-slate-100 rounded border border-slate-200 flex items-center px-2 text-[10px] text-slate-400">Moyenne</div>
                                     <div class="flex-1 h-8 bg-[#005F02] rounded border border-[#005F02] flex items-center px-2 text-[10px] text-white shadow-md">Haute</div>
                                 </div>
-
+                                
                                 <!-- Logic Connector Visualization -->
                                 <div class="absolute -right-8 top-1/2 -translate-y-1/2 w-8 h-px bg-[#005F02] border-t border-dashed border-[#005F02]"></div>
                                 <div class="absolute -right-36 top-1/2 -translate-y-1/2 bg-[#005F02] text-white text-[10px] px-3 py-1.5 rounded shadow-lg animate-pulse">
                                     Afficher "Urgence"
                                 </div>
                             </div>
-
+                            
                             <!-- Add Field Button -->
                             <div class="border-2 border-dashed border-slate-200 rounded-lg p-3 flex justify-center items-center text-xs text-slate-400 hover:text-[#005F02] hover:border-[#005F02] hover:bg-[#005F02]/5 transition-all cursor-pointer">
                                 <iconify-icon icon="solar:add-circle-linear" class="mr-2 text-lg"></iconify-icon> Ajouter un champ conditionnel
@@ -520,7 +524,7 @@
                         </div>
                     </div>
                 </div>
-
+                
                 <div class="order-1 lg:order-2">
                     <div class="inline-flex items-center gap-2 rounded-full bg-[#005F02]/10 px-3 py-1 text-xs font-bold text-[#005F02] mb-6 border border-[#005F02]/20">
                         <iconify-icon icon="solar:magic-stick-linear"></iconify-icon>
@@ -581,7 +585,7 @@
 
                 <div class="order-2 relative rounded-2xl bg-white p-2 border border-slate-200 shadow-2xl group overflow-hidden">
                     <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-transparent to-[#005F02]/5"></div>
-
+                    
                     <!-- Fake UI Analytics -->
                     <div class="bg-slate-50 rounded-xl p-6 border border-slate-100 min-h-[300px] flex flex-col relative z-10">
                         <div class="flex justify-between items-center mb-6">
@@ -590,7 +594,7 @@
                             </h4>
                             <div class="text-[10px] font-medium text-slate-500 bg-white border border-slate-200 px-2 py-1 rounded shadow-sm">30 derniers jours</div>
                         </div>
-
+                        
                         <!-- Bar Chart Animation -->
                         <div class="flex items-end justify-between h-40 gap-4 mt-auto px-2">
                             <div class="w-full flex flex-col items-center gap-2">
@@ -625,35 +629,37 @@
         </div>
     </section>
 
+
+
     <!-- Technical Specs Table with hover effect -->
-    <section id="ressources" class="py-16 bg-white border-t border-slate-200">
+    <section class="py-16 bg-white border-t border-slate-200">
         <div class="mx-auto max-w-5xl px-6">
             <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400 text-center mb-12">Spécifications Techniques</h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="group flex flex-col items-center text-center p-6 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all duration-300">
                     <div class="h-12 w-12 rounded-full bg-[#005F02]/5 flex items-center justify-center mb-4 group-hover:bg-[#005F02] group-hover:text-white transition-colors">
-                        <i data-lucide="shield-check" class="text-2xl text-[#005F02] group-hover:text-white"></i>
+                        <iconify-icon icon="solar:shield-check-linear" class="text-2xl text-[#005F02] group-hover:text-white"></iconify-icon>
                     </div>
                     <span class="text-sm font-bold text-slate-900">RGPD &amp; Hébergement</span>
                     <span class="text-xs text-slate-500 mt-1">Serveurs en France (AWS)</span>
                 </div>
                 <div class="group flex flex-col items-center text-center p-6 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all duration-300">
                     <div class="h-12 w-12 rounded-full bg-[#005F02]/5 flex items-center justify-center mb-4 group-hover:bg-[#005F02] group-hover:text-white transition-colors">
-                        <i data-lucide="code-square" class="text-2xl text-[#005F02] group-hover:text-white"></i>
+                        <iconify-icon icon="solar:code-square-linear" class="text-2xl text-[#005F02] group-hover:text-white"></iconify-icon>
                     </div>
                     <span class="text-sm font-bold text-slate-900">API REST Complète</span>
                     <span class="text-xs text-slate-500 mt-1">Webhooks &amp; Endpoints</span>
                 </div>
                 <div class="group flex flex-col items-center text-center p-6 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all duration-300">
                     <div class="h-12 w-12 rounded-full bg-[#005F02]/5 flex items-center justify-center mb-4 group-hover:bg-[#005F02] group-hover:text-white transition-colors">
-                        <i data-lucide="log-in" class="text-2xl text-[#005F02] group-hover:text-white"></i>
+                        <iconify-icon icon="solar:login-2-linear" class="text-2xl text-[#005F02] group-hover:text-white"></iconify-icon>
                     </div>
                     <span class="text-sm font-bold text-slate-900">SSO &amp; SAML</span>
                     <span class="text-xs text-slate-500 mt-1">Google, Microsoft, Okta</span>
                 </div>
                 <div class="group flex flex-col items-center text-center p-6 rounded-xl border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all duration-300">
                     <div class="h-12 w-12 rounded-full bg-[#005F02]/5 flex items-center justify-center mb-4 group-hover:bg-[#005F02] group-hover:text-white transition-colors">
-                        <i data-lucide="history" class="text-2xl text-[#005F02] group-hover:text-white"></i>
+                        <iconify-icon icon="solar:history-linear" class="text-2xl text-[#005F02] group-hover:text-white"></iconify-icon>
                     </div>
                     <span class="text-sm font-bold text-slate-900">Audit Logs</span>
                     <span class="text-xs text-slate-500 mt-1">Traçabilité totale</span>
@@ -668,7 +674,8 @@
             <div class="grid grid-cols-1 gap-8 text-center sm:grid-cols-3">
                 <div>
                     <div class="font-serif text-5xl text-slate-900">5.6h</div>
-                    <div class="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">Économisées par jour</div>
+                    <div class="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">Économisées par jour
+                    </div>
                 </div>
                 <div>
                     <div class="font-serif text-5xl text-slate-900">220k</div>
@@ -676,14 +683,14 @@
                 </div>
                 <div>
                     <div class="font-serif text-5xl text-slate-900">98%</div>
-                    <div class="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">Satisfaction client</div>
+                    <div class="mt-2 text-xs font-medium uppercase tracking-wide text-slate-500">Satisfaction client
+                    </div>
                 </div>
             </div>
         </div>
     </section>
-
-    <!-- CTA Footer -->
-    <section id="demo" class="relative overflow-hidden bg-[#002e01] py-24 sm:py-32">
+            <!-- CTA Footer -->
+    <section class="relative overflow-hidden bg-[#002e01] py-24 sm:py-32">
         <div class="mx-auto max-w-7xl px-6 lg:px-8">
             <div class="grid grid-cols-1 gap-16 lg:grid-cols-2 lg:items-center">
                 <div class="max-w-lg">
@@ -698,8 +705,8 @@
                         </button>
                     </div>
                     <div class="mt-6 flex items-center gap-6 text-xs text-white/40">
-                        <span class="flex items-center gap-2"><i data-lucide="check" class="h-3 w-3"></i> Pas de carte requise</span>
-                        <span class="flex items-center gap-2"><i data-lucide="check" class="h-3 w-3"></i> Annulation facile</span>
+                        <span class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-bold" class="text-[#F2E3BB]"></iconify-icon> Pas de carte requise</span>
+                        <span class="flex items-center gap-2"><iconify-icon icon="solar:check-circle-bold" class="text-[#F2E3BB]"></iconify-icon> Annulation facile</span>
                     </div>
                 </div>
 
@@ -736,7 +743,7 @@
                                         <div class="h-4 w-4 rounded border border-slate-300"></div>
                                         <span class="text-sm text-slate-700">Créer un formulaire</span>
                                     </div>
-                                    <i data-lucide="arrow-right" class="h-4 w-4 text-slate-300"></i>
+                                    <iconify-icon icon="solar:arrow-right-linear" class="h-4 w-4 text-slate-300"></iconify-icon>
                                 </div>
                             </div>
                         </div>
@@ -748,7 +755,7 @@
             <div class="mt-24 grid grid-cols-1 gap-8 border-t border-white/10 pt-12 md:grid-cols-4">
                 <div class="col-span-1 md:col-span-1">
                     <div class="flex items-center gap-2 text-white mb-4">
-                        <i data-lucide="layers" class="text-[#F2E3BB] h-5 w-5"></i>
+                        <iconify-icon icon="solar:layers-minimalistic-linear" class="text-[#F2E3BB] h-5 w-5"></iconify-icon>
                         <span class="text-lg font-medium">Manexo</span>
                     </div>
                     <p class="text-xs text-white/50">
@@ -756,7 +763,7 @@
                         75011 Paris, France
                     </p>
                     <div class="mt-4 flex gap-2 text-white/50">
-                        <i data-lucide="shield" class="h-4 w-4"></i>
+                        <iconify-icon icon="solar:shield-check-linear" class="h-4 w-4"></iconify-icon>
                         <span class="text-[10px]">GDPR COMPLIANT</span>
                     </div>
                 </div>
@@ -764,9 +771,9 @@
                 <div class="col-span-1 md:col-start-3">
                     <h3 class="text-xs font-semibold uppercase tracking-wider text-white/40 mb-4">Menu</h3>
                     <ul class="space-y-3 text-xs text-white/70">
-                        <li><a href="#fonctionnalites" class="hover:text-[#F2E3BB]">Avantages</a></li>
-                        <li><a href="#fonctionnalites" class="hover:text-[#F2E3BB]">Fonctionnalités</a></li>
-                        <li><a href="#multi" class="hover:text-[#F2E3BB]">Comment ça marche</a></li>
+                        <li><a href="#" class="hover:text-[#F2E3BB]">Avantages</a></li>
+                        <li><a href="#" class="hover:text-[#F2E3BB]">Fonctionnalités</a></li>
+                        <li><a href="#" class="hover:text-[#F2E3BB]">Comment ça marche</a></li>
                     </ul>
                 </div>
 
@@ -790,10 +797,5 @@
         </div>
     </section>
 
-    <script>
-        if (window.lucide?.createIcons) {
-            lucide.createIcons();
-        }
-    </script>
 </body>
 </html>

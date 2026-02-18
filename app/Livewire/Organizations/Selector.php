@@ -20,12 +20,19 @@ class Selector extends Component
 
     public string $invite_code = '';
 
+    public bool $isSwitching = false;
+
+    public function mount()
+    {
+        $this->isSwitching = request()->query('mode') === 'switch';
+    }
+
     public function selectOrganization(int $organizationId): void
     {
         $user = Auth::user();
 
         if (! $user instanceof \App\Models\User) {
-            $this->redirectRoute('login', navigate: true);
+            $this->redirectRoute('login');
             return;
         }
 
@@ -38,7 +45,7 @@ class Selector extends Component
 
         session()->put('current_organization_id', $org->id);
 
-        $this->redirectRoute('dashboard', navigate: true);
+        $this->redirectRoute('dashboard');
     }
 
     public function createOrganization(): void
@@ -46,7 +53,7 @@ class Selector extends Component
         $user = Auth::user();
 
         if (! $user instanceof \App\Models\User) {
-            $this->redirectRoute('login', navigate: true);
+            $this->redirectRoute('login');
             return;
         }
 
@@ -143,7 +150,7 @@ class Selector extends Component
 
         session()->put('current_organization_id', $org->id);
 
-        $this->redirectRoute('dashboard', navigate: true);
+        $this->redirectRoute('dashboard');
     }
 
     public function openInviteModal(): void

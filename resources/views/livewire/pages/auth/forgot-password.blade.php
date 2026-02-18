@@ -70,7 +70,7 @@ new #[Layout('layouts.guest')] class extends Component
         </form>
 
         <div class="mt-5 text-center pt-4 border-t border-slate-50">
-            <a href="{{ route('login') }}" wire:navigate class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-[#005F02] transition-colors">
+            <a href="{{ route('login') }}" class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-[#005F02] transition-colors">
                 <iconify-icon icon="solar:arrow-left-linear"></iconify-icon>
                 Retour à la connexion
             </a>

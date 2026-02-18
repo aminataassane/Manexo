@@ -39,7 +39,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: route('dashboard', absolute: false));
     }
 
     /**
@@ -67,7 +67,7 @@ new #[Layout('layouts.guest')] class extends Component
         $user->sendEmailVerificationNotification();
 
         // Redirect user to OTP verification screen
-        $this->redirect(route('verification.notice', absolute: false), navigate: true);
+        $this->redirect(route('verification.notice', absolute: false));
     }
 }; ?>
 
@@ -75,7 +75,6 @@ new #[Layout('layouts.guest')] class extends Component
     <div class="flex items-center justify-between">
         <a
             href="{{ route('home') }}"
-            wire:navigate
             class="text-xs font-medium text-gray-500 hover:text-gray-900 underline underline-offset-4"
         >
             Retour à l'accueil
@@ -86,7 +85,6 @@ new #[Layout('layouts.guest')] class extends Component
     <div class="inline-flex rounded-xl bg-gray-100 p-1 text-sm">
         <a
             href="{{ route('login') }}"
-            wire:navigate
             class="px-4 py-2 rounded-lg font-medium transition
                 {{ request()->routeIs('login') ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900' }}"
         >
@@ -94,7 +92,6 @@ new #[Layout('layouts.guest')] class extends Component
         </a>
         <a
             href="{{ route('register') }}"
-            wire:navigate
             class="px-4 py-2 rounded-lg font-medium transition
                 {{ request()->routeIs('register') ? 'bg-white shadow text-gray-900' : 'text-gray-600 hover:text-gray-900' }}"
         >
@@ -158,7 +155,7 @@ new #[Layout('layouts.guest')] class extends Component
                     </label>
 
                     @if (Route::has('password.request'))
-                        <a class="text-sm text-gray-600 hover:text-gray-900 underline" href="{{ route('password.request') }}" wire:navigate>
+                        <a class="text-sm text-gray-600 hover:text-gray-900 underline" href="{{ route('password.request') }}">
                             Mot de passe oublié ?
                         </a>
                     @endif
@@ -173,7 +170,7 @@ new #[Layout('layouts.guest')] class extends Component
 
             <p class="mt-6 text-sm text-gray-600">
                 Pas encore de compte ?
-                <a href="{{ route('register') }}" wire:navigate class="font-medium text-gray-900 underline underline-offset-4 hover:text-[#005F02]">
+                <a href="{{ route('register') }}" class="font-medium text-gray-900 underline underline-offset-4 hover:text-[#005F02]">
                     Créer un compte
                 </a>
             </p>
@@ -254,7 +251,7 @@ new #[Layout('layouts.guest')] class extends Component
 
             <p class="mt-6 text-sm text-gray-600">
                 Déjà un compte ?
-                <a href="{{ route('login') }}" wire:navigate class="font-medium text-gray-900 underline underline-offset-4 hover:text-[#005F02]">
+                <a href="{{ route('login') }}" class="font-medium text-gray-900 underline underline-offset-4 hover:text-[#005F02]">
                     Se connecter
                 </a>
             </p>

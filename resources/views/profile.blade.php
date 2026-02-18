@@ -81,268 +81,205 @@
     @endphp
 
     @if (session('profile_status'))
-        <div class="rounded-lg border border-[#E5E7EB] bg-white p-4 text-sm text-[#111827] shadow-sm">
-            <span class="font-medium" style="color: var(--accent);">OK.</span>
+        <div class="mb-6 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm flex items-center gap-3">
+            <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
             {{ session('profile_status') }}
         </div>
     @endif
 
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-            <h1 class="text-xl font-semibold text-[#111827] tracking-tight">Profil</h1>
-            <p class="text-sm text-[#6B7280] mt-1">Gérez vos informations, vos entreprises, et votre sécurité.</p>
-        </div>
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Mon Profil</h1>
+        <p class="text-sm text-slate-500 mt-1">Gérez vos informations personnelles et vos préférences.</p>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        <!-- LEFT: main -->
-        <div class="lg:col-span-2 space-y-4 sm:space-y-6">
-            <!-- Informations personnelles -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 sm:p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class="text-sm font-semibold text-[#111827]">Informations personnelles</h2>
-                        <p class="text-xs text-[#6B7280] mt-1">Nom, email et vérification.</p>
-                    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- LEFT COLUMN -->
+        <div class="lg:col-span-2 space-y-8">
+            
+            <!-- Personal Info -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <h2 class="text-base font-semibold text-slate-900">Informations personnelles</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Mettez à jour vos coordonnées.</p>
                 </div>
-                <livewire:profile.update-profile-information-form />
+                <div class="p-6">
+                    <livewire:profile.update-profile-information-form />
+                </div>
             </div>
 
-            <!-- Entreprises & rôles -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 sm:p-6">
-                <div class="flex items-center justify-between mb-4">
+            <!-- Organizations -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                     <div>
-                        <h2 class="text-sm font-semibold text-[#111827]">Entreprises & rôles</h2>
-                        <p class="text-xs text-[#6B7280] mt-1">Vos accès et vos permissions.</p>
+                        <h2 class="text-base font-semibold text-slate-900">Mes entreprises</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Espaces auxquels vous avez accès.</p>
                     </div>
-                    <a href="{{ route('organizations.select') }}"
-                       class="text-xs font-medium hover:opacity-80"
-                       style="color: var(--accent);">
-                        Changer
+                    <a href="{{ route('organizations.select', ['mode' => 'switch']) }}" class="text-xs font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50">
+                        Gérer / Changer
                     </a>
                 </div>
-
-                <div class="space-y-2">
-                    @forelse ($organizations as $org)
-                        <div class="flex items-center gap-3 rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-3">
-                            <div class="h-9 w-9 rounded-md flex items-center justify-center text-xs font-bold"
-                                 style="background: {{ $org->primary_color ? 'color-mix(in srgb, '.$org->primary_color.' 18%, white)' : 'var(--accent-soft)' }}; color: {{ $org->primary_color ?: 'var(--accent)' }};">
-                                {{ mb_strtoupper(mb_substr($org->name, 0, 1)) }}
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2">
-                                    <p class="text-sm font-semibold text-[#111827] truncate">{{ $org->name }}</p>
-                                    @if ($org->primary_color)
-                                        <span class="h-2 w-2 rounded-full" style="background: {{ $org->primary_color }};"></span>
-                                    @endif
+                <div class="p-6">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        @forelse ($organizations as $org)
+                            <div class="group flex items-center gap-4 rounded-xl border border-slate-200 p-4 transition-all hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/10">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold shadow-sm"
+                                     style="background: {{ $org->primary_color ? 'color-mix(in srgb, '.$org->primary_color.' 15%, white)' : '#F3F4F6' }}; color: {{ $org->primary_color ?: '#4B5563' }};">
+                                    {{ mb_strtoupper(mb_substr($org->name, 0, 1)) }}
                                 </div>
-                                <p class="text-xs text-[#6B7280] mt-0.5">Rôle : <span class="font-medium text-[#111827]">{{ ucfirst((string) $org->pivot->role) }}</span></p>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-sm text-[#6B7280]">
-                            Vous n’êtes rattaché à aucune entreprise pour le moment.
-                        </div>
-                    @endforelse
-                </div>
-            </div>
-
-            <!-- Préférences & notifications -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 sm:p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class="text-sm font-semibold text-[#111827]">Préférences & notifications</h2>
-                        <p class="text-xs text-[#6B7280] mt-1">Personnalisez votre expérience.</p>
-                    </div>
-                    <span class="text-[10px] font-semibold px-2 py-1 rounded-full bg-[#F9FAFB] border border-[#E5E7EB] text-[#6B7280]">Bientôt</span>
-                </div>
-
-                <div class="grid sm:grid-cols-2 gap-3">
-                    <label class="flex items-center justify-between gap-4 rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-3 opacity-70">
-                        <div>
-                            <p class="text-sm font-medium text-[#111827]">Email : réponses tickets</p>
-                            <p class="text-xs text-[#6B7280] mt-0.5">Recevoir un email quand un agent répond.</p>
-                        </div>
-                        <input type="checkbox" class="h-4 w-4" disabled>
-                    </label>
-
-                    <label class="flex items-center justify-between gap-4 rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-3 opacity-70">
-                        <div>
-                            <p class="text-sm font-medium text-[#111827]">Push : tickets urgents</p>
-                            <p class="text-xs text-[#6B7280] mt-0.5">Alerte en temps réel (agents/admins).</p>
-                        </div>
-                        <input type="checkbox" class="h-4 w-4" disabled>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Historique d’activité (accordéon) -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm overflow-hidden" x-data="{ open: false }">
-                <button type="button" class="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-[#F9FAFB] transition-colors" @click="open = !open">
-                    <div class="text-left">
-                        <h2 class="text-sm font-semibold text-[#111827]">Historique d’activité</h2>
-                        <p class="text-xs text-[#6B7280] mt-1">{{ __("Aperçu (5 derniers).") }}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="hidden sm:inline text-[12px] font-semibold" style="color: var(--accent);" x-text="open ? '{{ __('Fermer') }}' : '{{ __('Ouvrir') }}'"></span>
-                        <iconify-icon :icon="open ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="text-[#6B7280]" width="16"></iconify-icon>
-                    </div>
-                </button>
-
-                <div x-cloak x-show="open" x-transition.opacity class="px-4 sm:px-6 pb-5">
-                    <div class="flex items-center justify-between gap-3 mb-4">
-                        <p class="text-[11px] text-[#6B7280]">
-                            {{ __("Filtrez l’aperçu, puis cliquez sur “Voir tout” pour l’historique complet.") }}
-                        </p>
-                        <a href="{{ route('profile.history', array_filter(['type' => $activityFilter !== 'all' ? $activityFilter : null])) }}"
-                           class="shrink-0 h-8 px-3 rounded-md text-white text-[12px] font-semibold inline-flex items-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] transition-colors">
-                            <iconify-icon icon="solar:history-linear" width="16"></iconify-icon>
-                            {{ __('Voir tout') }}
-                        </a>
-                    </div>
-                    <div class="flex flex-wrap gap-2 mb-4">
-                        @php $filters = [['all','Tous'], ['tickets','Tickets'], ['commentaires','Commentaires'], ['assignations','Assignations']]; @endphp
-                        @foreach ($filters as [$key, $label])
-                            @php
-                                $isActive = $activityFilter === $key;
-                                $disabled = $key === 'commentaires';
-                            @endphp
-                            <a
-                                href="{{ route('profile', array_filter(['activity' => $key !== 'all' ? $key : null])) }}"
-                                class="px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors {{ $isActive ? 'bg-white text-[#111827] border-[#E5E7EB] shadow-sm' : 'bg-[#F9FAFB] text-[#6B7280] border-[#E5E7EB] hover:text-[#111827]' }} {{ $disabled ? 'pointer-events-none opacity-50' : '' }}"
-                                title="{{ $disabled ? 'À venir' : '' }}"
-                            >{{ $label }}</a>
-                        @endforeach
-                    </div>
-
-                    <div class="relative pl-4 border-l border-[#E5E7EB] space-y-5">
-                        @forelse ($events as $e)
-                            <div class="relative">
-                                <div class="absolute -left-[21px] top-0.5 w-2.5 h-2.5 rounded-full ring-4 ring-white" style="background: var(--accent);"></div>
-                                <p class="text-xs text-[#111827]">
-                                    <span class="font-medium">{{ $e['label'] }}</span>
-                                    <span class="text-[#6B7280]">• Ticket #{{ $e['ticket_id'] }}</span>
-                                </p>
-                                <p class="text-[11px] text-[#6B7280] mt-1 truncate">{{ $e['subject'] }}</p>
-                                <p class="text-[10px] text-[#6B7280] mt-1">
-                                    Statut : <span class="font-medium text-[#111827]">{{ $statusLabel($e['status']) }}</span>
-                                    • {{ \Illuminate\Support\Carbon::parse($e['at'])->diffForHumans() }}
-                                </p>
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-semibold text-slate-900 truncate">{{ $org->name }}</p>
+                                    <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                                        <iconify-icon icon="solar:shield-user-linear" width="12"></iconify-icon>
+                                        {{ ucfirst((string) $org->pivot->role) }}
+                                    </p>
+                                </div>
                             </div>
                         @empty
-                            <div class="rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-sm text-[#6B7280]">
-                                Aucun événement pour ce filtre.
+                            <div class="col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+                                Vous n’êtes rattaché à aucune entreprise.
                             </div>
                         @endforelse
                     </div>
                 </div>
             </div>
+
+            <!-- Activity History -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ open: true }">
+                <button type="button" class="w-full px-6 py-4 flex items-center justify-between bg-slate-50/50 border-b border-slate-100 hover:bg-slate-100 transition-colors" @click="open = !open">
+                    <div class="text-left">
+                        <h2 class="text-base font-semibold text-slate-900">Activité récente</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Vos dernières actions sur la plateforme.</p>
+                    </div>
+                    <iconify-icon :icon="open ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="text-slate-400" width="20"></iconify-icon>
+                </button>
+
+                <div x-show="open" x-collapse>
+                    <div class="p-6">
+                        <div class="flex flex-wrap gap-2 mb-6">
+                            @php $filters = [['all','Tous'], ['tickets','Tickets'], ['commentaires','Commentaires'], ['assignations','Assignations']]; @endphp
+                            @foreach ($filters as [$key, $label])
+                                @php
+                                    $isActive = $activityFilter === $key;
+                                    $disabled = $key === 'commentaires';
+                                @endphp
+                                <a
+                                    href="{{ route('profile', array_filter(['activity' => $key !== 'all' ? $key : null])) }}"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all {{ $isActive ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} {{ $disabled ? 'pointer-events-none opacity-50' : '' }}"
+                                >{{ $label }}</a>
+                            @endforeach
+                        </div>
+
+                        <div class="relative pl-4 space-y-6 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                            @forelse ($events as $e)
+                                <div class="relative pl-8">
+                                    <div class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white shadow-sm" style="background: var(--accent);"></div>
+                                    <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                                        <p class="text-sm font-medium text-slate-900">{{ $e['label'] }}</p>
+                                        <span class="text-xs text-slate-400">{{ \Illuminate\Support\Carbon::parse($e['at'])->diffForHumans() }}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mt-1">
+                                        <span class="font-mono text-slate-400">#{{ $e['ticket_id'] }}</span> · {{ $e['subject'] }}
+                                    </p>
+                                    <div class="mt-2">
+                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
+                                            {{ $statusLabel($e['status']) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="py-8 text-center text-sm text-slate-500 italic">
+                                    Aucune activité récente trouvée.
+                                </div>
+                            @endforelse
+                        </div>
+                        
+                        <div class="mt-6 pt-4 border-t border-slate-100 text-center">
+                            <a href="{{ route('profile.history') }}" class="text-sm font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors inline-flex items-center gap-1">
+                                Voir tout l'historique
+                                <iconify-icon icon="solar:arrow-right-linear" width="16"></iconify-icon>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- RIGHT: security -->
-        <div class="space-y-4 sm:space-y-6">
-            <!-- Langue -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 sm:p-6">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <h2 class="text-sm font-semibold text-[#111827]">{{ __('Langue') }}</h2>
-                        <p class="text-xs text-[#6B7280] mt-1">{{ __("Change la langue de l’interface.") }}</p>
-                    </div>
-                </div>
-
-                <div class="mt-4 p-1 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] grid grid-cols-2 gap-1">
-                    <a
-                        href="{{ route('locale.switch', ['locale' => 'fr']) }}"
-                        class="h-10 rounded-lg inline-flex items-center justify-center gap-2 text-[13px] font-semibold transition cursor-pointer
-                            {{ $currentLocale === 'FR'
-                                ? 'bg-white shadow-sm text-[color:var(--accent)] ring-1 ring-[color:var(--accent-soft)]'
-                                : 'text-[#111827] hover:bg-white/60' }}"
-                        @if ($currentLocale === 'FR') aria-current="page" @endif
-                    >
-                        <span class="inline-flex items-center justify-center h-6 w-6 rounded-md border border-[#E5E7EB] bg-white text-[11px] font-bold">FR</span>
-                        <span class="truncate">Français</span>
+        <!-- RIGHT COLUMN -->
+        <div class="space-y-8">
+            <!-- Language -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-sm font-semibold text-slate-900 mb-4">Langue</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="{{ route('locale.switch', ['locale' => 'fr']) }}" 
+                       class="flex items-center justify-center gap-2 rounded-xl border p-2 text-sm font-medium transition-all {{ $currentLocale === 'FR' ? 'border-[var(--accent)] bg-[var(--accent-soft)]/10 text-[var(--accent)]' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50' }}">
+                        <span class="text-lg">🇫🇷</span> Français
                     </a>
-                    <a
-                        href="{{ route('locale.switch', ['locale' => 'en']) }}"
-                        class="h-10 rounded-lg inline-flex items-center justify-center gap-2 text-[13px] font-semibold transition cursor-pointer
-                            {{ $currentLocale === 'EN'
-                                ? 'bg-white shadow-sm text-[color:var(--accent)] ring-1 ring-[color:var(--accent-soft)]'
-                                : 'text-[#111827] hover:bg-white/60' }}"
-                        @if ($currentLocale === 'EN') aria-current="page" @endif
-                    >
-                        <span class="inline-flex items-center justify-center h-6 w-6 rounded-md border border-[#E5E7EB] bg-white text-[11px] font-bold">EN</span>
-                        <span class="truncate">English</span>
+                    <a href="{{ route('locale.switch', ['locale' => 'en']) }}" 
+                       class="flex items-center justify-center gap-2 rounded-xl border p-2 text-sm font-medium transition-all {{ $currentLocale === 'EN' ? 'border-[var(--accent)] bg-[var(--accent-soft)]/10 text-[var(--accent)]' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50' }}">
+                        <span class="text-lg">🇬🇧</span> English
                     </a>
                 </div>
             </div>
 
-            <!-- Sécurité & connexions -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 sm:p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class="text-sm font-semibold text-[#111827]">Sécurité & connexions</h2>
-                        <p class="text-xs text-[#6B7280] mt-1">Dernières sessions (IP / appareil).</p>
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    @forelse ($sessions as $s)
-                        @php
-                            $isCurrent = (string) $s->id === (string) $currentSessionId;
-                            $dt = \Illuminate\Support\Carbon::createFromTimestamp((int) $s->last_activity);
-                        @endphp
-                        <div class="rounded-md border border-[#E5E7EB] p-3 {{ $isCurrent ? 'bg-[color:var(--accent-soft)]' : 'bg-[#F9FAFB]' }}">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="min-w-0">
-                                    <p class="text-xs font-semibold text-[#111827]">
-                                        {{ $isCurrent ? 'Session actuelle' : 'Session' }}
-                                        <span class="text-[#6B7280] font-normal">• {{ $dt->diffForHumans() }}</span>
-                                    </p>
-                                    <p class="text-[11px] text-[#6B7280] mt-1 truncate" title="{{ (string) ($s->user_agent ?? '') }}">
-                                        {{ (string) ($s->user_agent ?? 'Appareil inconnu') }}
-                                    </p>
-                                    <p class="text-[11px] text-[#6B7280] mt-1">IP : <span class="font-medium text-[#111827]">{{ $s->ip_address ?? '—' }}</span></p>
+            <!-- Security -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h2 class="text-sm font-semibold text-slate-900 mb-4">Sécurité</h2>
+                <div class="space-y-4">
+                    <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Sessions actives</h3>
+                        <div class="space-y-3">
+                            @foreach ($sessions as $s)
+                                @php
+                                    $isCurrent = (string) $s->id === (string) $currentSessionId;
+                                    $dt = \Illuminate\Support\Carbon::createFromTimestamp((int) $s->last_activity);
+                                @endphp
+                                <div class="flex items-start gap-3 text-xs">
+                                    <div class="mt-0.5">
+                                        @if($isCurrent)
+                                            <div class="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-emerald-100"></div>
+                                        @else
+                                            <div class="h-2 w-2 rounded-full bg-slate-300"></div>
+                                        @endif
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="font-medium text-slate-900">
+                                            {{ $s->ip_address ?? 'IP Inconnue' }}
+                                            @if($isCurrent) <span class="text-emerald-600 ml-1">(Actuelle)</span> @endif
+                                        </p>
+                                        <p class="text-slate-500 truncate">{{ $s->user_agent }}</p>
+                                        <p class="text-slate-400 mt-0.5">{{ $dt->diffForHumans() }}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            @endforeach
                         </div>
-                    @empty
-                        <div class="rounded-md border border-[#E5E7EB] bg-[#F9FAFB] p-4 text-sm text-[#6B7280]">
-                            Aucune session enregistrée.
-                        </div>
-                    @endforelse
-                </div>
-
-                <form method="POST" action="{{ route('profile.sessions.logout_all') }}" class="mt-4">
-                    @csrf
-                    <button type="submit"
-                            class="w-full h-9 rounded-md text-white text-[13px] font-semibold flex items-center justify-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] transition-colors">
-                        <iconify-icon icon="solar:logout-2-linear" width="16"></iconify-icon>
-                        Se déconnecter des autres sessions
-                    </button>
-                    <p class="text-[11px] text-[#6B7280] mt-2">Vous restez connecté sur cet appareil.</p>
-                </form>
-            </div>
-
-            <!-- Mot de passe -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 sm:p-6">
-                <div class="mb-4">
-                    <h2 class="text-sm font-semibold text-[#111827]">Mot de passe</h2>
-                    <p class="text-xs text-[#6B7280] mt-1">Modifiez votre mot de passe.</p>
-                </div>
-                <livewire:profile.update-password-form />
-            </div>
-
-            <!-- Danger zone (accordéon) -->
-            <div class="bg-white rounded-lg border border-[#E5E7EB] shadow-sm overflow-hidden" x-data="{ open: false }">
-                <button type="button" class="w-full px-4 sm:px-6 py-4 flex items-center justify-between hover:bg-[#F9FAFB] transition-colors" @click="open = !open">
-                    <div class="text-left">
-                        <h2 class="text-sm font-semibold text-red-600">Zone sensible</h2>
-                        <p class="text-xs text-[#6B7280] mt-1">Suppression de compte.</p>
+                        
+                        <form method="POST" action="{{ route('profile.sessions.logout_all') }}" class="mt-4 pt-4 border-t border-slate-200">
+                            @csrf
+                            <button type="submit" class="w-full rounded-lg bg-white border border-slate-200 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm">
+                                Déconnecter les autres sessions
+                            </button>
+                        </form>
                     </div>
-                    <iconify-icon :icon="open ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="text-[#6B7280]" width="16"></iconify-icon>
-                </button>
-                <div x-show="open" x-transition.opacity class="px-4 sm:px-6 pb-5">
-                    <livewire:profile.delete-user-form />
+
+                    <div class="pt-4 border-t border-slate-100">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Mot de passe</h3>
+                        <livewire:profile.update-password-form />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="bg-red-50 rounded-2xl border border-red-100 p-6">
+                <h2 class="text-sm font-semibold text-red-900 mb-2">Zone de danger</h2>
+                <p class="text-xs text-red-700 mb-4">La suppression de votre compte est irréversible.</p>
+                <div x-data="{ open: false }">
+                    <button @click="open = !open" type="button" class="text-xs font-bold text-red-600 hover:text-red-800 underline">
+                        Supprimer mon compte
+                    </button>
+                    <div x-show="open" x-collapse class="mt-4">
+                        <livewire:profile.delete-user-form />
+                    </div>
                 </div>
             </div>
         </div>

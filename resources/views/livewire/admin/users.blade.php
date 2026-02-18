@@ -1,167 +1,184 @@
 @php
     $roleBadge = function (string $role): array {
         return match ($role) {
-            'owner' => ['label' => 'Owner', 'bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-200', 'icon' => 'solar:crown-linear'],
-            'admin' => ['label' => 'Admin', 'bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'border' => 'border-blue-200', 'icon' => 'solar:shield-check-linear'],
-            'agent' => ['label' => 'Agent', 'bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-200', 'icon' => 'solar:headphones-round-sound-linear'],
-            default => ['label' => 'Member', 'bg' => 'bg-gray-50', 'text' => 'text-gray-700', 'border' => 'border-gray-200', 'icon' => 'solar:user-linear'],
+            'owner' => ['label' => 'Propriétaire', 'bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-100', 'icon' => 'solar:crown-bold-duotone'],
+            'admin' => ['label' => 'Admin', 'bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'border' => 'border-blue-100', 'icon' => 'solar:shield-check-bold-duotone'],
+            'agent' => ['label' => 'Agent', 'bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-100', 'icon' => 'solar:headphones-round-sound-bold-duotone'],
+            default => ['label' => 'Membre', 'bg' => 'bg-slate-50', 'text' => 'text-slate-600', 'border' => 'border-slate-100', 'icon' => 'solar:user-bold-duotone'],
         };
     };
 @endphp
 
-<div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-    <div class="flex items-start justify-between gap-4">
-        <div>
-            <h1 class="text-2xl font-semibold text-[#111827] tracking-tight">Équipe</h1>
-            <p class="mt-1 text-sm text-[#6B7280]">Gérez les membres de l'entreprise.</p>
+<div class="mx-auto w-full min-w-0 max-w-7xl 2xl:max-w-[90rem] min-[1920px]:max-w-[110rem] py-4 sm:py-6 lg:py-8 px-3 sm:px-6 lg:px-8">
+    <!-- HEADER -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
+        <div class="min-w-0">
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl">{{ __('Équipe & Membres') }}</h1>
+            <p class="mt-1 text-xs sm:text-sm text-slate-500">{{ __('Gérez les accès et les rôles de votre organisation.') }}</p>
+        </div>
+        <button
+            type="button"
+            wire:click="openInviteModal"
+            class="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 sm:py-2.5 text-sm font-bold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0 w-full sm:w-auto"
+        >
+            <iconify-icon icon="solar:user-plus-bold" width="18"></iconify-icon>
+            {{ __('Inviter un membre') }}
+        </button>
+    </div>
+
+    <!-- STATS CARDS (2 cols mobile, 4 lg) -->
+    <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <!-- Owners -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">{{ __('Propriétaires') }}</p>
+                    <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $stats['owners'] ?? 0 }}</h3>
+                </div>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:crown-bold-duotone" width="24"></iconify-icon>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admins -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">{{ __('Administrateurs') }}</p>
+                    <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $stats['admins'] ?? 0 }}</h3>
+                </div>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:shield-check-bold-duotone" width="24"></iconify-icon>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agents -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">{{ __('Agents Support') }}</p>
+                    <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $stats['agents'] ?? 0 }}</h3>
+                </div>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:headphones-round-sound-bold-duotone" width="24"></iconify-icon>
+                </div>
+            </div>
+        </div>
+
+        <!-- Members -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">{{ __('Membres') }}</p>
+                    <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $stats['members'] ?? 0 }}</h3>
+                </div>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="24"></iconify-icon>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-purple-200">
-            <div class="flex justify-between items-start">
-                <span class="text-[13px] font-medium text-[#6B7280]">Owners</span>
-                <div class="w-6 h-6 rounded bg-purple-50 text-purple-700 flex items-center justify-center group-hover:bg-purple-100 transition-colors">
-                    <iconify-icon icon="solar:crown-linear" width="14"></iconify-icon>
-                </div>
+    <!-- MEMBERS LIST -->
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <!-- Toolbar -->
+        <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex-1 relative">
+                <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="18"></iconify-icon>
+                <input
+                    type="text"
+                    class="w-full h-10 pl-10 pr-4 rounded-xl border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-shadow shadow-sm"
+                    placeholder="{{ __('Rechercher un membre...') }}"
+                    wire:model.live="search"
+                />
             </div>
-            <div class="mt-3">
-                <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $stats['owners'] ?? 0 }}</span>
-                <span class="text-[11px] text-[#6B7280] ml-1">dans l’équipe</span>
-            </div>
-        </div>
 
-        <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-blue-200">
-            <div class="flex justify-between items-start">
-                <span class="text-[13px] font-medium text-[#6B7280]">Admins</span>
-                <div class="w-6 h-6 rounded bg-blue-50 text-blue-700 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                    <iconify-icon icon="solar:shield-check-linear" width="14"></iconify-icon>
-                </div>
-            </div>
-            <div class="mt-3">
-                <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $stats['admins'] ?? 0 }}</span>
-                <span class="text-[11px] text-[#6B7280] ml-1">avec accès admin</span>
-            </div>
-        </div>
-
-        <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-amber-200">
-            <div class="flex justify-between items-start">
-                <span class="text-[13px] font-medium text-[#6B7280]">Agents</span>
-                <div class="w-6 h-6 rounded bg-amber-50 text-amber-700 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
-                    <iconify-icon icon="solar:headphones-round-sound-linear" width="14"></iconify-icon>
-                </div>
-            </div>
-            <div class="mt-3">
-                <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $stats['agents'] ?? 0 }}</span>
-                <span class="text-[11px] text-[#6B7280] ml-1">support</span>
-            </div>
-        </div>
-
-        <div class="bg-white p-4 rounded-lg border border-[#E5E7EB] shadow-[0_2px_8px_rgba(0,0,0,0.02)] flex flex-col justify-between transition-colors group cursor-pointer hover:border-gray-200">
-            <div class="flex justify-between items-start">
-                <span class="text-[13px] font-medium text-[#6B7280]">Members</span>
-                <div class="w-6 h-6 rounded bg-gray-50 text-gray-700 flex items-center justify-center group-hover:bg-gray-100 transition-colors">
-                    <iconify-icon icon="solar:user-linear" width="14"></iconify-icon>
-                </div>
-            </div>
-            <div class="mt-3">
-                <span class="text-2xl font-semibold text-[#111827] tracking-tight">{{ $stats['members'] ?? 0 }}</span>
-                <span class="text-[11px] text-[#6B7280] ml-1">membres</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="mt-6 rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden">
-        <div class="p-4 sm:p-6 border-b border-[#E5E7EB]">
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div class="flex-1 flex flex-col sm:flex-row gap-2">
-                    <div class="relative flex-1">
-                        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" width="16"></iconify-icon>
-                        <input
-                            type="text"
-                            class="w-full h-10 pl-9 pr-3 rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition"
-                            placeholder="Rechercher (nom, email)…"
-                            wire:model.live="search"
-                        />
-                    </div>
+            <div class="flex gap-3">
+                <div class="w-40">
+                    <x-select-input wire:model.live="role">
+                        <option value="">{{ __('Tous les rôles') }}</option>
+                        <option value="owner">{{ __('Propriétaire') }}</option>
+                        <option value="admin">{{ __('Admin') }}</option>
+                        <option value="agent">{{ __('Agent') }}</option>
+                        <option value="member">{{ __('Membre') }}</option>
+                    </x-select-input>
                 </div>
 
-                <div class="flex flex-col sm:flex-row gap-2">
-                    <div class="relative">
-                        <select wire:model.live="role" class="h-10 min-w-[180px] rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] shadow-sm focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition appearance-none pr-9">
-                            <option value="">Tous les rôles</option>
-                            <option value="owner">Owner</option>
-                            <option value="admin">Admin</option>
-                            <option value="agent">Agent</option>
-                            <option value="member">Member</option>
-                        </select>
-                        <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none" width="14"></iconify-icon>
-                    </div>
-
-                    <div class="relative">
-                        <select wire:model.live="perPage" class="h-10 min-w-[120px] rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] shadow-sm focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition appearance-none pr-9">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </select>
-                        <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none" width="14"></iconify-icon>
-                    </div>
+                <div class="w-24">
+                    <x-select-input wire:model.live="perPage">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </x-select-input>
                 </div>
             </div>
         </div>
 
-        <div class="overflow-x-auto custom-scrollbar">
-            <table class="min-w-[980px] w-full">
-                <thead class="bg-[#F9FAFB] border-b border-[#E5E7EB]">
-                    <tr class="text-left text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider">
-                        <th class="px-4 py-3">Membre</th>
-                        <th class="px-4 py-3 w-44">Rôle</th>
-                        <th class="px-4 py-3 w-56">Actions</th>
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-500 tracking-wider">
+                    <tr>
+                        <th class="px-6 py-4">{{ __('Membre') }}</th>
+                        <th class="px-6 py-4">{{ __('Rôle') }}</th>
+                        <th class="px-6 py-4 text-right">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-[#E5E7EB]">
+                <tbody class="divide-y divide-slate-100">
                     @forelse ($memberships as $m)
                         @php($b = $roleBadge($m->role))
-                        <tr class="group hover:bg-[#F9FAFB] transition-colors">
-                            <td class="px-4 py-3">
-                                <div class="text-[13px] font-medium text-[#111827]">{{ $m->user?->name ?? '—' }}</div>
-                                <div class="mt-1 text-[12px] text-[#6B7280]">{{ $m->user?->email ?? '' }}</div>
+                        <tr class="group hover:bg-slate-50/50 transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-4">
+                                    <x-avatar :name="$m->user?->name ?? 'U'" size="h-10 w-10" class="ring-2 ring-white shadow-sm" />
+                                    <div>
+                                        <div class="text-sm font-bold text-slate-900">{{ $m->user?->name ?? 'Utilisateur inconnu' }}</div>
+                                        <div class="text-xs text-slate-500 mt-0.5">{{ $m->user?->email ?? '' }}</div>
+                                    </div>
+                                </div>
                             </td>
-                            <td class="px-4 py-3">
-                                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border {{ $b['bg'] }} {{ $b['text'] }} {{ $b['border'] }}">
-                                    <iconify-icon icon="{{ $b['icon'] }}" width="12"></iconify-icon>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border {{ $b['bg'] }} {{ $b['text'] }} {{ $b['border'] }}">
+                                    <iconify-icon icon="{{ $b['icon'] }}" width="14"></iconify-icon>
                                     {{ $b['label'] }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <div class="relative">
                                         <select
-                                            class="h-9 rounded-md border border-[#E5E7EB] bg-white text-[13px] text-[#111827] shadow-sm focus:outline-none focus:border-[color:var(--accent)] focus:ring-2 focus:ring-[color:var(--accent-ring)] transition appearance-none pr-9 pl-3"
+                                            class="h-8 rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] pl-2 pr-8"
                                             wire:change="updateRole({{ (int) $m->id }}, $event.target.value)"
                                         >
-                                            <option value="owner" @selected($m->role === 'owner')>Owner</option>
+                                            <option value="owner" @selected($m->role === 'owner')>Propriétaire</option>
                                             <option value="admin" @selected($m->role === 'admin')>Admin</option>
                                             <option value="agent" @selected($m->role === 'agent')>Agent</option>
-                                            <option value="member" @selected($m->role === 'member')>Member</option>
+                                            <option value="member" @selected($m->role === 'member')>Membre</option>
                                         </select>
-                                        <iconify-icon icon="solar:alt-arrow-down-linear" class="absolute right-2 top-1/2 -translate-y-1/2 text-[#6B7280] pointer-events-none" width="14"></iconify-icon>
                                     </div>
 
                                     <button
                                         type="button"
-                                        class="h-9 px-3 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-medium rounded-md shadow-sm hover:bg-[#F9FAFB] transition"
+                                        class="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                                         wire:click="removeMember({{ (int) $m->id }})"
+                                        title="{{ __('Retirer de l\'équipe') }}"
                                     >
-                                        Retirer
+                                        <iconify-icon icon="solar:trash-bin-trash-bold" width="16"></iconify-icon>
                                     </button>
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="px-4 py-10 text-center text-[13px] text-[#6B7280]">
-                                Aucun membre.
+                            <td colspan="3" class="px-6 py-12 text-center text-slate-500">
+                                <div class="flex flex-col items-center justify-center">
+                                    <div class="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
+                                        <iconify-icon icon="solar:users-group-rounded-linear" width="24" class="text-slate-400"></iconify-icon>
+                                    </div>
+                                    <p class="text-sm font-medium">{{ __('Aucun membre trouvé') }}</p>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -169,9 +186,62 @@
             </table>
         </div>
 
-        <div class="px-4 sm:px-6 py-4 border-t border-[#E5E7EB] bg-white">
+        <!-- Pagination -->
+        <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
             {{ $memberships->links() }}
         </div>
     </div>
-</div>
 
+    @if($showInviteModal)
+        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+            <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" wire:click="closeInviteModal"></div>
+
+            <div class="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div class="min-w-0">
+                        <div class="text-sm font-extrabold text-slate-900">{{ __('Inviter un membre') }}</div>
+                        <div class="text-xs text-slate-500">{{ __('Ajoutez un membre par email et choisissez son rôle.') }}</div>
+                    </div>
+                    <button type="button" wire:click="closeInviteModal" class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition flex items-center justify-center" aria-label="{{ __('Fermer') }}">
+                        <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
+                    </button>
+                </div>
+
+                <form wire:submit.prevent="sendInvite" class="p-5 space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-semibold text-slate-700">{{ __('Email') }}</label>
+                        <input
+                            type="email"
+                            wire:model.live.debounce.200ms="inviteEmail"
+                            class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                            placeholder="email@exemple.com"
+                            required
+                        >
+                        <x-input-error :messages="$errors->get('inviteEmail')" />
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-semibold text-slate-700">{{ __('Rôle') }}</label>
+                        <x-select-input wire:model.live="inviteRole">
+                            <option value="member">{{ __('Membre') }}</option>
+                            <option value="agent">{{ __('Agent') }}</option>
+                            <option value="admin">{{ __('Admin') }}</option>
+                            <option value="owner">{{ __('Propriétaire') }}</option>
+                        </x-select-input>
+                        <x-input-error :messages="$errors->get('inviteRole')" />
+                    </div>
+
+                    <div class="pt-2 flex items-center justify-end gap-3">
+                        <button type="button" wire:click="closeInviteModal" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                            {{ __('Annuler') }}
+                        </button>
+                        <button type="submit" class="h-10 px-4 rounded-xl bg-[var(--accent)] text-white text-sm font-extrabold shadow-sm hover:opacity-90 transition inline-flex items-center gap-2">
+                            <span wire:loading.remove wire:target="sendInvite">{{ __('Envoyer') }}</span>
+                            <span wire:loading wire:target="sendInvite">{{ __('Envoi...') }}</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+</div>

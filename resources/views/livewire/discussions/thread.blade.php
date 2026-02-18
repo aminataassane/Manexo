@@ -1,0 +1,228 @@
+@php
+    $participants = $thread->participants ?? collect();
+    $title = $thread->is_group
+        ? ($thread->name ?: __('Groupe de discussion'))
+        : ($participants->where('id', '!=', auth()->id())->first()?->name ?: __('Discussion'));
+@endphp
+
+<div
+    class="flex flex-col h-[calc(100dvh-6rem)] sm:h-[calc(100dvh-7rem)] lg:h-[calc(100dvh-8rem)] xl:h-[calc(100dvh-9rem)] rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm"
+    x-data="threadWebSocket({{ $thread->id }}, {{ auth()->id() ?? 'null' }})"
+    @keydown.enter.window="if (document.activeElement?.closest('[data-composer]') && !$event.shiftKey) { $event.preventDefault(); $refs.submitBtn?.click() }"
+>
+    <div class="flex flex-1 min-h-0 overflow-hidden" x-data="{ infoOpen: true, mobileInfoOpen: false, toggleInfo(){ if (window.innerWidth >= 1024) this.infoOpen = !this.infoOpen; else this.mobileInfoOpen = !this.mobileInfoOpen; } }">
+        <!-- CENTER -->
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50/50">
+            <header class="shrink-0 bg-white border-b border-slate-100 px-4 py-3 sm:px-6">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] shrink-0">
+                                <iconify-icon icon="{{ $thread->is_group ? 'solar:users-group-rounded-bold-duotone' : 'solar:user-circle-bold-duotone' }}" width="20"></iconify-icon>
+                            </span>
+                            <div class="min-w-0">
+                                <h1 class="text-sm sm:text-base font-bold text-slate-900 truncate">{{ $title }}</h1>
+                                <p class="text-xs text-slate-500 truncate">
+                                    {{ $participants->count() }} {{ $participants->count() > 1 ? __('participants') : __('participant') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" @click="toggleInfo()" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                            <iconify-icon icon="solar:sidebar-minimalistic-linear" width="20"></iconify-icon>
+                        </button>
+                        <button type="button" wire:click="$refresh" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors" title="{{ __('Actualiser') }}">
+                            <iconify-icon icon="solar:refresh-linear" width="18" class="wire-loading:animate-spin"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div id="thread-messages" class="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                <div class="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+                    <div id="thread-timeline" class="space-y-4">
+                        @forelse($thread->messages as $msg)
+                        @php
+                            $isOwn = $msg->user_id && (int) $msg->user_id === (int) auth()->id();
+                            $avatarUrl = $msg->user
+                                ? 'https://ui-avatars.com/api/?name=' . urlencode($msg->user->name) . '&size=32&background=e2e8f0&color=475569'
+                                : 'https://ui-avatars.com/api/?name=U&size=32&background=e2e8f0&color=475569';
+                            $time = $msg->created_at->diffForHumans();
+                            $bodyEscaped = e($msg->body);
+                            $bodyFormatted = nl2br($bodyEscaped);
+                            $messageAttachments = is_array($msg->attachments) ? $msg->attachments : [];
+                        @endphp
+
+                        @if($isOwn)
+                            <div class="flex justify-end">
+                                <div class="max-w-[85%]">
+                                    <div class="flex items-center justify-end gap-2 mb-1">
+                                        <span class="text-[10px] text-slate-400">{{ $time }}</span>
+                                        <span class="text-xs font-semibold text-slate-900">{{ $msg->user?->name ?? '—' }}</span>
+                                    </div>
+                                    <div class="rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed text-white shadow-sm" style="background-color: var(--accent);">
+                                        {!! $bodyFormatted !!}
+                                        @if(count($messageAttachments) > 0)
+                                            <div class="mt-2 pt-2 border-t border-white/20 space-y-1.5">
+                                                @foreach($messageAttachments as $att)
+                                                    @include('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'mine'])
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="flex items-end gap-3">
+                                <img src="{{ $avatarUrl }}" class="w-8 h-8 rounded-full border border-slate-200 bg-white shrink-0" alt="">
+                                <div class="max-w-[85%]">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-xs font-semibold text-slate-900">{{ $msg->user?->name ?? '—' }}</span>
+                                        <span class="text-[10px] text-slate-400">{{ $time }}</span>
+                                    </div>
+                                    <div class="rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 text-slate-700 shadow-sm">
+                                        {!! $bodyFormatted !!}
+                                        @if(count($messageAttachments) > 0)
+                                            <div class="mt-2 pt-2 border-t border-slate-100 space-y-1.5">
+                                                @foreach($messageAttachments as $att)
+                                                    @include('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'theirs'])
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                    @empty
+                        <div class="py-16 text-center" data-empty-thread>
+                            <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                <iconify-icon icon="solar:chat-round-dots-linear" width="24"></iconify-icon>
+                            </div>
+                            <p class="text-sm text-slate-500">{{ __('Aucun message pour le moment. Démarrez la conversation.') }}</p>
+                        </div>
+                    @endforelse
+                    </div>
+                </div>
+            </div>
+
+            <!-- Composer -->
+            <div class="shrink-0 bg-white border-t border-slate-200 p-4 sm:p-6 z-10" data-composer>
+                <div class="mx-auto max-w-4xl">
+                    <form wire:submit="sendMessage" class="relative rounded-2xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all">
+                        <div class="p-2">
+                            <textarea
+                                wire:model="body"
+                                rows="3"
+                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm p-2"
+                                placeholder="{{ __('Écrivez votre message…') }}"
+                            ></textarea>
+                        </div>
+                        <div class="flex items-center justify-between px-3 py-2 border-t border-slate-200/50 bg-white/50 rounded-b-2xl">
+                            <div class="flex items-center gap-1">
+                                <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="thread-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
+                                <button type="button" onclick="document.getElementById('thread-file-input').click()" class="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="{{ __('Joindre un fichier') }}">
+                                    <iconify-icon icon="solar:paperclip-linear" width="20"></iconify-icon>
+                                </button>
+                                @if(count($attachmentFiles ?? []) > 0)
+                                    <span class="ml-2 text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-2 py-1 rounded-md">{{ count($attachmentFiles) }} fichier(s)</span>
+                                @endif
+                            </div>
+                            <button type="submit" x-ref="submitBtn" class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-md hover:opacity-90 transition-all" style="background-color: var(--accent);">
+                                <span>{{ __('Envoyer') }}</span>
+                                <iconify-icon icon="solar:plain-bold" width="16"></iconify-icon>
+                            </button>
+                        </div>
+                    </form>
+                    <x-input-error :messages="$errors->get('body')" class="mt-2" />
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT INFO -->
+        <aside class="hidden lg:flex shrink-0 flex-col bg-white border-l border-slate-200 overflow-hidden transition-[width] duration-300 ease-in-out" :class="infoOpen ? 'w-[320px]' : 'w-0 border-l-0'">
+            <div class="flex flex-col flex-1 min-w-0 min-h-0 w-[320px]">
+                <div class="flex h-[60px] shrink-0 items-center justify-between border-b border-slate-100 px-5">
+                    <span class="text-sm font-bold text-slate-900">{{ __('Participants') }}</span>
+                    <button type="button" @click="infoOpen = false" class="text-slate-400 hover:text-slate-900 transition-colors">
+                        <iconify-icon icon="solar:close-circle-linear" width="20"></iconify-icon>
+                    </button>
+                </div>
+                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-2">
+                    @foreach($participants as $p)
+                        <div class="flex items-center gap-3">
+                            <div class="h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold" style="background: var(--accent-soft); color: var(--accent);">
+                                {{ strtoupper(mb_substr($p->name ?? '?', 0, 1)) }}
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-sm font-semibold text-slate-900 truncate">{{ $p->name }}</div>
+                                <div class="text-xs text-slate-500 truncate">{{ $p->email }}</div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+@script
+<script>
+    Alpine.data('threadWebSocket', (threadId, currentUserId) => ({
+        threadId,
+        currentUserId,
+        init() {
+            const tryConnect = () => {
+                if (typeof window.Echo !== 'undefined') {
+                    window.Echo.private('discussion.' + this.threadId)
+                        .listen('.discussion.message.sent', (e) => this.appendMessage(e));
+                    return;
+                }
+                setTimeout(tryConnect, 300);
+            };
+            tryConnect();
+        },
+        appendMessage(e) {
+            const timeline = document.getElementById('thread-timeline');
+            const scroll = document.getElementById('thread-messages');
+            if (!timeline || !scroll) return;
+
+            const empty = timeline.querySelector('[data-empty-thread]');
+            if (empty) empty.remove();
+
+            const isOwn = e.user_id && parseInt(e.user_id, 10) === parseInt(this.currentUserId, 10);
+            const time = e.created_at ? new Date(e.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+            const name = this.escapeHtml(e.user_name || '');
+            const body = this.escapeHtml(e.body || '').replace(/\n/g, '<br>');
+            const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'U') + '&size=32&background=e2e8f0&color=475569';
+
+            const attachments = Array.isArray(e.attachments) ? e.attachments : [];
+            const attachmentsHtml = attachments.length
+                ? `<div class="mt-2 pt-2 ${isOwn ? 'border-t border-white/20' : 'border-t border-slate-100'} space-y-1.5">` +
+                    attachments.map(a => {
+                        const url = a?.url || (a?.path ? (window.location.origin + '/storage/' + a.path) : '#');
+                        const n = this.escapeHtml(a?.name || 'Fichier');
+                        return `<a href="${url}" target="_blank" rel="noopener" class="block text-xs ${isOwn ? 'text-white/90' : 'text-slate-600'} hover:underline flex items-center gap-1"><iconify-icon icon="solar:file-linear" width="12"></iconify-icon> ${n}</a>`;
+                    }).join('') +
+                  `</div>`
+                : '';
+
+            const html = isOwn
+                ? `<div class="flex justify-end"><div class="max-w-[85%]"><div class="flex items-center justify-end gap-2 mb-1"><span class="text-[10px] text-slate-400">${time}</span><span class="text-xs font-semibold text-slate-900">${name}</span></div><div class="rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed text-white shadow-sm" style="background-color: var(--accent);">${body}${attachmentsHtml}</div></div></div>`
+                : `<div class="flex items-end gap-3"><img src="${avatarUrl}" class="w-8 h-8 rounded-full border border-slate-200 bg-white shrink-0" alt=""><div class="max-w-[85%]"><div class="flex items-center gap-2 mb-1"><span class="text-xs font-semibold text-slate-900">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 text-slate-700 shadow-sm">${body}${attachmentsHtml}</div></div></div>`;
+
+            const div = document.createElement('div');
+            div.className = 'animate-enter';
+            div.innerHTML = html;
+            timeline.appendChild(div);
+            scroll.scrollTop = scroll.scrollHeight;
+        },
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text ?? '';
+            return div.innerHTML;
+        }
+    }));
+</script>
+@endscript
+

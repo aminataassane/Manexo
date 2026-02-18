@@ -9,8 +9,11 @@ class TicketFormField extends Model
 {
     protected $fillable = [
         'template_id',
+        'step_id',
         'key',
         'label',
+        'placeholder',
+        'help_text',
         'type',
         'required',
         'options',
@@ -29,6 +32,11 @@ class TicketFormField extends Model
     public function template(): BelongsTo
     {
         return $this->belongsTo(TicketFormTemplate::class, 'template_id');
+    }
+
+    public function step(): BelongsTo
+    {
+        return $this->belongsTo(TicketFormStep::class, 'step_id');
     }
 }
 

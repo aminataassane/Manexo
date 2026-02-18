@@ -2,13 +2,12 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-slate-50 antialiased selection:bg-[#F2E3BB] selection:text-[#005F02]">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Laravel') }}</title>
 
     <!-- Scripts / Styles -->
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Playfair+Display:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet">
     
@@ -32,10 +31,10 @@
         @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
     </style>
 
-    @vite(['resources/js/app.js']) <!-- Gardé pour Livewire/Alpine -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="overflow-hidden flex items-center justify-center bg-slate-50 w-screen h-screen relative">
+<body class="overflow-x-hidden flex items-center justify-center bg-slate-50 w-full min-h-screen min-h-[100dvh] relative py-6 px-4 sm:py-8" style="padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); padding-top: max(1.5rem, env(safe-area-inset-top)); padding-bottom: max(1.5rem, env(safe-area-inset-bottom));">
 
     <!-- 1. Background Universe -->
     <div class="opacity-40 z-0 absolute top-0 right-0 bottom-0 left-0"></div>
@@ -98,12 +97,12 @@
         </div>
     </div>
 
-    <!-- 2. Central Card (Inject Slot Here) -->
-    <div class="relative z-10 w-full max-w-[420px] px-4">
+    <!-- 2. Central Card (responsive width: mobile full, desktop/TV capped) -->
+    <div class="relative z-10 w-full min-w-0 max-w-[420px] sm:max-w-[440px] min-[1920px]:max-w-[480px] px-0 sm:px-4">
         
-        <!-- Back Button (Fixed) -->
-        <div class="fixed top-6 left-6 z-50 fade-in" style="animation-delay: 0.1s">
-            <a href="{{ route('home') }}" wire:navigate class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/60 hover:bg-white hover:border-slate-200 transition-all duration-200 shadow-sm backdrop-blur-sm">
+        <!-- Back Button (Fixed, safe-area aware) -->
+        <div class="fixed z-50 fade-in top-4 left-4 sm:top-6 sm:left-6 min-[1920px]:top-8 min-[1920px]:left-8" style="animation-delay: 0.1s; top: max(1rem, env(safe-area-inset-top)); left: max(1rem, env(safe-area-inset-left));">
+            <a href="{{ route('home') }}" class="group inline-flex items-center gap-2 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-full bg-white/50 border border-white/60 hover:bg-white hover:border-slate-200 transition-all duration-200 shadow-sm backdrop-blur-sm">
                 <iconify-icon icon="solar:arrow-left-linear" class="text-slate-500 group-hover:text-[#005F02] transition-colors" width="14"></iconify-icon>
                 <span class="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">Retour à l'accueil</span>
             </a>

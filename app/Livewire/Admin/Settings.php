@@ -45,6 +45,9 @@ class Settings extends Component
 
     public string $dangerConfirmName = '';
 
+    /** Message de succès après enregistrement (affiché sans redirection). */
+    public string $successMessage = '';
+
     // --- Form Builder (MVP)
     public ?int $fb_selected_template_id = null;
     public ?int $fb_selected_field_id = null;
@@ -111,7 +114,7 @@ class Settings extends Component
 
         $this->name = (string) $org->name;
         $this->slug = (string) $org->slug;
-        $this->primary_color = $org->primary_color ?: null;
+        $this->primary_color = $this->normalizeHexColorForDisplay($org->primary_color);
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
         $this->currentLogoUrl = $org->logo_path ? $disk->url($org->logo_path) : null;
@@ -193,7 +196,7 @@ class Settings extends Component
 
         $field = TicketFormField::query()
             ->whereKey($fieldId)
-            ->whereHas('template', fn ($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
+            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
             ->firstOrFail();
 
         $this->fb_selected_field_id = (int) $field->id;
@@ -274,14 +277,14 @@ class Settings extends Component
 
         $field = TicketFormField::query()
             ->whereKey((int) $this->fb_selected_field_id)
-            ->whereHas('template', fn ($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
+            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
             ->firstOrFail();
 
         $options = $field->options;
         if ((string) $field->type === 'select') {
             $raw = trim((string) ($validated['fb_selected_field_options'] ?? ''));
             $list = collect(preg_split('/[\r\n,]+/', $raw))
-                ->map(fn ($v) => trim((string) $v))
+                ->map(fn($v) => trim((string) $v))
                 ->filter()
                 ->values()
                 ->all();
@@ -379,16 +382,67 @@ class Settings extends Component
         ]);
     }
 
+    /**
+     * Normalise une couleur hex pour l'affichage au chargement (avec ou sans #, 3 ou 6 caractères) en #rrggbb.
+     */
+    private function normalizeHexColorForDisplay(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        return $this->normalizeHexColor(is_string($value) ? trim($value) : (string) $value) ?: null;
+    }
+
+    /**
+     * Normalise une couleur hex (avec ou sans #, 3 ou 6 caractères) en #rrggbb.
+     */
+    private function normalizeHexColor(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+        if (str_starts_with($value, '#')) {
+            $value = substr($value, 1);
+        }
+        $value = strtolower($value);
+        if (preg_match('/^[0-9a-f]{3}$/', $value)) {
+            $value = $value[0] . $value[0] . $value[1] . $value[1] . $value[2] . $value[2];
+        }
+        if (! preg_match('/^[0-9a-f]{6}$/', $value)) {
+            return null;
+        }
+
+        return '#' . $value;
+    }
+
     public function save()
     {
         if (! $this->canManage) {
-            session()->flash('settings_status', "Accès refusé: réservé aux admins.");
+            $this->successMessage = '';
+            $this->addError('canManage', __('Accès refusé: réservé aux admins.'));
             return;
         }
 
+        $this->successMessage = '';
+        if ($this->primary_color === '') {
+            $this->primary_color = null;
+        } else {
+            $normalized = $this->normalizeHexColor($this->primary_color);
+            if ($normalized === null && $this->primary_color !== null && trim($this->primary_color) !== '') {
+                $this->addError('primary_color', __('La couleur doit être un code hex valide (ex: #000000 ou 000000).'));
+                return;
+            }
+            $this->primary_color = $normalized;
+        }
+
+        $org = $this->orgOrFail();
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:120'],
-            'slug' => ['required', 'string', 'max:120', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:organizations,slug,' . $this->orgId()],
+            'slug' => ['required', 'string', 'max:120', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:organizations,slug,' . $org->id],
             'primary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'default_category_id' => ['nullable', 'integer'],
@@ -397,8 +451,6 @@ class Settings extends Component
             'members_can_edit' => ['boolean'],
             'members_can_delete' => ['boolean'],
         ]);
-
-        $org = $this->orgOrFail();
 
         if ($validated['default_category_id'] ?? null) {
             $catOk = TicketCategory::query()
@@ -454,15 +506,27 @@ class Settings extends Component
             'settings' => $settings,
         ]);
 
+        $org->refresh();
+
+        $this->name = (string) $org->name;
+        $this->slug = (string) $org->slug;
+        $this->primary_color = $this->normalizeHexColorForDisplay($org->primary_color);
+
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
         $this->currentLogoUrl = $org->logo_path ? $disk->url($org->logo_path) : null;
         $this->logo = null;
 
-        session()->flash('settings_status', "Paramètres mis à jour.");
+        $settings = is_array($org->settings) ? $org->settings : [];
+        $this->default_category_id = isset($settings['defaults']['ticket_category_id']) ? (int) $settings['defaults']['ticket_category_id'] : null;
+        $this->default_priority_id = isset($settings['defaults']['ticket_priority_id']) ? (int) $settings['defaults']['ticket_priority_id'] : null;
+        $this->auto_close_days = isset($settings['workflow']['auto_close_days']) ? (int) $settings['workflow']['auto_close_days'] : null;
+        $this->members_can_edit = (bool) ($settings['permissions']['members_can_edit'] ?? true);
+        $this->members_can_delete = (bool) ($settings['permissions']['members_can_delete'] ?? false);
 
-        // Refresh accent color / shared org object
-        return $this->redirectRoute('admin.settings', navigate: true);
+        view()->share('currentOrganization', $org);
+
+        $this->successMessage = __('Paramètres mis à jour.');
     }
 
     public function removeLogo(): void
@@ -502,7 +566,7 @@ class Settings extends Component
         $org->delete();
         session()->forget('current_organization_id');
 
-        $this->redirectRoute('organizations.select', navigate: true);
+        $this->redirectRoute('organizations.select');
     }
 
     public function createFormTemplate(): void
@@ -634,7 +698,7 @@ class Settings extends Component
         $options = null;
         if ($type === 'select') {
             $list = collect(preg_split('/[\r\n,]+/', $optionsRaw))
-                ->map(fn ($v) => trim((string) $v))
+                ->map(fn($v) => trim((string) $v))
                 ->filter()
                 ->values()
                 ->all();
@@ -680,7 +744,7 @@ class Settings extends Component
 
         $field = TicketFormField::query()
             ->whereKey($fieldId)
-            ->whereHas('template', fn ($q) => $q->where('organization_id', $orgId))
+            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId))
             ->firstOrFail();
 
         $field->delete();
@@ -695,36 +759,36 @@ class Settings extends Component
 
         $categories = $orgId
             ? TicketCategory::query()
-                ->where('organization_id', $orgId)
-                ->orderBy('name')
-                ->get(['id', 'name', 'is_active'])
+            ->where('organization_id', $orgId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_active'])
             : collect();
 
         $priorities = $orgId
             ? TicketPriority::query()
-                ->where('organization_id', $orgId)
-                ->orderByDesc('level')
-                ->get(['id', 'name', 'level', 'is_active'])
+            ->where('organization_id', $orgId)
+            ->orderByDesc('level')
+            ->get(['id', 'name', 'level', 'is_active'])
             : collect();
 
         $members = $orgId
             ? OrganizationMembership::query()
-                ->where('organization_id', $orgId)
-                ->with(['user:id,name,email'])
-                ->orderBy('id')
-                ->get()
+            ->where('organization_id', $orgId)
+            ->with(['user:id,name,email'])
+            ->orderBy('id')
+            ->get()
             : collect();
 
         $formTemplates = $orgId
             ? TicketFormTemplate::query()
-                ->where('organization_id', $orgId)
-                ->with([
-                    'category:id,name',
-                    'targetUser:id,name,email',
-                    'fields:id,template_id,key,label,type,required,options,sort_order',
-                ])
-                ->orderBy('name')
-                ->get()
+            ->where('organization_id', $orgId)
+            ->with([
+                'category:id,name',
+                'targetUser:id,name,email',
+                'fields:id,template_id,key,label,type,required,options,sort_order',
+            ])
+            ->orderBy('name')
+            ->get()
             : collect();
 
         return view('livewire.admin.settings', [

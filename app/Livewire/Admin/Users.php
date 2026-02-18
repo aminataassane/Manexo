@@ -4,7 +4,10 @@ namespace App\Livewire\Admin;
 
 use App\Enums\OrganizationRole;
 use App\Models\OrganizationMembership;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -19,6 +22,10 @@ class Users extends Component
     public string $search = '';
     public string $role = '';
     public int $perPage = 10;
+
+    public bool $showInviteModal = false;
+    public string $inviteEmail = '';
+    public string $inviteRole = '';
 
     public function updatedSearch(): void
     {
@@ -57,6 +64,81 @@ class Users extends Component
         return in_array($this->currentRole(), [OrganizationRole::Owner->value, OrganizationRole::Admin->value], true);
     }
 
+    public function openInviteModal(): void
+    {
+        if (! $this->canManage()) {
+            abort(403);
+        }
+
+        $this->resetErrorBag();
+        $this->inviteEmail = '';
+        $this->inviteRole = OrganizationRole::Member->value;
+        $this->showInviteModal = true;
+    }
+
+    public function closeInviteModal(): void
+    {
+        $this->showInviteModal = false;
+        $this->resetErrorBag();
+    }
+
+    public function sendInvite(): void
+    {
+        if (! $this->canManage()) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $allowedRoles = array_map(fn($r) => $r->value, OrganizationRole::cases());
+
+        $validated = $this->validate([
+            'inviteEmail' => ['required', 'email', 'max:255'],
+            'inviteRole' => ['required', 'string', 'in:' . implode(',', $allowedRoles)],
+        ]);
+
+        $email = Str::lower(trim((string) $validated['inviteEmail']));
+        $role = (string) $validated['inviteRole'];
+
+        /** @var User|null $user */
+        $user = User::query()->where('email', $email)->first();
+
+        if (! $user) {
+            $user = User::query()->create([
+                'name' => Str::of($email)->before('@')->replace(['.', '_', '-'], ' ')->title()->toString(),
+                'email' => $email,
+                'password' => Str::random(32),
+            ]);
+        }
+
+        $exists = OrganizationMembership::query()
+            ->where('organization_id', $orgId)
+            ->where('user_id', (int) $user->id)
+            ->exists();
+
+        if ($exists) {
+            $this->addError('inviteEmail', 'Cet utilisateur est déjà membre de l’organisation.');
+            return;
+        }
+
+        OrganizationMembership::query()->create([
+            'organization_id' => $orgId,
+            'user_id' => (int) $user->id,
+            'role' => $role,
+        ]);
+
+        // Best-effort: send a password reset email to let the user set a password.
+        Password::sendResetLink(['email' => $email]);
+
+        $this->showInviteModal = false;
+        $this->inviteEmail = '';
+        $this->inviteRole = OrganizationRole::Member->value;
+
+        $this->dispatch('toast', type: 'success', message: 'Invitation envoyée.');
+        $this->resetPage();
+    }
+
     public function updateRole(int $membershipId, string $newRole): void
     {
         if (! $this->canManage()) {
@@ -68,7 +150,7 @@ class Users extends Component
             abort(403);
         }
 
-        $allowed = array_map(fn ($r) => $r->value, OrganizationRole::cases());
+        $allowed = array_map(fn($r) => $r->value, OrganizationRole::cases());
         if (! in_array($newRole, $allowed, true)) {
             return;
         }
@@ -160,7 +242,7 @@ class Users extends Component
         $membershipsQuery = OrganizationMembership::query()
             ->with('user')
             ->where('organization_id', $orgId)
-            ->when($this->role !== '', fn ($q) => $q->where('role', $this->role))
+            ->when($this->role !== '', fn($q) => $q->where('role', $this->role))
             ->when($search !== '', function ($q) use ($search) {
                 $q->whereHas('user', function ($u) use ($search) {
                     $u->where('name', 'ilike', "%{$search}%")
@@ -196,4 +278,3 @@ class Users extends Component
         ]);
     }
 }
-

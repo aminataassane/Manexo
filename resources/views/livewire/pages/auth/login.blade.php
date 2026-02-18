@@ -14,13 +14,13 @@ new #[Layout('layouts.guest')] class extends Component
         $this->validate();
         $this->form->authenticate();
         Session::regenerate();
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: route('dashboard', absolute: false));
     }
 }; ?>
 
-<div class="relative z-10 w-full max-w-[400px] px-4">
-    <div class="fade-in shadow-slate-200/50 sm:p-8 bg-white w-full border-slate-100 border rounded-xl p-6 shadow-2xl">
-        
+<div class="relative z-10 w-full min-w-0 max-w-[400px] sm:max-w-[420px] min-[1920px]:max-w-[440px] px-2 sm:px-4">
+    <div class="fade-in shadow-slate-200/50 bg-white w-full border-slate-100 border rounded-xl p-4 sm:p-6 lg:p-8 shadow-2xl">
+
         <!-- Header -->
         <div class="text-center mb-6">
             <div class="inline-flex items-center gap-1.5 mb-3">
@@ -37,7 +37,7 @@ new #[Layout('layouts.guest')] class extends Component
 
         <!-- Form -->
         <form wire:submit="login" class="space-y-4">
-            
+
             <div class="space-y-1.5">
                 <label for="email" class="block text-[11px] font-medium text-slate-700">Adresse e-mail</label>
                 <div class="relative">
@@ -53,7 +53,7 @@ new #[Layout('layouts.guest')] class extends Component
                 <div class="flex items-center justify-between">
                     <label for="password" class="block text-[11px] font-medium text-slate-700">Mot de passe</label>
                     @if (Route::has('password.request'))
-                        <a href="{{ route('password.request') }}" wire:navigate class="text-[10px] font-medium text-slate-500 hover:text-[#005F02] transition-colors">Mot de passe oublié ?</a>
+                        <a href="{{ route('password.request') }}" class="text-[10px] font-medium text-slate-500 hover:text-[#005F02] transition-colors">Mot de passe oublié ?</a>
                     @endif
                 </div>
                 <div class="relative">
@@ -80,8 +80,8 @@ new #[Layout('layouts.guest')] class extends Component
 
         <div class="mt-5 text-center pt-4 border-t border-slate-50">
             <p class="text-[11px] text-slate-500">
-                Pas encore de compte ? 
-                <a href="{{ route('register') }}" wire:navigate class="font-normal text-[#005F02] hover:underline hover:text-[#004d02] transition-colors">Créer un compte</a>
+                Pas encore de compte ?
+                <a href="{{ route('register') }}" class="font-normal text-[#005F02] hover:underline hover:text-[#004d02] transition-colors">Créer un compte</a>
             </p>
         </div>
     </div>

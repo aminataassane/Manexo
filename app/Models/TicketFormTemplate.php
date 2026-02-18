@@ -15,12 +15,18 @@ class TicketFormTemplate extends Model
         'request_type',
         'target_user_id',
         'is_active',
+        'is_public',
+        'public_slug',
+        'public_title',
+        'public_description',
+        'public_thank_you',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'bool',
+            'is_public' => 'bool',
         ];
     }
 
@@ -42,6 +48,11 @@ class TicketFormTemplate extends Model
     public function fields(): HasMany
     {
         return $this->hasMany(\App\Models\TicketFormField::class, 'template_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function steps(): HasMany
+    {
+        return $this->hasMany(\App\Models\TicketFormStep::class, 'template_id')->orderBy('sort_order')->orderBy('id');
     }
 }
 

@@ -5,6 +5,7 @@ namespace App\Livewire\Tickets;
 use App\Enums\TicketStatus;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
+use App\Models\TicketChecklistItem;
 use App\Models\TicketFormTemplate;
 use App\Models\TicketPriority;
 use App\Models\User;
@@ -42,6 +43,9 @@ class Create extends Component
 
     public string $linkUrl = '';
 
+    /** Checklist initiale : liste de ['title' => string, 'assigned_to' => ?int, 'due_date' => ?string] */
+    public array $checklistItems = [];
+
     public function mount(): void
     {
         $orgId = (int) session('current_organization_id');
@@ -76,7 +80,7 @@ class Create extends Component
         $orgId = (int) session('current_organization_id');
 
         if (! $user || ! $orgId) {
-            $this->redirectRoute('organizations.select', navigate: true);
+            $this->redirectRoute('organizations.select');
             return;
         }
 
@@ -116,7 +120,7 @@ class Create extends Component
             $dynamicRules[$path] = $rules;
         }
 
-        $validated = $this->validate(array_merge([
+        $baseRules = [
             'ticket_category_id' => ['required', 'integer', 'exists:ticket_categories,id'],
             'ticket_priority_id' => ['required', 'integer', 'exists:ticket_priorities,id'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
@@ -125,10 +129,15 @@ class Create extends Component
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'files' => ['array', 'max:5'],
-            'files.*' => ['file', 'max:10240'], // 10MB each
+            'files.*' => ['file', 'max:10240'],
             'links' => ['array', 'max:5'],
             'links.*' => ['url', 'max:2000'],
-        ], $dynamicRules));
+            'checklistItems' => ['array', 'max:50'],
+            'checklistItems.*.title' => ['nullable', 'string', 'max:500'],
+            'checklistItems.*.assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'checklistItems.*.due_date' => ['nullable', 'date'],
+        ];
+        $validated = $this->validate(array_merge($baseRules, $dynamicRules));
 
         // Enforce scoping to current organization
         $categoryOk = TicketCategory::query()
@@ -150,7 +159,7 @@ class Create extends Component
         if (($validated['assigned_to'] ?? null) !== null) {
             $assigneeOk = User::query()
                 ->whereKey((int) $validated['assigned_to'])
-                ->whereHas('organizations', fn ($q) => $q->whereKey($orgId))
+                ->whereHas('organizations', fn($q) => $q->whereKey($orgId))
                 ->exists();
 
             if (! $assigneeOk) {
@@ -229,7 +238,56 @@ class Create extends Component
             ]);
         }
 
-        $this->redirectRoute('tickets.index', navigate: true);
+        foreach (array_values($validated['checklistItems'] ?? []) as $i => $row) {
+            $title = trim((string) ($row['title'] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+            TicketChecklistItem::create([
+                'ticket_id' => $ticket->id,
+                'title' => $title,
+                'assigned_to' => ! empty($row['assigned_to']) ? (int) $row['assigned_to'] : null,
+                'due_date' => ! empty($row['due_date']) ? $row['due_date'] : null,
+                'sort_order' => $i,
+            ]);
+        }
+
+        $this->redirectRoute('tickets.index');
+    }
+
+    public function addChecklistItem(): void
+    {
+        $this->checklistItems[] = ['title' => '', 'assigned_to' => null, 'due_date' => null];
+    }
+
+    public function removeChecklistItem(int $index): void
+    {
+        $idx = (int) $index;
+        if ($idx >= 0 && $idx < count($this->checklistItems)) {
+            array_splice($this->checklistItems, $idx, 1);
+        }
+    }
+
+    public function moveChecklistItemUp(int $index): void
+    {
+        $idx = (int) $index;
+        if ($idx <= 0 || $idx >= count($this->checklistItems)) {
+            return;
+        }
+        $tmp = $this->checklistItems[$idx];
+        $this->checklistItems[$idx] = $this->checklistItems[$idx - 1];
+        $this->checklistItems[$idx - 1] = $tmp;
+    }
+
+    public function moveChecklistItemDown(int $index): void
+    {
+        $idx = (int) $index;
+        if ($idx < 0 || $idx >= count($this->checklistItems) - 1) {
+            return;
+        }
+        $tmp = $this->checklistItems[$idx];
+        $this->checklistItems[$idx] = $this->checklistItems[$idx + 1];
+        $this->checklistItems[$idx + 1] = $tmp;
     }
 
     public function addLink(): void
@@ -268,31 +326,32 @@ class Create extends Component
 
         $categories = $orgId
             ? TicketCategory::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get()
+            ->where('organization_id', $orgId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
             : collect();
 
         $priorities = $orgId
             ? TicketPriority::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderBy('level')
-                ->get()
+            ->where('organization_id', $orgId)
+            ->where('is_active', true)
+            ->orderBy('level')
+            ->get()
             : collect();
 
         $assignees = $orgId
             ? User::query()
-                ->whereHas('organizations', fn ($q) => $q->whereKey($orgId))
-                ->orderBy('name')
-                ->get()
+            ->whereHas('organizations', fn($q) => $q->whereKey($orgId))
+            ->orderBy('name')
+            ->get()
             : collect();
 
         $userId = (int) (Auth::id() ?: 0);
         $template = ($orgId && $userId && ($this->ticket_category_id ?? null))
             ? $this->resolveTemplate($orgId, (int) $this->ticket_category_id, $userId)
             : null;
+        $formSteps = $template?->steps ?? collect();
         $formFields = $template?->fields ?? collect();
 
         return view('livewire.tickets.create', [
@@ -300,6 +359,7 @@ class Create extends Component
             'priorities' => $priorities,
             'assignees' => $assignees,
             'formTemplateName' => $template?->name,
+            'formSteps' => $formSteps,
             'formFields' => $formFields,
         ]);
     }
@@ -326,7 +386,7 @@ class Create extends Component
         $first = (clone $base)
             ->where('ticket_category_id', $categoryId)
             ->where('target_user_id', $userId)
-            ->with('fields')
+            ->with(['steps.fields', 'fields'])
             ->first();
         if ($first) {
             return $first;
@@ -336,7 +396,7 @@ class Create extends Component
         $second = (clone $base)
             ->where('ticket_category_id', $categoryId)
             ->whereNull('target_user_id')
-            ->with('fields')
+            ->with(['steps.fields', 'fields'])
             ->first();
         if ($second) {
             return $second;
@@ -346,7 +406,7 @@ class Create extends Component
         $third = (clone $base)
             ->whereNull('ticket_category_id')
             ->where('target_user_id', $userId)
-            ->with('fields')
+            ->with(['steps.fields', 'fields'])
             ->first();
         if ($third) {
             return $third;
@@ -356,7 +416,7 @@ class Create extends Component
         return (clone $base)
             ->whereNull('ticket_category_id')
             ->whereNull('target_user_id')
-            ->with('fields')
+            ->with(['steps.fields', 'fields'])
             ->first();
     }
 }
