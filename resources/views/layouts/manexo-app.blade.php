@@ -70,14 +70,23 @@
             class="flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pt-14 sm:pt-16 md:pl-[72px] xl:pl-[80px]"
         :class="sidebarOpen ? 'md:!pl-[240px] xl:!pl-[260px]' : ''"
     >
-        <!-- PAGE BODY (scrollable) : padding top, bottom, horizontal pour ne pas coller aux bords -->
-        <div class="page-content-safe flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar pt-8 sm:pt-10 md:pt-12 lg:pt-16 xl:pt-20 2xl:pt-24 pb-8 sm:pb-10 md:pb-12 lg:pb-16 xl:pb-20 2xl:pb-24 px-4 sm:px-5 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
+        <!-- PAGE BODY (scrollable) : padding horizontal pour ne pas coller au dashboard / bords -->
+        <div class="page-content-safe flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar pt-4 sm:pt-5 md:pt-6 lg:pt-8 xl:pt-10 2xl:pt-12 px-4 sm:px-5 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
             <div class="mx-auto w-full min-w-0 max-w-7xl 2xl:max-w-[90rem] min-[1920px]:max-w-[110rem] min-[2560px]:max-w-[140rem] animate-enter space-y-4 sm:space-y-6">
                 {{ $slot }}
             </div>
         </div>
     </main>
 
+    {{-- Echo stub: @vite module scripts are deferred and execute AFTER regular
+         scripts. Livewire's @livewireScripts is a regular <script> that runs
+         first and needs window.Echo for echo-private: listeners. This no-op
+         stub prevents the "Laravel Echo cannot be found" crash. The real Echo
+         instance (from resources/js/echo.js via @vite) overwrites it once
+         the module executes. --}}
+    <script>
+        if(!window.Echo){var _c={listen:function(){return _c},stopListening:function(){return _c},notification:function(){return _c},listenForWhisper:function(){return _c},subscribed:function(){return _c},error:function(){return _c}};window.Echo={private:function(){return _c},channel:function(){return _c},encryptedPrivate:function(){return _c},join:function(){return _c},leave:function(){},leaveChannel:function(){},leaveAllChannels:function(){},socketId:function(){return null},connector:{pusher:{connection:{state:"stub"}}}}}
+    </script>
     @livewireScripts
 </body>
 </html>

@@ -11,13 +11,20 @@
         ? 'https://ui-avatars.com/api/?name=' . urlencode($msg->user->name) . '&size=32&background=e2e8f0&color=475569'
         : 'https://ui-avatars.com/api/?name=U&size=32&background=e2e8f0&color=475569';
     $bodyEscaped = e($msg->body);
-    $bodyWithMentions = preg_replace('/@([\p{L}\p{N}_]+(?:\s+[\p{L}\p{N}_]+)*)/u', '<span class="mention font-medium rounded px-0.5" style="background: var(--accent-soft); color: var(--accent);">@$1</span>', $bodyEscaped);
+    $mentionPattern = '/@([\p{L}\p{N}_]+(?:\s+[\p{L}\p{N}_]+)*)/u';
+    if ($isNote) {
+        $bodyWithMentions = preg_replace($mentionPattern, '<span class="mention font-medium" style="color: color-mix(in srgb, var(--accent) 55%, black);">@$1</span>', $bodyEscaped);
+    } elseif ($isOwn) {
+        $bodyWithMentions = preg_replace($mentionPattern, '<span class="mention font-medium" style="color: color-mix(in srgb, var(--accent) 55%, black);">@$1</span>', $bodyEscaped);
+    } else {
+        $bodyWithMentions = preg_replace($mentionPattern, '<span class="mention font-medium text-slate-700">@$1</span>', $bodyEscaped);
+    }
     $bodyFormatted = nl2br($bodyWithMentions);
     $messageAttachments = is_array($msg->attachments) ? $msg->attachments : [];
 @endphp
 
 @if($isSystem)
-    <div class="relative py-2">
+    <div id="message-{{ $msg->id }}" class="relative py-2">
         <div class="absolute -left-[27px] top-1 w-5 h-5 rounded-full bg-[#F3F4F6] border-2 border-white flex items-center justify-center text-[#6B7280]">
             <iconify-icon icon="solar:user-linear" width="10"></iconify-icon>
         </div>
@@ -27,7 +34,7 @@
         </div>
     </div>
 @elseif($isNote)
-    <div class="relative group py-3">
+    <div id="message-{{ $msg->id }}" class="relative group py-3">
         <div class="absolute -left-[27px] top-4 w-5 h-5 rounded-full bg-[#FFF7ED] border-2 border-white flex items-center justify-center text-amber-600">
             <iconify-icon icon="solar:lock-keyhole-linear" width="10"></iconify-icon>
         </div>
@@ -57,7 +64,7 @@
     {{-- Message reçu (autres) : gauche avec cercle timeline. Message envoyé (moi) : droite, bulle accent --}}
     @if($isOwn)
         @php $hasAttachments = count($messageAttachments) > 0; @endphp
-        <div class="flex justify-end py-4">
+        <div id="message-{{ $msg->id }}" class="flex justify-end py-4">
             <div class="flex items-end gap-2 max-w-[85%]">
                 <div class="flex flex-col items-end">
                     <div class="flex items-center gap-1.5 mb-2 flex-row-reverse">
@@ -83,7 +90,7 @@
             </div>
         </div>
     @else
-        <div class="relative py-4">
+        <div id="message-{{ $msg->id }}" class="relative py-4">
             <div class="absolute -left-[27px] top-3 w-8 h-8 rounded-full bg-white ring-2 ring-[#E5E7EB] overflow-hidden shrink-0 shadow-sm">
                 <img src="{{ $avatarUrl }}" class="w-full h-full object-cover" alt="">
             </div>

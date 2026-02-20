@@ -3,10 +3,11 @@
 namespace App\Livewire\Tickets;
 
 use App\Enums\TicketStatus;
+use App\Enums\FormStatus;
+use App\Models\Form;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketChecklistItem;
-use App\Models\TicketFormTemplate;
 use App\Models\TicketPriority;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +27,8 @@ class Create extends Component
 
     public int $ticket_category_id;
     public int $ticket_priority_id;
-    public ?int $assigned_to = null;
+    /** @var array<int, int> */
+    public array $assigned_to_ids = [];
     public ?string $start_date = null;
     public ?string $due_date = null;
     public string $subject = '';
@@ -84,8 +86,8 @@ class Create extends Component
             return;
         }
 
-        $template = $this->resolveTemplate($orgId, (int) ($this->ticket_category_id ?? 0), (int) $user->id);
-        $fields = $template?->fields ?? collect();
+        $form = $this->resolveForm($orgId, (int) ($this->ticket_category_id ?? 0), (int) $user->id);
+        $fields = $form?->fields?->where('type', '!=', 'section') ?? collect();
 
         $dynamicRules = [];
         foreach ($fields as $f) {
@@ -93,24 +95,27 @@ class Create extends Component
             $rules = [$f->required ? 'required' : 'nullable'];
 
             $type = (string) $f->type;
+            $options = $f->options ?? [];
             if ($type === 'email') {
                 $rules[] = 'email';
                 $rules[] = 'max:255';
             } elseif ($type === 'number') {
                 $rules[] = 'numeric';
-            } elseif ($type === 'date') {
+            } elseif (in_array($type, ['date', 'datetime'], true)) {
                 $rules[] = 'date';
             } elseif ($type === 'checkbox') {
                 $rules[] = 'boolean';
             } elseif ($type === 'textarea') {
                 $rules[] = 'string';
                 $rules[] = 'max:5000';
-            } elseif ($type === 'select') {
+            } elseif (in_array($type, ['select', 'radio'], true)) {
                 $rules[] = 'string';
                 $rules[] = 'max:120';
-                if (is_array($f->options) && count($f->options)) {
-                    $rules[] = Rule::in($f->options);
+                if (is_array($options) && count($options)) {
+                    $rules[] = Rule::in($options);
                 }
+            } elseif ($type === 'file') {
+                $rules = ['nullable', 'file', 'max:10240'];
             } else {
                 // text
                 $rules[] = 'string';
@@ -123,7 +128,8 @@ class Create extends Component
         $baseRules = [
             'ticket_category_id' => ['required', 'integer', 'exists:ticket_categories,id'],
             'ticket_priority_id' => ['required', 'integer', 'exists:ticket_priorities,id'],
-            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'assigned_to_ids' => ['nullable', 'array'],
+            'assigned_to_ids.*' => ['integer', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'subject' => ['required', 'string', 'max:255'],
@@ -155,15 +161,16 @@ class Create extends Component
             return;
         }
 
-        // Optional: ensure assignee belongs to current org
-        if (($validated['assigned_to'] ?? null) !== null) {
-            $assigneeOk = User::query()
-                ->whereKey((int) $validated['assigned_to'])
+        // Ensure all assignees belong to current org
+        $assigneeIds = array_map('intval', array_filter($validated['assigned_to_ids'] ?? []));
+        if (! empty($assigneeIds)) {
+            $validCount = User::query()
+                ->whereIn('id', $assigneeIds)
                 ->whereHas('organizations', fn($q) => $q->whereKey($orgId))
-                ->exists();
+                ->count();
 
-            if (! $assigneeOk) {
-                $this->addError('assigned_to', "Assigné invalide pour l'entreprise.");
+            if ($validCount !== count($assigneeIds)) {
+                $this->addError('assigned_to_ids', "Un ou plusieurs assignés sont invalides pour l'entreprise.");
                 return;
             }
         }
@@ -186,12 +193,15 @@ class Create extends Component
             $customFields[$key] = $val;
         }
 
+        $firstAssignee = $assigneeIds[0] ?? null;
         $ticket = Ticket::create([
             'organization_id' => $orgId,
             'created_by' => $user->id,
             'ticket_category_id' => $validated['ticket_category_id'],
             'ticket_priority_id' => $validated['ticket_priority_id'],
-            'assigned_to' => $validated['assigned_to'] ?? null,
+            'assigned_to' => $firstAssignee,
+            'assigned_by' => $firstAssignee ? $user->id : null,
+            'assigned_at' => $firstAssignee ? now() : null,
             'status' => TicketStatus::Open,
             'subject' => $validated['subject'],
             'description' => $validated['description'],
@@ -199,6 +209,15 @@ class Create extends Component
             'start_date' => $validated['start_date'] ?? null,
             'due_date' => $validated['due_date'] ?? null,
         ]);
+
+        // Sync assignees to the pivot table
+        if (! empty($assigneeIds)) {
+            $syncData = [];
+            foreach ($assigneeIds as $aid) {
+                $syncData[$aid] = ['assigned_by' => $user->id];
+            }
+            $ticket->assignees()->sync($syncData);
+        }
 
         $attachments = [
             'files' => [],
@@ -348,27 +367,31 @@ class Create extends Component
             : collect();
 
         $userId = (int) (Auth::id() ?: 0);
-        $template = ($orgId && $userId && ($this->ticket_category_id ?? null))
-            ? $this->resolveTemplate($orgId, (int) $this->ticket_category_id, $userId)
+        $form = ($orgId && $userId && ($this->ticket_category_id ?? null))
+            ? $this->resolveForm($orgId, (int) $this->ticket_category_id, $userId)
             : null;
-        $formSteps = $template?->steps ?? collect();
-        $formFields = $template?->fields ?? collect();
+        $formFields = $form?->fields ?? collect();
+
+        $user = Auth::user();
+        $role = $user && $orgId ? $user->organizations()->where('organization_id', $orgId)->first()?->pivot?->role : 'member';
+        $canAssignAtCreate = in_array($role, ['owner', 'admin', 'agent'], true);
 
         return view('livewire.tickets.create', [
             'categories' => $categories,
             'priorities' => $priorities,
             'assignees' => $assignees,
-            'formTemplateName' => $template?->name,
-            'formSteps' => $formSteps,
+            'formTemplateName' => $form?->name,
+            'formSteps' => collect(),
             'formFields' => $formFields,
+            'canAssignAtCreate' => $canAssignAtCreate,
         ]);
     }
 
-    private function resolveTemplate(int $orgId, int $categoryId, int $userId): ?TicketFormTemplate
+    private function resolveForm(int $orgId, int $categoryId, int $userId): ?Form
     {
-        $base = TicketFormTemplate::query()
+        $base = Form::query()
             ->where('organization_id', $orgId)
-            ->where('is_active', true)
+            ->where('status', FormStatus::Published)
             ->where(function ($q) use ($categoryId) {
                 $q->whereNull('ticket_category_id');
                 if ($categoryId) {
@@ -386,7 +409,7 @@ class Create extends Component
         $first = (clone $base)
             ->where('ticket_category_id', $categoryId)
             ->where('target_user_id', $userId)
-            ->with(['steps.fields', 'fields'])
+            ->with(['fields'])
             ->first();
         if ($first) {
             return $first;
@@ -396,7 +419,7 @@ class Create extends Component
         $second = (clone $base)
             ->where('ticket_category_id', $categoryId)
             ->whereNull('target_user_id')
-            ->with(['steps.fields', 'fields'])
+            ->with(['fields'])
             ->first();
         if ($second) {
             return $second;
@@ -406,7 +429,7 @@ class Create extends Component
         $third = (clone $base)
             ->whereNull('ticket_category_id')
             ->where('target_user_id', $userId)
-            ->with(['steps.fields', 'fields'])
+            ->with(['fields'])
             ->first();
         if ($third) {
             return $third;
@@ -416,7 +439,7 @@ class Create extends Component
         return (clone $base)
             ->whereNull('ticket_category_id')
             ->whereNull('target_user_id')
-            ->with(['steps.fields', 'fields'])
+            ->with(['fields'])
             ->first();
     }
 }

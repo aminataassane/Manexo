@@ -123,6 +123,7 @@
                     <tr>
                         <th class="px-6 py-4">{{ __('Membre') }}</th>
                         <th class="px-6 py-4">{{ __('Rôle') }}</th>
+                        <th class="px-6 py-4">{{ __('Fonction métier') }}</th>
                         <th class="px-6 py-4 text-right">{{ __('Actions') }}</th>
                     </tr>
                 </thead>
@@ -144,6 +145,17 @@
                                     <iconify-icon icon="{{ $b['icon'] }}" width="14"></iconify-icon>
                                     {{ $b['label'] }}
                                 </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <select
+                                    class="h-8 min-w-[140px] rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] pl-2 pr-8"
+                                    wire:change="updateFunction({{ (int) $m->id }}, $event.target.value)"
+                                >
+                                    <option value="">{{ __('— Aucune —') }}</option>
+                                    @foreach ($organizationFunctions as $fn)
+                                        <option value="{{ $fn->id }}" @selected($m->organization_function_id === $fn->id)>{{ $fn->name }}</option>
+                                    @endforeach
+                                </select>
                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -172,7 +184,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="px-6 py-12 text-center text-slate-500">
+                            <td colspan="4" class="px-6 py-12 text-center text-slate-500">
                                 <div class="flex flex-col items-center justify-center">
                                     <div class="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
                                         <iconify-icon icon="solar:users-group-rounded-linear" width="24" class="text-slate-400"></iconify-icon>

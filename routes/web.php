@@ -4,7 +4,10 @@ use App\Livewire\Test;
 use App\Livewire\Admin\FormBuilder as AdminFormBuilder;
 use App\Livewire\Admin\Users as AdminUsers;
 use App\Livewire\Admin\Settings as AdminSettings;
+use App\Livewire\Admin\FormResponses as AdminFormResponses;
 use App\Livewire\Reports\Index as ReportsIndex;
+use App\Livewire\UserForms\Index as UserFormsIndex;
+use App\Livewire\UserForms\Fill as UserFormsFill;
 use App\Livewire\Tickets\Create as CreateTicket;
 use App\Livewire\Tickets\Index as TicketsIndex;
 use App\Http\Controllers\PublicFormController;
@@ -89,7 +92,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return back()->with('profile_status', 'Toutes les autres sessions ont été déconnectées.');
         })->name('profile.sessions.logout_all');
 
-        Route::view('/dashboard', 'dashboard')->name('dashboard');
+        Route::get('/dashboard', \App\Livewire\Dashboard::class)->name('dashboard');
+
+        Route::get('/forms', UserFormsIndex::class)->name('forms.index');
+        Route::get('/forms/{assignment}', UserFormsFill::class)->name('forms.fill');
 
         Route::get('/discussions/{ticket?}', \App\Livewire\Discussions\Index::class)->name('discussions.index');
 
@@ -131,6 +137,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/users', AdminUsers::class)->name('admin.users');
         Route::get('/admin/settings', AdminSettings::class)->name('admin.settings');
         Route::get('/admin/forms', AdminFormBuilder::class)->name('admin.forms');
+        Route::get('/admin/forms/{form}/responses', AdminFormResponses::class)->name('admin.forms.responses');
         Route::get('/reports', ReportsIndex::class)->name('reports.index');
     });
 });

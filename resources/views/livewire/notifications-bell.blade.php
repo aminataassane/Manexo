@@ -1,4 +1,4 @@
-<div class="relative" x-data="{ open: false }" @click.outside="open = false" wire:poll.45s>
+<div class="relative" x-data="{ open: false }" @click.outside="open = false" wire:poll.120s>
     <button
         type="button"
         @click="open = !open"
@@ -45,23 +45,145 @@
                 @forelse($this->notifications as $notification)
                     @php
                         $data = $notification->data;
+                        $nType = $data['type'] ?? 'ticket_new_message';
                         $ticketId = $data['ticket_id'] ?? null;
                         $subject = $data['ticket_subject'] ?? __('Ticket');
-                        $senderName = $data['sender_name'] ?? '—';
-                        $excerpt = $data['body_excerpt'] ?? '';
-                        $isNote = $data['is_internal_note'] ?? false;
                         $isRead = !is_null($notification->read_at);
+
+                        // Flags
+                        $isNote = false;
+                        $isMention = false;
+                        $isAssignee = false;
+                        $isDiscussionInvite = false;
+                        $isDiscussionMessage = false;
+                        $isFormAssignment = false;
+                        $isFormResponse = false;
+                        $isFormOverdue = false;
+                        $messageId = null;
+                        $excerpt = '';
+                        $senderName = '—';
+                        $notifUrl = '#';
+
+                        // Determine display values based on notification type
+                        if ($nType === 'form_assignment') {
+                            $senderName = $data['assigned_by_name'] ?? '—';
+                            $subject = $data['form_name'] ?? __('Formulaire');
+                            $dueDate = $data['due_date'] ?? null;
+                            $excerpt = $dueDate
+                                ? __('Vous a assigné un formulaire — échéance :') . ' ' . $dueDate
+                                : __('Vous a assigné un formulaire');
+                            $isFormAssignment = true;
+                            $assignmentId = $data['assignment_id'] ?? null;
+                            $notifUrl = $assignmentId ? route('forms.fill', $assignmentId) : route('forms.index');
+                        } elseif ($nType === 'form_response') {
+                            $senderName = $data['responder_name'] ?? '—';
+                            $subject = $data['form_name'] ?? __('Formulaire');
+                            $excerpt = __('A soumis une réponse');
+                            $isFormResponse = true;
+                            $formId = $data['form_id'] ?? null;
+                            $notifUrl = $formId ? route('admin.forms.responses', $formId) : '#';
+                        } elseif ($nType === 'form_overdue') {
+                            $senderName = __('Système');
+                            $subject = $data['form_name'] ?? __('Formulaire');
+                            $dueDate = $data['due_date'] ?? null;
+                            $excerpt = $dueDate
+                                ? __('Formulaire en retard — échéance :') . ' ' . $dueDate
+                                : __('Formulaire en retard');
+                            $isFormOverdue = true;
+                            $assignmentId = $data['assignment_id'] ?? null;
+                            $notifUrl = $assignmentId ? route('forms.fill', $assignmentId) : route('forms.index');
+                        } elseif ($nType === 'ticket_assignee') {
+                            $senderName = $data['assigner_name'] ?? '—';
+                            $action = $data['action'] ?? 'assigned';
+                            $excerpt = match($action) {
+                                'assigned' => __('Vous a assigné au ticket'),
+                                'unassigned' => __('Vous a retiré du ticket'),
+                                'participant_added' => __('Vous a ajouté à la discussion'),
+                                'participant_removed' => __('Vous a retiré de la discussion'),
+                                default => __('Vous a assigné au ticket'),
+                            };
+                            $isAssignee = true;
+                            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
+                        } elseif ($nType === 'ticket_mention') {
+                            $senderName = $data['mentioner_name'] ?? '—';
+                            $excerpt = $data['body_excerpt'] ?? '';
+                            $isMention = true;
+                            $messageId = $data['message_id'] ?? null;
+                            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
+                            if ($messageId && $ticketId) {
+                                $notifUrl .= '#message-' . $messageId;
+                            }
+                        } elseif ($nType === 'discussion_invite') {
+                            $senderName = $data['inviter_name'] ?? '—';
+                            $threadName = $data['thread_name'] ?? __('Discussion');
+                            $isGroup = $data['is_group'] ?? false;
+                            $subject = $threadName;
+                            $excerpt = $isGroup
+                                ? __('Vous a ajouté au groupe')
+                                : __('A démarré une conversation');
+                            $isDiscussionInvite = true;
+                            $threadId = $data['thread_id'] ?? null;
+                            $notifUrl = $threadId ? route('discussions.index', ['ticket' => 'd-' . $threadId]) : '#';
+                        } elseif ($nType === 'discussion_new_message') {
+                            $senderName = $data['sender_name'] ?? '—';
+                            $threadName = $data['thread_name'] ?? __('Discussion');
+                            $subject = $threadName;
+                            $excerpt = $data['body_excerpt'] ?? '';
+                            $isDiscussionMessage = true;
+                            $threadId = $data['thread_id'] ?? null;
+                            $messageId = $data['message_id'] ?? null;
+                            $notifUrl = $threadId ? route('discussions.index', ['ticket' => 'd-' . $threadId]) : '#';
+                        } else {
+                            $senderName = $data['sender_name'] ?? '—';
+                            $excerpt = $data['body_excerpt'] ?? '';
+                            $isNote = $data['is_internal_note'] ?? false;
+                            $messageId = $data['message_id'] ?? null;
+                            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
+                            if ($messageId && $ticketId) {
+                                $notifUrl .= '#message-' . $messageId;
+                            }
+                        }
                     @endphp
                     <a
-                        href="{{ $ticketId ? route('tickets.discussion', $ticketId) : '#' }}"
+                        href="{{ $notifUrl }}"
+                        wire:navigate
                         wire:click="markAsRead('{{ $notification->id }}')"
+                        @click="open = false"
                         class="group block border-b border-slate-50 px-4 py-3.5 transition-all hover:bg-slate-50 {{ $isRead ? 'opacity-60 hover:opacity-100' : 'bg-white' }}"
                     >
                         <div class="flex gap-3.5">
                             <div class="relative mt-1 shrink-0">
-                                @if($isNote)
+                                @if($isFormAssignment)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
+                                        <iconify-icon icon="solar:clipboard-add-bold-duotone" width="18"></iconify-icon>
+                                    </div>
+                                @elseif($isFormResponse)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-teal-50 text-teal-600 ring-1 ring-teal-100">
+                                        <iconify-icon icon="solar:clipboard-check-bold-duotone" width="18"></iconify-icon>
+                                    </div>
+                                @elseif($isFormOverdue)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-orange-50 text-orange-600 ring-1 ring-orange-100">
+                                        <iconify-icon icon="solar:alarm-bold-duotone" width="18"></iconify-icon>
+                                    </div>
+                                @elseif($isNote)
                                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-amber-50 text-amber-600 ring-1 ring-amber-100">
                                         <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="18"></iconify-icon>
+                                    </div>
+                                @elseif($isMention)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-violet-50 text-violet-600 ring-1 ring-violet-100">
+                                        <span class="text-sm font-bold">@</span>
+                                    </div>
+                                @elseif($isAssignee)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                                        <iconify-icon icon="solar:user-check-bold-duotone" width="18"></iconify-icon>
+                                    </div>
+                                @elseif($isDiscussionInvite)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600 ring-1 ring-blue-100">
+                                        <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="18"></iconify-icon>
+                                    </div>
+                                @elseif($isDiscussionMessage)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-sky-50 text-sky-600 ring-1 ring-sky-100">
+                                        <iconify-icon icon="solar:chat-round-dots-bold-duotone" width="18"></iconify-icon>
                                     </div>
                                 @else
                                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)] ring-1 ring-[var(--accent-soft)]">
@@ -72,7 +194,7 @@
                                     <span class="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-500"></span>
                                 @endif
                             </div>
-                            
+
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-baseline justify-between gap-2">
                                     <p class="text-sm font-semibold text-slate-900 truncate">
@@ -80,10 +202,24 @@
                                     </p>
                                     <span class="text-[10px] text-slate-400 shrink-0">{{ $notification->created_at->diffForHumans(short: true) }}</span>
                                 </div>
-                                
+
                                 <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
-                                    @if($isNote)
-                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-100">Note interne</span>
+                                    @if($isFormAssignment)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">{{ __('Formulaire') }}</span>
+                                    @elseif($isFormResponse)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-teal-50 text-teal-700 border border-teal-100">{{ __('Réponse') }}</span>
+                                    @elseif($isFormOverdue)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-100">{{ __('En retard') }}</span>
+                                    @elseif($isNote)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-100">{{ __('Note interne') }}</span>
+                                    @elseif($isMention)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-violet-50 text-violet-700 border border-violet-100">{{ __('Mention') }}</span>
+                                    @elseif($isAssignee)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">{{ __('Assignation') }}</span>
+                                    @elseif($isDiscussionInvite)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">{{ __('Discussion') }}</span>
+                                    @elseif($isDiscussionMessage)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-sky-50 text-sky-700 border border-sky-100">{{ __('Message') }}</span>
                                     @else
                                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">Ticket #{{ $ticketId }}</span>
                                     @endif

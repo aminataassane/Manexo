@@ -7,8 +7,10 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class TicketNewMessageNotification extends Notification
+class TicketNewMessageNotification extends Notification implements ShouldQueue
 {
+    use Queueable;
+
     public function __construct(
         public TicketMessage $message
     ) {}

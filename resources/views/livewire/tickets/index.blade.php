@@ -44,7 +44,13 @@
         <div class="min-w-0">
             <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl lg:text-3xl min-[1920px]:text-4xl">{{ __('Tickets') }}</h1>
             <p class="mt-1 text-xs sm:text-sm text-slate-500">
-                {{ ($box ?? 'active') === 'archived' ? __('Tickets archivés (lecture / restauration).') : __('Gérez et suivez les demandes de support.') }}
+                @if(($box ?? 'active') === 'trash')
+                    {{ __('Tickets supprimés. Restaurez-les pour les remettre dans les listes.') }}
+                @elseif(($box ?? 'active') === 'archived')
+                    {{ __('Tickets archivés (lecture / restauration).') }}
+                @else
+                    {{ __('Gérez et suivez les demandes de support.') }}
+                @endif
             </p>
         </div>
 
@@ -142,22 +148,32 @@
                         @endphp
 
                         <div class="px-1 pb-2">
-                            <div class="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+                            <div class="flex flex-wrap items-stretch gap-1 rounded-xl bg-slate-100 p-1">
                                 <button type="button" wire:click="setBox('active')"
-                                    class="flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-all {{ $boxKey === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
-                                    <span class="inline-flex items-center gap-2 justify-center w-full">
-                                        <iconify-icon icon="solar:ticket-bold-duotone" width="18"></iconify-icon>
-                                        {{ __('Actifs') }}
+                                    class="flex-1 min-w-0 rounded-lg px-2 py-2 sm:px-3 text-xs sm:text-sm font-bold transition-all {{ $boxKey === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
+                                    <span class="inline-flex items-center gap-1 sm:gap-2 justify-center w-full truncate">
+                                        <iconify-icon icon="solar:ticket-bold-duotone" width="16" class="sm:w-[18px] shrink-0"></iconify-icon>
+                                        <span class="truncate">{{ __('Actifs') }}</span>
                                     </span>
                                 </button>
                                 <button type="button" wire:click="setBox('archived')"
-                                    class="flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-all {{ $boxKey === 'archived' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
-                                    <span class="inline-flex items-center gap-2 justify-center w-full">
-                                        <iconify-icon icon="solar:archive-bold-duotone" width="18"></iconify-icon>
-                                        {{ __('Archivés') }}
-                                        <span class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] {{ $boxKey === 'archived' ? 'bg-slate-100 text-slate-700' : 'bg-white/60 text-slate-500' }}">{{ $viewCounts['archived'] ?? 0 }}</span>
+                                    class="flex-1 min-w-0 rounded-lg px-2 py-2 sm:px-3 text-xs sm:text-sm font-bold transition-all {{ $boxKey === 'archived' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
+                                    <span class="inline-flex items-center gap-1 sm:gap-2 justify-center w-full truncate">
+                                        <iconify-icon icon="solar:archive-bold-duotone" width="16" class="sm:w-[18px] shrink-0"></iconify-icon>
+                                        <span class="truncate">{{ __('Archivés') }}</span>
+                                        <span class="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] shrink-0 {{ $boxKey === 'archived' ? 'bg-slate-100 text-slate-700' : 'bg-white/60 text-slate-500' }}">{{ $viewCounts['archived'] ?? 0 }}</span>
                                     </span>
                                 </button>
+                                @if($isStaff ?? false)
+                                <button type="button" wire:click="setBox('trash')"
+                                    class="flex-1 min-w-0 rounded-lg px-2 py-2 sm:px-3 text-xs sm:text-sm font-bold transition-all {{ $boxKey === 'trash' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
+                                    <span class="inline-flex items-center gap-1 sm:gap-2 justify-center w-full truncate">
+                                        <iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="16" class="sm:w-[18px] shrink-0"></iconify-icon>
+                                        <span class="truncate">{{ __('Corbeille') }}</span>
+                                        <span class="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] shrink-0 {{ $boxKey === 'trash' ? 'bg-slate-100 text-slate-700' : 'bg-white/60 text-slate-500' }}">{{ $viewCounts['trash'] ?? 0 }}</span>
+                                    </span>
+                                </button>
+                                @endif
                             </div>
                         </div>
 
@@ -216,7 +232,7 @@
                 </button>
             </div>
 
-            @if (($displayMode ?? 'list') === 'kanban')
+            @if (($displayMode ?? 'list') === 'kanban' && ($box ?? 'active') !== 'trash')
                 <!-- KANBAN VIEW (horizontal scroll on mobile) -->
                 <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden h-[calc(100vh-14rem)] sm:h-[calc(100vh-12rem)] min-h-[400px]">
                     <div class="p-3 sm:p-4 border-b border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-slate-50/50">
@@ -325,15 +341,18 @@
                     </div>
 
                     <!-- Table (horizontal scroll on small screens) -->
-                    <div class="responsive-table-wrap">
+                    <div class="responsive-table-wrap scroll-touch -mx-2 sm:mx-0 px-2 sm:px-0">
                         <table class="w-full text-left min-w-[640px]">
-                            <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-500 tracking-wider">
+                            <thead class="bg-slate-50 text-[10px] sm:text-xs uppercase font-bold text-slate-500 tracking-wider">
                                 <tr>
-                                    <th class="px-4 sm:px-6 py-3 sm:py-4">{{ __('Sujet') }}</th>
-                                    <th class="px-4 sm:px-6 py-3 sm:py-4">{{ __('Catégorie') }}</th>
-                                    <th class="px-4 sm:px-6 py-3 sm:py-4">{{ __('Priorité') }}</th>
-                                    <th class="px-4 sm:px-6 py-3 sm:py-4">{{ __('Statut') }}</th>
-                                    <th class="px-4 sm:px-6 py-3 sm:py-4 text-right">{{ __('Activité') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Sujet') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Catégorie') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Priorité') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Statut') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4 text-right">{{ __('Activité') }}</th>
+                                    @if(($box ?? 'active') === 'trash')
+                                        <th class="px-3 sm:px-6 py-2.5 sm:py-4 text-right">{{ __('Actions') }}</th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
@@ -343,8 +362,8 @@
                                         $pill = $statusPill($t->status->value);
                                         $prio = $priorityMeta($t->priority?->level);
                                     @endphp
-                                    <tr class="group hover:bg-slate-50/80 transition-colors cursor-pointer" onclick="window.location='{{ route('tickets.discussion', $t->id) }}'">
-                                        <td class="px-4 sm:px-6 py-3 sm:py-4">
+                                    <tr class="group hover:bg-slate-50/80 transition-colors {{ ($box ?? 'active') !== 'trash' ? 'cursor-pointer' : '' }}" @if(($box ?? 'active') !== 'trash') onclick="window.location='{{ route('tickets.discussion', $t->id) }}'" @endif>
+                                        <td class="px-3 sm:px-6 py-2.5 sm:py-4">
                                             <div class="flex items-center gap-2 sm:gap-4 min-w-0">
                                                 <span class="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500 font-mono">
                                                     #{{ $t->id }}
@@ -361,38 +380,55 @@
                                                             </span>
                                                         @endif
                                                     </div>
-                                                    <div class="text-xs text-slate-500 mt-0.5">
-                                                        {{ $t->creator?->name ?? 'Inconnu' }}
-                                                        @if ($t->assignee)
-                                                            <span class="mx-1 text-slate-300">|</span>
-                                                            {{ __('Assigné à') }} <span class="font-medium text-slate-700">{{ $t->assignee->name }}</span>
+                                                    <div class="text-xs text-slate-500 mt-0.5 flex items-center gap-1 flex-wrap">
+                                                        <span>{{ $t->creator?->name ?? 'Inconnu' }}</span>
+                                                        @if($t->assignees->isNotEmpty())
+                                                            <span class="text-slate-300">|</span>
+                                                            <span class="flex items-center gap-1">
+                                                                <span class="flex -space-x-1.5">
+                                                                    @foreach($t->assignees->take(3) as $a)
+                                                                        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold ring-2 ring-white shrink-0" style="background: var(--accent-soft); color: var(--accent);" title="{{ $a->name }}">{{ strtoupper(mb_substr($a->name, 0, 1)) }}</span>
+                                                                    @endforeach
+                                                                </span>
+                                                                @if($t->assignees->count() > 3)
+                                                                    <span class="text-[10px] font-bold text-slate-500">+{{ $t->assignees->count() - 3 }}</span>
+                                                                @endif
+                                                            </span>
                                                         @endif
                                                     </div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="px-4 sm:px-6 py-3 sm:py-4 text-sm text-slate-600 whitespace-nowrap">
+                                        <td class="px-3 sm:px-6 py-2.5 sm:py-4 text-sm text-slate-600 whitespace-nowrap">
                                             {{ $t->category?->name ?? '—' }}
                                         </td>
-                                        <td class="px-4 sm:px-6 py-3 sm:py-4">
+                                        <td class="px-3 sm:px-6 py-2.5 sm:py-4">
                                             <div class="flex items-center gap-2">
                                                 <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $prio['dot'] }}"></span>
                                                 <span class="text-sm font-medium {{ $prio['text'] }}">{{ $t->priority?->name ?? $prio['label'] }}</span>
                                             </div>
                                         </td>
-                                        <td class="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                                        <td class="px-3 sm:px-6 py-2.5 sm:py-4 whitespace-nowrap">
                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border {{ $pill['bg'] }} {{ $pill['text'] }} {{ $pill['border'] }}">
                                                 <iconify-icon icon="{{ $icon }}" width="14"></iconify-icon>
                                                 {{ $label }}
                                             </span>
                                         </td>
-                                        <td class="px-4 sm:px-6 py-3 sm:py-4 text-right text-sm text-slate-500 whitespace-nowrap">
-                                            {{ $t->updated_at?->diffForHumans() }}
+                                        <td class="px-3 sm:px-6 py-2.5 sm:py-4 text-right text-sm text-slate-500 whitespace-nowrap">
+                                            {{ ($box ?? 'active') === 'trash' ? ($t->deleted_at?->diffForHumans() ?? '—') : $t->updated_at?->diffForHumans() }}
                                         </td>
+                                        @if(($box ?? 'active') === 'trash')
+                                            <td class="px-3 sm:px-6 py-2.5 sm:py-4 text-right whitespace-nowrap">
+                                                <button type="button" wire:click="restoreFromTrash({{ $t->id }})" data-restore class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors touch-manipulation">
+                                                    <iconify-icon icon="solar:restart-bold-duotone" width="14"></iconify-icon>
+                                                    {{ __('Restaurer') }}
+                                                </button>
+                                            </td>
+                                        @endif
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-4 sm:px-6 py-8 sm:py-12 text-center text-slate-500">
+                                        <td colspan="{{ ($box ?? 'active') === 'trash' ? 6 : 5 }}" class="px-4 sm:px-6 py-8 sm:py-12 text-center text-slate-500">
                                             <div class="flex flex-col items-center justify-center">
                                                 <div class="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
                                                     <iconify-icon icon="solar:ticket-linear" width="32" class="text-slate-400"></iconify-icon>

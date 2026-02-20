@@ -1,0 +1,282 @@
+<?php
+
+namespace App\Livewire;
+
+use App\Enums\FormAssignmentStatus;
+use App\Enums\TicketMessageType;
+use App\Models\DiscussionMessage;
+use App\Models\DiscussionThread;
+use App\Models\FormAssignment;
+use App\Models\Ticket;
+use App\Models\TicketMessage;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+
+#[Layout('layouts.manexo-app')]
+#[Title('Tableau de bord')]
+class Dashboard extends Component
+{
+    /** 7 or 30 for chart range. */
+    public int $chartDays = 7;
+
+    public function setChartDays(int $days): void
+    {
+        if (in_array($days, [7, 30], true)) {
+            $this->chartDays = $days;
+        }
+    }
+
+    #[Computed]
+    public function organization(): ?\App\Models\Organization
+    {
+        return request()->attributes->get('currentOrganization')
+            ?? \App\Models\Organization::find(session('current_organization_id'));
+    }
+
+    #[Computed]
+    public function role(): string
+    {
+        $user = Auth::user();
+        $org = $this->organization;
+        if (! $org || ! $user) {
+            return 'member';
+        }
+        return $user->organizations()->whereKey($org->id)->first()?->pivot?->role ?? 'member';
+    }
+
+    #[Computed]
+    public function isAdminView(): bool
+    {
+        return in_array($this->role, ['owner', 'admin'], true);
+    }
+
+    #[Computed]
+    public function orgId(): ?int
+    {
+        return $this->organization?->id;
+    }
+
+    /** KPI counts (open, in_progress, pending, resolved last 7d). */
+    #[Computed]
+    public function kpis(): array
+    {
+        $orgId = $this->orgId;
+        if (! $orgId) {
+            return ['open' => 0, 'in_progress' => 0, 'pending' => 0, 'resolved7d' => 0];
+        }
+        $base = Ticket::query()->where('organization_id', $orgId);
+        return [
+            'open' => (clone $base)->where('status', 'open')->count(),
+            'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
+            'pending' => (clone $base)->where('status', 'pending')->count(),
+            'resolved7d' => (clone $base)
+                ->whereIn('status', ['resolved', 'closed'])
+                ->where('updated_at', '>=', now()->subDays(7))
+                ->count(),
+        ];
+    }
+
+    /** Chart data: activity per day (message count per day for the selected range). */
+    #[Computed]
+    public function chartData(): array
+    {
+        $orgId = $this->orgId;
+        if (! $orgId) {
+            return $this->emptyChartData();
+        }
+        $start = now()->subDays($this->chartDays)->startOfDay();
+        $raw = TicketMessage::query()
+            ->whereHas('ticket', fn ($q) => $q->where('organization_id', $orgId))
+            ->where('created_at', '>=', $start)
+            ->select(DB::raw('DATE(created_at) as day'), DB::raw('COUNT(*) as count'))
+            ->groupBy('day')
+            ->orderBy('day')
+            ->pluck('count', 'day')
+            ->all();
+        $jours = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        $labels = array_map(function ($i) use ($jours) {
+            $date = now()->subDays($this->chartDays - 1 - $i);
+            return $this->chartDays === 7 ? $jours[$date->dayOfWeek] : $date->format('d/m');
+        }, range(0, $this->chartDays - 1));
+        $max = ! empty($raw) ? max($raw) : 1;
+        $days = $this->chartDays;
+        $values = [];
+        for ($i = 0; $i < $days; $i++) {
+            $d = now()->subDays($days - 1 - $i)->format('Y-m-d');
+            $values[] = [
+                'label' => $labels[$i],
+                'count' => $raw[$d] ?? 0,
+                'pct' => $max > 0 ? min(100, (int) round((($raw[$d] ?? 0) / $max) * 100)) : 0,
+            ];
+        }
+        return $values;
+    }
+
+    private function emptyChartData(): array
+    {
+        $jours = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        $labels = array_map(function ($i) use ($jours) {
+            $date = now()->subDays($this->chartDays - 1 - $i);
+            return $this->chartDays === 7 ? $jours[$date->dayOfWeek] : $date->format('d/m');
+        }, range(0, $this->chartDays - 1));
+        return array_map(fn ($label) => ['label' => $label, 'count' => 0, 'pct' => 0], $labels);
+    }
+
+    /** Priority tickets (open/in_progress/pending, ordered by priority level then updated_at). */
+    #[Computed]
+    public function priorityTickets()
+    {
+        $orgId = $this->orgId;
+        if (! $orgId) {
+            return collect();
+        }
+        return Ticket::query()
+            ->where('tickets.organization_id', $orgId)
+            ->whereIn('tickets.status', ['open', 'in_progress', 'pending'])
+            ->join('ticket_priorities', 'tickets.ticket_priority_id', '=', 'ticket_priorities.id')
+            ->orderByDesc('ticket_priorities.level')
+            ->orderByDesc('tickets.updated_at')
+            ->select('tickets.*')
+            ->with(['priority'])
+            ->limit(5)
+            ->get();
+    }
+
+    /** Recent discussion threads (Discussions feature) with last message. */
+    #[Computed]
+    public function recentDiscussions(): \Illuminate\Support\Collection
+    {
+        $orgId = $this->orgId;
+        if (! $orgId) {
+            return collect();
+        }
+        $threads = DiscussionThread::query()
+            ->where('organization_id', $orgId)
+            ->active()
+            ->with(['messages' => fn ($q) => $q->latest('created_at')->limit(1), 'messages.user'])
+            ->get();
+        return $threads
+            ->map(function (DiscussionThread $t) {
+                $last = $t->messages->first();
+                return (object) [
+                    'id' => $t->id,
+                    'name' => $t->name,
+                    'last_body' => $last ? Str::limit($last->body, 50) : null,
+                    'last_at' => $last?->created_at,
+                    'last_user_name' => $last?->user?->name,
+                    'url' => route('discussions.index', ['ticket' => 'd-' . $t->id]),
+                ];
+            })
+            ->sortByDesc('last_at')
+            ->take(5)
+            ->values();
+    }
+
+    /** Unread-like count: threads with at least one message in last 24h (for badge). */
+    #[Computed]
+    public function discussionsUnreadCount(): int
+    {
+        $orgId = $this->orgId;
+        if (! $orgId) {
+            return 0;
+        }
+        return DiscussionThread::query()
+            ->where('organization_id', $orgId)
+            ->active()
+            ->whereHas('messages', fn ($q) => $q->where('created_at', '>=', now()->subDay()))
+            ->count();
+    }
+
+    /** Recent activity: one entry per ticket (last message on that ticket), max 8 tickets. */
+    #[Computed]
+    public function recentActivity(): \Illuminate\Support\Collection
+    {
+        $orgId = $this->orgId;
+        if (! $orgId) {
+            return collect();
+        }
+        return TicketMessage::query()
+            ->where('ticket_messages.type', TicketMessageType::Message)
+            ->whereHas('ticket', fn ($q) => $q->where('organization_id', $orgId))
+            ->with(['ticket:id,subject', 'user:id,name'])
+            ->orderByDesc('ticket_messages.created_at')
+            ->get()
+            ->unique('ticket_id')
+            ->take(8)
+            ->values()
+            ->map(function (TicketMessage $m) {
+                $isYou = Auth::id() && (int) $m->user_id === (int) Auth::id();
+                return (object) [
+                    'ticket_id' => $m->ticket_id,
+                    'subject' => $m->ticket?->subject ?? __('Ticket') . ' #' . $m->ticket_id,
+                    'user_name' => $isYou ? __('Vous') : ($m->user?->name ?? '—'),
+                    'created_at' => $m->created_at,
+                    'url' => route('tickets.discussion', $m->ticket_id),
+                ];
+            });
+    }
+
+    /** Pending form assignments for the current user. */
+    #[Computed]
+    public function pendingFormAssignments(): \Illuminate\Support\Collection
+    {
+        $user = Auth::user();
+        $orgId = $this->orgId;
+        if (! $user || ! $orgId) {
+            return collect();
+        }
+
+        return FormAssignment::query()
+            ->forUser((int) $user->id, $orgId)
+            ->whereIn('status', [FormAssignmentStatus::Pending, FormAssignmentStatus::Overdue])
+            ->with(['form:id,name'])
+            ->orderBy('due_date')
+            ->limit(5)
+            ->get();
+    }
+
+    #[Computed]
+    public function pendingFormsCount(): int
+    {
+        $user = Auth::user();
+        $orgId = $this->orgId;
+        if (! $user || ! $orgId) {
+            return 0;
+        }
+
+        return FormAssignment::query()
+            ->forUser((int) $user->id, $orgId)
+            ->whereIn('status', [FormAssignmentStatus::Pending, FormAssignmentStatus::Overdue])
+            ->count();
+    }
+
+    public function render()
+    {
+        return view('livewire.dashboard', [
+            'statusLabel' => function (string $status): string {
+                return match ($status) {
+                    'open' => __('Ouvert'),
+                    'in_progress' => __('En cours'),
+                    'pending' => __('En attente'),
+                    'resolved' => __('Résolu'),
+                    'closed' => __('Fermé'),
+                    default => ucfirst(str_replace('_', ' ', $status)),
+                };
+            },
+            'statusPill' => function (string $status): array {
+                return match ($status) {
+                    'open' => ['bg' => 'bg-red-50', 'text' => 'text-red-700', 'border' => 'border-red-100', 'icon' => 'solar:danger-circle-bold'],
+                    'in_progress' => ['bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'border' => 'border-blue-100', 'icon' => 'solar:clock-circle-bold'],
+                    'pending' => ['bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-100', 'icon' => 'solar:pause-circle-bold'],
+                    'resolved', 'closed' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-100', 'icon' => 'solar:check-circle-bold'],
+                    default => ['bg' => 'bg-slate-50', 'text' => 'text-slate-700', 'border' => 'border-slate-200', 'icon' => 'solar:info-circle-bold'],
+                };
+            },
+        ])->layout('layouts.manexo-app', ['title' => __('Tableau de bord')]);
+    }
+}

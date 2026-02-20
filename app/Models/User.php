@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -27,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $fillable = [
         'name',
+        'mention_tag',
         'email',
         'password',
     ];
@@ -141,6 +143,22 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new ResetPasswordManexoNotification($token));
+    }
+
+    /**
+     * Nom de tague pour les mentions @ dans les discussions (ex: @jdupont).
+     * Si non défini, dérivé du prénom (slug).
+     */
+    public function getMentionTagAttribute(): string
+    {
+        $tag = $this->attributes['mention_tag'] ?? null;
+        if ($tag !== null && $tag !== '') {
+            return $tag;
+        }
+        $name = $this->attributes['name'] ?? '';
+        $first = Str::before($name, ' ');
+        $slug = Str::slug($first);
+        return $slug !== '' ? $slug : 'user' . ($this->attributes['id'] ?? 0);
     }
 
     public function organizationMemberships(): HasMany

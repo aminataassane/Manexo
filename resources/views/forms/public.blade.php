@@ -1,9 +1,10 @@
 @php
-    /** @var \App\Models\TicketFormTemplate $template */
+    /** @var \App\Models\Form $form */
     /** @var \App\Models\Organization $organization */
     $embedMode = (bool) ($embed ?? false);
-    $pageTitle = $template->public_title ?: $template->name ?: __('Formulaire');
-    $pageDesc = $template->public_description ?: null;
+    $pageTitle = $form->public_title ?: $form->name ?: __('Formulaire');
+    $pageDesc = $form->public_description ?: null;
+    $fields = $form->fields->sortBy('sort_order');
 @endphp
 
 <x-manexo-public-layout :organization="$organization" :title="$pageTitle">
@@ -58,7 +59,7 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('forms.public.submit', ['slug' => $template->public_slug, 'embed' => $embedMode ? 1 : null]) }}" enctype="multipart/form-data" class="space-y-6">
+                    <form method="POST" action="{{ route('forms.public.submit', ['slug' => $form->slug, 'embed' => $embedMode ? 1 : null]) }}" enctype="multipart/form-data" class="space-y-6">
                         @csrf
 
                         {{-- Honeypot --}}
@@ -84,7 +85,7 @@
                         @endguest
 
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            @if(!$template->ticket_category_id)
+                            @if(!$form->ticket_category_id)
                                 <div class="space-y-1.5">
                                     <label class="text-xs font-semibold text-slate-700">{{ __('Catégorie') }}</label>
                                     <select name="ticket_category_id"
@@ -97,7 +98,7 @@
                                     @error('ticket_category_id')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                 </div>
                             @else
-                                <input type="hidden" name="ticket_category_id" value="{{ (int) $template->ticket_category_id }}">
+                                <input type="hidden" name="ticket_category_id" value="{{ (int) $form->ticket_category_id }}">
                             @endif
 
                             <div class="space-y-1.5">
@@ -129,103 +130,93 @@
                             @error('description')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                         </div>
 
-                        @php
-                            $steps = $template->steps ?? collect();
-                            if ($steps->count() === 0 && ($template->fields?->count() ?? 0) > 0) {
-                                $steps = collect([(object) [
-                                    'id' => 0,
-                                    'number' => 1,
-                                    'title' => __('Informations complémentaires'),
-                                    'description' => null,
-                                    'fields' => $template->fields,
-                                ]]);
-                            }
-                        @endphp
-
-                        @if($steps->count())
+                        @if($fields->where('type', '!=', 'section')->count())
                             <div class="pt-2 border-t border-slate-200">
-                                <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
-                                    {{ __('Informations complémentaires') }}
-                                </div>
-                                <div class="space-y-6">
-                                    @foreach($steps as $step)
+                                <div class="space-y-5">
+                                    @foreach($fields as $f)
                                         @php
-                                            $fields = $step->fields ?? collect();
+                                            $type = (string) $f->type;
+                                            $config = is_array($f->configuration) ? $f->configuration : [];
+                                            $placeholder = $config['placeholder'] ?? '';
+                                            $helpText = $config['help_text'] ?? '';
+                                            $options = $config['options'] ?? $f->options ?? [];
+                                            $name = "custom[{$f->key}]";
+                                            $oldVal = old("custom.{$f->key}");
+                                            $isFull = in_array($type, ['textarea', 'section', 'radio', 'file'], true);
                                         @endphp
 
-                                        <div class="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">
-                                            <div class="flex items-start justify-between gap-4">
-                                                <div class="min-w-0">
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="text-[10px] font-mono text-slate-400">#{{ (int) ($step->number ?? 1) }}</span>
-                                                        <div class="text-sm font-extrabold text-slate-900 truncate">{{ $step->title ?? __('Étape') }}</div>
-                                                    </div>
-                                                    @if(!empty($step->description))
-                                                        <div class="mt-1 text-xs text-slate-600">{{ $step->description }}</div>
-                                                    @endif
-                                                </div>
-                                                <span class="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200 bg-white text-slate-500">
-                                                    {{ (int) ($fields->count() ?? 0) }} {{ __('champ(s)') }}
-                                                </span>
+                                        @if($type === 'section')
+                                            <div class="pt-4 pb-1 border-t border-slate-200 first:border-t-0 first:pt-0">
+                                                <div class="text-sm font-extrabold text-slate-900">{{ $f->label }}</div>
+                                                @if($helpText)
+                                                    <p class="mt-1 text-xs text-slate-600">{{ $helpText }}</p>
+                                                @endif
                                             </div>
+                                        @else
+                                            <div class="space-y-1.5">
+                                                <label class="text-xs font-semibold text-slate-700">
+                                                    {{ $f->label }}
+                                                    @if($f->required)
+                                                        <span class="text-red-600">*</span>
+                                                    @endif
+                                                </label>
 
-                                            <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                                @foreach($fields as $f)
+                                                @if($type === 'textarea')
+                                                    <textarea name="{{ $name }}" rows="4"
+                                                              class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                              placeholder="{{ $placeholder }}"
+                                                              @required($f->required)>{{ $oldVal }}</textarea>
+                                                @elseif($type === 'select')
+                                                    <select name="{{ $name }}"
+                                                            class="appearance-none block w-full rounded-xl border-slate-200 bg-white py-2.5 pl-3 pr-10 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-all duration-200 ease-in-out cursor-pointer hover:border-slate-300"
+                                                            @required($f->required)>
+                                                        <option value="">{{ $placeholder ?: __('Choisir…') }}</option>
+                                                        @foreach((array) $options as $opt)
+                                                            <option value="{{ $opt }}" @selected((string) $oldVal === (string) $opt)>{{ $opt }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                @elseif($type === 'radio')
+                                                    <div class="space-y-2">
+                                                        @foreach((array) $options as $opt)
+                                                            <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 hover:border-[var(--accent)] cursor-pointer transition-colors">
+                                                                <input type="radio" name="{{ $name }}" value="{{ $opt }}"
+                                                                       class="text-[color:var(--accent)] focus:ring-[color:var(--accent)]/30"
+                                                                       @checked((string) $oldVal === (string) $opt)>
+                                                                <span class="text-sm text-slate-700">{{ $opt }}</span>
+                                                            </label>
+                                                        @endforeach
+                                                    </div>
+                                                @elseif($type === 'checkbox')
+                                                    <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                                                        <input type="hidden" name="{{ $name }}" value="0">
+                                                        <input type="checkbox" name="{{ $name }}" value="1"
+                                                               class="h-4 w-4 rounded border-slate-300 text-[color:var(--accent)] focus:ring-[color:var(--accent)]/30"
+                                                               @checked((bool) $oldVal)>
+                                                        <span class="text-sm text-slate-700">{{ __('Oui') }}</span>
+                                                    </div>
+                                                @elseif($type === 'file')
+                                                    <input type="file" name="{{ $name }}"
+                                                           class="block w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-slate-900 file:text-white hover:file:opacity-90 transition"
+                                                           @if(!empty($config['accept'])) accept="{{ $config['accept'] }}" @endif>
+                                                @else
                                                     @php
-                                                        $name = "custom[{$f->key}]";
-                                                        $oldVal = old("custom.{$f->key}");
-                                                        $isFull = in_array((string) $f->type, ['textarea'], true);
+                                                        $inputType = in_array($type, ['email', 'date', 'datetime', 'number'], true)
+                                                            ? ($type === 'datetime' ? 'datetime-local' : $type)
+                                                            : 'text';
                                                     @endphp
+                                                    <input type="{{ $inputType }}" name="{{ $name }}" value="{{ $oldVal }}"
+                                                           class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                           placeholder="{{ $placeholder }}"
+                                                           @required($f->required)>
+                                                @endif
 
-                                                    <div class="space-y-1.5 {{ $isFull ? 'sm:col-span-2' : '' }}">
-                                                        <label class="text-xs font-semibold text-slate-700">
-                                                            {{ $f->label }}
-                                                            @if($f->required)
-                                                                <span class="text-red-600">*</span>
-                                                            @endif
-                                                        </label>
+                                                @if($helpText)
+                                                    <p class="text-[11px] text-slate-500">{{ $helpText }}</p>
+                                                @endif
 
-                                                        @if($f->type === 'textarea')
-                                                            <textarea name="{{ $name }}" rows="4"
-                                                                      class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
-                                                                  placeholder="{{ (string) ($f->placeholder ?? '') }}"
-                                                                      @required($f->required)>{{ $oldVal }}</textarea>
-                                                        @elseif($f->type === 'select')
-                                                            <select name="{{ $name }}"
-                                                                    class="appearance-none block w-full rounded-xl border-slate-200 bg-white py-2.5 pl-3 pr-10 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-all duration-200 ease-in-out cursor-pointer hover:border-slate-300"
-                                                                    @required($f->required)>
-                                                                <option value="">{{ (string) ($f->placeholder ?? __('Choisir…')) }}</option>
-                                                                @foreach(($f->options ?? []) as $opt)
-                                                                    <option value="{{ $opt }}" @selected((string) $oldVal === (string) $opt)>{{ $opt }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                        @elseif($f->type === 'checkbox')
-                                                            <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-                                                                <input type="hidden" name="{{ $name }}" value="0">
-                                                                <input type="checkbox" name="{{ $name }}" value="1"
-                                                                       class="h-4 w-4 rounded border-slate-300 text-[color:var(--accent)] focus:ring-[color:var(--accent)]/30"
-                                                                       @checked((bool) $oldVal)>
-                                                                <span class="text-sm text-slate-700">{{ __('Oui') }}</span>
-                                                            </div>
-                                                        @else
-                                                            @php
-                                                                $type = in_array((string) $f->type, ['email', 'date', 'number'], true) ? $f->type : 'text';
-                                                            @endphp
-                                                            <input type="{{ $type }}" name="{{ $name }}" value="{{ $oldVal }}"
-                                                                   class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
-                                                               placeholder="{{ (string) ($f->placeholder ?? '') }}"
-                                                                   @required($f->required)>
-                                                        @endif
-
-                                                    @if(!empty($f->help_text))
-                                                        <p class="text-[11px] text-slate-500">{{ $f->help_text }}</p>
-                                                    @endif
-
-                                                        @error("custom.{$f->key}")<p class="text-xs text-red-600">{{ $message }}</p>@enderror
-                                                    </div>
-                                                @endforeach
+                                                @error("custom.{$f->key}")<p class="text-xs text-red-600">{{ $message }}</p>@enderror
                                             </div>
-                                        </div>
+                                        @endif
                                     @endforeach
                                 </div>
                             </div>
@@ -277,4 +268,3 @@
         </div>
     </div>
 </x-manexo-public-layout>
-

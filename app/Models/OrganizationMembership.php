@@ -11,6 +11,7 @@ class OrganizationMembership extends Model
         'organization_id',
         'user_id',
         'role',
+        'organization_function_id',
     ];
 
     public function organization(): BelongsTo
@@ -21,5 +22,11 @@ class OrganizationMembership extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** Fonction métier dans cette organisation (ex: Informaticien, RH). */
+    public function organizationFunction(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationFunction::class, 'organization_function_id');
     }
 }

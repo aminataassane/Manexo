@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin;
 
 use App\Enums\OrganizationRole;
+use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -240,7 +241,7 @@ class Users extends Component
         $search = trim($this->search);
 
         $membershipsQuery = OrganizationMembership::query()
-            ->with('user')
+            ->with(['user', 'organizationFunction'])
             ->where('organization_id', $orgId)
             ->when($this->role !== '', fn($q) => $q->where('role', $this->role))
             ->when($search !== '', function ($q) use ($search) {
@@ -271,10 +272,41 @@ class Users extends Component
             'members' => (int) ($statsRow?->members ?? 0),
         ];
 
+        $organizationFunctions = OrganizationFunction::query()
+            ->where('organization_id', $orgId)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view('livewire.admin.users', [
             'memberships' => $memberships,
             'stats' => $stats,
             'currentRole' => $currentRole,
+            'organizationFunctions' => $organizationFunctions,
         ]);
+    }
+
+    public function updateFunction(int $membershipId, ?string $functionId): void
+    {
+        if (! $this->canManage()) {
+            abort(403);
+        }
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            abort(403);
+        }
+        $membership = OrganizationMembership::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($membershipId)
+            ->firstOrFail();
+        $id = $functionId === '' || $functionId === null ? null : (int) $functionId;
+        if ($id !== null) {
+            OrganizationFunction::query()
+                ->where('organization_id', $orgId)
+                ->whereKey($id)
+                ->firstOrFail();
+        }
+        $membership->update(['organization_function_id' => $id]);
+        $this->dispatch('toast', type: 'success', message: __('Fonction mise à jour.'));
     }
 }

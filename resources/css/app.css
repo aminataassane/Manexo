@@ -108,12 +108,14 @@
     }
 }
 
-/* Responsive utilities: touch targets, scroll containers */
+/* Responsive utilities: touch targets, scroll containers, safe areas */
 @layer utilities {
     .touch-target { min-height: 2.75rem; min-width: 2.75rem; }
     @media (min-width: 768px) { .touch-target { min-height: auto; min-width: auto; } }
+    .touch-manipulation { touch-action: manipulation; }
     .scroll-touch { -webkit-overflow-scrolling: touch; overflow-x: auto; overflow-y: auto; }
     .responsive-table-wrap { width: 100%; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .safe-area-pb { padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0)); }
     .page-content-safe {
         padding-left: calc(0.75rem + env(safe-area-inset-left, 0px));
         padding-right: calc(0.75rem + env(safe-area-inset-right, 0px));

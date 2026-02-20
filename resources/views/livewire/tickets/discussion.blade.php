@@ -38,8 +38,8 @@
 @endphp
 
 <div
-    class="flex flex-col min-h-0 rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm"
-    style="height: calc(100dvh - 6.5rem); min-height: 20rem;"
+    class="flex flex-col min-h-0 rounded-xl sm:rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm"
+    style="height: calc(100dvh - 6.5rem); min-height: 16rem;"
     x-data="discussionWebSocket({{ $ticketId }}, {{ auth()->id() ?? 'null' }}, {{ $canSeeInternalNotes ? 'true' : 'false' }})"
     @keydown.enter.window="if (document.activeElement?.closest('[data-composer]') && !$event.shiftKey) { $event.preventDefault(); $refs.submitBtn?.click() }"
     @keydown.escape.window="addParticipantOpen = false"
@@ -251,42 +251,96 @@
                 </div>
             </div>
 
-            <!-- Composer -->
-            <div class="shrink-0 bg-white border-t border-slate-200 p-4 sm:p-6 z-10" data-composer>
+            <!-- Composer (compact) -->
+            <div class="shrink-0 bg-white border-t border-slate-200 p-2 sm:p-4 z-10 safe-area-pb" data-composer>
                 <div class="mx-auto max-w-4xl">
-                    <div class="flex items-center gap-4 mb-3">
-                        <button type="button" wire:click="setAsInternalNote(false)" class="text-sm font-bold transition-colors border-b-2 pb-0.5 {{ !$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
+                    <div class="flex items-center gap-2 mb-2">
+                        <button type="button" wire:click="setAsInternalNote(false)" class="text-xs sm:text-sm font-bold transition-colors border-b-2 pb-0.5 {{ !$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
                             {{ __('Répondre') }}
                         </button>
                         @if($canWriteInternalNotes)
-                            <button type="button" wire:click="setAsInternalNote(true)" class="text-sm font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1.5 {{ $asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
-                                <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="14"></iconify-icon>
+                            <button type="button" wire:click="setAsInternalNote(true)" class="text-xs sm:text-sm font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1 {{ $asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
+                                <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="12"></iconify-icon>
                                 {{ __('Note interne') }}
                             </button>
                         @endif
                     </div>
 
-                    <form wire:submit="sendMessage" class="relative rounded-2xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all">
-                        <div class="p-2">
+                    <form wire:submit="sendMessage" class="relative rounded-xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all"
+                    x-data="{
+                        users: {{ \Illuminate\Support\Js::from($mentionableUsers ?? []) }},
+                        mentionOpen: false,
+                        mentionQuery: '',
+                        mentionStart: 0,
+                        mentionCursor: 0,
+                        get filteredMentions() {
+                            if (!this.mentionQuery) return this.users.slice(0, 8);
+                            const q = this.mentionQuery.toLowerCase();
+                            return this.users.filter(u =>
+                                (u.tag && u.tag.toLowerCase().startsWith(q)) ||
+                                (u.name && u.name.toLowerCase().includes(q))
+                            ).slice(0, 8);
+                        },
+                        onInput(ev) {
+                            const el = ev.target;
+                            const val = el.value;
+                            const pos = el.selectionStart || 0;
+                            const before = val.slice(0, pos);
+                            const lastAt = before.lastIndexOf('@');
+                            if (lastAt === -1) { this.mentionOpen = false; return; }
+                            const afterAt = before.slice(lastAt + 1);
+                            if (/[\s\n]/.test(afterAt)) { this.mentionOpen = false; return; }
+                            this.mentionStart = lastAt;
+                            this.mentionCursor = pos;
+                            this.mentionQuery = afterAt;
+                            this.mentionOpen = true;
+                        },
+                        pickUser(user) {
+                            const el = this.$refs.mentionInput;
+                            if (!el) return;
+                            const val = el.value;
+                            const newVal = val.slice(0, this.mentionStart) + '@' + user.tag + ' ' + val.slice(this.mentionCursor);
+                            this.$wire.set('body', newVal);
+                            this.mentionOpen = false;
+                            this.$nextTick(() => { el.focus(); el.setSelectionRange(this.mentionStart + user.tag.length + 2, this.mentionStart + user.tag.length + 2); });
+                        }
+                    }"
+                    @keydown.escape="mentionOpen = false">
+                        <div class="p-1.5 sm:p-2 relative">
                             <textarea
+                                x-ref="mentionInput"
                                 wire:model="body"
-                                rows="3"
-                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm p-2"
+                                rows="2"
+                                @input="onInput($event)"
+                                @keydown.arrow-down.prevent="mentionOpen && filteredMentions.length && (mentionOpen = true)"
+                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-xs sm:text-sm p-1.5 sm:p-2 min-h-[4rem]"
                                 placeholder="{{ $asInternalNote ? __('Ajouter une note visible uniquement par l\'équipe...') : __('Écrivez votre réponse ici...') }}"
                             ></textarea>
+                            <div x-show="mentionOpen" x-cloak @click.outside="mentionOpen = false"
+                                class="absolute left-1.5 right-1.5 sm:left-2 sm:right-2 bottom-full mb-1 py-1 bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-lg z-50 max-h-40 overflow-y-auto"
+                                style="display: none;">
+                                <template x-for="u in filteredMentions" :key="u.id">
+                                    <button type="button" @click="pickUser(u)"
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
+                                        <span class="font-medium text-slate-900" x-text="u.name"></span>
+                                        <span class="text-slate-400 text-xs" x-text="'@' + u.tag"></span>
+                                    </button>
+                                </template>
+                                <p x-show="filteredMentions.length === 0" class="px-3 py-2 text-xs text-slate-500">{{ __('Aucun utilisateur') }}</p>
+                            </div>
                         </div>
                         
-                        <div class="flex items-center justify-between px-3 py-2 border-t border-slate-200/50 bg-white/50 rounded-b-2xl">
-                            <div class="flex items-center gap-1">
+                        <div class="flex items-center justify-between px-2 sm:px-3 py-1.5 sm:py-2 border-t border-slate-200/50 bg-white/50 rounded-b-xl sm:rounded-b-2xl">
+                            <div class="flex items-center gap-0.5">
                                 <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="discussion-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
-                                <button type="button" onclick="document.getElementById('discussion-file-input').click()" class="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="{{ __('Joindre un fichier') }}">
-                                    <iconify-icon icon="solar:paperclip-linear" width="20"></iconify-icon>
+                                <button type="button" onclick="document.getElementById('discussion-file-input').click()" class="p-2 min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Joindre un fichier') }}">
+                                    <iconify-icon icon="solar:paperclip-linear" width="18"></iconify-icon>
                                 </button>
                                 <div x-data="{ emojiOpen: false }" class="relative">
-                                    <button type="button" @click="emojiOpen = !emojiOpen" class="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="{{ __('Emoji') }}">
-                                        <iconify-icon icon="solar:smile-circle-linear" width="20"></iconify-icon>
+                                    <button type="button" @click="emojiOpen = !emojiOpen" class="p-2 min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Emoji') }}">
+                                        <iconify-icon icon="solar:smile-circle-linear" width="18"></iconify-icon>
                                     </button>
-                                    <div x-show="emojiOpen" @click.outside="emojiOpen = false" x-cloak class="absolute bottom-full left-0 mb-2 p-2 rounded-xl bg-white shadow-xl border border-slate-200 grid grid-cols-8 gap-1 max-h-48 overflow-y-auto z-50 w-64">
+                                    <div x-show="emojiOpen" @click.outside="emojiOpen = false" x-cloak class="absolute bottom-full left-0 mb-1.5 p-1.5 rounded-lg sm:rounded-xl bg-white shadow-xl border border-slate-200 grid grid-cols-8 gap-1 max-h-40 overflow-y-auto z-50 w-56">
                                         @foreach(['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','👍','👎','👏','🙌','👋','💪','✨','🔥','❤️','💯','✅','📎','📁','🔒'] as $emoji)
                                             <button type="button" @click="$wire.set('body', ($wire.get('body') || '') + '{{ $emoji }}'); emojiOpen = false" class="p-1.5 hover:bg-slate-100 rounded-lg text-xl transition-colors">{{ $emoji }}</button>
                                         @endforeach
@@ -297,11 +351,12 @@
                                 @endif
                             </div>
                             
-                            <div class="flex items-center gap-3">
-                                <p class="text-xs text-slate-400 hidden sm:block">{{ __('Markdown supporté') }}</p>
-                                <button type="submit" x-ref="submitBtn" class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-md hover:opacity-90 transition-all" style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};">
+                            <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+                                <p class="text-[10px] sm:text-xs text-slate-400 hidden sm:block">{{ __('Markdown supporté') }}</p>
+                                <p class="text-[10px] sm:text-xs text-slate-400">{{ __('Tapez') }} <kbd class="px-1 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px]">@</kbd> {{ __('pour mentionner un participant') }}</p>
+                                <button type="submit" x-ref="submitBtn" class="inline-flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 min-h-[36px] sm:min-h-0 text-xs sm:text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all touch-manipulation" style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};">
                                     <span>{{ __('Envoyer') }}</span>
-                                    <iconify-icon icon="solar:plain-bold" width="16"></iconify-icon>
+                                    <iconify-icon icon="solar:plain-bold" width="14"></iconify-icon>
                                 </button>
                             </div>
                         </div>
@@ -383,6 +438,33 @@
                 </div>
             </div>
         </div>
+
+        {{-- Modal de confirmation de suppression du ticket (remplace l'alerte native) --}}
+        @if($canDeleteTicket ?? false)
+        <x-modal name="confirm-delete-ticket" maxWidth="sm" focusable>
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                        <iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="24"></iconify-icon>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">{{ __('Supprimer le ticket') }}</h2>
+                        <p class="mt-0.5 text-sm text-slate-600">{{ __('Êtes-vous sûr de vouloir supprimer ce ticket ?') }}</p>
+                    </div>
+                </div>
+                <p class="text-sm text-slate-500">{{ __('Le ticket sera masqué des listes. La suppression peut être annulée par un administrateur.') }}</p>
+                <div class="mt-6 flex flex-wrap justify-end gap-3">
+                    <button type="button" x-on:click="$dispatch('close-modal', 'confirm-delete-ticket')" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+                        {{ __('Annuler') }}
+                    </button>
+                    <button type="button" wire:click="deleteTicket" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-colors inline-flex items-center gap-2">
+                        <iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="18"></iconify-icon>
+                        {{ __('Supprimer') }}
+                    </button>
+                </div>
+            </div>
+        </x-modal>
+        @endif
     </div>
 </div>
 

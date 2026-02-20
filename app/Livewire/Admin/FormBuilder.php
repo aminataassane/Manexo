@@ -2,12 +2,17 @@
 
 namespace App\Livewire\Admin;
 
+use App\Enums\FormAssignmentStatus;
+use App\Enums\FormStatus;
 use App\Enums\OrganizationRole;
+use App\Events\UserNotificationReceived;
+use App\Models\Form;
+use App\Models\FormAssignment;
+use App\Models\FormField;
+use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
-use App\Models\TicketFormField;
-use App\Models\TicketFormStep;
-use App\Models\TicketFormTemplate;
 use App\Models\TicketCategory;
+use App\Notifications\FormAssignmentNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -21,18 +26,24 @@ class FormBuilder extends Component
 {
     public bool $canManageForms = false;
 
-    public ?int $fb_selected_template_id = null;
+    // Active tab: champs | assignations | reponses
+    public string $activeTab = 'champs';
+
+    // Form selection
+    public ?int $fb_selected_form_id = null;
+    public string $fb_selected_form_name = '';
+    public ?int $fb_selected_form_category_id = null;
+    public ?int $fb_selected_form_target_user_id = null;
+    public string $fb_selected_form_status = 'draft';
+    public bool $fb_selected_form_public = false;
+    public string $fb_selected_form_slug = '';
+    public string $fb_selected_form_public_title = '';
+    public string $fb_selected_form_public_description = '';
+    public string $fb_selected_form_public_thank_you = '';
+    public string $fb_selected_form_description = '';
+
+    // Field selection
     public ?int $fb_selected_field_id = null;
-    public ?int $fb_selected_step_id = null;
-    public string $fb_selected_template_name = '';
-    public ?int $fb_selected_template_category_id = null;
-    public ?int $fb_selected_template_target_user_id = null;
-    public bool $fb_selected_template_active = true;
-    public bool $fb_selected_template_public = false;
-    public string $fb_selected_template_public_slug = '';
-    public string $fb_selected_template_public_title = '';
-    public string $fb_selected_template_public_description = '';
-    public string $fb_selected_template_public_thank_you = '';
     public string $fb_selected_field_key = '';
     public string $fb_selected_field_type = '';
     public string $fb_selected_field_label = '';
@@ -40,15 +51,14 @@ class FormBuilder extends Component
     public string $fb_selected_field_help_text = '';
     public bool $fb_selected_field_required = false;
     public string $fb_selected_field_options = '';
-    public string $fb_selected_step_title = '';
-    public string $fb_selected_step_description = '';
-    public string $fb_template_name = '';
-    public ?int $fb_template_category_id = null;
-    public ?int $fb_template_target_user_id = null;
-    public bool $fb_template_active = true;
-    public string $fb_step_title = '';
-    public string $fb_step_description = '';
-    public array $newFields = [];
+
+    // New form
+    public string $fb_form_name = '';
+
+    // Assignment form
+    public ?int $assign_user_id = null;
+    public ?int $assign_function_id = null;
+    public ?string $assign_due_date = null;
 
     private function orgId(): int
     {
@@ -71,59 +81,52 @@ class FormBuilder extends Component
         abort_if(! $orgId, 403);
         $this->canManageForms = in_array($this->currentRole(), [OrganizationRole::Owner->value, OrganizationRole::Admin->value], true)
             || app()->environment('local');
-        $this->fb_selected_template_id = TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
+        $this->fb_selected_form_id = Form::query()
+            ->forOrg($orgId)
             ->orderBy('name')
             ->value('id');
-        $this->loadSelectedTemplate();
+        $this->loadSelectedForm();
     }
 
-    private function loadSelectedTemplate(): void
+    private function loadSelectedForm(): void
     {
         $orgId = $this->orgId();
-        if (! $orgId || ! $this->fb_selected_template_id) {
-            $this->fb_selected_template_name = '';
-            $this->fb_selected_template_category_id = null;
-            $this->fb_selected_template_target_user_id = null;
-            $this->fb_selected_template_active = true;
-            $this->fb_selected_template_public = false;
-            $this->fb_selected_template_public_slug = '';
-            $this->fb_selected_template_public_title = '';
-            $this->fb_selected_template_public_description = '';
-            $this->fb_selected_template_public_thank_you = '';
+        if (! $orgId || ! $this->fb_selected_form_id) {
+            $this->fb_selected_form_name = '';
+            $this->fb_selected_form_category_id = null;
+            $this->fb_selected_form_target_user_id = null;
+            $this->fb_selected_form_status = 'draft';
+            $this->fb_selected_form_public = false;
+            $this->fb_selected_form_slug = '';
+            $this->fb_selected_form_public_title = '';
+            $this->fb_selected_form_public_description = '';
+            $this->fb_selected_form_public_thank_you = '';
+            $this->fb_selected_form_description = '';
             $this->fb_selected_field_id = null;
-            $this->fb_selected_step_id = null;
-            $this->resetSelectedStep();
             $this->resetSelectedField();
             return;
         }
-        $tpl = TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey((int) $this->fb_selected_template_id)
+        $form = Form::query()
+            ->forOrg($orgId)
+            ->whereKey((int) $this->fb_selected_form_id)
             ->first();
-        if (! $tpl) {
-            $this->fb_selected_template_id = null;
-            $this->loadSelectedTemplate();
+        if (! $form) {
+            $this->fb_selected_form_id = null;
+            $this->loadSelectedForm();
             return;
         }
-        $this->fb_selected_template_name = (string) $tpl->name;
-        $this->fb_selected_template_category_id = $tpl->ticket_category_id ? (int) $tpl->ticket_category_id : null;
-        $this->fb_selected_template_target_user_id = $tpl->target_user_id ? (int) $tpl->target_user_id : null;
-        $this->fb_selected_template_active = (bool) $tpl->is_active;
-        $this->fb_selected_template_public = (bool) ($tpl->is_public ?? false);
-        $this->fb_selected_template_public_slug = (string) ($tpl->public_slug ?? '');
-        $this->fb_selected_template_public_title = (string) ($tpl->public_title ?? '');
-        $this->fb_selected_template_public_description = (string) ($tpl->public_description ?? '');
-        $this->fb_selected_template_public_thank_you = (string) ($tpl->public_thank_you ?? '');
+        $this->fb_selected_form_name = (string) $form->name;
+        $this->fb_selected_form_category_id = $form->ticket_category_id ? (int) $form->ticket_category_id : null;
+        $this->fb_selected_form_target_user_id = $form->target_user_id ? (int) $form->target_user_id : null;
+        $this->fb_selected_form_status = $form->status instanceof FormStatus ? $form->status->value : (string) $form->status;
+        $this->fb_selected_form_public = (bool) $form->is_public;
+        $this->fb_selected_form_slug = (string) ($form->slug ?? '');
+        $this->fb_selected_form_public_title = (string) ($form->public_title ?? '');
+        $this->fb_selected_form_public_description = (string) ($form->public_description ?? '');
+        $this->fb_selected_form_public_thank_you = (string) ($form->public_thank_you ?? '');
+        $this->fb_selected_form_description = (string) ($form->description ?? '');
         $this->fb_selected_field_id = null;
         $this->resetSelectedField();
-
-        $this->fb_selected_step_id = TicketFormStep::query()
-            ->where('template_id', (int) $tpl->id)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->value('id');
-        $this->loadSelectedStep();
     }
 
     private function resetSelectedField(): void
@@ -137,48 +140,19 @@ class FormBuilder extends Component
         $this->fb_selected_field_options = '';
     }
 
-    private function resetSelectedStep(): void
+    public function selectForm(int $formId): void
     {
-        $this->fb_selected_step_title = '';
-        $this->fb_selected_step_description = '';
-    }
-
-    private function loadSelectedStep(): void
-    {
-        $orgId = $this->orgId();
-        if (! $orgId || ! $this->fb_selected_template_id || ! $this->fb_selected_step_id) {
-            $this->resetSelectedStep();
-            return;
-        }
-
-        $step = TicketFormStep::query()
-            ->whereKey((int) $this->fb_selected_step_id)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
-            ->first();
-
-        if (! $step) {
-            $this->fb_selected_step_id = null;
-            $this->resetSelectedStep();
-            return;
-        }
-
-        $this->fb_selected_step_title = (string) ($step->title ?? '');
-        $this->fb_selected_step_description = (string) ($step->description ?? '');
-    }
-
-    public function selectTemplate(int $templateId): void
-    {
-        $this->fb_selected_template_id = $templateId;
-        $this->loadSelectedTemplate();
+        $this->fb_selected_form_id = $formId;
+        $this->loadSelectedForm();
     }
 
     public function selectField(int $fieldId): void
     {
         $orgId = $this->orgId();
-        abort_if(! $orgId || ! $this->fb_selected_template_id, 404);
-        $field = TicketFormField::query()
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
+        $field = FormField::query()
             ->whereKey($fieldId)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
+            ->whereHas('form', fn($q) => $q->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id))
             ->firstOrFail();
         $this->fb_selected_field_id = (int) $field->id;
         $this->fb_selected_field_key = (string) $field->key;
@@ -188,204 +162,126 @@ class FormBuilder extends Component
         $this->fb_selected_field_help_text = (string) ($field->help_text ?? '');
         $this->fb_selected_field_required = (bool) $field->required;
         $this->fb_selected_field_options = is_array($field->options) ? implode(', ', $field->options) : '';
-
-        if ($field->step_id) {
-            $this->fb_selected_step_id = (int) $field->step_id;
-            $this->loadSelectedStep();
-        }
-    }
-
-    public function selectStep(int $stepId): void
-    {
-        $this->fb_selected_step_id = $stepId;
-        $this->fb_selected_field_id = null;
-        $this->resetSelectedField();
-        $this->loadSelectedStep();
         $this->dispatch('field-selected');
     }
 
-    public function createStep(): void
+    public function saveSelectedForm(): void
     {
         if (! $this->canManageForms) {
             abort(403);
         }
-
         $orgId = $this->orgId();
-        abort_if(! $orgId || ! $this->fb_selected_template_id, 404);
-
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
         $validated = $this->validate([
-            'fb_step_title' => ['required', 'string', 'max:160'],
-            'fb_step_description' => ['nullable', 'string', 'max:2000'],
+            'fb_selected_form_name' => ['required', 'string', 'max:120'],
+            'fb_selected_form_category_id' => ['nullable', 'integer'],
+            'fb_selected_form_target_user_id' => ['nullable', 'integer'],
+            'fb_selected_form_public' => ['boolean'],
+            'fb_selected_form_slug' => ['nullable', 'string', 'max:140'],
+            'fb_selected_form_public_title' => ['nullable', 'string', 'max:160'],
+            'fb_selected_form_public_description' => ['nullable', 'string', 'max:2000'],
+            'fb_selected_form_public_thank_you' => ['nullable', 'string', 'max:2000'],
+            'fb_selected_form_description' => ['nullable', 'string', 'max:2000'],
         ]);
-
-        $tpl = TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey((int) $this->fb_selected_template_id)
-            ->firstOrFail();
-
-        $nextNumber = (int) (TicketFormStep::query()->where('template_id', $tpl->id)->max('number') ?? 0) + 1;
-        $nextSort = (int) (TicketFormStep::query()->where('template_id', $tpl->id)->max('sort_order') ?? 0) + 10;
-
-        $step = TicketFormStep::query()->create([
-            'template_id' => $tpl->id,
-            'number' => $nextNumber,
-            'title' => trim((string) $validated['fb_step_title']),
-            'description' => trim((string) ($validated['fb_step_description'] ?? '')) ?: null,
-            'sort_order' => $nextSort,
-        ]);
-
-        $this->fb_step_title = '';
-        $this->fb_step_description = '';
-
-        $this->fb_selected_step_id = (int) $step->id;
-        $this->loadSelectedStep();
-        $this->dispatch('toast', type: 'success', message: 'Étape ajoutée.');
-    }
-
-    public function saveSelectedStep(): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-
-        $orgId = $this->orgId();
-        abort_if(! $orgId || ! $this->fb_selected_template_id || ! $this->fb_selected_step_id, 404);
-
-        $validated = $this->validate([
-            'fb_selected_step_title' => ['required', 'string', 'max:160'],
-            'fb_selected_step_description' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        TicketFormStep::query()
-            ->whereKey((int) $this->fb_selected_step_id)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
-            ->update([
-                'title' => trim((string) $validated['fb_selected_step_title']),
-                'description' => trim((string) ($validated['fb_selected_step_description'] ?? '')) ?: null,
-            ]);
-
-        $this->dispatch('toast', type: 'success', message: 'Étape enregistrée.');
-    }
-
-    public function deleteStep(int $stepId): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-
-        $orgId = $this->orgId();
-        abort_if(! $orgId || ! $this->fb_selected_template_id, 404);
-
-        $step = TicketFormStep::query()
-            ->whereKey((int) $stepId)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
-            ->firstOrFail();
-
-        $otherStepId = TicketFormStep::query()
-            ->where('template_id', (int) $step->template_id)
-            ->where('id', '!=', (int) $step->id)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->value('id');
-
-        if (! $otherStepId) {
-            $this->dispatch('toast', type: 'error', message: 'Impossible de supprimer la dernière étape.');
-            return;
-        }
-
-        DB::transaction(function () use ($step, $otherStepId) {
-            TicketFormField::query()->where('step_id', (int) $step->id)->update(['step_id' => (int) $otherStepId]);
-            $step->delete();
-        });
-
-        if ($this->fb_selected_step_id === (int) $stepId) {
-            $this->fb_selected_step_id = (int) $otherStepId;
-            $this->loadSelectedStep();
-        }
-
-        if ($this->fb_selected_field_id) {
-            $fieldExists = TicketFormField::query()->whereKey((int) $this->fb_selected_field_id)->exists();
-            if (! $fieldExists) {
-                $this->fb_selected_field_id = null;
-                $this->resetSelectedField();
-            }
-        }
-
-        $this->dispatch('toast', type: 'success', message: 'Étape supprimée.');
-    }
-
-    public function saveSelectedTemplate(): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-        $orgId = $this->orgId();
-        abort_if(! $orgId || ! $this->fb_selected_template_id, 404);
-        $validated = $this->validate([
-            'fb_selected_template_name' => ['required', 'string', 'max:120'],
-            'fb_selected_template_category_id' => ['nullable', 'integer'],
-            'fb_selected_template_target_user_id' => ['nullable', 'integer'],
-            'fb_selected_template_active' => ['boolean'],
-            'fb_selected_template_public' => ['boolean'],
-            'fb_selected_template_public_slug' => ['nullable', 'string', 'max:140'],
-            'fb_selected_template_public_title' => ['nullable', 'string', 'max:160'],
-            'fb_selected_template_public_description' => ['nullable', 'string', 'max:2000'],
-            'fb_selected_template_public_thank_you' => ['nullable', 'string', 'max:2000'],
-        ]);
-        if (($validated['fb_selected_template_category_id'] ?? null) !== null) {
-            if (! TicketCategory::query()->where('organization_id', $orgId)->whereKey((int) $validated['fb_selected_template_category_id'])->exists()) {
-                $this->addError('fb_selected_template_category_id', 'Catégorie invalide.');
+        if (($validated['fb_selected_form_category_id'] ?? null) !== null) {
+            if (! TicketCategory::query()->where('organization_id', $orgId)->whereKey((int) $validated['fb_selected_form_category_id'])->exists()) {
+                $this->addError('fb_selected_form_category_id', 'Catégorie invalide.');
                 return;
             }
         }
-        if (($validated['fb_selected_template_target_user_id'] ?? null) !== null) {
-            if (! OrganizationMembership::query()->where('organization_id', $orgId)->where('user_id', (int) $validated['fb_selected_template_target_user_id'])->exists()) {
-                $this->addError('fb_selected_template_target_user_id', 'Utilisateur invalide.');
+        if (($validated['fb_selected_form_target_user_id'] ?? null) !== null) {
+            if (! OrganizationMembership::query()->where('organization_id', $orgId)->where('user_id', (int) $validated['fb_selected_form_target_user_id'])->exists()) {
+                $this->addError('fb_selected_form_target_user_id', 'Utilisateur invalide.');
                 return;
             }
         }
 
-        $isPublic = (bool) ($validated['fb_selected_template_public'] ?? false);
-        $slug = trim((string) ($validated['fb_selected_template_public_slug'] ?? ''));
+        $isPublic = (bool) ($validated['fb_selected_form_public'] ?? false);
+        $slug = trim((string) ($validated['fb_selected_form_slug'] ?? ''));
         if ($isPublic) {
             if ($slug === '') {
-                $this->addError('fb_selected_template_public_slug', 'Le slug est requis pour publier.');
+                $this->addError('fb_selected_form_slug', 'Le slug est requis pour publier.');
                 return;
             }
             $slug = Str::slug($slug);
             if ($slug === '') {
-                $this->addError('fb_selected_template_public_slug', 'Slug invalide.');
+                $this->addError('fb_selected_form_slug', 'Slug invalide.');
                 return;
             }
-            $exists = TicketFormTemplate::query()
-                ->whereNotNull('public_slug')
-                ->where('public_slug', $slug)
-                ->where('id', '!=', (int) $this->fb_selected_template_id)
+            $exists = Form::query()
+                ->whereNotNull('slug')
+                ->where('slug', $slug)
+                ->where('id', '!=', (int) $this->fb_selected_form_id)
                 ->exists();
             if ($exists) {
-                $this->addError('fb_selected_template_public_slug', 'Ce slug est déjà utilisé.');
+                $this->addError('fb_selected_form_slug', 'Ce slug est déjà utilisé.');
                 return;
             }
         } else {
-            // If not public, clear the slug to avoid accidental sharing.
             $slug = '';
         }
 
-        TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey((int) $this->fb_selected_template_id)
+        Form::query()
+            ->forOrg($orgId)
+            ->whereKey((int) $this->fb_selected_form_id)
             ->update([
-                'name' => $validated['fb_selected_template_name'],
-                'ticket_category_id' => $validated['fb_selected_template_category_id'] ?? null,
-                'target_user_id' => $validated['fb_selected_template_target_user_id'] ?? null,
-                'is_active' => (bool) ($validated['fb_selected_template_active'] ?? true),
+                'name' => $validated['fb_selected_form_name'],
+                'description' => trim((string) ($validated['fb_selected_form_description'] ?? '')) ?: null,
+                'ticket_category_id' => $validated['fb_selected_form_category_id'] ?? null,
+                'target_user_id' => $validated['fb_selected_form_target_user_id'] ?? null,
                 'is_public' => $isPublic,
-                'public_slug' => $slug !== '' ? $slug : null,
-                'public_title' => trim((string) ($validated['fb_selected_template_public_title'] ?? '')) ?: null,
-                'public_description' => trim((string) ($validated['fb_selected_template_public_description'] ?? '')) ?: null,
-                'public_thank_you' => trim((string) ($validated['fb_selected_template_public_thank_you'] ?? '')) ?: null,
+                'slug' => $slug !== '' ? $slug : null,
+                'public_title' => trim((string) ($validated['fb_selected_form_public_title'] ?? '')) ?: null,
+                'public_description' => trim((string) ($validated['fb_selected_form_public_description'] ?? '')) ?: null,
+                'public_thank_you' => trim((string) ($validated['fb_selected_form_public_thank_you'] ?? '')) ?: null,
             ]);
         $this->dispatch('toast', type: 'success', message: 'Formulaire enregistré.');
+    }
+
+    public function publishForm(): void
+    {
+        if (! $this->canManageForms) {
+            abort(403);
+        }
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
+
+        $form = Form::query()->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id)->firstOrFail();
+
+        if ($form->status === FormStatus::Published) {
+            // Re-publish: increment version
+            $form->incrementVersion();
+        }
+
+        $form->update(['status' => FormStatus::Published]);
+        $this->fb_selected_form_status = FormStatus::Published->value;
+        $this->dispatch('toast', type: 'success', message: 'Formulaire publié.');
+    }
+
+    public function unpublishForm(): void
+    {
+        if (! $this->canManageForms) {
+            abort(403);
+        }
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
+
+        Form::query()->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id)->update(['status' => FormStatus::Draft]);
+        $this->fb_selected_form_status = FormStatus::Draft->value;
+        $this->dispatch('toast', type: 'success', message: 'Formulaire repassé en brouillon.');
+    }
+
+    public function archiveForm(): void
+    {
+        if (! $this->canManageForms) {
+            abort(403);
+        }
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
+
+        Form::query()->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id)->update(['status' => FormStatus::Archived]);
+        $this->fb_selected_form_status = FormStatus::Archived->value;
+        $this->dispatch('toast', type: 'success', message: 'Formulaire archivé.');
     }
 
     public function generatePublicSlug(): void
@@ -393,21 +289,20 @@ class FormBuilder extends Component
         if (! $this->canManageForms) {
             abort(403);
         }
-        $base = $this->fb_selected_template_name ?: 'formulaire';
+        $base = $this->fb_selected_form_name ?: 'formulaire';
         $slug = Str::slug($base);
         if ($slug === '') {
             $slug = 'formulaire';
         }
-        // add small suffix to reduce collisions
         $slug = Str::limit($slug, 120, '');
         $candidate = $slug;
         $i = 2;
-        while (TicketFormTemplate::query()->where('public_slug', $candidate)->exists()) {
+        while (Form::query()->where('slug', $candidate)->exists()) {
             $candidate = Str::limit($slug . '-' . $i, 140, '');
             $i++;
         }
-        $this->fb_selected_template_public_slug = $candidate;
-        $this->fb_selected_template_public = true;
+        $this->fb_selected_form_slug = $candidate;
+        $this->fb_selected_form_public = true;
     }
 
     public function saveSelectedField(): void
@@ -416,7 +311,7 @@ class FormBuilder extends Component
             abort(403);
         }
         $orgId = $this->orgId();
-        abort_if(! $orgId || ! $this->fb_selected_field_id || ! $this->fb_selected_template_id, 404);
+        abort_if(! $orgId || ! $this->fb_selected_field_id || ! $this->fb_selected_form_id, 404);
         $validated = $this->validate([
             'fb_selected_field_key' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/i'],
             'fb_selected_field_label' => ['required', 'string', 'max:120'],
@@ -425,19 +320,19 @@ class FormBuilder extends Component
             'fb_selected_field_required' => ['boolean'],
             'fb_selected_field_options' => ['nullable', 'string', 'max:2000'],
         ]);
-        $field = TicketFormField::query()
+        $field = FormField::query()
             ->whereKey((int) $this->fb_selected_field_id)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
+            ->whereHas('form', fn($q) => $q->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id))
             ->firstOrFail();
 
-        $key = \Illuminate\Support\Str::lower(trim((string) $validated['fb_selected_field_key']));
-        $key = \Illuminate\Support\Str::limit($key, 64, '');
+        $key = Str::lower(trim((string) $validated['fb_selected_field_key']));
+        $key = Str::limit($key, 64, '');
         if ($key === '') {
             $this->addError('fb_selected_field_key', 'Clé invalide.');
             return;
         }
-        $exists = TicketFormField::query()
-            ->where('template_id', (int) $field->template_id)
+        $exists = FormField::query()
+            ->where('form_id', (int) $field->form_id)
             ->where('key', $key)
             ->where('id', '!=', (int) $field->id)
             ->exists();
@@ -446,19 +341,25 @@ class FormBuilder extends Component
             return;
         }
 
-        $options = $field->options;
-        if ((string) $field->type === 'select') {
+        // Build configuration
+        $config = is_array($field->configuration) ? $field->configuration : [];
+        $config['placeholder'] = trim((string) ($validated['fb_selected_field_placeholder'] ?? '')) ?: null;
+        $config['help_text'] = trim((string) ($validated['fb_selected_field_help_text'] ?? '')) ?: null;
+
+        if (in_array((string) $field->type, ['select', 'radio'], true)) {
             $raw = trim((string) ($validated['fb_selected_field_options'] ?? ''));
             $list = collect(preg_split('/[\r\n,]+/', $raw))->map(fn($v) => trim((string) $v))->filter()->values()->all();
-            $options = count($list) ? $list : null;
+            $config['options'] = count($list) ? $list : null;
         }
+
+        // Remove null values from config
+        $config = array_filter($config, fn($v) => $v !== null);
+
         $field->update([
             'key' => $key,
             'label' => $validated['fb_selected_field_label'],
-            'placeholder' => trim((string) ($validated['fb_selected_field_placeholder'] ?? '')) ?: null,
-            'help_text' => trim((string) ($validated['fb_selected_field_help_text'] ?? '')) ?: null,
             'required' => (bool) ($validated['fb_selected_field_required'] ?? false),
-            'options' => $options,
+            'configuration' => $config ?: (object) [],
         ]);
         $this->dispatch('toast', type: 'success', message: 'Champ enregistré.');
     }
@@ -469,184 +370,129 @@ class FormBuilder extends Component
             abort(403);
         }
         $orgId = $this->orgId();
-        abort_if(! $orgId || ! $this->fb_selected_template_id, 404);
-        $tpl = TicketFormTemplate::query()->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id)->firstOrFail();
-        $stepId = $this->fb_selected_step_id
-            ?: TicketFormStep::query()->where('template_id', (int) $tpl->id)->orderBy('sort_order')->orderBy('id')->value('id');
-        $allowedTypes = ['text', 'textarea', 'select', 'checkbox', 'date', 'number', 'email'];
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
+        $form = Form::query()->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id)->firstOrFail();
+        $allowedTypes = ['text', 'textarea', 'select', 'checkbox', 'date', 'number', 'email', 'radio', 'datetime', 'file', 'section'];
         if (! in_array($type, $allowedTypes, true)) {
             return;
         }
         $defaultLabel = match ($type) {
             'textarea' => 'Paragraphe',
             'select' => 'Sélection',
+            'radio' => 'Choix unique',
             'checkbox' => 'Case à cocher',
             'date' => 'Date',
+            'datetime' => 'Date et heure',
             'number' => 'Nombre',
             'email' => 'Email',
+            'file' => 'Fichier',
+            'section' => 'Section',
             default => 'Texte court',
         };
         $key = Str::slug($defaultLabel, '_') ?: ('field_' . Str::lower(Str::random(6)));
         $key = Str::limit($key, 64, '');
         $baseKey = $key;
         $suffix = 2;
-        while (TicketFormField::query()->where('template_id', $tpl->id)->where('key', $key)->exists()) {
+        while (FormField::query()->where('form_id', $form->id)->where('key', $key)->exists()) {
             $key = Str::limit($baseKey . '_' . $suffix, 64, '');
             $suffix++;
         }
-        $options = $type === 'select' ? ['Option 1', 'Option 2'] : null;
-        $sortOrder = $stepId
-            ? ((int) (TicketFormField::query()->where('step_id', (int) $stepId)->max('sort_order') ?? 0) + 10)
-            : ((int) (TicketFormField::query()->where('template_id', (int) $tpl->id)->max('sort_order') ?? 0) + 10);
-        $field = TicketFormField::query()->create([
-            'template_id' => $tpl->id,
-            'step_id' => $stepId ? (int) $stepId : null,
+        $config = [];
+        if (in_array($type, ['select', 'radio'], true)) {
+            $config['options'] = ['Option 1', 'Option 2'];
+        }
+        $sortOrder = (int) (FormField::query()->where('form_id', (int) $form->id)->max('sort_order') ?? 0) + 10;
+        $field = FormField::query()->create([
+            'form_id' => $form->id,
             'key' => $key,
             'label' => $defaultLabel,
             'type' => $type,
             'required' => false,
-            'options' => $options,
+            'configuration' => $config ?: (object) [],
             'sort_order' => $sortOrder,
+            'form_version' => $form->current_version,
         ]);
         $this->selectField((int) $field->id);
     }
 
-    public function createFormTemplate(): void
+    public function createForm(): void
     {
         if (! $this->canManageForms) {
             abort(403);
         }
         $validated = $this->validate([
-            'fb_template_name' => ['required', 'string', 'max:120'],
-            'fb_template_category_id' => ['nullable', 'integer'],
-            'fb_template_target_user_id' => ['nullable', 'integer'],
-            'fb_template_active' => ['boolean'],
+            'fb_form_name' => ['required', 'string', 'max:120'],
         ]);
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
-        if (($validated['fb_template_category_id'] ?? null) !== null) {
-            if (! TicketCategory::query()->where('organization_id', $orgId)->whereKey((int) $validated['fb_template_category_id'])->exists()) {
-                $this->addError('fb_template_category_id', 'Catégorie invalide.');
-                return;
-            }
-        }
-        if (($validated['fb_template_target_user_id'] ?? null) !== null) {
-            if (! OrganizationMembership::query()->where('organization_id', $orgId)->where('user_id', (int) $validated['fb_template_target_user_id'])->exists()) {
-                $this->addError('fb_template_target_user_id', 'Utilisateur invalide.');
-                return;
-            }
-        }
-        $tpl = TicketFormTemplate::query()->create([
+        $form = Form::query()->create([
             'organization_id' => $orgId,
-            'ticket_category_id' => $validated['fb_template_category_id'] ?? null,
-            'name' => $validated['fb_template_name'],
-            'request_type' => null,
-            'target_user_id' => $validated['fb_template_target_user_id'] ?? null,
-            'is_active' => (bool) ($validated['fb_template_active'] ?? true),
+            'name' => $validated['fb_form_name'],
+            'status' => FormStatus::Draft,
         ]);
-        TicketFormStep::query()->create([
-            'template_id' => (int) $tpl->id,
-            'number' => 1,
-            'title' => 'Informations',
-            'description' => null,
-            'sort_order' => 10,
-        ]);
-        $this->fb_selected_template_id = (int) $tpl->id;
-        $this->loadSelectedTemplate();
-        $this->fb_template_name = '';
-        $this->fb_template_category_id = null;
-        $this->fb_template_target_user_id = null;
-        $this->fb_template_active = true;
+        $this->fb_selected_form_id = (int) $form->id;
+        $this->loadSelectedForm();
+        $this->fb_form_name = '';
         $this->dispatch('toast', type: 'success', message: 'Formulaire créé.');
     }
 
-    public function duplicateSelectedTemplate(): void
+    public function duplicateSelectedForm(): void
     {
         if (! $this->canManageForms) {
             abort(403);
         }
-
         $orgId = $this->orgId();
-        abort_if(! $orgId || ! $this->fb_selected_template_id, 404);
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
 
-        $src = TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->with(['steps.fields'])
-            ->whereKey((int) $this->fb_selected_template_id)
+        $src = Form::query()
+            ->forOrg($orgId)
+            ->with(['fields'])
+            ->whereKey((int) $this->fb_selected_form_id)
             ->firstOrFail();
 
         DB::transaction(function () use ($src, $orgId) {
-            $new = TicketFormTemplate::query()->create([
+            $new = Form::query()->create([
                 'organization_id' => $orgId,
                 'ticket_category_id' => $src->ticket_category_id,
                 'name' => (string) $src->name . ' (Copie)',
-                'request_type' => $src->request_type,
+                'description' => $src->description,
                 'target_user_id' => $src->target_user_id,
-                'is_active' => false,
+                'status' => FormStatus::Draft,
                 'is_public' => false,
-                'public_slug' => null,
-                'public_title' => null,
-                'public_description' => null,
-                'public_thank_you' => null,
+                'slug' => null,
             ]);
 
-            $stepMap = [];
-            foreach ($src->steps as $step) {
-                $newStep = TicketFormStep::query()->create([
-                    'template_id' => (int) $new->id,
-                    'number' => (int) $step->number,
-                    'title' => (string) $step->title,
-                    'description' => $step->description,
-                    'sort_order' => (int) $step->sort_order,
+            foreach ($src->fields as $field) {
+                FormField::query()->create([
+                    'form_id' => (int) $new->id,
+                    'key' => (string) $field->key,
+                    'label' => (string) $field->label,
+                    'type' => (string) $field->type,
+                    'required' => (bool) $field->required,
+                    'configuration' => $field->configuration ?? (object) [],
+                    'sort_order' => (int) $field->sort_order,
+                    'form_version' => 1,
                 ]);
-                $stepMap[(int) $step->id] = (int) $newStep->id;
             }
 
-            // Fallback if old template somehow has no steps
-            if (count($stepMap) === 0) {
-                $newStep = TicketFormStep::query()->create([
-                    'template_id' => (int) $new->id,
-                    'number' => 1,
-                    'title' => 'Informations',
-                    'description' => null,
-                    'sort_order' => 10,
-                ]);
-                $stepMap[0] = (int) $newStep->id;
-            }
-
-            foreach ($src->steps as $step) {
-                foreach ($step->fields as $field) {
-                    TicketFormField::query()->create([
-                        'template_id' => (int) $new->id,
-                        'step_id' => (int) ($stepMap[(int) $step->id] ?? $stepMap[0] ?? null),
-                        'key' => (string) $field->key,
-                        'label' => (string) $field->label,
-                        'type' => (string) $field->type,
-                        'required' => (bool) $field->required,
-                        'options' => $field->options,
-                        'sort_order' => (int) $field->sort_order,
-                    ]);
-                }
-            }
-
-            $this->fb_selected_template_id = (int) $new->id;
+            $this->fb_selected_form_id = (int) $new->id;
         });
 
-        $this->loadSelectedTemplate();
+        $this->loadSelectedForm();
         $this->dispatch('toast', type: 'success', message: 'Formulaire dupliqué.');
     }
 
-    public function deleteFormTemplate(int $templateId): void
+    public function deleteForm(int $formId): void
     {
         if (! $this->canManageForms) {
             abort(403);
         }
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
-        TicketFormTemplate::query()->where('organization_id', $orgId)->whereKey($templateId)->delete();
-        if ($this->fb_selected_template_id === $templateId) {
-            $this->fb_selected_template_id = TicketFormTemplate::query()->where('organization_id', $orgId)->orderBy('name')->value('id');
-            $this->loadSelectedTemplate();
+        Form::query()->forOrg($orgId)->whereKey($formId)->delete();
+        if ($this->fb_selected_form_id === $formId) {
+            $this->fb_selected_form_id = Form::query()->forOrg($orgId)->orderBy('name')->value('id');
+            $this->loadSelectedForm();
         }
         $this->dispatch('toast', type: 'success', message: 'Formulaire supprimé.');
     }
@@ -658,9 +504,9 @@ class FormBuilder extends Component
         }
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
-        $field = TicketFormField::query()
+        $field = FormField::query()
             ->whereKey($fieldId)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId))
+            ->whereHas('form', fn($q) => $q->forOrg($orgId))
             ->firstOrFail();
         $field->delete();
         if ($this->fb_selected_field_id === $fieldId) {
@@ -670,27 +516,148 @@ class FormBuilder extends Component
         $this->dispatch('toast', type: 'success', message: 'Champ supprimé.');
     }
 
+    // ─── Assignments ────────────────────────────────────────────────
+
+    public function assignForm(): void
+    {
+        if (! $this->canManageForms) {
+            abort(403);
+        }
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
+
+        $validated = $this->validate([
+            'assign_user_id' => ['nullable', 'integer'],
+            'assign_function_id' => ['nullable', 'integer'],
+            'assign_due_date' => ['nullable', 'date', 'after_or_equal:today'],
+        ]);
+
+        if (! $validated['assign_user_id'] && ! $validated['assign_function_id']) {
+            $this->addError('assign_user_id', 'Sélectionnez un utilisateur ou une fonction.');
+            return;
+        }
+
+        if ($validated['assign_user_id']) {
+            if (! OrganizationMembership::query()->where('organization_id', $orgId)->where('user_id', (int) $validated['assign_user_id'])->exists()) {
+                $this->addError('assign_user_id', 'Utilisateur invalide.');
+                return;
+            }
+        }
+
+        if ($validated['assign_function_id']) {
+            if (! OrganizationFunction::query()->where('organization_id', $orgId)->whereKey((int) $validated['assign_function_id'])->exists()) {
+                $this->addError('assign_function_id', 'Fonction invalide.');
+                return;
+            }
+        }
+
+        $form = Form::query()->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id)->firstOrFail();
+        $user = Auth::user();
+
+        $assignment = FormAssignment::query()->create([
+            'form_id' => $form->id,
+            'user_id' => $validated['assign_user_id'] ?: null,
+            'organization_function_id' => $validated['assign_function_id'] ?: null,
+            'assigned_by' => $user->id,
+            'status' => FormAssignmentStatus::Pending,
+            'due_date' => $validated['assign_due_date'] ?? null,
+            'form_version' => $form->current_version,
+        ]);
+
+        // Send notification
+        if ($validated['assign_user_id']) {
+            $target = \App\Models\User::find((int) $validated['assign_user_id']);
+            if ($target && (int) $target->id !== (int) $user->id) {
+                $target->notify(new FormAssignmentNotification(
+                    formId: $form->id,
+                    formName: $form->name,
+                    assignmentId: $assignment->id,
+                    assignedById: $user->id,
+                    assignedByName: $user->name,
+                    dueDate: $validated['assign_due_date'],
+                ));
+                event(new UserNotificationReceived(userId: $target->id, notificationType: 'form_assignment'));
+            }
+        } elseif ($validated['assign_function_id']) {
+            // Notify all members with this function
+            $memberIds = OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->where('organization_function_id', (int) $validated['assign_function_id'])
+                ->pluck('user_id');
+            foreach ($memberIds as $memberId) {
+                if ((int) $memberId === (int) $user->id) {
+                    continue;
+                }
+                $member = \App\Models\User::find($memberId);
+                if ($member) {
+                    $member->notify(new FormAssignmentNotification(
+                        formId: $form->id,
+                        formName: $form->name,
+                        assignmentId: $assignment->id,
+                        assignedById: $user->id,
+                        assignedByName: $user->name,
+                        dueDate: $validated['assign_due_date'],
+                    ));
+                    event(new UserNotificationReceived(userId: (int) $memberId, notificationType: 'form_assignment'));
+                }
+            }
+        }
+
+        $this->assign_user_id = null;
+        $this->assign_function_id = null;
+        $this->assign_due_date = null;
+        $this->dispatch('toast', type: 'success', message: 'Formulaire assigné.');
+    }
+
+    public function deleteAssignment(int $assignmentId): void
+    {
+        if (! $this->canManageForms) {
+            abort(403);
+        }
+        $orgId = $this->orgId();
+        FormAssignment::query()
+            ->whereKey($assignmentId)
+            ->whereHas('form', fn($q) => $q->forOrg($orgId))
+            ->delete();
+        $this->dispatch('toast', type: 'success', message: 'Assignation supprimée.');
+    }
+
     public function render()
     {
         $orgId = $this->orgId();
         $categories = $orgId ? TicketCategory::query()->where('organization_id', $orgId)->orderBy('name')->get(['id', 'name', 'is_active']) : collect();
         $members = $orgId ? OrganizationMembership::query()->where('organization_id', $orgId)->with(['user:id,name,email'])->orderBy('id')->get() : collect();
-        $formTemplates = $orgId ? TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
+        $forms = $orgId ? Form::query()
+            ->forOrg($orgId)
             ->with([
                 'category:id,name',
                 'targetUser:id,name,email',
-                'steps:id,template_id,number,title,description,sort_order',
-                'steps.fields:id,template_id,step_id,key,label,type,required,options,sort_order',
-                'fields:id,template_id,step_id,key,label,type,required,options,sort_order',
+                'fields:id,form_id,key,label,type,required,configuration,sort_order',
             ])
             ->orderBy('name')
             ->get() : collect();
 
+        $assignments = collect();
+        $organizationFunctions = collect();
+        if ($orgId && $this->fb_selected_form_id) {
+            $assignments = FormAssignment::query()
+                ->where('form_id', (int) $this->fb_selected_form_id)
+                ->with(['user:id,name,email', 'assignedBy:id,name', 'organizationFunction:id,name', 'response'])
+                ->latest()
+                ->get();
+            $organizationFunctions = OrganizationFunction::query()
+                ->where('organization_id', $orgId)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        }
+
         return view('livewire.admin.form-builder', [
             'categories' => $categories,
             'members' => $members,
-            'formTemplates' => $formTemplates,
+            'forms' => $forms,
+            'assignments' => $assignments,
+            'organizationFunctions' => $organizationFunctions,
         ]);
     }
 }

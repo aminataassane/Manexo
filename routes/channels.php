@@ -15,7 +15,7 @@ Broadcast::channel('ticket.{ticketId}', function ($user, $ticketId) {
     if ((int) $ticket->created_by === (int) $user->id) {
         return true;
     }
-    if ((int) $ticket->assigned_to === (int) $user->id) {
+    if ($ticket->assignees()->where('users.id', $user->id)->exists()) {
         return true;
     }
     return $user->organizations()->where('organization_id', $ticket->organization_id)->exists();

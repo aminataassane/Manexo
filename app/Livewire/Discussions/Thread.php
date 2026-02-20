@@ -3,11 +3,16 @@
 namespace App\Livewire\Discussions;
 
 use App\Events\DiscussionMessageSent;
+use App\Events\DiscussionParticipantChanged;
+use App\Events\UserNotificationReceived;
 use App\Models\DiscussionMessage;
 use App\Models\DiscussionThread;
 use App\Models\User;
+use App\Notifications\DiscussionInviteNotification;
+use App\Notifications\DiscussionNewMessageNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -25,6 +30,15 @@ class Thread extends Component
     public string $body = '';
     /** @var \Illuminate\Http\UploadedFile[] */
     public $attachmentFiles = [];
+
+    public string $addParticipantSearch = '';
+
+    public function getListeners(): array
+    {
+        return [
+            "echo-private:discussion.{$this->threadId},.discussion.participant.changed" => '$refresh',
+        ];
+    }
 
     public function mount(int|string $thread): void
     {
@@ -54,6 +68,134 @@ class Thread extends Component
         if (! $thread->participants()->where('users.id', $user->id)->exists()) {
             abort(403);
         }
+    }
+
+    #[Computed]
+    public function canManageParticipants(): bool
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return false;
+        }
+
+        $thread = $this->getThread();
+        if (! $thread->is_group) {
+            return false;
+        }
+
+        // Creator can always manage
+        if ((int) $thread->created_by === (int) $user->id) {
+            return true;
+        }
+
+        // Staff (owner/admin/agent) can also manage
+        $org = request()->attributes->get('currentOrganization');
+        $role = $org?->pivot?->role ?? 'member';
+
+        return in_array($role, ['owner', 'admin', 'agent'], true);
+    }
+
+    public function addParticipant(int $userId): void
+    {
+        $user = Auth::user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $thread = $this->getThread();
+        if (! $thread->is_group) {
+            return;
+        }
+
+        // Auth check
+        $isCreator = (int) $thread->created_by === (int) $user->id;
+        $org = request()->attributes->get('currentOrganization');
+        $role = $org?->pivot?->role ?? 'member';
+        $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
+
+        if (! $isCreator && ! $isStaff) {
+            abort(403);
+        }
+
+        $orgId = (int) session('current_organization_id');
+        $invitee = User::find($userId);
+        if (! $invitee || ! $invitee->organizations()->where('organization_id', $orgId)->exists()) {
+            return;
+        }
+
+        // Already a participant?
+        if ($thread->participants()->where('users.id', $userId)->exists()) {
+            return;
+        }
+
+        $thread->participants()->attach($userId, ['added_by' => $user->id]);
+
+        $threadName = $thread->name ?: __('Groupe de discussion');
+
+        // Notify the invitee
+        $invitee->notify(new DiscussionInviteNotification(
+            threadId: $thread->id,
+            threadName: $threadName,
+            isGroup: true,
+            inviterId: $user->id,
+            inviterName: $user->name,
+        ));
+        event(new UserNotificationReceived((int) $invitee->id, 'discussion_invite'));
+
+        // Broadcast to all current participants
+        event(new DiscussionParticipantChanged(
+            threadId: $thread->id,
+            userId: $userId,
+            action: 'added',
+            actorName: $user->name,
+            userName: $invitee->name,
+        ));
+
+        $this->addParticipantSearch = '';
+    }
+
+    public function removeParticipant(int $userId): void
+    {
+        $user = Auth::user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $thread = $this->getThread();
+        if (! $thread->is_group) {
+            return;
+        }
+
+        // Cannot remove the creator
+        if ((int) $thread->created_by === $userId) {
+            return;
+        }
+
+        // Auth check
+        $isCreator = (int) $thread->created_by === (int) $user->id;
+        $org = request()->attributes->get('currentOrganization');
+        $role = $org?->pivot?->role ?? 'member';
+        $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
+
+        if (! $isCreator && ! $isStaff) {
+            abort(403);
+        }
+
+        $removedUser = User::find($userId);
+        if (! $removedUser) {
+            return;
+        }
+
+        $thread->participants()->detach($userId);
+
+        // Broadcast to remaining participants
+        event(new DiscussionParticipantChanged(
+            threadId: $thread->id,
+            userId: $userId,
+            action: 'removed',
+            actorName: $user->name,
+            userName: $removedUser->name,
+        ));
     }
 
     public function sendMessage(): void
@@ -100,7 +242,39 @@ class Thread extends Component
             'attachments' => $savedAttachments ?: null,
         ]);
 
-        event(new DiscussionMessageSent($message));
+        // Broadcast real-time message (primitives)
+        event(new DiscussionMessageSent(
+            messageId: $message->id,
+            threadId: $thread->id,
+            userId: $user->id,
+            userName: $user->name,
+            body: $message->body,
+            attachments: $message->attachments,
+            meta: $message->meta ?? null,
+            createdAt: $message->created_at->toIso8601String(),
+        ));
+
+        // Notify other participants
+        $threadName = $thread->is_group
+            ? ($thread->name ?: __('Groupe de discussion'))
+            : $user->name;
+        $bodyExcerpt = mb_substr(trim((string) $message->body), 0, 100);
+
+        foreach ($thread->participants as $participant) {
+            if ((int) $participant->id === (int) $user->id) {
+                continue;
+            }
+            $participant->notify(new DiscussionNewMessageNotification(
+                threadId: $thread->id,
+                threadName: $threadName,
+                isGroup: $thread->is_group,
+                messageId: $message->id,
+                senderId: $user->id,
+                senderName: $user->name,
+                bodyExcerpt: $bodyExcerpt,
+            ));
+            event(new UserNotificationReceived((int) $participant->id, 'discussion_new_message'));
+        }
 
         $this->body = '';
         $this->attachmentFiles = [];
@@ -126,8 +300,8 @@ class Thread extends Component
             'thread' => $thread,
             'orgUsers' => $orgUsers,
             'embedded' => $this->embedded,
+            'canManageParticipants' => $this->canManageParticipants,
         ]);
         return $view->layout($layout);
     }
 }
-

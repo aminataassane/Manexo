@@ -3,6 +3,7 @@
     $title = $thread->is_group
         ? ($thread->name ?: __('Groupe de discussion'))
         : ($participants->where('id', '!=', auth()->id())->first()?->name ?: __('Discussion'));
+    $participantIds = $participants->pluck('id')->all();
 @endphp
 
 <div
@@ -143,21 +144,77 @@
         <aside class="hidden lg:flex shrink-0 flex-col bg-white border-l border-slate-200 overflow-hidden transition-[width] duration-300 ease-in-out" :class="infoOpen ? 'w-[320px]' : 'w-0 border-l-0'">
             <div class="flex flex-col flex-1 min-w-0 min-h-0 w-[320px]">
                 <div class="flex h-[60px] shrink-0 items-center justify-between border-b border-slate-100 px-5">
-                    <span class="text-sm font-bold text-slate-900">{{ __('Participants') }}</span>
+                    <span class="text-sm font-bold text-slate-900">{{ __('Participants') }} ({{ $participants->count() }})</span>
                     <button type="button" @click="infoOpen = false" class="text-slate-400 hover:text-slate-900 transition-colors">
                         <iconify-icon icon="solar:close-circle-linear" width="20"></iconify-icon>
                     </button>
                 </div>
-                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-2">
+                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-3">
+                    {{-- Add participant (groups only, for creator/staff) --}}
+                    @if($thread->is_group && $canManageParticipants)
+                        <div x-data="{ showAdd: false, search: '' }" class="mb-3">
+                            <button type="button" @click="showAdd = !showAdd; if(showAdd) $nextTick(() => $refs.addSearch?.focus())" class="flex items-center gap-2 w-full rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-slate-500 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">
+                                <iconify-icon icon="solar:user-plus-linear" width="16"></iconify-icon>
+                                {{ __('Ajouter un membre') }}
+                            </button>
+                            <div x-show="showAdd" x-cloak x-transition class="mt-2">
+                                <input
+                                    type="text"
+                                    x-ref="addSearch"
+                                    x-model="search"
+                                    placeholder="{{ __('Rechercher…') }}"
+                                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
+                                >
+                                <div class="mt-1 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                                    @foreach($orgUsers as $ou)
+                                        @if(! in_array($ou->id, $participantIds))
+                                            <button
+                                                type="button"
+                                                x-show="!search || '{{ strtolower(e($ou->name)) }}'.includes(search.toLowerCase()) || '{{ strtolower(e($ou->email)) }}'.includes(search.toLowerCase())"
+                                                wire:click="addParticipant({{ $ou->id }})"
+                                                class="flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-slate-50 transition-colors"
+                                            >
+                                                <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
+                                                    {{ strtoupper(mb_substr($ou->name, 0, 1)) }}
+                                                </div>
+                                                <div class="min-w-0 text-left">
+                                                    <div class="font-medium text-slate-900 truncate">{{ $ou->name }}</div>
+                                                    <div class="text-slate-400 truncate">{{ $ou->email }}</div>
+                                                </div>
+                                            </button>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Participant list --}}
                     @foreach($participants as $p)
-                        <div class="flex items-center gap-3">
-                            <div class="h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold" style="background: var(--accent-soft); color: var(--accent);">
+                        <div class="flex items-center gap-3 group">
+                            <div class="h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
                                 {{ strtoupper(mb_substr($p->name ?? '?', 0, 1)) }}
                             </div>
-                            <div class="min-w-0">
-                                <div class="text-sm font-semibold text-slate-900 truncate">{{ $p->name }}</div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-semibold text-slate-900 truncate">
+                                    {{ $p->name }}
+                                    @if((int) $p->id === (int) $thread->created_by)
+                                        <span class="text-[10px] text-slate-400 font-normal ml-1">{{ __('Créateur') }}</span>
+                                    @endif
+                                </div>
                                 <div class="text-xs text-slate-500 truncate">{{ $p->email }}</div>
                             </div>
+                            @if($thread->is_group && $canManageParticipants && (int) $p->id !== (int) $thread->created_by)
+                                <button
+                                    type="button"
+                                    wire:click="removeParticipant({{ $p->id }})"
+                                    wire:confirm="{{ __('Retirer ce participant du groupe ?') }}"
+                                    class="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                    title="{{ __('Retirer') }}"
+                                >
+                                    <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
+                                </button>
+                            @endif
                         </div>
                     @endforeach
                 </div>
@@ -175,7 +232,10 @@
             const tryConnect = () => {
                 if (typeof window.Echo !== 'undefined') {
                     window.Echo.private('discussion.' + this.threadId)
-                        .listen('.discussion.message.sent', (e) => this.appendMessage(e));
+                        .listen('.discussion.message.sent', (e) => this.appendMessage(e))
+                        .listen('.discussion.participant.changed', () => {
+                            this.$wire.$refresh();
+                        });
                     return;
                 }
                 setTimeout(tryConnect, 300);
@@ -225,4 +285,3 @@
     }));
 </script>
 @endscript
-

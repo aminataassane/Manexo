@@ -2,21 +2,28 @@
 
 namespace App\Events;
 
-use App\Models\DiscussionMessage;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
-use Illuminate\Queue\SerializesModels;
 
 class DiscussionMessageSent implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable;
 
-    public function __construct(public DiscussionMessage $message) {}
+    public function __construct(
+        public int $messageId,
+        public int $threadId,
+        public int $userId,
+        public string $userName,
+        public string $body,
+        public ?array $attachments,
+        public ?array $meta,
+        public string $createdAt,
+    ) {}
 
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('discussion.' . $this->message->thread_id)];
+        return [new PrivateChannel('discussion.' . $this->threadId)];
     }
 
     public function broadcastAs(): string
@@ -26,18 +33,15 @@ class DiscussionMessageSent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        $this->message->loadMissing(['user:id,name,email']);
-
         return [
-            'id' => $this->message->id,
-            'thread_id' => $this->message->thread_id,
-            'user_id' => $this->message->user_id,
-            'user_name' => $this->message->user?->name,
-            'body' => $this->message->body,
-            'attachments' => $this->message->attachments,
-            'meta' => $this->message->meta,
-            'created_at' => $this->message->created_at->toIso8601String(),
+            'id' => $this->messageId,
+            'thread_id' => $this->threadId,
+            'user_id' => $this->userId,
+            'user_name' => $this->userName,
+            'body' => $this->body,
+            'attachments' => $this->attachments,
+            'meta' => $this->meta,
+            'created_at' => $this->createdAt,
         ];
     }
 }
-

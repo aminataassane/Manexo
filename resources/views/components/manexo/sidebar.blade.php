@@ -43,6 +43,7 @@
             $isDashboard = request()->routeIs('dashboard');
             $isTickets = request()->routeIs('tickets.*');
             $isDiscussions = request()->routeIs('discussions.*');
+            $isForms = request()->routeIs('forms.*');
             $currentDisplayMode = request()->query('displayMode', 'list');
         @endphp
 
@@ -130,6 +131,23 @@
             </div>
         </a>
 
+        <!-- Formulaires -->
+        <a
+            href="{{ route('forms.index') }}"
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isForms ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+            :class="sidebarOpen ? '' : 'justify-center'"
+        >
+            @if($isForms)
+                <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
+            @endif
+            <iconify-icon icon="solar:clipboard-text-bold-duotone" width="20" class="{{ $isForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+            <span x-show="sidebarOpen" class="truncate">Formulaires</span>
+
+            <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                Formulaires
+            </div>
+        </a>
+
         @if ($isStaff)
             <div class="px-3 mb-2 mt-6 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">
                 Administration
@@ -138,6 +156,7 @@
             @php
                 $isAdminUsers = request()->routeIs('admin.users');
                 $isReports = request()->routeIs('reports.*');
+                $isAdminForms = request()->routeIs('admin.forms*');
                 $isSettings = request()->routeIs('admin.settings');
             @endphp
 
@@ -165,6 +184,19 @@
                 @endif
                 <iconify-icon icon="solar:chart-2-bold-duotone" width="20" class="{{ $isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">Rapports</span>
+            </a>
+
+            <!-- Admin Formulaires -->
+            <a
+                href="{{ route('admin.forms') }}"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isAdminForms ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                :class="sidebarOpen ? '' : 'justify-center'"
+            >
+                @if($isAdminForms)
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
+                @endif
+                <iconify-icon icon="solar:document-add-bold-duotone" width="20" class="{{ $isAdminForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <span x-show="sidebarOpen" class="truncate">Formulaires</span>
             </a>
 
             <!-- Settings -->

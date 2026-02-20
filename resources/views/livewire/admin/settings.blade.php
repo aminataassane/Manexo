@@ -64,7 +64,10 @@
                     <iconify-icon icon="solar:flag-bold-duotone" width="20" :class="tab === 'priorities' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
                     {{ __('Priorités') }}
                 </button>
-
+                <button type="button" class="{{ $navItemClass }}" :class="tab === 'functions' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'functions'">
+                    <iconify-icon icon="solar:user-id-bold-duotone" width="20" :class="tab === 'functions' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
+                    {{ __('Fonctions métier') }}
+                </button>
                 <button type="button" class="{{ $navItemClass }}" :class="tab === 'forms' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'forms'">
                     <iconify-icon icon="solar:clipboard-list-bold-duotone" width="20" :class="tab === 'forms' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
                     {{ __('Formulaires') }}
@@ -266,6 +269,27 @@
                         </div>
                     </div>
 
+                    <hr class="border-slate-100">
+
+                    <div>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('Fermeture automatique') }}</h3>
+                        <div class="max-w-xs">
+                            <x-input-label for="auto_close_days" value="Fermer après X jours d'inactivité" />
+                            <input
+                                id="auto_close_days"
+                                type="number"
+                                wire:model="auto_close_days"
+                                min="1"
+                                max="365"
+                                placeholder="Désactivé"
+                                class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all disabled:bg-slate-50 disabled:text-slate-500"
+                                @disabled(! $canManage)
+                            />
+                            <p class="text-xs text-slate-500 mt-1.5">{{ __('Laissez vide pour désactiver la fermeture automatique.') }}</p>
+                            <x-input-error :messages="$errors->get('auto_close_days')" class="mt-1" />
+                        </div>
+                    </div>
+
                     <div class="pt-4 flex justify-end">
                         <button type="submit" class="btn-primary" @disabled(! $canManage)>
                             {{ __('Enregistrer') }}
@@ -274,21 +298,276 @@
                 </form>
             </div>
 
-            <!-- PLACEHOLDERS FOR OTHER TABS -->
-            <div x-show="tab === 'categories'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
-                <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 mb-4">
-                    <iconify-icon icon="solar:tag-linear" width="32" class="text-slate-400"></iconify-icon>
+            <!-- CATEGORIES TAB -->
+            <div x-show="tab === 'categories'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('Gestion des Catégories') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('Créez et organisez les catégories pour classer vos tickets.') }}</p>
                 </div>
-                <h3 class="text-lg font-bold text-slate-900">{{ __('Gestion des Catégories') }}</h3>
-                <p class="text-slate-500 mt-2 max-w-md mx-auto">{{ __('Bientôt disponible : Créez, modifiez et organisez les catégories de tickets pour mieux trier les demandes.') }}</p>
+
+                <div class="p-6 space-y-6">
+                    {{-- Create form --}}
+                    @if ($canManage)
+                        <form wire:submit.prevent="createCategory" class="flex items-end gap-3">
+                            <div class="flex-1">
+                                <x-input-label for="new_cat_name" value="Nom de la catégorie" />
+                                <input
+                                    id="new_cat_name"
+                                    type="text"
+                                    wire:model="newCategoryName"
+                                    placeholder="Ex : Support technique"
+                                    class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
+                                />
+                                <x-input-error :messages="$errors->get('newCategoryName')" class="mt-1" />
+                            </div>
+                            <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                                <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
+                                {{ __('Ajouter') }}
+                            </button>
+                        </form>
+                        <hr class="border-slate-100">
+                    @endif
+
+                    {{-- List --}}
+                    @if ($categories->isEmpty())
+                        <div class="py-8 text-center">
+                            <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-3">
+                                <iconify-icon icon="solar:tag-linear" width="28" class="text-slate-400"></iconify-icon>
+                            </div>
+                            <p class="text-sm text-slate-500">{{ __('Aucune catégorie. Créez-en une pour commencer.') }}</p>
+                        </div>
+                    @else
+                        <div class="space-y-2">
+                            @foreach ($categories as $cat)
+                                <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors group"
+                                     wire:key="cat-{{ $cat->id }}">
+                                    @if ($editingCategoryId === $cat->id)
+                                        {{-- Inline edit --}}
+                                        <form wire:submit.prevent="updateCategory" class="flex-1 flex items-center gap-3">
+                                            <input
+                                                type="text"
+                                                wire:model="editingCategoryName"
+                                                class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                autofocus
+                                            />
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="Enregistrer">
+                                                <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
+                                            </button>
+                                            <button type="button" wire:click="cancelEditCategory" class="text-slate-400 hover:text-slate-600" title="Annuler">
+                                                <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
+                                            </button>
+                                        </form>
+                                        <x-input-error :messages="$errors->get('editingCategoryName')" class="mt-1" />
+                                    @else
+                                        {{-- Display --}}
+                                        <div class="flex-1 min-w-0">
+                                            <span class="text-sm font-medium text-slate-900">{{ $cat->name }}</span>
+                                            <span class="ml-2 text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">{{ $cat->slug }}</span>
+                                        </div>
+
+                                        {{-- Active toggle --}}
+                                        <button
+                                            type="button"
+                                            wire:click="toggleCategory({{ $cat->id }})"
+                                            class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors {{ $cat->is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200' }}"
+                                            @disabled(! $canManage)
+                                        >
+                                            <span class="h-1.5 w-1.5 rounded-full {{ $cat->is_active ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
+                                            {{ $cat->is_active ? __('Actif') : __('Inactif') }}
+                                        </button>
+
+                                        @if ($canManage)
+                                            {{-- Edit --}}
+                                            <button type="button" wire:click="startEditCategory({{ $cat->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="Modifier">
+                                                <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
+                                            </button>
+                                            {{-- Delete --}}
+                                            <button type="button" wire:click="deleteCategory({{ $cat->id }})" wire:confirm="{{ __('Supprimer cette catégorie ?') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="Supprimer">
+                                                <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                                            </button>
+                                        @endif
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
             </div>
 
-            <div x-show="tab === 'priorities'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
-                <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 mb-4">
-                    <iconify-icon icon="solar:flag-linear" width="32" class="text-slate-400"></iconify-icon>
+            <!-- PRIORITIES TAB -->
+            <div x-show="tab === 'priorities'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('Niveaux de Priorité') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('Définissez les niveaux d\'urgence pour vos tickets.') }}</p>
                 </div>
-                <h3 class="text-lg font-bold text-slate-900">{{ __('Niveaux de Priorité') }}</h3>
-                <p class="text-slate-500 mt-2 max-w-md mx-auto">{{ __('Bientôt disponible : Définissez vos SLA et niveaux d\'urgence personnalisés.') }}</p>
+
+                <div class="p-6 space-y-6">
+                    {{-- Create form --}}
+                    @if ($canManage)
+                        <form wire:submit.prevent="createPriority" class="flex items-end gap-3">
+                            <div class="flex-1">
+                                <x-input-label for="new_prio_name" value="Nom" />
+                                <input
+                                    id="new_prio_name"
+                                    type="text"
+                                    wire:model="newPriorityName"
+                                    placeholder="Ex : Urgente"
+                                    class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
+                                />
+                                <x-input-error :messages="$errors->get('newPriorityName')" class="mt-1" />
+                            </div>
+                            <div class="w-28">
+                                <x-input-label for="new_prio_level" value="Niveau" />
+                                <input
+                                    id="new_prio_level"
+                                    type="number"
+                                    wire:model="newPriorityLevel"
+                                    min="0"
+                                    placeholder="0"
+                                    class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
+                                />
+                                <x-input-error :messages="$errors->get('newPriorityLevel')" class="mt-1" />
+                            </div>
+                            <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                                <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
+                                {{ __('Ajouter') }}
+                            </button>
+                        </form>
+                        <hr class="border-slate-100">
+                    @endif
+
+                    {{-- List --}}
+                    @if ($priorities->isEmpty())
+                        <div class="py-8 text-center">
+                            <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-3">
+                                <iconify-icon icon="solar:flag-linear" width="28" class="text-slate-400"></iconify-icon>
+                            </div>
+                            <p class="text-sm text-slate-500">{{ __('Aucune priorité. Créez-en une pour commencer.') }}</p>
+                        </div>
+                    @else
+                        <div class="space-y-2">
+                            @foreach ($priorities as $prio)
+                                <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors group"
+                                     wire:key="prio-{{ $prio->id }}">
+                                    @if ($editingPriorityId === $prio->id)
+                                        {{-- Inline edit --}}
+                                        <form wire:submit.prevent="updatePriority" class="flex-1 flex items-center gap-3">
+                                            <input
+                                                type="text"
+                                                wire:model="editingPriorityName"
+                                                class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                autofocus
+                                            />
+                                            <input
+                                                type="number"
+                                                wire:model="editingPriorityLevel"
+                                                min="0"
+                                                class="w-20 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                            />
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="Enregistrer">
+                                                <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
+                                            </button>
+                                            <button type="button" wire:click="cancelEditPriority" class="text-slate-400 hover:text-slate-600" title="Annuler">
+                                                <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
+                                            </button>
+                                        </form>
+                                        <x-input-error :messages="$errors->get('editingPriorityName')" class="mt-1" />
+                                        <x-input-error :messages="$errors->get('editingPriorityLevel')" class="mt-1" />
+                                    @else
+                                        {{-- Display --}}
+                                        <div class="flex-1 min-w-0 flex items-center gap-3">
+                                            <span class="text-sm font-medium text-slate-900">{{ $prio->name }}</span>
+                                            <span class="inline-flex items-center justify-center h-6 min-w-[24px] rounded-md bg-slate-100 px-1.5 text-[11px] font-bold text-slate-600 tabular-nums">{{ $prio->level }}</span>
+                                        </div>
+
+                                        {{-- Active toggle --}}
+                                        <button
+                                            type="button"
+                                            wire:click="togglePriority({{ $prio->id }})"
+                                            class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors {{ $prio->is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200' }}"
+                                            @disabled(! $canManage)
+                                        >
+                                            <span class="h-1.5 w-1.5 rounded-full {{ $prio->is_active ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
+                                            {{ $prio->is_active ? __('Actif') : __('Inactif') }}
+                                        </button>
+
+                                        @if ($canManage)
+                                            {{-- Edit --}}
+                                            <button type="button" wire:click="startEditPriority({{ $prio->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="Modifier">
+                                                <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
+                                            </button>
+                                            {{-- Delete --}}
+                                            <button type="button" wire:click="deletePriority({{ $prio->id }})" wire:confirm="{{ __('Supprimer cette priorité ?') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="Supprimer">
+                                                <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                                            </button>
+                                        @endif
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- FONCTIONS MÉTIER TAB -->
+            <div x-show="tab === 'functions'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('Fonctions métier') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('Postes dans l\'entreprise (ex: Informaticien, RH, Comptable). Distinct du rôle système (permissions).') }}</p>
+                </div>
+                <div class="p-6 space-y-6">
+                    @if ($canManage)
+                        <form wire:submit.prevent="createFunction" class="flex items-end gap-3">
+                            <div class="flex-1">
+                                <x-input-label for="new_function_name" value="{{ __('Nom de la fonction') }}" />
+                                <input id="new_function_name" type="text" wire:model="newFunctionName" placeholder="Ex : Informaticien, RH, Support niveau 2" class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all" />
+                                <x-input-error :messages="$errors->get('newFunctionName')" class="mt-1" />
+                            </div>
+                            <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                                <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
+                                {{ __('Ajouter') }}
+                            </button>
+                        </form>
+                        <hr class="border-slate-100">
+                    @endif
+                    @if ($organizationFunctions->isEmpty())
+                        <div class="py-8 text-center">
+                            <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-3">
+                                <iconify-icon icon="solar:user-id-linear" width="28" class="text-slate-400"></iconify-icon>
+                            </div>
+                            <p class="text-sm text-slate-500">{{ __('Aucune fonction. Créez-en une pour attribuer des postes aux membres.') }}</p>
+                        </div>
+                    @else
+                        <div class="space-y-2">
+                            @foreach ($organizationFunctions as $fn)
+                                <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors group" wire:key="fn-{{ $fn->id }}">
+                                    @if ($editingFunctionId === $fn->id)
+                                        <form wire:submit.prevent="updateFunction" class="flex-1 flex items-center gap-3">
+                                            <input type="text" wire:model="editingFunctionName" class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" autofocus />
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('Enregistrer') }}">
+                                                <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
+                                            </button>
+                                            <button type="button" wire:click="cancelEditFunction" class="text-slate-400 hover:text-slate-600" title="{{ __('Annuler') }}">
+                                                <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
+                                            </button>
+                                        </form>
+                                        <x-input-error :messages="$errors->get('editingFunctionName')" class="mt-1" />
+                                    @else
+                                        <span class="flex-1 text-sm font-medium text-slate-900">{{ $fn->name }}</span>
+                                        @if ($canManage)
+                                            <button type="button" wire:click="startEditFunction({{ $fn->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="{{ __('Modifier') }}">
+                                                <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
+                                            </button>
+                                            <button type="button" wire:click="deleteFunction({{ $fn->id }})" wire:confirm="{{ __('Supprimer cette fonction ?') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('Supprimer') }}">
+                                                <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                                            </button>
+                                        @endif
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
             </div>
 
             <div x-show="tab === 'forms'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

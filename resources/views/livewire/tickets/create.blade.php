@@ -93,19 +93,10 @@
                     </div>
 
                     @php
-                        $steps = $formSteps ?? collect();
-                        if ($steps->count() === 0 && (($formFields ?? collect())->count() > 0)) {
-                            $steps = collect([(object) [
-                                'id' => 0,
-                                'number' => 1,
-                                'title' => __('Informations supplémentaires'),
-                                'description' => null,
-                                'fields' => $formFields ?? collect(),
-                            ]]);
-                        }
+                        $allFields = $formFields ?? collect();
                     @endphp
 
-                    @if ($steps->count())
+                    @if ($allFields->count())
                         <div class="pt-4 border-t border-slate-100">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
@@ -119,107 +110,127 @@
                                 </div>
                             </div>
 
-                            <div class="mt-4 space-y-5">
-                                @foreach ($steps as $step)
+                            <div class="mt-4 space-y-4">
+                                @foreach ($allFields->sortBy('sort_order') as $f)
                                     @php
-                                        $fields = $step->fields ?? collect();
+                                        $key = (string) $f->key;
+                                        $type = (string) $f->type;
+                                        $label = (string) $f->label;
+                                        $required = (bool) $f->required;
+                                        $config = is_array($f->configuration) ? $f->configuration : [];
+                                        $placeholder = $config['placeholder'] ?? $f->placeholder ?? '';
+                                        $helpText = $config['help_text'] ?? $f->help_text ?? '';
+                                        $options = $config['options'] ?? $f->options ?? [];
                                     @endphp
 
-                                    <div class="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4 sm:p-5">
-                                        <div class="flex items-start justify-between gap-4">
-                                            <div class="min-w-0">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="text-[10px] font-mono text-slate-400">#{{ (int) ($step->number ?? 1) }}</span>
-                                                    <div class="text-[13px] font-semibold text-[#111827] truncate">{{ (string) ($step->title ?? __('Étape')) }}</div>
+                                    @if ($type === 'section')
+                                        <div class="pt-3 pb-1 border-t border-slate-100 first:border-t-0 first:pt-0">
+                                            <div class="text-[13px] font-bold text-[#111827]">{{ $label }}</div>
+                                            @if($helpText)
+                                                <p class="mt-0.5 text-[12px] text-[#6B7280]">{{ $helpText }}</p>
+                                            @endif
+                                        </div>
+                                    @elseif ($type === 'textarea')
+                                        <div>
+                                            <label class="block text-[11px] font-medium text-slate-700">
+                                                {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                            </label>
+                                            <textarea
+                                                rows="4"
+                                                wire:model="custom.{{ $key }}"
+                                                class="mt-1 {{ $textarea }}"
+                                                placeholder="{{ $placeholder }}"
+                                            ></textarea>
+                                            @if($helpText)
+                                                <p class="mt-1 text-[11px] text-[#6B7280]">{{ $helpText }}</p>
+                                            @endif
+                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+                                        </div>
+                                    @elseif ($type === 'checkbox')
+                                        <div>
+                                            <label class="flex items-center justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3">
+                                                <div class="min-w-0">
+                                                    <div class="text-[13px] font-semibold text-[#111827]">
+                                                        {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                                    </div>
+                                                    <div class="text-[12px] text-[#6B7280]">{{ __('Activer / désactiver') }}</div>
                                                 </div>
-                                                @if (!empty($step->description))
-                                                    <div class="mt-1 text-[12px] text-[#6B7280]">{{ $step->description }}</div>
-                                                @endif
-                                            </div>
-                                            <span class="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#E5E7EB] bg-white text-[#6B7280]">
-                                                {{ (int) ($fields->count() ?? 0) }} {{ __('champ(s)') }}
-                                            </span>
+                                                <input type="checkbox" wire:model="custom.{{ $key }}" class="h-5 w-5 rounded border-[#E5E7EB] text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]" />
+                                            </label>
+                                            @if($helpText)
+                                                <p class="mt-1 text-[11px] text-[#6B7280]">{{ $helpText }}</p>
+                                            @endif
+                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
                                         </div>
-
-                                        <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                                            @foreach ($fields as $f)
-                                                @php
-                                                    $key = (string) $f->key;
-                                                    $type = (string) $f->type;
-                                                    $label = (string) $f->label;
-                                                    $required = (bool) $f->required;
-                                                @endphp
-
-                                                @if ($type === 'textarea')
-                                                    <div class="sm:col-span-2">
-                                                        <label class="block text-[11px] font-medium text-slate-700">
-                                                            {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                    @elseif (in_array($type, ['select', 'radio'], true))
+                                        <div>
+                                            <label class="block text-[11px] font-medium text-slate-700">
+                                                {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                            </label>
+                                            @if($type === 'radio')
+                                                <div class="mt-1 space-y-2">
+                                                    @foreach((array) $options as $opt)
+                                                        <label class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 hover:border-[var(--accent)] cursor-pointer transition-colors">
+                                                            <input type="radio" wire:model="custom.{{ $key }}" value="{{ $opt }}"
+                                                                   class="text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]">
+                                                            <span class="text-sm text-slate-700">{{ $opt }}</span>
                                                         </label>
-                                                        <textarea
-                                                            rows="4"
-                                                            wire:model="custom.{{ $key }}"
-                                                            class="mt-1 {{ $textarea }}"
-                                                            placeholder="{{ (string) ($f->placeholder ?? '') }}"
-                                                        ></textarea>
-                                                        @if(!empty($f->help_text))
-                                                            <p class="mt-1 text-[11px] text-[#6B7280]">{{ $f->help_text }}</p>
-                                                        @endif
-                                                        <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
-                                                    </div>
-                                                @elseif ($type === 'checkbox')
-                                                    <div class="sm:col-span-2">
-                                                        <label class="flex items-center justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3">
-                                                            <div class="min-w-0">
-                                                                <div class="text-[13px] font-semibold text-[#111827]">
-                                                                    {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
-                                                                </div>
-                                                                <div class="text-[12px] text-[#6B7280]">{{ __('Activer / désactiver') }}</div>
-                                                            </div>
-                                                            <input type="checkbox" wire:model="custom.{{ $key }}" class="h-5 w-5 rounded border-[#E5E7EB] text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]" />
-                                                        </label>
-                                                        @if(!empty($f->help_text))
-                                                            <p class="mt-1 text-[11px] text-[#6B7280]">{{ $f->help_text }}</p>
-                                                        @endif
-                                                        <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
-                                                    </div>
-                                                @elseif ($type === 'select')
-                                                    <div>
-                                                        <label class="block text-[11px] font-medium text-slate-700">
-                                                            {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
-                                                        </label>
-                                                        <div class="mt-1">
-                                                            <x-select-input wire:model="custom.{{ $key }}">
-                                                                <option value="">{{ (string) ($f->placeholder ?? '—') }}</option>
-                                                                @foreach ((array) ($f->options ?? []) as $opt)
-                                                                    <option value="{{ $opt }}">{{ $opt }}</option>
-                                                                @endforeach
-                                                            </x-select-input>
-                                                        </div>
-                                                        @if(!empty($f->help_text))
-                                                            <p class="mt-1 text-[11px] text-[#6B7280]">{{ $f->help_text }}</p>
-                                                        @endif
-                                                        <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
-                                                    </div>
-                                                @else
-                                                    <div>
-                                                        <label class="block text-[11px] font-medium text-slate-700">
-                                                            {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
-                                                        </label>
-                                                        <input
-                                                            type="{{ $type === 'email' ? 'email' : ($type === 'number' ? 'number' : ($type === 'date' ? 'date' : 'text')) }}"
-                                                            wire:model="custom.{{ $key }}"
-                                                            class="mt-1 {{ $field }}"
-                                                            placeholder="{{ (string) ($f->placeholder ?? '') }}"
-                                                        >
-                                                        @if(!empty($f->help_text))
-                                                            <p class="mt-1 text-[11px] text-[#6B7280]">{{ $f->help_text }}</p>
-                                                        @endif
-                                                        <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
-                                                    </div>
-                                                @endif
-                                            @endforeach
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <div class="mt-1">
+                                                    <x-select-input wire:model="custom.{{ $key }}">
+                                                        <option value="">{{ $placeholder ?: '—' }}</option>
+                                                        @foreach ((array) $options as $opt)
+                                                            <option value="{{ $opt }}">{{ $opt }}</option>
+                                                        @endforeach
+                                                    </x-select-input>
+                                                </div>
+                                            @endif
+                                            @if($helpText)
+                                                <p class="mt-1 text-[11px] text-[#6B7280]">{{ $helpText }}</p>
+                                            @endif
+                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
                                         </div>
-                                    </div>
+                                    @elseif ($type === 'file')
+                                        <div>
+                                            <label class="block text-[11px] font-medium text-slate-700">
+                                                {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                            </label>
+                                            <input type="file" wire:model="custom.{{ $key }}"
+                                                   class="mt-1 w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
+                                                   @if(!empty($config['accept'])) accept="{{ $config['accept'] }}" @endif>
+                                            @if($helpText)
+                                                <p class="mt-1 text-[11px] text-[#6B7280]">{{ $helpText }}</p>
+                                            @endif
+                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+                                        </div>
+                                    @else
+                                        <div>
+                                            <label class="block text-[11px] font-medium text-slate-700">
+                                                {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
+                                            </label>
+                                            @php
+                                                $inputType = match($type) {
+                                                    'email' => 'email',
+                                                    'number' => 'number',
+                                                    'date' => 'date',
+                                                    'datetime' => 'datetime-local',
+                                                    default => 'text',
+                                                };
+                                            @endphp
+                                            <input
+                                                type="{{ $inputType }}"
+                                                wire:model="custom.{{ $key }}"
+                                                class="mt-1 {{ $field }}"
+                                                placeholder="{{ $placeholder }}"
+                                            >
+                                            @if($helpText)
+                                                <p class="mt-1 text-[11px] text-[#6B7280]">{{ $helpText }}</p>
+                                            @endif
+                                            <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
+                                        </div>
+                                    @endif
                                 @endforeach
                             </div>
                         </div>
@@ -397,26 +408,69 @@
 
         <!-- RIGHT (side panels) -->
         <div class="lg:col-span-1 space-y-6">
+            @if($canAssignAtCreate ?? false)
             <div class="rounded-2xl border border-[#E5E7EB] bg-white shadow-sm overflow-visible">
                 <div class="px-4 py-4 border-b border-[#E5E7EB] bg-[#F9FAFB]">
                     <h2 class="text-[13px] font-semibold text-[#111827]">{{ __('Attribution') }}</h2>
-                    <p class="mt-1 text-[12px] text-[#6B7280]">{{ __('Optionnel: assignez dès la création.') }}</p>
+                    <p class="mt-1 text-[12px] text-[#6B7280]">{{ __('Optionnel: assignez dès la création (Admin/Agent).') }}</p>
                 </div>
                 <div class="p-4 space-y-4">
-                    <div>
-                        <x-input-label for="assigned_to" :value="__('Assigné à')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
-                        <div class="mt-1">
-                            <x-select-input id="assigned_to" wire:model="assigned_to">
-                                <option value="">{{ __('—') }}</option>
-                                @foreach ($assignees as $u)
-                                    <option value="{{ (int) $u->id }}">{{ $u->name }}</option>
-                                @endforeach
-                            </x-select-input>
+                    <div x-data="{
+                        open: false,
+                        search: '',
+                        get filtered() {
+                            const s = this.search.toLowerCase();
+                            return this.$refs.userList ? Array.from(this.$refs.userList.querySelectorAll('[data-user]')).forEach(el => {
+                                el.style.display = el.dataset.name.toLowerCase().includes(s) ? '' : 'none';
+                            }) : null;
+                        }
+                    }">
+                        <x-input-label :value="__('Assignés')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
+
+                        {{-- Selected chips --}}
+                        <div class="mt-1 flex flex-wrap gap-1.5 min-h-[2.5rem] p-2 rounded-md border border-slate-200 bg-slate-50 cursor-pointer" @click="open = !open">
+                            @forelse($assignees->whereIn('id', $assigned_to_ids) as $sel)
+                                <span class="inline-flex items-center gap-1 pl-2 pr-1 py-1 rounded-md text-xs font-semibold bg-[var(--accent-soft)] text-[var(--accent)]">
+                                    {{ $sel->name }}
+                                    <button type="button" wire:click="$set('assigned_to_ids', {{ json_encode(array_values(array_diff($assigned_to_ids, [$sel->id]))) }})" class="ml-0.5 h-4 w-4 rounded-full hover:bg-[var(--accent)] hover:text-white flex items-center justify-center transition-colors" @click.stop>
+                                        <iconify-icon icon="solar:close-circle-linear" width="12"></iconify-icon>
+                                    </button>
+                                </span>
+                            @empty
+                                <span class="text-sm text-slate-400 py-0.5">{{ __('— Cliquez pour assigner') }}</span>
+                            @endforelse
                         </div>
-                        <x-input-error :messages="$errors->get('assigned_to')" class="mt-2" />
+
+                        {{-- Dropdown --}}
+                        <div x-show="open" @click.outside="open = false" x-cloak class="relative z-30">
+                            <div class="absolute left-0 right-0 top-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-hidden">
+                                <div class="p-2 border-b border-slate-100">
+                                    <input type="text" x-model="search" @input="filtered" class="w-full h-8 px-2 rounded-lg border border-slate-200 bg-slate-50 text-sm placeholder:text-slate-400 focus:ring-1 focus:ring-[var(--accent)] focus:border-transparent" placeholder="{{ __('Rechercher...') }}" />
+                                </div>
+                                <div class="overflow-y-auto max-h-44 p-1" x-ref="userList">
+                                    @foreach ($assignees as $u)
+                                        @php $isSelected = in_array($u->id, $assigned_to_ids); @endphp
+                                        <label data-user data-name="{{ $u->name }}" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors {{ $isSelected ? 'bg-[var(--accent-soft)]' : 'hover:bg-slate-50' }}">
+                                            <input
+                                                type="checkbox"
+                                                value="{{ $u->id }}"
+                                                wire:model="assigned_to_ids"
+                                                class="h-4 w-4 rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]"
+                                            />
+                                            <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
+                                                {{ strtoupper(mb_substr($u->name, 0, 1)) }}
+                                            </div>
+                                            <span class="text-sm font-medium text-slate-900 truncate">{{ $u->name }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                        <x-input-error :messages="$errors->get('assigned_to_ids')" class="mt-2" />
                     </div>
                 </div>
             </div>
+            @endif
 
             <div class="rounded-2xl border border-[#E5E7EB] bg-white shadow-sm overflow-visible">
                 <div class="px-4 py-4 border-b border-[#E5E7EB] bg-[#F9FAFB]">

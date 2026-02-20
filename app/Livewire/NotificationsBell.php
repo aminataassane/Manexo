@@ -10,6 +10,19 @@ class NotificationsBell extends Component
 {
     public bool $open = false;
 
+    public function getListeners(): array
+    {
+        $userId = Auth::id();
+
+        if (! $userId) {
+            return [];
+        }
+
+        return [
+            "echo-private:App.Models.User.{$userId},.notification.received" => '$refresh',
+        ];
+    }
+
     public function getUnreadCountProperty(): int
     {
         $user = Auth::user();
@@ -27,7 +40,7 @@ class NotificationsBell extends Component
             return collect();
         }
 
-        return $user->notifications()->latest()->limit(20)->get();
+        return $user->notifications()->latest()->limit(20)->get(['id', 'type', 'data', 'read_at', 'created_at']);
     }
 
     public function markAsRead(string $id): void

@@ -4,9 +4,8 @@ namespace App\Livewire\Admin;
 
 use App\Enums\OrganizationRole;
 use App\Models\Organization;
+use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
-use App\Models\TicketFormField;
-use App\Models\TicketFormTemplate;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +24,6 @@ class Settings extends Component
 
     public bool $canManage = false;
     public bool $isOwner = false;
-    public bool $canManageForms = false;
 
     public string $name = '';
     public string $slug = '';
@@ -43,36 +41,27 @@ class Settings extends Component
     public bool $members_can_edit = true;
     public bool $members_can_delete = false;
 
+    // --- Category CRUD
+    public string $newCategoryName = '';
+    public ?int $editingCategoryId = null;
+    public string $editingCategoryName = '';
+
+    // --- Priority CRUD
+    public string $newPriorityName = '';
+    public ?int $newPriorityLevel = null;
+    public ?int $editingPriorityId = null;
+    public string $editingPriorityName = '';
+    public ?int $editingPriorityLevel = null;
+
+    // --- Function (fonction métier) CRUD
+    public string $newFunctionName = '';
+    public ?int $editingFunctionId = null;
+    public string $editingFunctionName = '';
+
     public string $dangerConfirmName = '';
 
     /** Message de succès après enregistrement (affiché sans redirection). */
     public string $successMessage = '';
-
-    // --- Form Builder (MVP)
-    public ?int $fb_selected_template_id = null;
-    public ?int $fb_selected_field_id = null;
-
-    public string $fb_selected_template_name = '';
-    public ?int $fb_selected_template_category_id = null;
-    public ?int $fb_selected_template_target_user_id = null;
-    public bool $fb_selected_template_active = true;
-
-    public string $fb_selected_field_key = '';
-    public string $fb_selected_field_type = '';
-    public string $fb_selected_field_label = '';
-    public bool $fb_selected_field_required = false;
-    public string $fb_selected_field_options = '';
-
-    public string $fb_template_name = '';
-    public ?int $fb_template_category_id = null;
-    public ?int $fb_template_target_user_id = null;
-    public bool $fb_template_active = true;
-
-    /**
-     * New fields inputs per template.
-     * @var array<int, array{label?: string, type?: string, required?: bool, options?: string, sort_order?: int}>
-     */
-    public array $newFields = [];
 
     private function orgId(): int
     {
@@ -109,8 +98,6 @@ class Settings extends Component
         $role = $this->currentRole();
         $this->canManage = in_array($role, [OrganizationRole::Owner->value, OrganizationRole::Admin->value], true);
         $this->isOwner = $role === OrganizationRole::Owner->value;
-        // In local/dev, allow building forms even as Member (demo friendly)
-        $this->canManageForms = $this->canManage || app()->environment('local');
 
         $this->name = (string) $org->name;
         $this->slug = (string) $org->slug;
@@ -132,231 +119,6 @@ class Settings extends Component
             : null;
         $this->members_can_edit = (bool) ($settings['permissions']['members_can_edit'] ?? true);
         $this->members_can_delete = (bool) ($settings['permissions']['members_can_delete'] ?? false);
-
-        $this->fb_selected_template_id = TicketFormTemplate::query()
-            ->where('organization_id', $org->id)
-            ->orderBy('name')
-            ->value('id');
-
-        $this->loadSelectedTemplate();
-    }
-
-    private function loadSelectedTemplate(): void
-    {
-        $orgId = $this->orgId();
-        if (! $orgId || ! $this->fb_selected_template_id) {
-            $this->fb_selected_template_name = '';
-            $this->fb_selected_template_category_id = null;
-            $this->fb_selected_template_target_user_id = null;
-            $this->fb_selected_template_active = true;
-            $this->fb_selected_field_id = null;
-            $this->resetSelectedField();
-            return;
-        }
-
-        $tpl = TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey((int) $this->fb_selected_template_id)
-            ->first();
-
-        if (! $tpl) {
-            $this->fb_selected_template_id = null;
-            $this->loadSelectedTemplate();
-            return;
-        }
-
-        $this->fb_selected_template_name = (string) $tpl->name;
-        $this->fb_selected_template_category_id = $tpl->ticket_category_id ? (int) $tpl->ticket_category_id : null;
-        $this->fb_selected_template_target_user_id = $tpl->target_user_id ? (int) $tpl->target_user_id : null;
-        $this->fb_selected_template_active = (bool) $tpl->is_active;
-        $this->fb_selected_field_id = null;
-        $this->resetSelectedField();
-    }
-
-    private function resetSelectedField(): void
-    {
-        $this->fb_selected_field_key = '';
-        $this->fb_selected_field_type = '';
-        $this->fb_selected_field_label = '';
-        $this->fb_selected_field_required = false;
-        $this->fb_selected_field_options = '';
-    }
-
-    public function selectTemplate(int $templateId): void
-    {
-        $this->fb_selected_template_id = $templateId;
-        $this->loadSelectedTemplate();
-    }
-
-    public function selectField(int $fieldId): void
-    {
-        $orgId = $this->orgId();
-        abort_if(! $orgId, 403);
-        abort_if(! $this->fb_selected_template_id, 404);
-
-        $field = TicketFormField::query()
-            ->whereKey($fieldId)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
-            ->firstOrFail();
-
-        $this->fb_selected_field_id = (int) $field->id;
-        $this->fb_selected_field_key = (string) $field->key;
-        $this->fb_selected_field_type = (string) $field->type;
-        $this->fb_selected_field_label = (string) $field->label;
-        $this->fb_selected_field_required = (bool) $field->required;
-        $this->fb_selected_field_options = is_array($field->options) ? implode(', ', $field->options) : '';
-    }
-
-    public function saveSelectedTemplate(): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-
-        $orgId = $this->orgId();
-        abort_if(! $orgId, 403);
-        abort_if(! $this->fb_selected_template_id, 404);
-
-        $validated = $this->validate([
-            'fb_selected_template_name' => ['required', 'string', 'max:120'],
-            'fb_selected_template_category_id' => ['nullable', 'integer'],
-            'fb_selected_template_target_user_id' => ['nullable', 'integer'],
-            'fb_selected_template_active' => ['boolean'],
-        ]);
-
-        if (($validated['fb_selected_template_category_id'] ?? null) !== null) {
-            $catOk = TicketCategory::query()
-                ->where('organization_id', $orgId)
-                ->whereKey((int) $validated['fb_selected_template_category_id'])
-                ->exists();
-            if (! $catOk) {
-                $this->addError('fb_selected_template_category_id', 'Catégorie invalide.');
-                return;
-            }
-        }
-
-        if (($validated['fb_selected_template_target_user_id'] ?? null) !== null) {
-            $userOk = OrganizationMembership::query()
-                ->where('organization_id', $orgId)
-                ->where('user_id', (int) $validated['fb_selected_template_target_user_id'])
-                ->exists();
-            if (! $userOk) {
-                $this->addError('fb_selected_template_target_user_id', 'Utilisateur invalide pour cette entreprise.');
-                return;
-            }
-        }
-
-        TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey((int) $this->fb_selected_template_id)
-            ->update([
-                'name' => $validated['fb_selected_template_name'],
-                'ticket_category_id' => $validated['fb_selected_template_category_id'] ?? null,
-                'target_user_id' => $validated['fb_selected_template_target_user_id'] ?? null,
-                'is_active' => (bool) ($validated['fb_selected_template_active'] ?? true),
-            ]);
-
-        $this->dispatch('toast', type: 'success', message: "Formulaire enregistré.");
-    }
-
-    public function saveSelectedField(): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-
-        $orgId = $this->orgId();
-        abort_if(! $orgId, 403);
-        abort_if(! $this->fb_selected_field_id || ! $this->fb_selected_template_id, 404);
-
-        $validated = $this->validate([
-            'fb_selected_field_label' => ['required', 'string', 'max:120'],
-            'fb_selected_field_required' => ['boolean'],
-            'fb_selected_field_options' => ['nullable', 'string', 'max:2000'],
-        ]);
-
-        $field = TicketFormField::query()
-            ->whereKey((int) $this->fb_selected_field_id)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId)->whereKey((int) $this->fb_selected_template_id))
-            ->firstOrFail();
-
-        $options = $field->options;
-        if ((string) $field->type === 'select') {
-            $raw = trim((string) ($validated['fb_selected_field_options'] ?? ''));
-            $list = collect(preg_split('/[\r\n,]+/', $raw))
-                ->map(fn($v) => trim((string) $v))
-                ->filter()
-                ->values()
-                ->all();
-            $options = count($list) ? $list : null;
-        }
-
-        $field->update([
-            'label' => $validated['fb_selected_field_label'],
-            'required' => (bool) ($validated['fb_selected_field_required'] ?? false),
-            'options' => $options,
-        ]);
-
-        $this->dispatch('toast', type: 'success', message: "Champ enregistré.");
-    }
-
-    public function quickAddField(string $type): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-
-        $orgId = $this->orgId();
-        abort_if(! $orgId, 403);
-        abort_if(! $this->fb_selected_template_id, 404);
-
-        $tpl = TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey((int) $this->fb_selected_template_id)
-            ->firstOrFail();
-
-        $allowedTypes = ['text', 'textarea', 'select', 'checkbox', 'date', 'number', 'email'];
-        if (! in_array($type, $allowedTypes, true)) {
-            return;
-        }
-
-        $defaultLabel = match ($type) {
-            'textarea' => 'Paragraphe',
-            'select' => 'Sélection',
-            'checkbox' => 'Case à cocher',
-            'date' => 'Date',
-            'number' => 'Nombre',
-            'email' => 'Email',
-            default => 'Texte court',
-        };
-
-        $key = Str::slug($defaultLabel, '_') ?: ('field_' . Str::lower(Str::random(6)));
-        $key = Str::limit($key, 64, '');
-        $baseKey = $key;
-        $suffix = 2;
-        while (TicketFormField::query()->where('template_id', $tpl->id)->where('key', $key)->exists()) {
-            $key = Str::limit($baseKey . '_' . $suffix, 64, '');
-            $suffix++;
-        }
-
-        $options = null;
-        if ($type === 'select') {
-            $options = ['Option 1', 'Option 2'];
-        }
-
-        $sortOrder = (int) (TicketFormField::query()->where('template_id', $tpl->id)->max('sort_order') ?? 0) + 10;
-
-        $field = TicketFormField::query()->create([
-            'template_id' => $tpl->id,
-            'key' => $key,
-            'label' => $defaultLabel,
-            'type' => $type,
-            'required' => false,
-            'options' => $options,
-            'sort_order' => $sortOrder,
-        ]);
-
-        $this->selectField((int) $field->id);
     }
 
     public function updatedName(string $value): void
@@ -569,186 +331,294 @@ class Settings extends Component
         $this->redirectRoute('organizations.select');
     }
 
-    public function createFormTemplate(): void
+    // ─── Category CRUD ────────────────────────────────────────────────
+
+    public function createCategory(): void
     {
-        if (! $this->canManageForms) {
+        if (! $this->canManage) {
             abort(403);
         }
 
-        $validated = $this->validate([
-            'fb_template_name' => ['required', 'string', 'max:120'],
-            'fb_template_category_id' => ['nullable', 'integer'],
-            'fb_template_target_user_id' => ['nullable', 'integer'],
-            'fb_template_active' => ['boolean'],
+        $this->validate([
+            'newCategoryName' => ['required', 'string', 'max:80'],
         ]);
 
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
 
-        if (($validated['fb_template_category_id'] ?? null) !== null) {
-            $catOk = TicketCategory::query()
-                ->where('organization_id', $orgId)
-                ->whereKey((int) $validated['fb_template_category_id'])
-                ->exists();
-            if (! $catOk) {
-                $this->addError('fb_template_category_id', 'Catégorie invalide.');
-                return;
-            }
+        $slug = Str::slug($this->newCategoryName);
+        if ($slug === '') {
+            $slug = 'cat-' . Str::lower(Str::random(6));
         }
 
-        if (($validated['fb_template_target_user_id'] ?? null) !== null) {
-            $userOk = OrganizationMembership::query()
-                ->where('organization_id', $orgId)
-                ->where('user_id', (int) $validated['fb_template_target_user_id'])
-                ->exists();
-            if (! $userOk) {
-                $this->addError('fb_template_target_user_id', 'Utilisateur invalide pour cette entreprise.');
-                return;
-            }
-        }
-
-        TicketFormTemplate::query()->create([
-            'organization_id' => $orgId,
-            'ticket_category_id' => $validated['fb_template_category_id'] ?? null,
-            'name' => $validated['fb_template_name'],
-            'request_type' => null,
-            'target_user_id' => $validated['fb_template_target_user_id'] ?? null,
-            'is_active' => (bool) ($validated['fb_template_active'] ?? true),
-        ]);
-
-        $this->fb_template_name = '';
-        $this->fb_template_category_id = null;
-        $this->fb_template_target_user_id = null;
-        $this->fb_template_active = true;
-
-        $this->dispatch('toast', type: 'success', message: "Formulaire créé.");
-    }
-
-    public function toggleFormTemplate(int $templateId): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-
-        $orgId = $this->orgId();
-        abort_if(! $orgId, 403);
-
-        $tpl = TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey($templateId)
-            ->firstOrFail();
-
-        $tpl->update(['is_active' => ! (bool) $tpl->is_active]);
-        $this->dispatch('toast', type: 'success', message: "Statut mis à jour.");
-    }
-
-    public function deleteFormTemplate(int $templateId): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-
-        $orgId = $this->orgId();
-        abort_if(! $orgId, 403);
-
-        TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey($templateId)
-            ->delete();
-
-        unset($this->newFields[$templateId]);
-        $this->dispatch('toast', type: 'success', message: "Formulaire supprimé.");
-    }
-
-    public function addFormField(int $templateId): void
-    {
-        if (! $this->canManageForms) {
-            abort(403);
-        }
-
-        $orgId = $this->orgId();
-        abort_if(! $orgId, 403);
-
-        $tpl = TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->whereKey($templateId)
-            ->firstOrFail();
-
-        $data = $this->newFields[$templateId] ?? [];
-        $label = trim((string) ($data['label'] ?? ''));
-        $type = (string) ($data['type'] ?? 'text');
-        $required = (bool) ($data['required'] ?? false);
-        $optionsRaw = trim((string) ($data['options'] ?? ''));
-        $sortOrder = (int) ($data['sort_order'] ?? 0);
-
-        $allowedTypes = ['text', 'textarea', 'select', 'checkbox', 'date', 'number', 'email'];
-        if ($label === '') {
-            $this->addError("newFields.$templateId.label", "Label requis.");
-            return;
-        }
-        if (! in_array($type, $allowedTypes, true)) {
-            $this->addError("newFields.$templateId.type", "Type invalide.");
-            return;
-        }
-
-        $key = Str::slug($label, '_');
-        $key = $key !== '' ? $key : ('field_' . Str::lower(Str::random(6)));
-        $key = Str::limit($key, 64, '');
-
-        $options = null;
-        if ($type === 'select') {
-            $list = collect(preg_split('/[\r\n,]+/', $optionsRaw))
-                ->map(fn($v) => trim((string) $v))
-                ->filter()
-                ->values()
-                ->all();
-
-            if (! count($list)) {
-                $this->addError("newFields.$templateId.options", "Options requises (séparées par virgule).");
-                return;
-            }
-
-            $options = $list;
-        }
-
-        // Ensure unique key per template (auto-suffix)
-        $baseKey = $key;
+        $baseSlug = $slug;
         $suffix = 2;
-        while (TicketFormField::query()->where('template_id', $tpl->id)->where('key', $key)->exists()) {
-            $key = Str::limit($baseKey . '_' . $suffix, 64, '');
+        while (TicketCategory::query()->where('organization_id', $orgId)->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $suffix;
             $suffix++;
         }
 
-        TicketFormField::query()->create([
-            'template_id' => $tpl->id,
-            'key' => $key,
-            'label' => $label,
-            'type' => $type,
-            'required' => $required,
-            'options' => $options,
-            'sort_order' => $sortOrder,
+        TicketCategory::query()->create([
+            'organization_id' => $orgId,
+            'name' => trim($this->newCategoryName),
+            'slug' => $slug,
+            'is_active' => true,
         ]);
 
-        $this->newFields[$templateId] = ['label' => '', 'type' => 'text', 'required' => false, 'options' => '', 'sort_order' => 0];
-        $this->dispatch('toast', type: 'success', message: "Champ ajouté.");
+        $this->newCategoryName = '';
+        $this->dispatch('toast', type: 'success', message: 'Catégorie créée.');
     }
 
-    public function deleteFormField(int $fieldId): void
+    public function startEditCategory(int $id): void
     {
-        if (! $this->canManageForms) {
+        $orgId = $this->orgId();
+        $cat = TicketCategory::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $this->editingCategoryId = (int) $cat->id;
+        $this->editingCategoryName = (string) $cat->name;
+    }
+
+    public function cancelEditCategory(): void
+    {
+        $this->editingCategoryId = null;
+        $this->editingCategoryName = '';
+    }
+
+    public function updateCategory(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $this->validate([
+            'editingCategoryName' => ['required', 'string', 'max:80'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->editingCategoryId, 403);
+
+        $cat = TicketCategory::query()
+            ->where('organization_id', $orgId)
+            ->whereKey((int) $this->editingCategoryId)
+            ->firstOrFail();
+
+        $slug = Str::slug($this->editingCategoryName);
+        if ($slug === '') {
+            $slug = 'cat-' . Str::lower(Str::random(6));
+        }
+
+        $baseSlug = $slug;
+        $suffix = 2;
+        while (
+            TicketCategory::query()
+                ->where('organization_id', $orgId)
+                ->where('slug', $slug)
+                ->where('id', '!=', $cat->id)
+                ->exists()
+        ) {
+            $slug = $baseSlug . '-' . $suffix;
+            $suffix++;
+        }
+
+        $cat->update([
+            'name' => trim($this->editingCategoryName),
+            'slug' => $slug,
+        ]);
+
+        $this->editingCategoryId = null;
+        $this->editingCategoryName = '';
+        $this->dispatch('toast', type: 'success', message: 'Catégorie mise à jour.');
+    }
+
+    public function toggleCategory(int $id): void
+    {
+        if (! $this->canManage) {
             abort(403);
         }
 
         $orgId = $this->orgId();
-        abort_if(! $orgId, 403);
-
-        $field = TicketFormField::query()
-            ->whereKey($fieldId)
-            ->whereHas('template', fn($q) => $q->where('organization_id', $orgId))
+        $cat = TicketCategory::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
             ->firstOrFail();
 
-        $field->delete();
-        $this->dispatch('toast', type: 'success', message: "Champ supprimé.");
+        $cat->update(['is_active' => ! $cat->is_active]);
+        $this->dispatch('toast', type: 'success', message: $cat->is_active ? 'Catégorie activée.' : 'Catégorie désactivée.');
+    }
+
+    public function deleteCategory(int $id): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        $cat = TicketCategory::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        if ($cat->tickets()->exists()) {
+            $this->dispatch('toast', type: 'error', message: 'Impossible de supprimer : des tickets utilisent cette catégorie.');
+            return;
+        }
+
+        $deletedId = (int) $cat->id;
+        $cat->delete();
+
+        if ($this->default_category_id === $deletedId) {
+            $this->default_category_id = null;
+            $org = $this->orgOrFail();
+            $settings = is_array($org->settings) ? $org->settings : [];
+            $settings['defaults']['ticket_category_id'] = null;
+            $org->update(['settings' => $settings]);
+        }
+
+        $this->dispatch('toast', type: 'success', message: 'Catégorie supprimée.');
+    }
+
+    // ─── Priority CRUD ──────────────────────────────────────────────
+
+    public function createPriority(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $this->validate([
+            'newPriorityName' => ['required', 'string', 'max:80'],
+            'newPriorityLevel' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        if (TicketPriority::query()->where('organization_id', $orgId)->where('level', (int) $this->newPriorityLevel)->exists()) {
+            $this->addError('newPriorityLevel', 'Ce niveau est déjà utilisé.');
+            return;
+        }
+
+        TicketPriority::query()->create([
+            'organization_id' => $orgId,
+            'name' => trim($this->newPriorityName),
+            'level' => (int) $this->newPriorityLevel,
+            'is_active' => true,
+        ]);
+
+        $this->newPriorityName = '';
+        $this->newPriorityLevel = null;
+        $this->dispatch('toast', type: 'success', message: 'Priorité créée.');
+    }
+
+    public function startEditPriority(int $id): void
+    {
+        $orgId = $this->orgId();
+        $prio = TicketPriority::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $this->editingPriorityId = (int) $prio->id;
+        $this->editingPriorityName = (string) $prio->name;
+        $this->editingPriorityLevel = (int) $prio->level;
+    }
+
+    public function cancelEditPriority(): void
+    {
+        $this->editingPriorityId = null;
+        $this->editingPriorityName = '';
+        $this->editingPriorityLevel = null;
+    }
+
+    public function updatePriority(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $this->validate([
+            'editingPriorityName' => ['required', 'string', 'max:80'],
+            'editingPriorityLevel' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->editingPriorityId, 403);
+
+        $prio = TicketPriority::query()
+            ->where('organization_id', $orgId)
+            ->whereKey((int) $this->editingPriorityId)
+            ->firstOrFail();
+
+        if (
+            TicketPriority::query()
+                ->where('organization_id', $orgId)
+                ->where('level', (int) $this->editingPriorityLevel)
+                ->where('id', '!=', $prio->id)
+                ->exists()
+        ) {
+            $this->addError('editingPriorityLevel', 'Ce niveau est déjà utilisé par une autre priorité.');
+            return;
+        }
+
+        $prio->update([
+            'name' => trim($this->editingPriorityName),
+            'level' => (int) $this->editingPriorityLevel,
+        ]);
+
+        $this->editingPriorityId = null;
+        $this->editingPriorityName = '';
+        $this->editingPriorityLevel = null;
+        $this->dispatch('toast', type: 'success', message: 'Priorité mise à jour.');
+    }
+
+    public function togglePriority(int $id): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        $prio = TicketPriority::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $prio->update(['is_active' => ! $prio->is_active]);
+        $this->dispatch('toast', type: 'success', message: $prio->is_active ? 'Priorité activée.' : 'Priorité désactivée.');
+    }
+
+    public function deletePriority(int $id): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        $prio = TicketPriority::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        if ($prio->tickets()->exists()) {
+            $this->dispatch('toast', type: 'error', message: 'Impossible de supprimer : des tickets utilisent cette priorité.');
+            return;
+        }
+
+        $deletedId = (int) $prio->id;
+        $prio->delete();
+
+        if ($this->default_priority_id === $deletedId) {
+            $this->default_priority_id = null;
+            $org = $this->orgOrFail();
+            $settings = is_array($org->settings) ? $org->settings : [];
+            $settings['defaults']['ticket_priority_id'] = null;
+            $org->update(['settings' => $settings]);
+        }
+
+        $this->dispatch('toast', type: 'success', message: 'Priorité supprimée.');
     }
 
     public function render()
@@ -779,25 +649,90 @@ class Settings extends Component
             ->get()
             : collect();
 
-        $formTemplates = $orgId
-            ? TicketFormTemplate::query()
-            ->where('organization_id', $orgId)
-            ->with([
-                'category:id,name',
-                'targetUser:id,name,email',
-                'fields:id,template_id,key,label,type,required,options,sort_order',
-            ])
-            ->orderBy('name')
-            ->get()
+        $organizationFunctions = $orgId
+            ? OrganizationFunction::query()
+                ->where('organization_id', $orgId)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'sort_order'])
             : collect();
 
         return view('livewire.admin.settings', [
             'org' => $org,
             'categories' => $categories,
             'priorities' => $priorities,
+            'organizationFunctions' => $organizationFunctions,
             'members' => $members,
-            'formTemplates' => $formTemplates,
         ]);
+    }
+
+    // ─── Function (fonction métier) CRUD ───────────────────────────────────
+
+    public function createFunction(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+        $this->validate(['newFunctionName' => ['required', 'string', 'max:80']]);
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        OrganizationFunction::query()->create([
+            'organization_id' => $orgId,
+            'name' => trim($this->newFunctionName),
+            'sort_order' => OrganizationFunction::query()->where('organization_id', $orgId)->max('sort_order') + 1,
+        ]);
+        $this->newFunctionName = '';
+        $this->dispatch('toast', type: 'success', message: __('Fonction créée.'));
+    }
+
+    public function startEditFunction(int $id): void
+    {
+        $orgId = $this->orgId();
+        $fn = OrganizationFunction::query()->where('organization_id', $orgId)->whereKey($id)->firstOrFail();
+        $this->editingFunctionId = (int) $fn->id;
+        $this->editingFunctionName = (string) $fn->name;
+    }
+
+    public function cancelEditFunction(): void
+    {
+        $this->editingFunctionId = null;
+        $this->editingFunctionName = '';
+    }
+
+    public function updateFunction(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+        $this->validate(['editingFunctionName' => ['required', 'string', 'max:80']]);
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->editingFunctionId, 403);
+
+        $fn = OrganizationFunction::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($this->editingFunctionId)
+            ->firstOrFail();
+        $fn->update(['name' => trim($this->editingFunctionName)]);
+        $this->editingFunctionId = null;
+        $this->editingFunctionName = '';
+        $this->dispatch('toast', type: 'success', message: __('Fonction mise à jour.'));
+    }
+
+    public function deleteFunction(int $id): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+        $orgId = $this->orgId();
+        $fn = OrganizationFunction::query()->where('organization_id', $orgId)->whereKey($id)->firstOrFail();
+        if ($fn->tickets()->exists()) {
+            $this->dispatch('toast', type: 'error', message: __('Impossible de supprimer : des tickets sont assignés à cette fonction.'));
+            return;
+        }
+        $fn->memberships()->update(['organization_function_id' => null]);
+        $fn->delete();
+        $this->dispatch('toast', type: 'success', message: __('Fonction supprimée.'));
     }
 }
 

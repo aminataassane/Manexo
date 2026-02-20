@@ -10,7 +10,14 @@
         ? 'https://ui-avatars.com/api/?name=' . urlencode($msg->user->name) . '&size=32&background=e2e8f0&color=475569'
         : 'https://ui-avatars.com/api/?name=U&size=32&background=e2e8f0&color=475569';
     $bodyEscaped = e($msg->body);
-    $bodyWithMentions = preg_replace('/@([\p{L}\p{N}_]+(?:\s+[\p{L}\p{N}_]+)*)/u', '<span class="mention font-medium rounded px-0.5" style="background: var(--accent-soft); color: var(--accent);">@$1</span>', $bodyEscaped);
+    $mentionPattern = '/@([\p{L}\p{N}_]+(?:\s+[\p{L}\p{N}_]+)*)/u';
+    if ($isNote) {
+        $bodyWithMentions = preg_replace($mentionPattern, '<span class="mention font-medium" style="color: color-mix(in srgb, var(--accent) 55%, black);">@$1</span>', $bodyEscaped);
+    } elseif ($isOwn) {
+        $bodyWithMentions = preg_replace($mentionPattern, '<span class="mention font-medium" style="color: color-mix(in srgb, var(--accent) 55%, black);">@$1</span>', $bodyEscaped);
+    } else {
+        $bodyWithMentions = preg_replace($mentionPattern, '<span class="mention font-medium text-slate-700">@$1</span>', $bodyEscaped);
+    }
     $bodyFormatted = nl2br($bodyWithMentions);
     $messageAttachments = is_array($msg->attachments) ? $msg->attachments : [];
 @endphp

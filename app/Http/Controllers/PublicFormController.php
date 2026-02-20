@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\FormStatus;
 use App\Enums\OrganizationRole;
 use App\Enums\TicketStatus;
+use App\Models\Form;
+use App\Models\FormResponse;
 use App\Models\OrganizationMembership;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
-use App\Models\TicketFormTemplate;
 use App\Models\TicketPriority;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -22,16 +24,16 @@ class PublicFormController extends Controller
 {
     public function show(Request $request, string $slug)
     {
-        $template = TicketFormTemplate::query()
+        $form = Form::query()
+            ->published()
             ->where('is_public', true)
-            ->where('is_active', true)
-            ->where('public_slug', $slug)
-            ->with(['organization', 'category', 'steps.fields', 'fields'])
+            ->where('slug', $slug)
+            ->with(['organization', 'category', 'fields'])
             ->firstOrFail();
 
-        $org = $template->organization;
+        $org = $form->organization;
 
-        $categories = $template->ticket_category_id
+        $categories = $form->ticket_category_id
             ? collect()
             : TicketCategory::query()
                 ->where('organization_id', $org->id)
@@ -48,7 +50,7 @@ class PublicFormController extends Controller
         $defaultPriorityId = (int) ($priorities->first()?->id ?? 0);
 
         return view('forms.public', [
-            'template' => $template,
+            'form' => $form,
             'organization' => $org,
             'categories' => $categories,
             'priorities' => $priorities,
@@ -57,7 +59,6 @@ class PublicFormController extends Controller
         ]);
     }
 
-    /** @return RedirectResponse */
     public function submit(Request $request, string $slug): RedirectResponse
     {
         // Honeypot (anti-bot): must stay empty
@@ -65,16 +66,15 @@ class PublicFormController extends Controller
             abort(422);
         }
 
-        $template = TicketFormTemplate::query()
+        $form = Form::query()
+            ->published()
             ->where('is_public', true)
-            ->where('is_active', true)
-            ->where('public_slug', $slug)
-            ->with(['organization', 'category', 'steps.fields', 'fields'])
+            ->where('slug', $slug)
+            ->with(['organization', 'category', 'fields'])
             ->firstOrFail();
 
-        $org = $template->organization;
+        $org = $form->organization;
 
-        // Determine actor (logged user or "guest" user created/found by email)
         $actor = Auth::user();
         $guestEmail = null;
 
@@ -84,7 +84,7 @@ class PublicFormController extends Controller
             'ticket_priority_id' => ['required', 'integer', 'exists:ticket_priorities,id'],
             'ticket_category_id' => ['nullable', 'integer', 'exists:ticket_categories,id'],
             'files' => ['array', 'max:5'],
-            'files.*' => ['file', 'max:10240'], // 10MB each
+            'files.*' => ['file', 'max:10240'],
             'links' => ['array', 'max:5'],
             'links.*' => ['url', 'max:2000'],
         ];
@@ -94,9 +94,10 @@ class PublicFormController extends Controller
             $baseRules['guest_email'] = ['required', 'email', 'max:255'];
         }
 
-        // Dynamic rules from template fields
+        // Dynamic rules from form fields
         $dynamicRules = [];
-        foreach ($template->fields as $f) {
+        $formFields = $form->fields->where('type', '!=', 'section');
+        foreach ($formFields as $f) {
             $path = "custom.{$f->key}";
             $rules = [$f->required ? 'required' : 'nullable'];
             $type = (string) $f->type;
@@ -106,19 +107,21 @@ class PublicFormController extends Controller
                 $rules[] = 'max:255';
             } elseif ($type === 'number') {
                 $rules[] = 'numeric';
-            } elseif ($type === 'date') {
+            } elseif (in_array($type, ['date', 'datetime'], true)) {
                 $rules[] = 'date';
             } elseif ($type === 'checkbox') {
                 $rules[] = 'boolean';
             } elseif ($type === 'textarea') {
                 $rules[] = 'string';
                 $rules[] = 'max:5000';
-            } elseif ($type === 'select') {
+            } elseif (in_array($type, ['select', 'radio'], true)) {
                 $rules[] = 'string';
                 $rules[] = 'max:120';
                 if (is_array($f->options) && count($f->options)) {
                     $rules[] = Rule::in($f->options);
                 }
+            } elseif ($type === 'file') {
+                $rules = ['nullable', 'file', 'max:10240'];
             } else {
                 $rules[] = 'string';
                 $rules[] = 'max:255';
@@ -140,7 +143,7 @@ class PublicFormController extends Controller
             ]);
         }
 
-        $categoryId = $template->ticket_category_id ? (int) $template->ticket_category_id : (int) ($validated['ticket_category_id'] ?? 0);
+        $categoryId = $form->ticket_category_id ? (int) $form->ticket_category_id : (int) ($validated['ticket_category_id'] ?? 0);
         if ($categoryId <= 0) {
             throw ValidationException::withMessages([
                 'ticket_category_id' => __('Veuillez choisir une catégorie.'),
@@ -160,12 +163,10 @@ class PublicFormController extends Controller
             $guestEmail = Str::lower(trim((string) $validated['guest_email']));
             $guestName = trim((string) $validated['guest_name']);
 
-            /** @var User|null $existing */
             $existing = User::query()->where('email', $guestEmail)->first();
 
             if ($existing) {
                 $actor = $existing;
-                // If user has no name yet, set it; otherwise keep existing.
                 if (! $actor->name && $guestName) {
                     $actor->forceFill(['name' => $guestName])->save();
                 }
@@ -177,7 +178,6 @@ class PublicFormController extends Controller
                 ]);
             }
 
-            // Ensure membership in this organization
             OrganizationMembership::query()->firstOrCreate([
                 'organization_id' => $org->id,
                 'user_id' => $actor->id,
@@ -188,7 +188,7 @@ class PublicFormController extends Controller
 
         // Build custom_fields payload
         $customFields = [];
-        foreach ($template->fields as $f) {
+        foreach ($formFields as $f) {
             $key = (string) $f->key;
             $val = data_get($validated, "custom.{$key}");
 
@@ -217,12 +217,8 @@ class PublicFormController extends Controller
             'custom_fields' => $customFields ?: null,
         ]);
 
-        // Attachments (files + links)
-        $attachments = [
-            'files' => [],
-            'links' => [],
-        ];
-
+        // Attachments
+        $attachments = ['files' => [], 'links' => []];
         /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
         $disk = Storage::disk('public');
 
@@ -231,7 +227,6 @@ class PublicFormController extends Controller
             $ext = (string) ($file->getClientOriginalExtension() ?: '');
             $safeBase = Str::slug(pathinfo($original, PATHINFO_FILENAME)) ?: 'file';
             $filename = $safeBase . '-' . Str::lower(Str::random(10)) . ($ext ? '.' . $ext : '');
-
             $path = $file->storeAs("ticket-attachments/org-{$org->id}/ticket-{$ticket->id}", $filename, 'public');
 
             $attachments['files'][] = [
@@ -245,17 +240,25 @@ class PublicFormController extends Controller
         }
 
         foreach (($validated['links'] ?? []) as $url) {
-            $attachments['links'][] = [
-                'url' => (string) $url,
-            ];
+            $attachments['links'][] = ['url' => (string) $url];
         }
 
         if (count($attachments['files']) || count($attachments['links'])) {
             $ticket->update(['attachments' => $attachments]);
         }
 
-        // If embedded, keep a lightweight success
-        $message = $template->public_thank_you ?: __('Merci, votre demande a bien été envoyée.');
+        // Create FormResponse
+        FormResponse::create([
+            'form_id' => $form->id,
+            'user_id' => $actor->id,
+            'form_version' => $form->current_version,
+            'responses' => $customFields,
+            'field_snapshot' => $form->snapshotFields(),
+            'ticket_id' => $ticket->id,
+            'ip_address' => $request->ip(),
+        ]);
+
+        $message = $form->public_thank_you ?: __('Merci, votre demande a bien été envoyée.');
 
         return redirect()
             ->route('forms.public.show', ['slug' => $slug, 'embed' => $request->boolean('embed') ? 1 : null])
@@ -264,4 +267,3 @@ class PublicFormController extends Controller
             ->with('public_form_email', $guestEmail);
     }
 }
-

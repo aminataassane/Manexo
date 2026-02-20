@@ -1,0 +1,156 @@
+<?php
+
+namespace App\Livewire\UserForms;
+
+use App\Enums\FormAssignmentStatus;
+use App\Events\UserNotificationReceived;
+use App\Models\Form;
+use App\Models\FormAssignment;
+use App\Models\FormResponse;
+use App\Models\User;
+use App\Notifications\FormResponseNotification;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+use Livewire\WithFileUploads;
+
+#[Layout('layouts.manexo-app')]
+#[Title('Remplir le formulaire')]
+class Fill extends Component
+{
+    use WithFileUploads;
+
+    public FormAssignment $assignment;
+    public array $answers = [];
+    public array $fileUploads = [];
+
+    public function mount(FormAssignment $assignment): void
+    {
+        $userId = Auth::id();
+        $orgId = (int) session('current_organization_id');
+
+        // Verify user has access to this assignment
+        $hasAccess = FormAssignment::query()
+            ->whereKey($assignment->id)
+            ->forUser($userId, $orgId)
+            ->whereHas('form', fn($q) => $q->where('organization_id', $orgId))
+            ->exists();
+
+        abort_if(! $hasAccess, 403);
+        abort_if($assignment->status === FormAssignmentStatus::Submitted, 403, 'Ce formulaire a déjà été soumis.');
+
+        $this->assignment = $assignment;
+        $this->assignment->loadMissing('form.fields');
+
+        // Pre-populate answers
+        foreach ($this->assignment->form->fields as $field) {
+            if ($field->type === 'section') {
+                continue;
+            }
+            $this->answers[$field->key] = $field->type === 'checkbox' ? false : '';
+        }
+    }
+
+    public function submit(): void
+    {
+        $user = Auth::user();
+        abort_if(! $user, 403);
+
+        $this->assignment->loadMissing('form.fields');
+        $form = $this->assignment->form;
+        $fields = $form->fields->where('type', '!=', 'section');
+
+        // Build validation rules
+        $rules = [];
+        foreach ($fields as $f) {
+            $path = "answers.{$f->key}";
+            $fieldRules = [$f->required ? 'required' : 'nullable'];
+            $type = (string) $f->type;
+
+            if ($type === 'email') {
+                $fieldRules[] = 'email';
+                $fieldRules[] = 'max:255';
+            } elseif ($type === 'number') {
+                $fieldRules[] = 'numeric';
+            } elseif (in_array($type, ['date', 'datetime'], true)) {
+                $fieldRules[] = 'date';
+            } elseif ($type === 'checkbox') {
+                $fieldRules[] = 'boolean';
+            } elseif ($type === 'textarea') {
+                $fieldRules[] = 'string';
+                $fieldRules[] = 'max:5000';
+            } elseif (in_array($type, ['select', 'radio'], true)) {
+                $fieldRules[] = 'string';
+                $fieldRules[] = 'max:120';
+                if (is_array($f->options) && count($f->options)) {
+                    $fieldRules[] = Rule::in($f->options);
+                }
+            } elseif ($type === 'file') {
+                // File handled separately
+                $fieldRules = ['nullable'];
+            } else {
+                $fieldRules[] = 'string';
+                $fieldRules[] = 'max:255';
+            }
+
+            $rules[$path] = $fieldRules;
+        }
+
+        $this->validate($rules);
+
+        // Build clean responses
+        $responses = [];
+        foreach ($fields as $f) {
+            $key = (string) $f->key;
+            $val = $this->answers[$key] ?? null;
+            if ($f->type === 'checkbox') {
+                $val = (bool) $val;
+            }
+            if (is_string($val)) {
+                $val = trim($val);
+            }
+            if ($val === null || $val === '') {
+                continue;
+            }
+            $responses[$key] = $val;
+        }
+
+        $response = FormResponse::create([
+            'form_id' => $form->id,
+            'user_id' => $user->id,
+            'assignment_id' => $this->assignment->id,
+            'form_version' => $this->assignment->form_version,
+            'responses' => $responses,
+            'field_snapshot' => $form->snapshotFields(),
+            'ip_address' => request()->ip(),
+        ]);
+
+        $this->assignment->update([
+            'status' => FormAssignmentStatus::Submitted,
+            'submitted_at' => now(),
+        ]);
+
+        // Notify form creator (assigned_by)
+        $creator = User::find($this->assignment->assigned_by);
+        if ($creator && (int) $creator->id !== (int) $user->id) {
+            $creator->notify(new FormResponseNotification(
+                formId: $form->id,
+                formName: $form->name,
+                responseId: $response->id,
+                responderId: $user->id,
+                responderName: $user->name,
+            ));
+            event(new UserNotificationReceived(userId: $creator->id, notificationType: 'form_response'));
+        }
+
+        session()->flash('form_success', 'Votre réponse a bien été enregistrée.');
+        $this->redirectRoute('forms.index');
+    }
+
+    public function render()
+    {
+        return view('livewire.user-forms.fill');
+    }
+}

@@ -3,15 +3,14 @@
 namespace App\Livewire\Discussions;
 
 use App\Enums\TicketMessageType;
-use App\Enums\TicketStatus;
+use App\Events\UserNotificationReceived;
 use App\Models\DiscussionMessage;
 use App\Models\DiscussionThread;
 use App\Models\Ticket;
-use App\Notifications\TicketNewMessageNotification;
-use App\Models\TicketCategory;
 use App\Models\TicketMessage;
-use App\Models\TicketPriority;
 use App\Models\User;
+use App\Notifications\DiscussionInviteNotification;
+use App\Notifications\TicketNewMessageNotification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -24,6 +23,19 @@ use Livewire\WithPagination;
 class Index extends Component
 {
     use WithPagination;
+
+    public function getListeners(): array
+    {
+        $userId = Auth::id();
+
+        if (! $userId) {
+            return [];
+        }
+
+        return [
+            "echo-private:App.Models.User.{$userId},.notification.received" => '$refresh',
+        ];
+    }
 
     #[Url(history: true)]
     public string $scope = 'tickets'; // threads | tickets
@@ -121,7 +133,23 @@ class Index extends Component
             $this->addError('newDiscussionUserId', __('Utilisateur invalide.'));
             return;
         }
-        // Create a real (non-ticket) discussion thread (1:1).
+
+        // Duplicate 1:1 prevention: find existing thread between these two users
+        $existingThread = DiscussionThread::query()
+            ->where('organization_id', $orgId)
+            ->where('is_group', false)
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $other->id))
+            ->whereDoesntHave('participants', fn ($q) => $q->whereNotIn('users.id', [$user->id, $other->id]))
+            ->first();
+
+        if ($existingThread) {
+            $this->showNewDiscussionModal = false;
+            $this->newDiscussionUserId = null;
+            $this->redirect(route('discussions.index', ['ticket' => 'd-' . $existingThread->id]), navigate: true);
+            return;
+        }
+
         $thread = DiscussionThread::create([
             'organization_id' => $orgId,
             'created_by' => $user->id,
@@ -132,9 +160,20 @@ class Index extends Component
             $user->id => ['added_by' => $user->id],
             $other->id => ['added_by' => $user->id],
         ]);
+
+        // Notify the other user
+        $other->notify(new DiscussionInviteNotification(
+            threadId: $thread->id,
+            threadName: $user->name,
+            isGroup: false,
+            inviterId: $user->id,
+            inviterName: $user->name,
+        ));
+        event(new UserNotificationReceived((int) $other->id, 'discussion_invite'));
+
         $this->showNewDiscussionModal = false;
         $this->newDiscussionUserId = null;
-        $this->redirect(route('discussions.index', ['ticket' => 'd-'.$thread->id]));
+        $this->redirect(route('discussions.index', ['ticket' => 'd-' . $thread->id]), navigate: true);
     }
 
     public function createGroupDiscussion(): void
@@ -161,13 +200,29 @@ class Index extends Component
             $user->id => ['added_by' => $user->id],
         ];
         foreach ($this->newGroupUserIds as $uid) {
-            $pivot[$uid] = ['added_by' => $user->id];
+            $pivot[(int) $uid] = ['added_by' => $user->id];
         }
         $thread->participants()->syncWithoutDetaching($pivot);
+
+        // Notify all invited participants
+        foreach ($this->newGroupUserIds as $uid) {
+            $invitee = User::find($uid);
+            if ($invitee && (int) $invitee->id !== (int) $user->id) {
+                $invitee->notify(new DiscussionInviteNotification(
+                    threadId: $thread->id,
+                    threadName: $name,
+                    isGroup: true,
+                    inviterId: $user->id,
+                    inviterName: $user->name,
+                ));
+                event(new UserNotificationReceived((int) $invitee->id, 'discussion_invite'));
+            }
+        }
+
         $this->showNewGroupModal = false;
         $this->newGroupUserIds = [];
         $this->newGroupName = '';
-        $this->redirect(route('discussions.index', ['ticket' => 'd-'.$thread->id]));
+        $this->redirect(route('discussions.index', ['ticket' => 'd-' . $thread->id]), navigate: true);
     }
 
     /** @return \Illuminate\Contracts\View\View */
@@ -216,7 +271,8 @@ class Index extends Component
         }
 
         /** @var \App\Models\User $user */
-        $role = $user->organizations()->where('organization_id', $orgId)->first()?->pivot?->role ?? 'member';
+        $org = request()->attributes->get('currentOrganization');
+        $role = $org?->pivot?->role ?? 'member';
         $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
 
         $search = trim($this->search);
@@ -228,8 +284,7 @@ class Index extends Component
             $threadsQuery = DiscussionThread::query()
                 ->where('organization_id', $orgId)
                 ->whereNull('archived_at')
-                ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
-                ->whereHas('messages'); // only started discussions
+                ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id));
 
             if ($this->viewKey === 'groups') {
                 $threadsQuery->where('is_group', true);
@@ -329,8 +384,7 @@ class Index extends Component
         $threadCountsQuery = DiscussionThread::query()
             ->where('organization_id', $orgId)
             ->whereNull('archived_at')
-            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
-            ->whereHas('messages');
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id));
         $viewCounts['threads_all'] = (clone $threadCountsQuery)->count();
         $viewCounts['direct'] = (clone $threadCountsQuery)->where('is_group', false)->count();
         $viewCounts['thread_groups'] = (clone $threadCountsQuery)->where('is_group', true)->count();

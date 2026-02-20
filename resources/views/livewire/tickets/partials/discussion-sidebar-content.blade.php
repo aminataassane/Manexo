@@ -34,16 +34,53 @@
         <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Assigné') }}</div>
-                <div class="mt-1 flex items-center gap-2 min-w-0">
+                <div class="mt-1 flex flex-col gap-2 min-w-0">
                     @if($assignee)
-                        <x-avatar :name="$assignee->name" size="h-6 w-6" class="ring-1 ring-slate-200 shrink-0" />
-                        <span class="text-sm font-semibold text-slate-900 truncate">{{ $assignee->name }}</span>
+                        <div class="flex items-center gap-2 min-w-0">
+                            <x-avatar :name="$assignee->name" size="h-6 w-6" class="ring-1 ring-slate-200 shrink-0" />
+                            <span class="text-sm font-semibold text-slate-900 truncate">{{ $assignee->name }}</span>
+                        </div>
                     @else
                         <span class="text-sm text-slate-400 italic">—</span>
+                    @endif
+                    @if($canAssignTicket ?? false)
+                        <div class="flex flex-wrap gap-1.5">
+                            @if(!$assignee || (auth()->id() && (int)$assignee->id !== (int)auth()->id()))
+                                <button type="button" wire:click="assignToMe" class="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all">
+                                    <iconify-icon icon="solar:user-check-bold" width="14"></iconify-icon>
+                                    {{ __("M'assigner") }}
+                                </button>
+                            @endif
+                            <select class="rounded-lg border-slate-200 bg-white py-1.5 pl-2 pr-7 text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] min-w-0 max-w-full" wire:change="setAssignee($event.target.value)">
+                                <option value="0">{{ __('Assigner à…') }}</option>
+                                @foreach($orgUsers ?? [] as $u)
+                                    <option value="{{ $u->id }}" @selected($assignee && $assignee->id === $u->id)>{{ $u->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     @endif
                 </div>
             </div>
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Fonction') }}</div>
+                @if($canSeeInternalNotes ?? false)
+                    <select class="mt-1 w-full rounded-lg border-slate-200 bg-white py-1.5 px-2 text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" wire:change="setAssignedToFunction($event.target.value)">
+                        <option value="">{{ __('— Aucune —') }}</option>
+                        @foreach($organizationFunctions ?? [] as $fn)
+                            <option value="{{ $fn->id }}" @selected($ticket->assigned_to_function_id === $fn->id)>{{ $fn->name }}</option>
+                        @endforeach
+                    </select>
+                @else
+                    <div class="mt-1">
+                        @if($ticket->assignedToFunction ?? null)
+                            <span class="text-sm font-semibold text-slate-900">{{ $ticket->assignedToFunction->name }}</span>
+                        @else
+                            <span class="text-sm text-slate-400 italic">—</span>
+                        @endif
+                    </div>
+                @endif
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 col-span-2">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Échéance') }}</div>
                 <div class="mt-1 flex items-center gap-2">
                     <iconify-icon icon="solar:calendar-add-linear" width="16" class="text-slate-400"></iconify-icon>
@@ -221,6 +258,22 @@
             </button>
         @endif
     </div>
+
+    @if($canDeleteTicket ?? false)
+    <!-- Suppression (soft delete) -->
+    <div class="rounded-2xl border border-red-100 bg-red-50/50 p-4 shadow-sm">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-red-600 mb-3">{{ __('Supprimer le ticket') }}</div>
+        <p class="text-sm text-slate-600 mb-3">{{ __('Le ticket sera masqué des listes. La suppression peut être annulée par un administrateur.') }}</p>
+        <button
+            type="button"
+            x-on:click="$dispatch('open-modal', 'confirm-delete-ticket')"
+            class="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-red-600 text-sm font-bold text-white hover:bg-red-700 transition-colors"
+        >
+            <iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="18"></iconify-icon>
+            {{ __('Supprimer') }}
+        </button>
+    </div>
+    @endif
 
     <div class="mt-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500 text-center">
         {{ __('Créé') }} {{ $ticket->created_at->translatedFormat('d M H:i') }} · {{ __('Mis à jour') }} {{ $lastActivity->diffForHumans() }}
