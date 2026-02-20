@@ -76,6 +76,36 @@
             </div>
         </div>
 
+        {{-- Erreurs de sauvegarde du formulaire (visibles même sans ouvrir l'onglet Propriétés) --}}
+        @php
+            $formSaveErrorKeys = ['fb_selected_form_name', 'fb_selected_form_category_id', 'fb_selected_form_target_user_id', 'fb_selected_form_slug', 'fb_selected_form_public_title', 'fb_selected_form_public_description', 'fb_selected_form_public_thank_you', 'fb_selected_form_description'];
+            $viewErrors = isset($errors) ? $errors : new \Illuminate\Support\ViewErrorBag();
+            $formSaveErrors = collect($formSaveErrorKeys)->flatMap(fn ($key) => $viewErrors->get($key))->filter()->values();
+        @endphp
+        @if($formSaveErrors->isNotEmpty())
+            <div class="mx-4 sm:mx-6 lg:mx-8 mb-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="shrink-0 flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                        <iconify-icon icon="solar:danger-triangle-bold" width="20"></iconify-icon>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-amber-800">{{ __('Impossible d\'enregistrer le formulaire') }}</p>
+                        <ul class="mt-1 list-inside list-disc text-xs text-amber-700 space-y-0.5">
+                            @foreach($formSaveErrors as $msg)
+                                <li>{{ $msg }}</li>
+                            @endforeach
+                        </ul>
+                        <p class="mt-2 text-xs text-amber-600">
+                            {{ __('Ouvrez l\'onglet') }} <strong>{{ __('Propriétés') }}</strong> {{ __('(panneau droit) pour corriger le nom, la catégorie ou le slug public.') }}
+                        </p>
+                    </div>
+                    <button type="button" @click="sidebarTab = 'properties'; mobileSidebarOpen = true" class="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors">
+                        {{ __('Ouvrir Propriétés') }}
+                    </button>
+                </div>
+            </div>
+        @endif
+
         <!-- TABS -->
         @if($fb_selected_form_id)
         <nav class="flex gap-1 px-4 sm:px-6 lg:px-8 pb-0" aria-label="{{ __('Onglets') }}">
