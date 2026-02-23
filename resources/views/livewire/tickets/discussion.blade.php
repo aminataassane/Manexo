@@ -5,8 +5,7 @@
     $lastActivity = $ticket->messages->last()?->created_at ?? $ticket->updated_at;
     $allAttachments = $ticket->messages->flatMap(fn ($m) => is_array($m->attachments) ? $m->attachments : [])->filter()->values();
     $creator = $ticket->creator;
-    $assignee = $ticket->assignee;
-    $discussionUsers = collect([$creator, $assignee])->merge($ticket->participants)->filter()->unique('id');
+    $discussionUsers = collect([$creator])->merge($ticket->assignees)->merge($ticket->participants)->filter()->unique('id');
     $ticketAttachments = [];
     if (is_array($ticket->attachments)) {
         $files = $ticket->attachments['files'] ?? [];
@@ -21,11 +20,11 @@
     $customFields = is_array($ticket->custom_fields) ? $ticket->custom_fields : [];
 
     $statusLabels = [
-        'open' => __('Ouvert'),
-        'in_progress' => __('En cours'),
-        'pending' => __('En attente'),
-        'resolved' => __('Résolu'),
-        'closed' => __('Fermé'),
+        'open' => __('tickets.status.open'),
+        'in_progress' => __('tickets.status.in_progress'),
+        'pending' => __('tickets.status.pending'),
+        'resolved' => __('tickets.status.resolved'),
+        'closed' => __('tickets.status.closed'),
     ];
     $priorityDotClass = [
         1 => 'bg-slate-400',
@@ -38,8 +37,8 @@
 @endphp
 
 <div
-    class="flex flex-col min-h-0 rounded-xl sm:rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm"
-    style="height: calc(100dvh - 6.5rem); min-height: 16rem;"
+    class="flex flex-col min-h-0 rounded-none sm:rounded-xl lg:rounded-2xl overflow-hidden bg-white border-0 sm:border border-slate-200 shadow-sm"
+    style="height: calc(100dvh - 5rem); min-height: 14rem; padding-bottom: env(safe-area-inset-bottom, 0);"
     x-data="discussionWebSocket({{ $ticketId }}, {{ auth()->id() ?? 'null' }}, {{ $canSeeInternalNotes ? 'true' : 'false' }})"
     @keydown.enter.window="if (document.activeElement?.closest('[data-composer]') && !$event.shiftKey) { $event.preventDefault(); $refs.submitBtn?.click() }"
     @keydown.escape.window="addParticipantOpen = false"
@@ -87,20 +86,26 @@
         {{-- SECTION DISCUSSION : uniquement fil de discussion + composer. Cible pour récupération discussion. --}}
         <section id="ticket-discussion-section" aria-label="{{ __('Discussion') }}" class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-slate-50/50">
             <!-- Header (sticky pour rester visible sous le header de l'app) -->
-            <header class="sticky top-0 z-20 shrink-0 bg-white border-b border-slate-100 px-4 py-3 sm:px-6 shadow-sm">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <nav class="flex items-center gap-2 min-w-0 text-sm">
-                        <a href="{{ route('tickets.index') }}" class="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-900 transition-colors">
+            <header class="sticky top-0 z-20 shrink-0 bg-white border-b border-slate-100 px-3 py-2.5 sm:px-6 sm:py-3 shadow-sm safe-area-inset-top" style="padding-top: max(0.625rem, env(safe-area-inset-top));">
+                <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+                    <nav class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-xs sm:text-sm" style="min-width: 0;">
+                        <a href="{{ route('tickets.index') }}" class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
                             <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
                             <span class="hidden sm:inline font-medium">{{ __('Retour') }}</span>
                         </a>
-                        <span class="text-slate-300">/</span>
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="font-mono text-xs font-bold text-slate-400">#{{ $ticket->id }}</span>
-                            <span class="font-semibold text-slate-900 truncate max-w-[200px] sm:max-w-md">{{ $ticket->subject }}</span>
+                        <span class="text-slate-300 shrink-0">/</span>
+                        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
+                            <span class="font-mono text-xs font-bold text-slate-400 shrink-0">#{{ $ticket->id }}</span>
+                            <span class="font-semibold text-slate-900 truncate min-w-0">{{ $ticket->subject }}</span>
+                            <span
+                                x-show="!wsConnected"
+                                x-cloak
+                                class="h-2 w-2 rounded-full bg-amber-400 shrink-0 animate-pulse"
+                                title="{{ __('Connexion en cours…') }}"
+                            ></span>
                         </div>
                     </nav>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                         <button type="button" @click="togglePanel()" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors lg:hidden" title="{{ __('Infos ticket') }}">
                             <iconify-icon icon="solar:sidebar-minimalistic-linear" width="20"></iconify-icon>
                         </button>
@@ -110,23 +115,29 @@
                         <button type="button" wire:click="$refresh" wire:loading.attr="disabled" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors" title="{{ __('Actualiser') }}">
                             <iconify-icon icon="solar:refresh-linear" width="18" class="wire-loading:animate-spin"></iconify-icon>
                         </button>
+                        @if($canEditTicket ?? false)
+                            <button type="button" wire:click="openEditTicketModal" class="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 hover:text-slate-900 transition-colors" title="{{ __('Modifier le ticket') }}">
+                                <iconify-icon icon="solar:pen-linear" width="18"></iconify-icon>
+                                <span class="hidden sm:inline">{{ __('Modifier') }}</span>
+                            </button>
+                        @endif
                     </div>
                 </div>
             </header>
 
             <!-- Messages Scroll Area (flex-1 + min-h-0 so this div gets bounded height and scrolls) -->
             <div id="discussion-messages" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-contain" x-data="{ tab: 'discussion' }">
-                <div class="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
-                    
+                <div class="mx-auto w-full max-w-4xl px-3 py-4 sm:px-6 sm:py-8" style="padding-left: max(0.75rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right));">
+
                     <!-- Tabs -->
-                    <div class="flex items-center gap-1 rounded-xl bg-slate-100 p-1 mb-6 sm:mb-8 w-fit mx-auto">
-                        <button type="button" @click="tab = 'discussion'" class="rounded-lg px-4 py-1.5 text-sm font-semibold transition-all" :class="tab === 'discussion' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+                    <div class="flex flex-wrap items-center justify-center gap-1 rounded-xl bg-slate-100 p-1 mb-4 sm:mb-8 w-full max-w-full mx-auto">
+                        <button type="button" @click="tab = 'discussion'" class="rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all touch-manipulation min-h-[36px]" :class="tab === 'discussion' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
                             {{ __('Discussion') }}
                         </button>
                         @if($canSeeInternalNotes)
-                            <button type="button" @click="tab = 'notes'" class="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-semibold transition-all" :class="tab === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+                            <button type="button" @click="tab = 'notes'" class="flex items-center gap-1.5 rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all touch-manipulation min-h-[36px]" :class="tab === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
                                 <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="14"></iconify-icon>
-                                {{ __('Notes internes') }}
+                                <span class="whitespace-nowrap">{{ __('Notes internes') }}</span>
                                 @if($notesCount > 0)
                                     <span class="ml-1 px-1.5 py-0.5 rounded-full bg-slate-200 text-[10px]">{{ $notesCount }}</span>
                                 @endif
@@ -137,59 +148,62 @@
                     {{-- Discussion Tab --}}
                     <div id="discussion-tab-content" x-show="tab === 'discussion'" x-cloak class="space-y-6 sm:space-y-8">
                         <!-- Ticket Summary Card (aligné comme la liste : Sujet, Créateur | Assigné, Catégorie, Priorité, Statut, Activité) -->
-                        <div class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+                        <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 shadow-sm min-w-0 overflow-hidden">
                             {{-- Ligne type liste : #id + Sujet --}}
-                            <div class="flex items-start gap-3 sm:gap-4 min-w-0">
-                                <span class="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500 font-mono">
+                            <div class="flex items-start gap-2 sm:gap-4 min-w-0">
+                                <span class="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500 font-mono">
                                     #{{ $ticket->id }}
                                 </span>
-                                <div class="min-w-0 flex-1">
-                                    <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight break-words">{{ $ticket->subject }}</h1>
+                                <div class="min-w-0 flex-1 overflow-hidden">
+                                    <h1 class="text-sm sm:text-lg font-bold text-slate-900 tracking-tight break-words">{{ $ticket->subject }}</h1>
                                     <div class="mt-1 text-xs text-slate-500">
                                         {{ $creator?->name ?? __('Inconnu') }}
-                                        @if($assignee)
+                                        @if($ticket->assignees->isNotEmpty())
                                             <span class="mx-1 text-slate-300">|</span>
-                                            {{ __('Assigné à') }} <span class="font-medium text-slate-700">{{ $assignee->name }}</span>
+                                            {{ __('Assigné à') }} <span class="font-medium text-slate-700">{{ $ticket->assignees->first()->name }}</span>
+                                            @if($ticket->assignees->count() > 1)
+                                                <span class="text-slate-400">+{{ $ticket->assignees->count() - 1 }}</span>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
                             </div>
 
                             {{-- Grille détail : Catégorie, Priorité, Statut, Activité (comme les colonnes de la liste) --}}
-                            <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 border-t border-slate-100 pt-4">
-                                <div>
-                                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Catégorie') }}</div>
-                                    <div class="mt-0.5 text-sm text-slate-700">{{ $ticket->category?->name ?? '—' }}</div>
+                            <div class="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 border-t border-slate-100 pt-3 sm:pt-4">
+                                <div class="min-w-0">
+                                    <div class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">{{ __('Catégorie') }}</div>
+                                    <div class="mt-0.5 text-xs sm:text-sm text-slate-700 truncate">{{ $ticket->category?->name ?? '—' }}</div>
                                 </div>
-                                <div>
-                                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Priorité') }}</div>
-                                    <div class="mt-0.5 flex items-center gap-2">
-                                        <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $priorityDot }}"></span>
-                                        <span class="text-sm font-medium text-slate-700">{{ $ticket->priority?->name ?? '—' }}</span>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Priorité') }}</div>
+                                    <div class="mt-0.5 flex items-center gap-1.5 min-w-0">
+                                        <span class="h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0 rounded-full {{ $priorityDot }}"></span>
+                                        <span class="text-xs sm:text-sm font-medium text-slate-700 truncate">{{ $ticket->priority?->name ?? '—' }}</span>
                                     </div>
                                 </div>
-                                <div>
-                                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Statut') }}</div>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Statut') }}</div>
                                     <div class="mt-0.5">
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent)]">
-                                            <iconify-icon icon="solar:bolt-circle-bold-duotone" width="12"></iconify-icon>
-                                            {{ $statusLabels[$ticket->status->value] ?? $ticket->status->value }}
+                                        <span class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent)] truncate max-w-full">
+                                            <iconify-icon icon="solar:bolt-circle-bold-duotone" width="10" class="sm:w-3 shrink-0"></iconify-icon>
+                                            <span class="truncate">{{ $statusLabels[$ticket->status->value] ?? $ticket->status->value }}</span>
                                         </span>
                                     </div>
                                 </div>
-                                <div>
-                                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Activité') }}</div>
-                                    <div class="mt-0.5 text-sm text-slate-600">{{ $ticket->updated_at?->diffForHumans() }}</div>
+                                <div class="min-w-0">
+                                    <div class="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Activité') }}</div>
+                                    <div class="mt-0.5 text-xs sm:text-sm text-slate-600 truncate">{{ $ticket->updated_at?->diffForHumans() }}</div>
                                 </div>
                             </div>
 
                             {{-- Description --}}
-                            <div class="mt-5 sm:mt-6 pt-4 border-t border-slate-100 text-base leading-relaxed text-slate-700 max-w-none break-words">
+                            <div class="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-slate-100 text-sm sm:text-base leading-relaxed text-slate-700 max-w-none break-words">
                                 {!! nl2br(e($ticket->description ?? '')) !!}
                             </div>
 
                             @if(!empty($ticketAttachments))
-                                <div class="mt-6 pt-4 border-t border-slate-100 flex flex-wrap gap-2">
+                                <div class="mt-6 pt-4 border-t border-slate-100 flex flex-wrap gap-2 min-w-0">
                                     @foreach($ticketAttachments as $att)
                                         @include('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'theirs'])
                                     @endforeach
@@ -209,7 +223,7 @@
                                 })
                                 ->filter(fn ($msgs) => $msgs->isNotEmpty());
                         @endphp
-                        <div class="relative pl-6 border-l-2 border-slate-200 ml-2 sm:ml-4 space-y-1" data-timeline="discussion">
+                        <div class="relative pl-4 sm:pl-6 border-l-2 border-slate-200 ml-0 sm:ml-4 space-y-1 min-w-0 overflow-hidden" data-timeline="discussion">
                             @forelse($discussionMessagesByDate as $date => $msgs)
                                 <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 mt-6 first:mt-0 pl-2">{{ \Carbon\Carbon::parse($date)->translatedFormat('l d F') }}</div>
                                 @foreach($msgs as $msg)
@@ -252,27 +266,37 @@
             </div>
 
             <!-- Composer (compact) -->
-            <div class="shrink-0 bg-white border-t border-slate-200 p-2 sm:p-4 z-10 safe-area-pb" data-composer>
-                <div class="mx-auto max-w-4xl">
-                    <div class="flex items-center gap-2 mb-2">
-                        <button type="button" wire:click="setAsInternalNote(false)" class="text-xs sm:text-sm font-bold transition-colors border-b-2 pb-0.5 {{ !$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
+            <div class="shrink-0 bg-white border-t border-slate-200 p-2 sm:p-3 z-10 safe-area-pb min-w-0 overflow-hidden" data-composer>
+                <div class="mx-auto max-w-2xl min-w-0">
+                    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                        <button type="button" wire:click="setAsInternalNote(false)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 {{ !$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
                             {{ __('Répondre') }}
                         </button>
                         @if($canWriteInternalNotes)
-                            <button type="button" wire:click="setAsInternalNote(true)" class="text-xs sm:text-sm font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1 {{ $asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
-                                <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="12"></iconify-icon>
+                            <button type="button" wire:click="setAsInternalNote(true)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1 {{ $asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
+                                <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="10"></iconify-icon>
                                 {{ __('Note interne') }}
                             </button>
                         @endif
                     </div>
 
-                    <form wire:submit="sendMessage" class="relative rounded-xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all"
+                    <form wire:submit="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-' + {{ $ticketId }})" class="relative rounded-lg sm:rounded-xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all min-w-0"
                     x-data="{
                         users: {{ \Illuminate\Support\Js::from($mentionableUsers ?? []) }},
                         mentionOpen: false,
                         mentionQuery: '',
                         mentionStart: 0,
                         mentionCursor: 0,
+                        draftTimer: null,
+                        draftKey: 'ticket-draft-' + {{ $ticketId }},
+                        init() {
+                            try {
+                                const saved = localStorage.getItem(this.draftKey);
+                                if (saved && !this.$wire.get('body')) {
+                                    this.$wire.set('body', saved);
+                                }
+                            } catch (e) {}
+                        },
                         get filteredMentions() {
                             if (!this.mentionQuery) return this.users.slice(0, 8);
                             const q = this.mentionQuery.toLowerCase();
@@ -281,9 +305,19 @@
                                 (u.name && u.name.toLowerCase().includes(q))
                             ).slice(0, 8);
                         },
+                        saveDraft(val) {
+                            clearTimeout(this.draftTimer);
+                            this.draftTimer = setTimeout(() => {
+                                try {
+                                    if (val && val.trim()) localStorage.setItem(this.draftKey, val);
+                                    else localStorage.removeItem(this.draftKey);
+                                } catch (e) {}
+                            }, 500);
+                        },
                         onInput(ev) {
                             const el = ev.target;
                             const val = el.value;
+                            this.saveDraft(val);
                             const pos = el.selectionStart || 0;
                             const before = val.slice(0, pos);
                             const lastAt = before.lastIndexOf('@');
@@ -306,19 +340,19 @@
                         }
                     }"
                     @keydown.escape="mentionOpen = false">
-                        <div class="p-1.5 sm:p-2 relative">
+                        <div class="p-1 sm:p-1.5 relative">
                             <textarea
                                 x-ref="mentionInput"
                                 wire:model="body"
                                 rows="2"
                                 @input="onInput($event)"
                                 @keydown.arrow-down.prevent="mentionOpen && filteredMentions.length && (mentionOpen = true)"
-                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-xs sm:text-sm p-1.5 sm:p-2 min-h-[4rem]"
+                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-xs p-1 sm:p-1.5 min-h-[2.5rem] sm:min-h-[2.75rem]"
                                 placeholder="{{ $asInternalNote ? __('Ajouter une note visible uniquement par l\'équipe...') : __('Écrivez votre réponse ici...') }}"
                             ></textarea>
                             <div x-show="mentionOpen" x-cloak @click.outside="mentionOpen = false"
-                                class="absolute left-1.5 right-1.5 sm:left-2 sm:right-2 bottom-full mb-1 py-1 bg-white border border-slate-200 rounded-lg sm:rounded-xl shadow-lg z-50 max-h-40 overflow-y-auto"
-                                style="display: none;">
+                                class="absolute left-1 right-1 sm:left-1.5 sm:right-1.5 bottom-full mb-1 py-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-36 overflow-y-auto"
+                                style="display: none;" wire:ignore>
                                 <template x-for="u in filteredMentions" :key="u.id">
                                     <button type="button" @click="pickUser(u)"
                                         class="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
@@ -329,34 +363,35 @@
                                 <p x-show="filteredMentions.length === 0" class="px-3 py-2 text-xs text-slate-500">{{ __('Aucun utilisateur') }}</p>
                             </div>
                         </div>
-                        
-                        <div class="flex items-center justify-between px-2 sm:px-3 py-1.5 sm:py-2 border-t border-slate-200/50 bg-white/50 rounded-b-xl sm:rounded-b-2xl">
-                            <div class="flex items-center gap-0.5">
+
+                        <div class="flex flex-wrap items-center justify-between gap-1.5 px-2 py-1.5 border-t border-slate-200/50 bg-white/50 rounded-b-lg sm:rounded-b-xl">
+                            <div class="flex items-center gap-0.5 min-w-0 flex-1 sm:flex-initial">
                                 <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="discussion-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
-                                <button type="button" onclick="document.getElementById('discussion-file-input').click()" class="p-2 min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Joindre un fichier') }}">
-                                    <iconify-icon icon="solar:paperclip-linear" width="18"></iconify-icon>
+                                <button type="button" onclick="document.getElementById('discussion-file-input').click()" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Joindre un fichier') }}">
+                                    <iconify-icon icon="solar:paperclip-linear" width="16"></iconify-icon>
                                 </button>
                                 <div x-data="{ emojiOpen: false }" class="relative">
-                                    <button type="button" @click="emojiOpen = !emojiOpen" class="p-2 min-h-[36px] min-w-[36px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Emoji') }}">
-                                        <iconify-icon icon="solar:smile-circle-linear" width="18"></iconify-icon>
+                                    <button type="button" @click="emojiOpen = !emojiOpen" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Emoji') }}">
+                                        <iconify-icon icon="solar:smile-circle-linear" width="16"></iconify-icon>
                                     </button>
-                                    <div x-show="emojiOpen" @click.outside="emojiOpen = false" x-cloak class="absolute bottom-full left-0 mb-1.5 p-1.5 rounded-lg sm:rounded-xl bg-white shadow-xl border border-slate-200 grid grid-cols-8 gap-1 max-h-40 overflow-y-auto z-50 w-56">
+                                    <div x-show="emojiOpen" @click.outside="emojiOpen = false" x-cloak class="absolute bottom-full left-0 mb-1 p-1.5 rounded-lg bg-white shadow-xl border border-slate-200 grid grid-cols-8 gap-1 max-h-36 overflow-y-auto z-50 w-48">
                                         @foreach(['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','👍','👎','👏','🙌','👋','💪','✨','🔥','❤️','💯','✅','📎','📁','🔒'] as $emoji)
                                             <button type="button" @click="$wire.set('body', ($wire.get('body') || '') + '{{ $emoji }}'); emojiOpen = false" class="p-1.5 hover:bg-slate-100 rounded-lg text-xl transition-colors">{{ $emoji }}</button>
                                         @endforeach
                                     </div>
                                 </div>
                                 @if(count($attachmentFiles ?? []) > 0)
-                                    <span class="ml-2 text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-2 py-1 rounded-md">{{ count($attachmentFiles) }} fichier(s)</span>
+                                    <span class="ml-1 text-[10px] sm:text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-1.5 py-0.5 rounded">{{ count($attachmentFiles) }} fichier(s)</span>
                                 @endif
                             </div>
-                            
-                            <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
-                                <p class="text-[10px] sm:text-xs text-slate-400 hidden sm:block">{{ __('Markdown supporté') }}</p>
-                                <p class="text-[10px] sm:text-xs text-slate-400">{{ __('Tapez') }} <kbd class="px-1 py-0.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px]">@</kbd> {{ __('pour mentionner un participant') }}</p>
-                                <button type="submit" x-ref="submitBtn" class="inline-flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl px-3 sm:px-4 py-1.5 sm:py-2 min-h-[36px] sm:min-h-0 text-xs sm:text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all touch-manipulation" style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};">
-                                    <span>{{ __('Envoyer') }}</span>
-                                    <iconify-icon icon="solar:plain-bold" width="14"></iconify-icon>
+
+                            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                <p class="text-[10px] text-slate-400 hidden sm:inline">{{ __('Markdown') }}</p>
+                                <p class="text-[10px] text-slate-400">{{ __('Tapez') }} <kbd class="px-0.5 py-px rounded bg-slate-100 text-slate-600 font-mono text-[9px]">@</kbd> {{ __('pour mentionner') }}</p>
+                                <button type="submit" x-ref="submitBtn" wire:loading.attr="disabled" wire:target="sendMessage" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 min-h-[32px] sm:min-h-0 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70 disabled:cursor-not-allowed" style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};">
+                                    <span wire:loading.remove wire:target="sendMessage">{{ __('Envoyer') }}</span>
+                                    <span wire:loading wire:target="sendMessage" class="inline-block h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                                    <iconify-icon icon="solar:plain-bold" width="12" wire:loading.remove wire:target="sendMessage"></iconify-icon>
                                 </button>
                             </div>
                         </div>
@@ -367,23 +402,23 @@
         </section>
 
         <!-- MOBILE DRAWER (panneau Infos = même section Détails, overlay sur mobile) -->
-        <div x-show="mobileDrawerOpen" x-cloak class="lg:hidden fixed inset-0 z-50" style="display: none;">
+        <div x-show="mobileDrawerOpen" x-cloak class="lg:hidden fixed inset-0 z-50" style="display: none; padding-left: env(safe-area-inset-left); padding-bottom: env(safe-area-inset-bottom);">
             <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" x-show="mobileDrawerOpen" x-transition.opacity @click="mobileDrawerOpen = false"></div>
-            <div class="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white shadow-2xl flex flex-col" 
+            <div class="absolute right-0 top-0 bottom-0 w-full max-w-[min(100%,24rem)] bg-white shadow-2xl flex flex-col rounded-l-2xl overflow-hidden"
                  x-show="mobileDrawerOpen"
-                 x-transition:enter="transform transition ease-out duration-300" 
-                 x-transition:enter-start="translate-x-full" 
-                 x-transition:enter-end="translate-x-0" 
-                 x-transition:leave="transform transition ease-in duration-300" 
-                 x-transition:leave-start="translate-x-0" 
+                 x-transition:enter="transform transition ease-out duration-300"
+                 x-transition:enter-start="translate-x-full"
+                 x-transition:enter-end="translate-x-0"
+                 x-transition:leave="transform transition ease-in duration-300"
+                 x-transition:leave-start="translate-x-0"
                  x-transition:leave-end="translate-x-full">
-                <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4 shrink-0">
-                    <h2 class="text-lg font-bold text-slate-900">{{ __('Infos') }}</h2>
-                    <button type="button" @click="mobileDrawerOpen = false" class="text-slate-400 hover:text-slate-900 transition-colors">
+                <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 shrink-0" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900">{{ __('Infos') }}</h2>
+                    <button type="button" @click="mobileDrawerOpen = false" class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors touch-manipulation" aria-label="{{ __('Fermer') }}">
                         <iconify-icon icon="solar:close-circle-bold" width="24"></iconify-icon>
                     </button>
                 </div>
-                <div class="flex-1 overflow-y-auto p-5 custom-scrollbar">
+                <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
                     @include('livewire.tickets.partials.discussion-sidebar-content')
                 </div>
             </div>
@@ -439,6 +474,78 @@
             </div>
         </div>
 
+        {{-- Modal d'édition du ticket (titre, description, pièces jointes) --}}
+        @if($canEditTicket ?? false)
+        <x-modal name="edit-ticket" maxWidth="2xl" focusable>
+            <div class="p-6">
+                <h2 class="text-lg font-bold text-slate-900 mb-4">{{ __('Modifier le ticket') }}</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="edit-subject" class="block text-sm font-semibold text-slate-700 mb-1">{{ __('Titre') }}</label>
+                        <input id="edit-subject" type="text" wire:model="editSubject" wire:blur="updateSubject" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" placeholder="{{ __('Sujet du ticket') }}" />
+                        @error('editSubject')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div>
+                        <label for="edit-description" class="block text-sm font-semibold text-slate-700 mb-1">{{ __('Description') }}</label>
+                        <textarea id="edit-description" wire:model="editDescription" wire:blur="updateDescription" rows="4" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" placeholder="{{ __('Description') }}"></textarea>
+                        @error('editDescription')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-slate-700 mb-2">{{ __('Pièces jointes du ticket') }}</div>
+                        @php
+                            $editFiles = is_array($ticket->attachments) ? ($ticket->attachments['files'] ?? []) : [];
+                            $editLinks = is_array($ticket->attachments) ? ($ticket->attachments['links'] ?? []) : [];
+                        @endphp
+                        <div class="space-y-2 mb-3">
+                            @foreach($editFiles as $idx => $f)
+                                @php $f = is_array($f) ? $f : []; @endphp
+                                <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <iconify-icon icon="solar:file-text-linear" width="18" class="text-slate-500 shrink-0"></iconify-icon>
+                                    <span class="text-sm font-medium text-slate-800 truncate flex-1 min-w-0">{{ $f['name'] ?? __('Fichier') }}</span>
+                                    <button type="button" wire:click="removeTicketAttachment('files', {{ $idx }})" wire:confirm="{{ __('Supprimer cette pièce jointe ?') }}" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Supprimer') }}">
+                                        <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                                    </button>
+                                </div>
+                            @endforeach
+                            @foreach($editLinks as $idx => $l)
+                                @php $l = is_array($l) ? $l : []; $linkUrl = $l['url'] ?? '#'; @endphp
+                                <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                    <iconify-icon icon="solar:link-linear" width="18" class="text-slate-500 shrink-0"></iconify-icon>
+                                    <a href="{{ $linkUrl }}" target="_blank" rel="noopener" class="text-sm font-medium text-[var(--accent)] truncate flex-1 min-w-0">{{ $linkUrl }}</a>
+                                    <button type="button" wire:click="removeTicketAttachment('links', {{ $idx }})" wire:confirm="{{ __('Supprimer ce lien ?') }}" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Supprimer') }}">
+                                        <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                                    </button>
+                                </div>
+                            @endforeach
+                        </div>
+                        <div class="flex flex-wrap gap-3">
+                            <div class="min-w-0">
+                                <input type="file" wire:model="editAttachmentFiles" wire:change="addTicketAttachmentFile" class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--accent-soft)] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-[var(--accent)] hover:file:opacity-90" />
+                                <p class="mt-1 text-xs text-slate-500">{{ __('Max 5 fichiers, 10 Mo chacun.') }}</p>
+                            </div>
+                            <div class="flex gap-2 flex-1 min-w-0">
+                                <input type="url" wire:model="editLinkUrl" wire:keydown.enter.prevent="addTicketAttachmentLink" placeholder="{{ __('Ajouter un lien') }}" class="block flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
+                                <button type="button" wire:click="addTicketAttachmentLink" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-bold text-white hover:opacity-90">
+                                    <iconify-icon icon="solar:link-linear" width="16"></iconify-icon>
+                                    {{ __('Ajouter') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6 flex flex-wrap justify-end gap-3">
+                    <button type="button" x-on:click="$dispatch('close-modal', 'edit-ticket')" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
+                        {{ __('Fermer') }}
+                    </button>
+                </div>
+            </div>
+        </x-modal>
+        @endif
+
         {{-- Modal de confirmation de suppression du ticket (remplace l'alerte native) --}}
         @if($canDeleteTicket ?? false)
         <x-modal name="confirm-delete-ticket" maxWidth="sm" focusable>
@@ -457,9 +564,10 @@
                     <button type="button" x-on:click="$dispatch('close-modal', 'confirm-delete-ticket')" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
                         {{ __('Annuler') }}
                     </button>
-                    <button type="button" wire:click="deleteTicket" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-colors inline-flex items-center gap-2">
-                        <iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="18"></iconify-icon>
-                        {{ __('Supprimer') }}
+                    <button type="button" wire:click="deleteTicket" wire:loading.attr="disabled" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-colors inline-flex items-center gap-2 disabled:opacity-70">
+                        <span wire:loading.remove wire:target="deleteTicket"><iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="18"></iconify-icon></span>
+                        <span wire:loading wire:target="deleteTicket" class="inline-block h-[18px] w-[18px] rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                        <span>{{ __('Supprimer') }}</span>
                     </button>
                 </div>
             </div>
@@ -474,17 +582,20 @@
         ticketId,
         currentUserId,
         canSeeInternalNotes: !!canSeeInternalNotes,
+        seenIds: new Set(),
+        wsConnected: false,
         init() {
             const tryConnect = () => {
                 if (typeof window.Echo !== 'undefined') {
-                window.Echo.private('ticket.' + this.ticketId)
-                    .listen('.message.sent', (e) => this.appendMessage(e));
+                    const chan = window.Echo.private('ticket.' + this.ticketId);
+                    chan.listen('.message.sent', (e) => this.appendMessage(e));
+                    chan.subscribed(() => { this.wsConnected = true; });
 
-                // Internal notes are broadcasted only to staff channel.
-                if (this.canSeeInternalNotes) {
-                    window.Echo.private('ticket.staff.' + this.ticketId)
-                        .listen('.message.sent', (e) => this.appendMessage(e));
-                }
+                    // Internal notes are broadcasted only to staff channel.
+                    if (this.canSeeInternalNotes) {
+                        window.Echo.private('ticket.staff.' + this.ticketId)
+                            .listen('.message.sent', (e) => this.appendMessage(e));
+                    }
                     return;
                 }
                 setTimeout(tryConnect, 300);
@@ -492,6 +603,12 @@
             tryConnect();
         },
         appendMessage(e) {
+            // Dedup: skip if already seen or already in DOM
+            if (e.id && (this.seenIds.has(e.id) || document.getElementById('message-' + e.id))) {
+                return;
+            }
+            if (e.id) this.seenIds.add(e.id);
+
             const isNote = e.type === 'internal_note';
 
             const targets = [];
@@ -518,6 +635,7 @@
 
                 const div = document.createElement('div');
                 div.className = 'animate-enter';
+                if (e.id) div.id = 'message-' + e.id;
                 div.innerHTML = this.renderBubble(e);
                 timeline.appendChild(div);
             }

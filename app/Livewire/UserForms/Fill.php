@@ -49,7 +49,9 @@ class Fill extends Component
             if ($field->type === 'section') {
                 continue;
             }
-            $this->answers[$field->key] = $field->type === 'checkbox' ? false : '';
+            $this->answers[$field->key] = $field->type === 'checkbox'
+                ? (is_array($field->options) && count($field->options) > 0 ? [] : false)
+                : '';
         }
     }
 
@@ -77,7 +79,16 @@ class Fill extends Component
             } elseif (in_array($type, ['date', 'datetime'], true)) {
                 $fieldRules[] = 'date';
             } elseif ($type === 'checkbox') {
-                $fieldRules[] = 'boolean';
+                if (is_array($f->options) && count($f->options) > 0) {
+                    $fieldRules[] = 'array';
+                    $fieldRules[] = 'max:' . count($f->options);
+                    if ($f->required) {
+                        $fieldRules[] = 'min:1';
+                    }
+                    $rules["answers.{$f->key}.*"] = ['string', Rule::in($f->options)];
+                } else {
+                    $fieldRules[] = 'boolean';
+                }
             } elseif ($type === 'textarea') {
                 $fieldRules[] = 'string';
                 $fieldRules[] = 'max:5000';
@@ -106,12 +117,16 @@ class Fill extends Component
             $key = (string) $f->key;
             $val = $this->answers[$key] ?? null;
             if ($f->type === 'checkbox') {
-                $val = (bool) $val;
+                if (is_array($f->options) && count($f->options) > 0) {
+                    $val = is_array($val) ? array_values(array_filter($val)) : [];
+                } else {
+                    $val = (bool) $val;
+                }
             }
             if (is_string($val)) {
                 $val = trim($val);
             }
-            if ($val === null || $val === '') {
+            if ($val === null || $val === '' || (is_array($val) && count($val) === 0)) {
                 continue;
             }
             $responses[$key] = $val;
@@ -145,7 +160,7 @@ class Fill extends Component
             event(new UserNotificationReceived(userId: $creator->id, notificationType: 'form_response'));
         }
 
-        session()->flash('form_success', 'Votre réponse a bien été enregistrée.');
+        session()->flash('form_success', __('pages.forms.response_saved'));
         $this->redirectRoute('forms.index');
     }
 

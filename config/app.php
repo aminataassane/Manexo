@@ -78,7 +78,7 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'fr'),
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
@@ -121,6 +121,22 @@ return [
     'maintenance' => [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Platform creator (branding visible for all connected users)
+    |--------------------------------------------------------------------------
+    |
+    | Name, optional logo path (relative to public/ or full URL), and optional
+    | link. Shown in the sidebar as "Powered by [name]" for every logged-in user.
+    |
+    */
+
+    'platform_creator' => [
+        'name' => env('PLATFORM_CREATOR_NAME', 'Manexo'),
+        'logo' => env('PLATFORM_CREATOR_LOGO', 'assets/logo(1).png'), // chemin dans public/ (ex: assets/logo(1).png)
+        'url' => env('PLATFORM_CREATOR_URL', 'https://manexo.io'),
     ],
 
 ];

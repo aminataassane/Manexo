@@ -8,6 +8,8 @@ use App\Livewire\Admin\FormResponses as AdminFormResponses;
 use App\Livewire\Reports\Index as ReportsIndex;
 use App\Livewire\UserForms\Index as UserFormsIndex;
 use App\Livewire\UserForms\Fill as UserFormsFill;
+use App\Livewire\UserForms\FillTeam as UserFormsFillTeam;
+use App\Livewire\UserForms\FillTeamBySlug as UserFormsFillTeamBySlug;
 use App\Livewire\Tickets\Create as CreateTicket;
 use App\Livewire\Tickets\Index as TicketsIndex;
 use App\Http\Controllers\PublicFormController;
@@ -51,17 +53,19 @@ Route::get('/locale/{locale}', function (Request $request, string $locale) {
     }
 
     $request->session()->put('locale', $locale);
+    $request->session()->save();
 
     $fallback = Auth::check()
-        ? route('organizations.select')
+        ? route('dashboard')
         : route('home');
 
-    $previous = url()->previous();
+    $previous = $request->headers->get('referer');
+    $target = $previous && ! str_contains($previous, '/locale/') ? $previous : $fallback;
 
     return redirect()
-        ->to($previous ?: $fallback)
-        ->withCookie(cookie('locale', $locale, 60 * 24 * 365)) // 1 year
-        ->with('profile_status', $locale === 'en' ? 'Language switched to English.' : 'Langue changée en français.');
+        ->to($target)
+        ->withCookie(cookie('locale', $locale, 60 * 24 * 365))
+        ->with('profile_status', $locale === 'en' ? __('Language switched to English.') : __('Langue changée en français.'));
 })->where('locale', 'fr|en')->name('locale.switch');
 
 /**
@@ -95,6 +99,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dashboard', \App\Livewire\Dashboard::class)->name('dashboard');
 
         Route::get('/forms', UserFormsIndex::class)->name('forms.index');
+        Route::get('/forms/team/{form}', UserFormsFillTeam::class)->name('forms.fill-team');
+        Route::get('/forms/l/{slug}', UserFormsFillTeamBySlug::class)->name('forms.fill-team-by-slug');
         Route::get('/forms/{assignment}', UserFormsFill::class)->name('forms.fill');
 
         Route::get('/discussions/{ticket?}', \App\Livewire\Discussions\Index::class)->name('discussions.index');

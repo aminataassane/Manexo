@@ -1,12 +1,12 @@
 <div class="space-y-8">
     <!-- Form Selection -->
     <div>
-        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 px-0">{{ __('Formulaires') }}</h3>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 px-0">{{ __('forms_builder.forms') }}</h3>
 
         <!-- New Form Input -->
         <div class="mb-4 space-y-2">
             <div class="relative group">
-                <input type="text" wire:model.live.debounce.150ms="fb_form_name" placeholder="{{ __('Nouveau formulaire...') }}"
+                <input type="text" wire:model.live.debounce.150ms="fb_form_name" placeholder="{{ __('forms_builder.new_form_placeholder') }}"
                        @disabled(! $canManageForms)
                        class="w-full bg-slate-50/80 text-sm py-3 pl-4 pr-11 rounded-xl border border-slate-200/80 focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)] focus:bg-white transition-all placeholder:text-slate-400 disabled:opacity-50">
                 <button
@@ -33,11 +33,11 @@
                     <span class="text-sm font-semibold truncate">{{ $f->name }}</span>
                     <div class="flex items-center gap-2 shrink-0">
                         @if($fStatus === 'published')
-                            <span class="h-2 w-2 rounded-full bg-emerald-500" title="{{ __('Publié') }}"></span>
+                            <span class="h-2 w-2 rounded-full bg-emerald-500" title="{{ __('forms_builder.published') }}"></span>
                         @elseif($fStatus === 'archived')
-                            <span class="h-2 w-2 rounded-full bg-slate-400" title="{{ __('Archivé') }}"></span>
+                            <span class="h-2 w-2 rounded-full bg-slate-400" title="{{ __('forms_builder.archived') }}"></span>
                         @else
-                            <span class="h-2 w-2 rounded-full bg-amber-500" title="{{ __('Brouillon') }}"></span>
+                            <span class="h-2 w-2 rounded-full bg-amber-500" title="{{ __('forms_builder.draft') }}"></span>
                         @endif
                         @if($isSelected)
                             <iconify-icon icon="solar:check-circle-bold" width="16" class="text-[var(--accent)]"></iconify-icon>
@@ -52,21 +52,21 @@
 
     <!-- Field Types -->
     <div>
-        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 px-0">{{ __('Champs disponibles') }}</h3>
+        <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 px-0">{{ __('forms_builder.available_fields') }}</h3>
         <div class="grid grid-cols-2 gap-2.5">
             @php
                 $fieldTypes = [
-                    ['type' => 'text', 'label' => 'Texte court', 'icon' => 'solar:text-field-linear'],
-                    ['type' => 'textarea', 'label' => 'Paragraphe', 'icon' => 'solar:text-square-linear'],
-                    ['type' => 'select', 'label' => 'Liste déroulante', 'icon' => 'solar:list-arrow-down-linear'],
-                    ['type' => 'radio', 'label' => 'Choix unique', 'icon' => 'solar:record-circle-linear'],
-                    ['type' => 'checkbox', 'label' => 'Case à cocher', 'icon' => 'solar:check-square-linear'],
-                    ['type' => 'date', 'label' => 'Date', 'icon' => 'solar:calendar-linear'],
-                    ['type' => 'datetime', 'label' => 'Date & Heure', 'icon' => 'solar:calendar-date-linear'],
-                    ['type' => 'number', 'label' => 'Nombre', 'icon' => 'solar:ruler-linear'],
-                    ['type' => 'email', 'label' => 'Email', 'icon' => 'solar:letter-linear'],
-                    ['type' => 'file', 'label' => 'Fichier', 'icon' => 'solar:upload-linear'],
-                    ['type' => 'section', 'label' => 'Section', 'icon' => 'solar:minus-circle-linear'],
+                    ['type' => 'text', 'label' => __('forms_builder.field_short_text'), 'icon' => 'solar:text-field-linear'],
+                    ['type' => 'textarea', 'label' => __('forms_builder.field_paragraph'), 'icon' => 'solar:text-square-linear'],
+                    ['type' => 'select', 'label' => __('forms_builder.field_dropdown'), 'icon' => 'solar:list-arrow-down-linear'],
+                    ['type' => 'radio', 'label' => __('forms_builder.field_single_choice'), 'icon' => 'solar:record-circle-linear'],
+                    ['type' => 'checkbox', 'label' => __('forms_builder.field_checkbox'), 'icon' => 'solar:check-square-linear'],
+                    ['type' => 'date', 'label' => __('forms_builder.field_date'), 'icon' => 'solar:calendar-linear'],
+                    ['type' => 'datetime', 'label' => __('forms_builder.field_datetime'), 'icon' => 'solar:calendar-date-linear'],
+                    ['type' => 'number', 'label' => __('forms_builder.field_number'), 'icon' => 'solar:ruler-linear'],
+                    ['type' => 'email', 'label' => __('forms_builder.field_email'), 'icon' => 'solar:letter-linear'],
+                    ['type' => 'file', 'label' => __('forms_builder.field_file'), 'icon' => 'solar:upload-linear'],
+                    ['type' => 'section', 'label' => __('forms_builder.field_section'), 'icon' => 'solar:minus-circle-linear'],
                 ];
             @endphp
 

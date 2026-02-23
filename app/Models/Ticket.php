@@ -155,7 +155,8 @@ class Ticket extends Model
     /** Vérifie si l'utilisateur a accès à la discussion (créateur, assigné, participant, fonction assignée, ou membre org). */
     public function hasDiscussionAccess(int $userId): bool
     {
-        if ((int) $this->created_by === $userId) {
+        // Créateur du ticket : accès garanti (cast explicite pour éviter les comparaisons strictes)
+        if ($this->created_by !== null && (int) $this->created_by === (int) $userId) {
             return true;
         }
         if ($this->assignees()->where('users.id', $userId)->exists()) {
@@ -169,6 +170,11 @@ class Ticket extends Model
                 return true;
             }
         }
-        return User::find($userId)?->organizations()->where('organization_id', $this->organization_id)->exists() ?? false;
+        // Tout membre de l'organisation du ticket peut voir la discussion (page déjà protégée par ensure.organization)
+        $user = User::find($userId);
+        if (! $user) {
+            return false;
+        }
+        return $user->organizations()->where('organization_id', $this->organization_id)->exists();
     }
 }

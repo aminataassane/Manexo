@@ -28,6 +28,7 @@ class EmailVerificationOtpNotification extends Notification
                 'code' => $this->code,
                 'expiresMinutes' => $this->expiresMinutes,
                 'appName' => config('app.name', 'Manexo'),
+                'logoUrl' => null, // Logo entreprise si contexte org disponible, sinon Manexo par défaut
                 'toEmail' => method_exists($notifiable, 'getEmailForVerification')
                     ? $notifiable->getEmailForVerification()
                     : ($notifiable->email ?? null),

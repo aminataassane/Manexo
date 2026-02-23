@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div class="section-responsive space-y-6 min-w-0">
     <div class="flex items-center gap-3">
         <a href="{{ route('admin.forms') }}" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors">
             <iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>

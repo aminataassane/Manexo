@@ -1,10 +1,10 @@
 @php
     $roleBadge = function (string $role): array {
         return match ($role) {
-            'owner' => ['label' => 'Propriétaire', 'bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-100', 'icon' => 'solar:crown-bold-duotone'],
-            'admin' => ['label' => 'Admin', 'bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'border' => 'border-blue-100', 'icon' => 'solar:shield-check-bold-duotone'],
-            'agent' => ['label' => 'Agent', 'bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-100', 'icon' => 'solar:headphones-round-sound-bold-duotone'],
-            default => ['label' => 'Membre', 'bg' => 'bg-slate-50', 'text' => 'text-slate-600', 'border' => 'border-slate-100', 'icon' => 'solar:user-bold-duotone'],
+            'owner' => ['label_key' => 'pages.team.role_owner', 'bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-100', 'icon' => 'solar:crown-bold-duotone'],
+            'admin' => ['label_key' => 'pages.team.role_admin', 'bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'border' => 'border-blue-100', 'icon' => 'solar:shield-check-bold-duotone'],
+            'agent' => ['label_key' => 'pages.team.role_agent', 'bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-100', 'icon' => 'solar:headphones-round-sound-bold-duotone'],
+            default => ['label_key' => 'pages.team.role_member', 'bg' => 'bg-slate-50', 'text' => 'text-slate-600', 'border' => 'border-slate-100', 'icon' => 'solar:user-bold-duotone'],
         };
     };
 @endphp
@@ -13,8 +13,8 @@
     <!-- HEADER -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
         <div class="min-w-0">
-            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl">{{ __('Équipe & Membres') }}</h1>
-            <p class="mt-1 text-xs sm:text-sm text-slate-500">{{ __('Gérez les accès et les rôles de votre organisation.') }}</p>
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl">{{ __('pages.team.title') }}</h1>
+            <p class="mt-1 text-xs sm:text-sm text-slate-500">{{ __('pages.team.subtitle') }}</p>
         </div>
         <button
             type="button"
@@ -22,7 +22,7 @@
             class="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 sm:py-2.5 text-sm font-bold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0 w-full sm:w-auto"
         >
             <iconify-icon icon="solar:user-plus-bold" width="18"></iconify-icon>
-            {{ __('Inviter un membre') }}
+            {{ __('pages.team.invite_member') }}
         </button>
     </div>
 
@@ -32,7 +32,7 @@
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-medium text-slate-500">{{ __('Propriétaires') }}</p>
+                    <p class="text-sm font-medium text-slate-500">{{ __('pages.team.owners') }}</p>
                     <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $stats['owners'] ?? 0 }}</h3>
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 group-hover:scale-110 transition-transform">
@@ -45,7 +45,7 @@
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-medium text-slate-500">{{ __('Administrateurs') }}</p>
+                    <p class="text-sm font-medium text-slate-500">{{ __('pages.team.admins') }}</p>
                     <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $stats['admins'] ?? 0 }}</h3>
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:scale-110 transition-transform">
@@ -58,7 +58,7 @@
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-medium text-slate-500">{{ __('Agents Support') }}</p>
+                    <p class="text-sm font-medium text-slate-500">{{ __('pages.team.agents') }}</p>
                     <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $stats['agents'] ?? 0 }}</h3>
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:scale-110 transition-transform">
@@ -71,7 +71,7 @@
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
             <div class="flex items-start justify-between">
                 <div>
-                    <p class="text-sm font-medium text-slate-500">{{ __('Membres') }}</p>
+                    <p class="text-sm font-medium text-slate-500">{{ __('pages.team.members') }}</p>
                     <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $stats['members'] ?? 0 }}</h3>
                 </div>
                 <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 group-hover:scale-110 transition-transform">
@@ -90,7 +90,7 @@
                 <input
                     type="text"
                     class="w-full h-10 pl-10 pr-4 rounded-xl border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-shadow shadow-sm"
-                    placeholder="{{ __('Rechercher un membre...') }}"
+                    placeholder="{{ __('pages.team.search_placeholder') }}"
                     wire:model.live="search"
                 />
             </div>
@@ -98,11 +98,11 @@
             <div class="flex gap-3">
                 <div class="w-40">
                     <x-select-input wire:model.live="role">
-                        <option value="">{{ __('Tous les rôles') }}</option>
-                        <option value="owner">{{ __('Propriétaire') }}</option>
-                        <option value="admin">{{ __('Admin') }}</option>
-                        <option value="agent">{{ __('Agent') }}</option>
-                        <option value="member">{{ __('Membre') }}</option>
+                        <option value="">{{ __('pages.team.all_roles') }}</option>
+                        <option value="owner">{{ __('pages.team.role_owner') }}</option>
+                        <option value="admin">{{ __('pages.team.role_admin') }}</option>
+                        <option value="agent">{{ __('pages.team.role_agent') }}</option>
+                        <option value="member">{{ __('pages.team.role_member') }}</option>
                     </x-select-input>
                 </div>
 
@@ -121,10 +121,10 @@
             <table class="w-full text-left border-collapse">
                 <thead class="bg-slate-50 text-xs uppercase font-bold text-slate-500 tracking-wider">
                     <tr>
-                        <th class="px-6 py-4">{{ __('Membre') }}</th>
-                        <th class="px-6 py-4">{{ __('Rôle') }}</th>
-                        <th class="px-6 py-4">{{ __('Fonction métier') }}</th>
-                        <th class="px-6 py-4 text-right">{{ __('Actions') }}</th>
+                        <th class="px-6 py-4">{{ __('pages.team.member') }}</th>
+                        <th class="px-6 py-4">{{ __('pages.team.role') }}</th>
+                        <th class="px-6 py-4">{{ __('pages.team.business_function') }}</th>
+                        <th class="px-6 py-4 text-right">{{ __('pages.team.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -135,7 +135,7 @@
                                 <div class="flex items-center gap-4">
                                     <x-avatar :name="$m->user?->name ?? 'U'" size="h-10 w-10" class="ring-2 ring-white shadow-sm" />
                                     <div>
-                                        <div class="text-sm font-bold text-slate-900">{{ $m->user?->name ?? 'Utilisateur inconnu' }}</div>
+                                        <div class="text-sm font-bold text-slate-900">{{ $m->user?->name ?? __('pages.team.unknown_user') }}</div>
                                         <div class="text-xs text-slate-500 mt-0.5">{{ $m->user?->email ?? '' }}</div>
                                     </div>
                                 </div>
@@ -143,7 +143,7 @@
                             <td class="px-6 py-4">
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border {{ $b['bg'] }} {{ $b['text'] }} {{ $b['border'] }}">
                                     <iconify-icon icon="{{ $b['icon'] }}" width="14"></iconify-icon>
-                                    {{ $b['label'] }}
+                                    {{ __($b['label_key']) }}
                                 </span>
                             </td>
                             <td class="px-6 py-4">
@@ -151,7 +151,7 @@
                                     class="h-8 min-w-[140px] rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] pl-2 pr-8"
                                     wire:change="updateFunction({{ (int) $m->id }}, $event.target.value)"
                                 >
-                                    <option value="">{{ __('— Aucune —') }}</option>
+                                    <option value="">{{ __('pages.team.no_function') }}</option>
                                     @foreach ($organizationFunctions as $fn)
                                         <option value="{{ $fn->id }}" @selected($m->organization_function_id === $fn->id)>{{ $fn->name }}</option>
                                     @endforeach
@@ -164,10 +164,10 @@
                                             class="h-8 rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] pl-2 pr-8"
                                             wire:change="updateRole({{ (int) $m->id }}, $event.target.value)"
                                         >
-                                            <option value="owner" @selected($m->role === 'owner')>Propriétaire</option>
-                                            <option value="admin" @selected($m->role === 'admin')>Admin</option>
-                                            <option value="agent" @selected($m->role === 'agent')>Agent</option>
-                                            <option value="member" @selected($m->role === 'member')>Membre</option>
+                                            <option value="owner" @selected($m->role === 'owner')>{{ __('pages.team.role_owner') }}</option>
+                                            <option value="admin" @selected($m->role === 'admin')>{{ __('pages.team.role_admin') }}</option>
+                                            <option value="agent" @selected($m->role === 'agent')>{{ __('pages.team.role_agent') }}</option>
+                                            <option value="member" @selected($m->role === 'member')>{{ __('pages.team.role_member') }}</option>
                                         </select>
                                     </div>
 
@@ -175,7 +175,7 @@
                                         type="button"
                                         class="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                                         wire:click="removeMember({{ (int) $m->id }})"
-                                        title="{{ __('Retirer de l\'équipe') }}"
+                                        title="{{ __('pages.team.remove_from_team') }}"
                                     >
                                         <iconify-icon icon="solar:trash-bin-trash-bold" width="16"></iconify-icon>
                                     </button>
@@ -189,7 +189,7 @@
                                     <div class="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center mb-3">
                                         <iconify-icon icon="solar:users-group-rounded-linear" width="24" class="text-slate-400"></iconify-icon>
                                     </div>
-                                    <p class="text-sm font-medium">{{ __('Aucun membre trouvé') }}</p>
+                                    <p class="text-sm font-medium">{{ __('pages.team.no_members_found') }}</p>
                                 </div>
                             </td>
                         </tr>
@@ -211,45 +211,45 @@
             <div class="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
                 <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                     <div class="min-w-0">
-                        <div class="text-sm font-extrabold text-slate-900">{{ __('Inviter un membre') }}</div>
-                        <div class="text-xs text-slate-500">{{ __('Ajoutez un membre par email et choisissez son rôle.') }}</div>
+                        <div class="text-sm font-extrabold text-slate-900">{{ __('pages.team.invite_member') }}</div>
+                        <div class="text-xs text-slate-500">{{ __('pages.team.invite_modal_subtitle') }}</div>
                     </div>
-                    <button type="button" wire:click="closeInviteModal" class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition flex items-center justify-center" aria-label="{{ __('Fermer') }}">
+                    <button type="button" wire:click="closeInviteModal" class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition flex items-center justify-center" aria-label="{{ __('pages.team.close') }}">
                         <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
                     </button>
                 </div>
 
                 <form wire:submit.prevent="sendInvite" class="p-5 space-y-4">
                     <div class="space-y-1.5">
-                        <label class="text-[11px] font-semibold text-slate-700">{{ __('Email') }}</label>
+                        <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.email') }}</label>
                         <input
                             type="email"
                             wire:model.live.debounce.200ms="inviteEmail"
                             class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
-                            placeholder="email@exemple.com"
+                            placeholder="{{ __('pages.team.email_placeholder') }}"
                             required
                         >
                         <x-input-error :messages="$errors->get('inviteEmail')" />
                     </div>
 
                     <div class="space-y-1.5">
-                        <label class="text-[11px] font-semibold text-slate-700">{{ __('Rôle') }}</label>
+                        <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.role') }}</label>
                         <x-select-input wire:model.live="inviteRole">
-                            <option value="member">{{ __('Membre') }}</option>
-                            <option value="agent">{{ __('Agent') }}</option>
-                            <option value="admin">{{ __('Admin') }}</option>
-                            <option value="owner">{{ __('Propriétaire') }}</option>
+                            <option value="member">{{ __('pages.team.role_member') }}</option>
+                            <option value="agent">{{ __('pages.team.role_agent') }}</option>
+                            <option value="admin">{{ __('pages.team.role_admin') }}</option>
+                            <option value="owner">{{ __('pages.team.role_owner') }}</option>
                         </x-select-input>
                         <x-input-error :messages="$errors->get('inviteRole')" />
                     </div>
 
                     <div class="pt-2 flex items-center justify-end gap-3">
                         <button type="button" wire:click="closeInviteModal" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-                            {{ __('Annuler') }}
+                            {{ __('pages.team.cancel') }}
                         </button>
                         <button type="submit" class="h-10 px-4 rounded-xl bg-[var(--accent)] text-white text-sm font-extrabold shadow-sm hover:opacity-90 transition inline-flex items-center gap-2">
-                            <span wire:loading.remove wire:target="sendInvite">{{ __('Envoyer') }}</span>
-                            <span wire:loading wire:target="sendInvite">{{ __('Envoi...') }}</span>
+                            <span wire:loading.remove wire:target="sendInvite">{{ __('pages.team.send') }}</span>
+                            <span wire:loading wire:target="sendInvite">{{ __('pages.team.sending') }}</span>
                         </button>
                     </div>
                 </form>

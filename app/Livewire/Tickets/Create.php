@@ -4,6 +4,7 @@ namespace App\Livewire\Tickets;
 
 use App\Enums\TicketStatus;
 use App\Enums\FormStatus;
+use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
@@ -11,6 +12,7 @@ use App\Models\TicketChecklistItem;
 use App\Models\TicketPriority;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -104,7 +106,16 @@ class Create extends Component
             } elseif (in_array($type, ['date', 'datetime'], true)) {
                 $rules[] = 'date';
             } elseif ($type === 'checkbox') {
-                $rules[] = 'boolean';
+                if (is_array($options) && count($options) > 0) {
+                    $rules[] = 'array';
+                    $rules[] = 'max:' . count($options);
+                    if ($f->required) {
+                        $rules[] = 'min:1';
+                    }
+                    $dynamicRules["custom.{$f->key}.*"] = ['string', Rule::in($options)];
+                } else {
+                    $rules[] = 'boolean';
+                }
             } elseif ($type === 'textarea') {
                 $rules[] = 'string';
                 $rules[] = 'max:5000';
@@ -176,18 +187,27 @@ class Create extends Component
         }
 
         $customFields = [];
+        $options = [];
+        foreach ($fields as $f) {
+            $options[$f->key] = is_array($f->options) ? $f->options : [];
+        }
         foreach ($fields as $f) {
             $key = (string) $f->key;
             $val = $this->custom[$key] ?? null;
             if ($f->type === 'checkbox') {
-                $val = (bool) $val;
+                $opts = $options[$key] ?? [];
+                if (count($opts) > 0) {
+                    $val = is_array($val) ? array_values(array_filter($val)) : [];
+                } else {
+                    $val = (bool) $val;
+                }
             }
             if (is_string($val)) {
                 $val = trim($val);
             }
 
-            // Keep false/0, ignore empty strings/null
-            if ($val === null || $val === '') {
+            // Keep false/0, ignore empty strings/null; for array keep empty array
+            if ($val === null || $val === '' || (is_array($val) && count($val) === 0)) {
                 continue;
             }
             $customFields[$key] = $val;
@@ -271,6 +291,8 @@ class Create extends Component
             ]);
         }
 
+        CacheHelper::invalidateDashboard($orgId);
+        CacheHelper::invalidateReports($orgId);
         $this->redirectRoute('tickets.index');
     }
 
@@ -344,19 +366,23 @@ class Create extends Component
         $orgId = (int) session('current_organization_id');
 
         $categories = $orgId
-            ? TicketCategory::query()
-            ->where('organization_id', $orgId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get()
+            ? Cache::remember(CacheHelper::categoriesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketCategory::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get();
+            })
             : collect();
 
         $priorities = $orgId
-            ? TicketPriority::query()
-            ->where('organization_id', $orgId)
-            ->where('is_active', true)
-            ->orderBy('level')
-            ->get()
+            ? Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketPriority::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('level')
+                    ->get();
+            })
             : collect();
 
         $assignees = $orgId
@@ -372,6 +398,7 @@ class Create extends Component
             : null;
         $formFields = $form?->fields ?? collect();
 
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         $role = $user && $orgId ? $user->organizations()->where('organization_id', $orgId)->first()?->pivot?->role : 'member';
         $canAssignAtCreate = in_array($role, ['owner', 'admin', 'agent'], true);

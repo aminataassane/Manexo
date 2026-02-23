@@ -3,11 +3,13 @@
 namespace App\Livewire\Tickets;
 
 use App\Enums\TicketStatus;
+use App\Helpers\CacheHelper;
 use App\Models\Ticket;
 use App\Models\TicketChecklistItem;
 use App\Models\TicketPriority;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Url;
 use Livewire\Attributes\Layout;
@@ -173,6 +175,8 @@ class Index extends Component
         }
 
         $ticket->update(['status' => $status]);
+        CacheHelper::invalidateDashboard($orgId);
+        CacheHelper::invalidateReports($orgId);
     }
 
     public function setView(string $key): void
@@ -356,11 +360,13 @@ class Index extends Component
         }
 
         $priorities = $orgId
-            ? TicketPriority::query()
-            ->where('organization_id', $orgId)
-            ->where('is_active', true)
-            ->orderByDesc('level')
-            ->get(['id', 'name', 'level'])
+            ? Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketPriority::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderByDesc('level')
+                    ->get(['id', 'name', 'level']);
+            })
             : collect();
 
         $assignees = $org

@@ -289,10 +289,12 @@
                 </button>
                 <button
                     type="submit"
-                    class="h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 w-full sm:w-auto bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
+                    wire:loading.attr="disabled"
+                    class="h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 w-full sm:w-auto bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                    <iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon>
-                    {{ __('Envoyer') }}
+                    <span wire:loading.remove wire:target="submit"><iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon></span>
+                    <span wire:loading wire:target="submit" class="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                    <span wire:loading.remove wire:target="submit">{{ __('Envoyer') }}</span>
                 </button>
             </div>
         </div>

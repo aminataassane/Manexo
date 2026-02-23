@@ -10,12 +10,18 @@
     @livewireStyles
 
     <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
 
     <style>
-        /* Typography */
-        body { font-family: 'Inter', sans-serif; }
-        .font-serif { font-family: 'Playfair Display', serif; }
+        /* Typography: Mona Sans uniquement */
+        body, .font-serif {
+            font-family: "Mona Sans", sans-serif;
+            font-optical-sizing: auto;
+            font-style: normal;
+            font-variation-settings: "wdth" 100;
+        }
         [x-cloak] { display: none !important; }
         html { overflow-x: hidden; }
 
@@ -88,5 +94,21 @@
         if(!window.Echo){var _c={listen:function(){return _c},stopListening:function(){return _c},notification:function(){return _c},listenForWhisper:function(){return _c},subscribed:function(){return _c},error:function(){return _c}};window.Echo={private:function(){return _c},channel:function(){return _c},encryptedPrivate:function(){return _c},join:function(){return _c},leave:function(){},leaveChannel:function(){},leaveAllChannels:function(){},socketId:function(){return null},connector:{pusher:{connection:{state:"stub"}}}}}
     </script>
     @livewireScripts
+    {{-- Global loading indicator when Livewire is processing (clicks, navigation) --}}
+    <div id="livewire-loading-bar" class="fixed top-0 left-0 right-0 h-0.5 z-[100] opacity-0 transition-opacity duration-150 pointer-events-none" style="background: var(--accent); transform: scaleX(0); transform-origin: left;"></div>
+    <script>
+        document.addEventListener('livewire:init', function() {
+            var bar = document.getElementById('livewire-loading-bar');
+            if (!bar) return;
+            Livewire.hook('request', function({ uri, options }) {
+                bar.style.opacity = '1';
+                bar.style.transform = 'scaleX(0.3)';
+            });
+            Livewire.hook('commit', function({ component, commit, respond, succeed, fail }) {
+                succeed(function() { bar.style.transform = 'scaleX(1)'; bar.style.opacity = '0'; });
+                fail(function() { bar.style.opacity = '0'; bar.style.transform = 'scaleX(0)'; });
+            });
+        });
+    </script>
 </body>
 </html>

@@ -2,15 +2,15 @@
     <!-- HEADER -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('Paramètres') }}</h1>
-            <p class="mt-1 text-sm text-slate-500">{{ __('Gérez la configuration de votre entreprise.') }}</p>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('settings.title') }}</h1>
+            <p class="mt-1 text-sm text-slate-500">{{ __('settings.subtitle') }}</p>
         </div>
         <a
             href="{{ route('dashboard') }}"
             class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
         >
             <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
-            {{ __('Retour') }}
+            {{ __('settings.back') }}
         </a>
     </div>
 
@@ -25,7 +25,7 @@
         <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-sm">
             <p class="font-semibold flex items-center gap-2 mb-2">
                 <iconify-icon icon="solar:danger-triangle-bold" width="20"></iconify-icon>
-                {{ __('Veuillez corriger les erreurs ci-dessous.') }}
+                {{ __('settings.fix_errors') }}
             </p>
             <ul class="list-disc list-inside space-y-1">
                 @foreach ($errors->all() as $err)
@@ -47,36 +47,36 @@
 
                 <button type="button" class="{{ $navItemClass }}" :class="tab === 'branding' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'branding'">
                     <iconify-icon icon="solar:palette-bold-duotone" width="20" :class="tab === 'branding' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('Apparence') }}
+                    {{ __('settings.appearance') }}
                 </button>
 
                 <button type="button" class="{{ $navItemClass }}" :class="tab === 'tickets' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'tickets'">
                     <iconify-icon icon="solar:ticket-bold-duotone" width="20" :class="tab === 'tickets' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('Tickets') }}
+                    {{ __('menu.tickets') }}
                 </button>
 
                 <button type="button" class="{{ $navItemClass }}" :class="tab === 'categories' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'categories'">
                     <iconify-icon icon="solar:tag-bold-duotone" width="20" :class="tab === 'categories' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('Catégories') }}
+                    {{ __('settings.categories') }}
                 </button>
 
                 <button type="button" class="{{ $navItemClass }}" :class="tab === 'priorities' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'priorities'">
                     <iconify-icon icon="solar:flag-bold-duotone" width="20" :class="tab === 'priorities' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('Priorités') }}
+                    {{ __('settings.priorities') }}
                 </button>
                 <button type="button" class="{{ $navItemClass }}" :class="tab === 'functions' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'functions'">
                     <iconify-icon icon="solar:user-id-bold-duotone" width="20" :class="tab === 'functions' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('Fonctions métier') }}
+                    {{ __('settings.business_functions') }}
                 </button>
                 <button type="button" class="{{ $navItemClass }}" :class="tab === 'forms' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'forms'">
                     <iconify-icon icon="solar:clipboard-list-bold-duotone" width="20" :class="tab === 'forms' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('Formulaires') }}
+                    {{ __('settings.forms') }}
                 </button>
 
                 <div class="pt-4 mt-4 border-t border-slate-200">
                     <button type="button" class="{{ $navItemClass }}" :class="tab === 'danger' ? 'bg-red-50 text-red-700 ring-1 ring-red-100' : 'text-slate-600 hover:bg-red-50 hover:text-red-700'" @click="tab = 'danger'">
                         <iconify-icon icon="solar:danger-triangle-bold-duotone" width="20" :class="tab === 'danger' ? 'text-red-600' : 'text-slate-400 group-hover:text-red-500'"></iconify-icon>
-                        {{ __('Zone Danger') }}
+                        {{ __('settings.danger_zone') }}
                     </button>
                 </div>
             </nav>
@@ -86,9 +86,9 @@
                 <div class="flex items-start gap-3">
                     <iconify-icon icon="solar:info-circle-bold" class="text-slate-400 mt-0.5" width="20"></iconify-icon>
                     <div>
-                        <h4 class="text-sm font-semibold text-slate-900">{{ __('Besoin d\'aide ?') }}</h4>
+                        <h4 class="text-sm font-semibold text-slate-900">{{ __('settings.need_help') }}</h4>
                         <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                            {{ __('Seuls les administrateurs peuvent modifier ces paramètres. Contactez le support si vous avez des questions.') }}
+                            {{ __('settings.help_text') }}
                         </p>
                     </div>
                 </div>
@@ -100,21 +100,21 @@
             @if (! $canManage)
                 <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3">
                     <iconify-icon icon="solar:lock-keyhole-bold" width="20"></iconify-icon>
-                    {{ __('Accès en lecture seule. Vous devez être administrateur pour modifier ces paramètres.') }}
+                    {{ __('settings.read_only') }}
                 </div>
             @endif
 
             <!-- BRANDING TAB -->
             <div x-show="tab === 'branding'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-                    <h2 class="text-lg font-bold text-slate-900">{{ __('Apparence & Identité') }}</h2>
-                    <p class="text-sm text-slate-500">{{ __('Personnalisez l\'apparence de votre espace de travail.') }}</p>
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('settings.branding_title') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('settings.branding_subtitle') }}</p>
                 </div>
 
                 <form wire:submit.prevent="save" class="p-6 space-y-8">
                     <!-- Logo Section -->
                     <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('Logo de l\'entreprise') }}</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('settings.company_logo') }}</h3>
                         <div class="flex items-start gap-6">
                             <div class="shrink-0 relative group">
                                 <div class="h-24 w-24 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/10">
@@ -127,7 +127,7 @@
                                     @endif
                                 </div>
                                 @if ($currentLogoUrl || $logo)
-                                    <button type="button" wire:click="removeLogo" class="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition-colors shadow-sm" title="Supprimer">
+                                    <button type="button" wire:click="removeLogo" class="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition-colors shadow-sm" title="{{ __('settings.remove') }}">
                                         <iconify-icon icon="solar:trash-bin-trash-bold" width="14"></iconify-icon>
                                     </button>
                                 @endif
@@ -136,13 +136,13 @@
                                 <div class="flex items-center gap-3">
                                     <label for="logo-upload" class="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
                                         <iconify-icon icon="solar:upload-linear" width="18"></iconify-icon>
-                                        {{ __('Télécharger un logo') }}
+                                        {{ __('settings.upload_logo') }}
                                         <input id="logo-upload" type="file" class="hidden" accept="image/*" wire:model="logo" @disabled(! $canManage)>
                                     </label>
-                                    <span class="text-xs text-slate-500">{{ __('PNG, JPG, GIF jusqu\'à 2MB') }}</span>
+                                    <span class="text-xs text-slate-500">{{ __('settings.logo_formats') }}</span>
                                 </div>
                                 <p class="text-xs text-slate-500 leading-relaxed">
-                                    {{ __('Ce logo apparaîtra sur votre page de connexion, vos emails et dans la barre latérale.') }}
+                                    {{ __('settings.logo_usage') }}
                                 </p>
                                 <x-input-error :messages="$errors->get('logo')" />
                             </div>
@@ -166,7 +166,7 @@
                             <x-input-error :messages="$errors->get('name')" class="mt-1" />
                         </div>
                         <div>
-                            <x-input-label for="org_slug" value="URL de l'espace (slug)" />
+                            <x-input-label for="org_slug" :value="__('settings.space_slug')" />
                             <div class="mt-1 flex rounded-xl shadow-sm">
                                 <span class="inline-flex items-center rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">manexo.io/</span>
                                 <input type="text" id="org_slug" wire:model="slug" class="block w-full min-w-0 flex-1 rounded-none rounded-r-xl border-slate-200 focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm" @disabled(! $canManage)>
@@ -177,7 +177,7 @@
 
                     <!-- Colors -->
                     <div>
-                        <x-input-label for="primary_color" value="Couleur principale" />
+                        <x-input-label for="primary_color" :value="__('settings.primary_color')" />
                         <div class="mt-2 flex items-center gap-4">
                             <div class="relative group cursor-pointer">
                                 <input type="color" id="color-picker" class="absolute inset-0 h-full w-full opacity-0 cursor-pointer z-10" wire:model.live="primary_color" @disabled(! $canManage)>
@@ -197,13 +197,13 @@
                                 />
                             </div>
                         </div>
-                        <p class="mt-2 text-xs text-slate-500">{{ __('Utilisée pour les boutons, liens et éléments actifs. Cliquez sur le carré pour ouvrir le sélecteur.') }}</p>
+                        <p class="mt-2 text-xs text-slate-500">{{ __('settings.primary_color_help') }}</p>
                         <x-input-error :messages="$errors->get('primary_color')" class="mt-1" />
                     </div>
 
                     <div class="pt-4 flex justify-end">
                         <button type="submit" class="btn-primary" @disabled(! $canManage)>
-                            <span wire:loading.remove>{{ __('Enregistrer les modifications') }}</span>
+                            <span wire:loading.remove>{{ __('settings.save_changes') }}</span>
                             <span wire:loading><iconify-icon icon="solar:refresh-linear" class="animate-spin"></iconify-icon></span>
                         </button>
                     </div>
@@ -213,17 +213,17 @@
             <!-- TICKETS TAB -->
             <div x-show="tab === 'tickets'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-                    <h2 class="text-lg font-bold text-slate-900">{{ __('Configuration des Tickets') }}</h2>
-                    <p class="text-sm text-slate-500">{{ __('Définissez les règles par défaut pour les nouveaux tickets.') }}</p>
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('settings.tickets_title') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('settings.tickets_subtitle') }}</p>
                 </div>
 
                 <form wire:submit.prevent="save" class="p-6 space-y-8">
                     <div class="grid gap-6 sm:grid-cols-2">
                         <div>
-                            <x-input-label for="default_category" value="Catégorie par défaut" />
+                            <x-input-label for="default_category" :value="__('settings.default_category')" />
                             <div class="mt-1">
                                 <x-select-input id="default_category" wire:model="default_category_id" :disabled="! $canManage">
-                                    <option value="">{{ __('Sélectionner...') }}</option>
+                                    <option value="">{{ __('settings.select') }}</option>
                                     @foreach ($categories as $c)
                                         <option value="{{ $c->id }}">{{ $c->name }}</option>
                                     @endforeach
@@ -233,10 +233,10 @@
                         </div>
 
                         <div>
-                            <x-input-label for="default_priority" value="Priorité par défaut" />
+                            <x-input-label for="default_priority" :value="__('settings.default_priority')" />
                             <div class="mt-1">
                                 <x-select-input id="default_priority" wire:model="default_priority_id" :disabled="! $canManage">
-                                    <option value="">{{ __('Sélectionner...') }}</option>
+                                    <option value="">{{ __('settings.select') }}</option>
                                     @foreach ($priorities as $p)
                                         <option value="{{ $p->id }}">{{ $p->name }}</option>
                                     @endforeach
@@ -249,21 +249,21 @@
                     <hr class="border-slate-100">
 
                     <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('Règles de gestion') }}</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('settings.rules_title') }}</h3>
                         <div class="space-y-4">
                             <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer">
                                 <input type="checkbox" wire:model="members_can_edit" class="mt-1 rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]" @disabled(! $canManage)>
                                 <div>
-                                    <span class="block text-sm font-medium text-slate-900">{{ __('Autoriser l\'édition') }}</span>
-                                    <span class="block text-xs text-slate-500 mt-0.5">{{ __('Les membres peuvent modifier leurs propres tickets après création.') }}</span>
+                                    <span class="block text-sm font-medium text-slate-900">{{ __('settings.allow_edit') }}</span>
+                                    <span class="block text-xs text-slate-500 mt-0.5">{{ __('settings.allow_edit_help') }}</span>
                                 </div>
                             </label>
 
                             <label class="flex items-start gap-3 p-4 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer">
                                 <input type="checkbox" wire:model="members_can_delete" class="mt-1 rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]" @disabled(! $canManage)>
                                 <div>
-                                    <span class="block text-sm font-medium text-slate-900">{{ __('Autoriser la suppression') }}</span>
-                                    <span class="block text-xs text-slate-500 mt-0.5">{{ __('Les membres peuvent supprimer leurs propres tickets (non recommandé).') }}</span>
+                                    <span class="block text-sm font-medium text-slate-900">{{ __('settings.allow_delete') }}</span>
+                                    <span class="block text-xs text-slate-500 mt-0.5">{{ __('settings.allow_delete_help') }}</span>
                                 </div>
                             </label>
                         </div>
@@ -272,27 +272,27 @@
                     <hr class="border-slate-100">
 
                     <div>
-                        <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('Fermeture automatique') }}</h3>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('settings.auto_close_title') }}</h3>
                         <div class="max-w-xs">
-                            <x-input-label for="auto_close_days" value="Fermer après X jours d'inactivité" />
+                            <x-input-label for="auto_close_days" :value="__('settings.auto_close_label')" />
                             <input
                                 id="auto_close_days"
                                 type="number"
                                 wire:model="auto_close_days"
                                 min="1"
                                 max="365"
-                                placeholder="Désactivé"
+                                :placeholder="__('settings.auto_close_placeholder')"
                                 class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all disabled:bg-slate-50 disabled:text-slate-500"
                                 @disabled(! $canManage)
                             />
-                            <p class="text-xs text-slate-500 mt-1.5">{{ __('Laissez vide pour désactiver la fermeture automatique.') }}</p>
+                            <p class="text-xs text-slate-500 mt-1.5">{{ __('settings.auto_close_help') }}</p>
                             <x-input-error :messages="$errors->get('auto_close_days')" class="mt-1" />
                         </div>
                     </div>
 
                     <div class="pt-4 flex justify-end">
                         <button type="submit" class="btn-primary" @disabled(! $canManage)>
-                            {{ __('Enregistrer') }}
+                            {{ __('settings.save') }}
                         </button>
                     </div>
                 </form>
@@ -301,8 +301,8 @@
             <!-- CATEGORIES TAB -->
             <div x-show="tab === 'categories'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-                    <h2 class="text-lg font-bold text-slate-900">{{ __('Gestion des Catégories') }}</h2>
-                    <p class="text-sm text-slate-500">{{ __('Créez et organisez les catégories pour classer vos tickets.') }}</p>
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('settings.categories_title') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('settings.categories_subtitle') }}</p>
                 </div>
 
                 <div class="p-6 space-y-6">
@@ -310,19 +310,19 @@
                     @if ($canManage)
                         <form wire:submit.prevent="createCategory" class="flex items-end gap-3">
                             <div class="flex-1">
-                                <x-input-label for="new_cat_name" value="Nom de la catégorie" />
+                                <x-input-label for="new_cat_name" :value="__('settings.category_name')" />
                                 <input
                                     id="new_cat_name"
                                     type="text"
                                     wire:model="newCategoryName"
-                                    placeholder="Ex : Support technique"
+                                    :placeholder="__('settings.category_placeholder')"
                                     class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 />
                                 <x-input-error :messages="$errors->get('newCategoryName')" class="mt-1" />
                             </div>
                             <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
                                 <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
-                                {{ __('Ajouter') }}
+                                {{ __('settings.add') }}
                             </button>
                         </form>
                         <hr class="border-slate-100">
@@ -334,7 +334,7 @@
                             <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-3">
                                 <iconify-icon icon="solar:tag-linear" width="28" class="text-slate-400"></iconify-icon>
                             </div>
-                            <p class="text-sm text-slate-500">{{ __('Aucune catégorie. Créez-en une pour commencer.') }}</p>
+                            <p class="text-sm text-slate-500">{{ __('settings.no_categories') }}</p>
                         </div>
                     @else
                         <div class="space-y-2">
@@ -350,10 +350,10 @@
                                                 class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                                 autofocus
                                             />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="Enregistrer">
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" :title="__('settings.save')">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="cancelEditCategory" class="text-slate-400 hover:text-slate-600" title="Annuler">
+                                            <button type="button" wire:click="cancelEditCategory" class="text-slate-400 hover:text-slate-600" :title="__('settings.cancel')">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
                                         </form>
@@ -373,16 +373,16 @@
                                             @disabled(! $canManage)
                                         >
                                             <span class="h-1.5 w-1.5 rounded-full {{ $cat->is_active ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
-                                            {{ $cat->is_active ? __('Actif') : __('Inactif') }}
+                                            {{ $cat->is_active ? __('settings.active') : __('settings.inactive') }}
                                         </button>
 
                                         @if ($canManage)
                                             {{-- Edit --}}
-                                            <button type="button" wire:click="startEditCategory({{ $cat->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="Modifier">
+                                            <button type="button" wire:click="startEditCategory({{ $cat->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" :title="__('settings.edit')">
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
                                             {{-- Delete --}}
-                                            <button type="button" wire:click="deleteCategory({{ $cat->id }})" wire:confirm="{{ __('Supprimer cette catégorie ?') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="Supprimer">
+                                            <button type="button" wire:click="deleteCategory({{ $cat->id }})" wire:confirm="{{ __('settings.delete_category_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" :title="__('settings.delete')">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -397,8 +397,8 @@
             <!-- PRIORITIES TAB -->
             <div x-show="tab === 'priorities'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-                    <h2 class="text-lg font-bold text-slate-900">{{ __('Niveaux de Priorité') }}</h2>
-                    <p class="text-sm text-slate-500">{{ __('Définissez les niveaux d\'urgence pour vos tickets.') }}</p>
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('settings.priorities_title') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('settings.priorities_subtitle') }}</p>
                 </div>
 
                 <div class="p-6 space-y-6">
@@ -406,18 +406,18 @@
                     @if ($canManage)
                         <form wire:submit.prevent="createPriority" class="flex items-end gap-3">
                             <div class="flex-1">
-                                <x-input-label for="new_prio_name" value="Nom" />
+                                <x-input-label for="new_prio_name" :value="__('settings.name')" />
                                 <input
                                     id="new_prio_name"
                                     type="text"
                                     wire:model="newPriorityName"
-                                    placeholder="Ex : Urgente"
+                                    :placeholder="__('settings.priority_placeholder')"
                                     class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 />
                                 <x-input-error :messages="$errors->get('newPriorityName')" class="mt-1" />
                             </div>
                             <div class="w-28">
-                                <x-input-label for="new_prio_level" value="Niveau" />
+                                <x-input-label for="new_prio_level" :value="__('settings.level')" />
                                 <input
                                     id="new_prio_level"
                                     type="number"
@@ -430,7 +430,7 @@
                             </div>
                             <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
                                 <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
-                                {{ __('Ajouter') }}
+                                {{ __('settings.add') }}
                             </button>
                         </form>
                         <hr class="border-slate-100">
@@ -442,7 +442,7 @@
                             <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-3">
                                 <iconify-icon icon="solar:flag-linear" width="28" class="text-slate-400"></iconify-icon>
                             </div>
-                            <p class="text-sm text-slate-500">{{ __('Aucune priorité. Créez-en une pour commencer.') }}</p>
+                            <p class="text-sm text-slate-500">{{ __('settings.no_priorities') }}</p>
                         </div>
                     @else
                         <div class="space-y-2">
@@ -464,10 +464,10 @@
                                                 min="0"
                                                 class="w-20 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                             />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="Enregistrer">
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" :title="__('settings.save')">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="cancelEditPriority" class="text-slate-400 hover:text-slate-600" title="Annuler">
+                                            <button type="button" wire:click="cancelEditPriority" class="text-slate-400 hover:text-slate-600" :title="__('settings.cancel')">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
                                         </form>
@@ -493,11 +493,11 @@
 
                                         @if ($canManage)
                                             {{-- Edit --}}
-                                            <button type="button" wire:click="startEditPriority({{ $prio->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="Modifier">
+                                            <button type="button" wire:click="startEditPriority({{ $prio->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" :title="__('settings.edit')">
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
                                             {{-- Delete --}}
-                                            <button type="button" wire:click="deletePriority({{ $prio->id }})" wire:confirm="{{ __('Supprimer cette priorité ?') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="Supprimer">
+                                            <button type="button" wire:click="deletePriority({{ $prio->id }})" wire:confirm="{{ __('settings.delete_priority_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" :title="__('settings.delete')">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -512,20 +512,20 @@
             <!-- FONCTIONS MÉTIER TAB -->
             <div x-show="tab === 'functions'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-                    <h2 class="text-lg font-bold text-slate-900">{{ __('Fonctions métier') }}</h2>
-                    <p class="text-sm text-slate-500">{{ __('Postes dans l\'entreprise (ex: Informaticien, RH, Comptable). Distinct du rôle système (permissions).') }}</p>
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('settings.functions_title') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('settings.functions_subtitle') }}</p>
                 </div>
                 <div class="p-6 space-y-6">
                     @if ($canManage)
                         <form wire:submit.prevent="createFunction" class="flex items-end gap-3">
                             <div class="flex-1">
-                                <x-input-label for="new_function_name" value="{{ __('Nom de la fonction') }}" />
-                                <input id="new_function_name" type="text" wire:model="newFunctionName" placeholder="Ex : Informaticien, RH, Support niveau 2" class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all" />
+                                <x-input-label for="new_function_name" :value="__('settings.function_name')" />
+                                <input id="new_function_name" type="text" wire:model="newFunctionName" :placeholder="__('settings.function_placeholder')" class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all" />
                                 <x-input-error :messages="$errors->get('newFunctionName')" class="mt-1" />
                             </div>
                             <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
                                 <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
-                                {{ __('Ajouter') }}
+                                {{ __('settings.add') }}
                             </button>
                         </form>
                         <hr class="border-slate-100">
@@ -535,7 +535,7 @@
                             <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-3">
                                 <iconify-icon icon="solar:user-id-linear" width="28" class="text-slate-400"></iconify-icon>
                             </div>
-                            <p class="text-sm text-slate-500">{{ __('Aucune fonction. Créez-en une pour attribuer des postes aux membres.') }}</p>
+                            <p class="text-sm text-slate-500">{{ __('settings.no_functions') }}</p>
                         </div>
                     @else
                         <div class="space-y-2">
@@ -544,10 +544,10 @@
                                     @if ($editingFunctionId === $fn->id)
                                         <form wire:submit.prevent="updateFunction" class="flex-1 flex items-center gap-3">
                                             <input type="text" wire:model="editingFunctionName" class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" autofocus />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('Enregistrer') }}">
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" :title="__('settings.save')">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="cancelEditFunction" class="text-slate-400 hover:text-slate-600" title="{{ __('Annuler') }}">
+                                            <button type="button" wire:click="cancelEditFunction" class="text-slate-400 hover:text-slate-600" :title="__('settings.cancel')">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
                                         </form>
@@ -555,10 +555,10 @@
                                     @else
                                         <span class="flex-1 text-sm font-medium text-slate-900">{{ $fn->name }}</span>
                                         @if ($canManage)
-                                            <button type="button" wire:click="startEditFunction({{ $fn->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="{{ __('Modifier') }}">
+                                            <button type="button" wire:click="startEditFunction({{ $fn->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" :title="__('settings.edit')">
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="deleteFunction({{ $fn->id }})" wire:confirm="{{ __('Supprimer cette fonction ?') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('Supprimer') }}">
+                                            <button type="button" wire:click="deleteFunction({{ $fn->id }})" wire:confirm="{{ __('settings.delete_function_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" :title="__('settings.delete')">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -575,12 +575,12 @@
                     <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent-soft)] mb-4 text-[var(--accent)]">
                         <iconify-icon icon="solar:clipboard-list-bold-duotone" width="32"></iconify-icon>
                     </div>
-                    <h3 class="text-xl font-bold text-slate-900">{{ __('Éditeur de Formulaires') }}</h3>
-                    <p class="text-slate-500 mt-2 max-w-lg mx-auto mb-8">{{ __('Créez des formulaires de ticket personnalisés avec des champs spécifiques pour chaque type de demande.') }}</p>
+                    <h3 class="text-xl font-bold text-slate-900">{{ __('settings.forms_editor_title') }}</h3>
+                    <p class="text-slate-500 mt-2 max-w-lg mx-auto mb-8">{{ __('settings.forms_editor_subtitle') }}</p>
 
                     <a href="{{ route('admin.forms') }}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:-translate-y-0.5 transition-all">
                         <iconify-icon icon="solar:magic-stick-3-bold-duotone" width="20"></iconify-icon>
-                        {{ __('Ouvrir le constructeur') }}
+                        {{ __('settings.open_builder') }}
                     </a>
                 </div>
             </div>
@@ -588,17 +588,17 @@
             <!-- DANGER ZONE -->
             <div x-show="tab === 'danger'" x-cloak class="bg-red-50 rounded-2xl border border-red-100 shadow-sm overflow-hidden">
                 <div class="px-6 py-5 border-b border-red-100 bg-red-100/50">
-                    <h2 class="text-lg font-bold text-red-900">{{ __('Zone de Danger') }}</h2>
-                    <p class="text-sm text-red-700">{{ __('Attention, ces actions sont irréversibles.') }}</p>
+                    <h2 class="text-lg font-bold text-red-900">{{ __('settings.danger_title') }}</h2>
+                    <p class="text-sm text-red-700">{{ __('settings.danger_subtitle') }}</p>
                 </div>
                 <div class="p-6">
                     <div class="rounded-xl bg-white p-6 border border-red-100">
-                        <h3 class="text-base font-bold text-slate-900">{{ __('Supprimer l\'entreprise') }}</h3>
-                        <p class="text-sm text-slate-500 mt-1 mb-4">{{ __('Cela supprimera définitivement tous les tickets, membres et données associés à cet espace de travail.') }}</p>
+                        <h3 class="text-base font-bold text-slate-900">{{ __('settings.delete_organization') }}</h3>
+                        <p class="text-sm text-slate-500 mt-1 mb-4">{{ __('settings.delete_organization_help') }}</p>
 
                         <div class="flex items-end gap-4">
                             <div class="flex-1">
-                                <x-input-label for="confirm_delete" value="Pour confirmer, tapez le nom de l'entreprise" />
+                                <x-input-label for="confirm_delete" :value="__('settings.confirm_delete_label')" />
                                 <x-text-input id="confirm_delete" type="text" class="mt-1 w-full" wire:model="dangerConfirmName" placeholder="{{ $org?->name }}" :disabled="! $isOwner" />
                             </div>
                             <button
@@ -607,11 +607,11 @@
                                 class="h-[42px] px-4 rounded-xl bg-red-600 text-white text-sm font-bold shadow-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 @disabled(! $isOwner || $dangerConfirmName !== $org?->name)
                             >
-                                {{ __('Supprimer définitivement') }}
+                                {{ __('settings.delete_permanently') }}
                             </button>
                         </div>
                         @if(!$isOwner)
-                            <p class="text-xs text-red-600 mt-2 font-medium">{{ __('Seul le propriétaire peut effectuer cette action.') }}</p>
+                            <p class="text-xs text-red-600 mt-2 font-medium">{{ __('settings.owner_only') }}</p>
                         @endif
                     </div>
                 </div>

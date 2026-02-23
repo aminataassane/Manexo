@@ -23,10 +23,13 @@
             <button
                 type="submit"
                 form="ticket-create-form"
-                class="min-h-[44px] sm:min-h-0 h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors inline-flex items-center justify-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
+                wire:loading.attr="disabled"
+                wire:target="submit"
+                class="min-h-[44px] sm:min-h-0 h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors inline-flex items-center justify-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] disabled:opacity-70 disabled:cursor-not-allowed"
             >
-                <iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon>
-                {{ __('Envoyer') }}
+                <span wire:loading.remove wire:target="submit"><iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon></span>
+                <span wire:loading wire:target="submit" class="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                <span wire:loading.remove wire:target="submit">{{ __('Envoyer') }}</span>
             </button>
         </div>
     </div>
@@ -148,15 +151,27 @@
                                         </div>
                                     @elseif ($type === 'checkbox')
                                         <div>
-                                            <label class="flex items-center justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3">
-                                                <div class="min-w-0">
-                                                    <div class="text-[13px] font-semibold text-[#111827]">
-                                                        {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
-                                                    </div>
-                                                    <div class="text-[12px] text-[#6B7280]">{{ __('Activer / désactiver') }}</div>
-                                                </div>
-                                                <input type="checkbox" wire:model="custom.{{ $key }}" class="h-5 w-5 rounded border-[#E5E7EB] text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]" />
+                                            <label class="block text-[11px] font-medium text-slate-700">
+                                                {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
                                             </label>
+                                            @if(count((array) $options) > 0)
+                                                <div class="mt-1 space-y-2">
+                                                    @foreach((array) $options as $opt)
+                                                        <label class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 hover:border-[var(--accent)] cursor-pointer transition-colors">
+                                                            <input type="checkbox" wire:model="custom.{{ $key }}" value="{{ $opt }}"
+                                                                   class="text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]">
+                                                            <span class="text-sm text-slate-700">{{ $opt }}</span>
+                                                        </label>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <label class="flex items-center justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 mt-1">
+                                                    <div class="min-w-0">
+                                                        <div class="text-[12px] text-[#6B7280]">{{ __('Activer / désactiver') }}</div>
+                                                    </div>
+                                                    <input type="checkbox" wire:model="custom.{{ $key }}" class="h-5 w-5 rounded border-[#E5E7EB] text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]" />
+                                                </label>
+                                            @endif
                                             @if($helpText)
                                                 <p class="mt-1 text-[11px] text-[#6B7280]">{{ $helpText }}</p>
                                             @endif

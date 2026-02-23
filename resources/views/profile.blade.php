@@ -1,5 +1,5 @@
 <x-manexo-app-layout>
-    <x-slot name="title">Profil</x-slot>
+    <x-slot name="title">{{ __('pages.profile.title') }}</x-slot>
 
     @php
         $user = Auth::user();
@@ -36,7 +36,7 @@
             foreach ($ticketsCreated as $t) {
                 $events->push([
                     'type' => 'ticket',
-                    'label' => 'Ticket créé',
+                    'label' => __('pages.profile.ticket_created'),
                     'ticket_id' => $t->id,
                     'subject' => $t->subject,
                     'status' => is_object($t->status) ? $t->status->value : (string) $t->status,
@@ -48,7 +48,7 @@
             foreach ($ticketsAssigned as $t) {
                 $events->push([
                     'type' => 'ticket',
-                    'label' => 'Ticket assigné à vous',
+                    'label' => __('pages.profile.ticket_assigned_to_you'),
                     'ticket_id' => $t->id,
                     'subject' => $t->subject,
                     'status' => is_object($t->status) ? $t->status->value : (string) $t->status,
@@ -69,14 +69,7 @@
             ->values();
 
         $statusLabel = function (string $status): string {
-            return match ($status) {
-                'open' => 'Ouvert',
-                'in_progress' => 'En cours',
-                'pending' => 'En attente',
-                'resolved' => 'Résolu',
-                'closed' => 'Fermé',
-                default => ucfirst(str_replace('_', ' ', $status)),
-            };
+            return __('tickets.status.' . $status);
         };
     @endphp
 
@@ -89,8 +82,8 @@
 
     <!-- Header -->
     <div class="mb-8">
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Mon Profil</h1>
-        <p class="text-sm text-slate-500 mt-1">Gérez vos informations personnelles et vos préférences.</p>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('pages.profile.heading') }}</h1>
+        <p class="text-sm text-slate-500 mt-1">{{ __('pages.profile.subheading') }}</p>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -100,8 +93,8 @@
             <!-- Personal Info -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                    <h2 class="text-base font-semibold text-slate-900">Informations personnelles</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Mettez à jour vos coordonnées.</p>
+                    <h2 class="text-base font-semibold text-slate-900">{{ __('pages.profile.personal_info_title') }}</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">{{ __('pages.profile.personal_info_subtitle') }}</p>
                 </div>
                 <div class="p-6">
                     <livewire:profile.update-profile-information-form />
@@ -112,11 +105,11 @@
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                     <div>
-                        <h2 class="text-base font-semibold text-slate-900">Mes entreprises</h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Espaces auxquels vous avez accès.</p>
+                        <h2 class="text-base font-semibold text-slate-900">{{ __('pages.profile.my_companies') }}</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ __('pages.profile.companies_subtitle') }}</p>
                     </div>
                     <a href="{{ route('organizations.select', ['mode' => 'switch']) }}" class="text-xs font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50">
-                        Gérer / Changer
+                        {{ __('pages.profile.manage_change') }}
                     </a>
                 </div>
                 <div class="p-6">
@@ -137,7 +130,7 @@
                             </div>
                         @empty
                             <div class="col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
-                                Vous n’êtes rattaché à aucune entreprise.
+                                {{ __('pages.profile.no_organization') }}
                             </div>
                         @endforelse
                     </div>
@@ -148,8 +141,8 @@
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" x-data="{ open: true }">
                 <button type="button" class="w-full px-6 py-4 flex items-center justify-between bg-slate-50/50 border-b border-slate-100 hover:bg-slate-100 transition-colors" @click="open = !open">
                     <div class="text-left">
-                        <h2 class="text-base font-semibold text-slate-900">Activité récente</h2>
-                        <p class="text-xs text-slate-500 mt-0.5">Vos dernières actions sur la plateforme.</p>
+                        <h2 class="text-base font-semibold text-slate-900">{{ __('pages.profile.recent_activity') }}</h2>
+                        <p class="text-xs text-slate-500 mt-0.5">{{ __('pages.profile.recent_activity_subtitle') }}</p>
                     </div>
                     <iconify-icon :icon="open ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="text-slate-400" width="20"></iconify-icon>
                 </button>
@@ -157,8 +150,8 @@
                 <div x-show="open" x-collapse>
                     <div class="p-6">
                         <div class="flex flex-wrap gap-2 mb-6">
-                            @php $filters = [['all','Tous'], ['tickets','Tickets'], ['commentaires','Commentaires'], ['assignations','Assignations']]; @endphp
-                            @foreach ($filters as [$key, $label])
+                            @php $filters = [['all', 'filter_all'], ['tickets', 'filter_tickets'], ['commentaires', 'filter_comments'], ['assignations', 'filter_assignations']]; @endphp
+                            @foreach ($filters as [$key, $labelKey])
                                 @php
                                     $isActive = $activityFilter === $key;
                                     $disabled = $key === 'commentaires';
@@ -166,7 +159,7 @@
                                 <a
                                     href="{{ route('profile', array_filter(['activity' => $key !== 'all' ? $key : null])) }}"
                                     class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all {{ $isActive ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} {{ $disabled ? 'pointer-events-none opacity-50' : '' }}"
-                                >{{ $label }}</a>
+                                >{{ __('pages.profile.' . $labelKey) }}</a>
                             @endforeach
                         </div>
 
@@ -189,14 +182,14 @@
                                 </div>
                             @empty
                                 <div class="py-8 text-center text-sm text-slate-500 italic">
-                                    Aucune activité récente trouvée.
+                                    {{ __('pages.profile.no_activity_found') }}
                                 </div>
                             @endforelse
                         </div>
                         
                         <div class="mt-6 pt-4 border-t border-slate-100 text-center">
                             <a href="{{ route('profile.history') }}" class="text-sm font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors inline-flex items-center gap-1">
-                                Voir tout l'historique
+                                {{ __('pages.profile.view_full_history') }}
                                 <iconify-icon icon="solar:arrow-right-linear" width="16"></iconify-icon>
                             </a>
                         </div>
@@ -209,25 +202,25 @@
         <div class="space-y-8">
             <!-- Language -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 class="text-sm font-semibold text-slate-900 mb-4">Langue</h2>
+                <h2 class="text-sm font-semibold text-slate-900 mb-4">{{ __('pages.profile.language') }}</h2>
                 <div class="grid grid-cols-2 gap-2">
-                    <a href="{{ route('locale.switch', ['locale' => 'fr']) }}" 
+                    <a href="{{ route('locale.switch', 'fr') }}" 
                        class="flex items-center justify-center gap-2 rounded-xl border p-2 text-sm font-medium transition-all {{ $currentLocale === 'FR' ? 'border-[var(--accent)] bg-[var(--accent-soft)]/10 text-[var(--accent)]' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50' }}">
-                        <span class="text-lg">🇫🇷</span> Français
+                        <span class="text-lg">🇫🇷</span> {{ __('pages.profile.french') }}
                     </a>
-                    <a href="{{ route('locale.switch', ['locale' => 'en']) }}" 
+                    <a href="{{ route('locale.switch', 'en') }}" 
                        class="flex items-center justify-center gap-2 rounded-xl border p-2 text-sm font-medium transition-all {{ $currentLocale === 'EN' ? 'border-[var(--accent)] bg-[var(--accent-soft)]/10 text-[var(--accent)]' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50' }}">
-                        <span class="text-lg">🇬🇧</span> English
+                        <span class="text-lg">🇬🇧</span> {{ __('pages.profile.english') }}
                     </a>
                 </div>
             </div>
 
             <!-- Security -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 class="text-sm font-semibold text-slate-900 mb-4">Sécurité</h2>
+                <h2 class="text-sm font-semibold text-slate-900 mb-4">{{ __('pages.profile.security') }}</h2>
                 <div class="space-y-4">
                     <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Sessions actives</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">{{ __('pages.profile.active_sessions') }}</h3>
                         <div class="space-y-3">
                             @foreach ($sessions as $s)
                                 @php
@@ -244,8 +237,8 @@
                                     </div>
                                     <div class="min-w-0 flex-1">
                                         <p class="font-medium text-slate-900">
-                                            {{ $s->ip_address ?? 'IP Inconnue' }}
-                                            @if($isCurrent) <span class="text-emerald-600 ml-1">(Actuelle)</span> @endif
+                                            {{ $s->ip_address ?? __('pages.profile.unknown_ip') }}
+                                            @if($isCurrent) <span class="text-emerald-600 ml-1">({{ __('pages.profile.current_session') }})</span> @endif
                                         </p>
                                         <p class="text-slate-500 truncate">{{ $s->user_agent }}</p>
                                         <p class="text-slate-400 mt-0.5">{{ $dt->diffForHumans() }}</p>
@@ -257,13 +250,13 @@
                         <form method="POST" action="{{ route('profile.sessions.logout_all') }}" class="mt-4 pt-4 border-t border-slate-200">
                             @csrf
                             <button type="submit" class="w-full rounded-lg bg-white border border-slate-200 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm">
-                                Déconnecter les autres sessions
+                                {{ __('pages.profile.logout_other_sessions') }}
                             </button>
                         </form>
                     </div>
 
                     <div class="pt-4 border-t border-slate-100">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Mot de passe</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">{{ __('pages.profile.password') }}</h3>
                         <livewire:profile.update-password-form />
                     </div>
                 </div>
@@ -271,11 +264,11 @@
 
             <!-- Danger Zone -->
             <div class="bg-red-50 rounded-2xl border border-red-100 p-6">
-                <h2 class="text-sm font-semibold text-red-900 mb-2">Zone de danger</h2>
-                <p class="text-xs text-red-700 mb-4">La suppression de votre compte est irréversible.</p>
+                <h2 class="text-sm font-semibold text-red-900 mb-2">{{ __('pages.profile.danger_zone') }}</h2>
+                <p class="text-xs text-red-700 mb-4">{{ __('pages.profile.danger_zone_text') }}</p>
                 <div x-data="{ open: false }">
                     <button @click="open = !open" type="button" class="text-xs font-bold text-red-600 hover:text-red-800 underline">
-                        Supprimer mon compte
+                        {{ __('pages.profile.delete_my_account') }}
                     </button>
                     <div x-show="open" x-collapse class="mt-4">
                         <livewire:profile.delete-user-form />

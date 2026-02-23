@@ -80,6 +80,12 @@ class Form extends Model
         return $query->where('organization_id', $orgId);
     }
 
+    /** Team forms only (whole team can respond, shareable by link). */
+    public function scopeTeamForm($query)
+    {
+        return $query->whereNull('target_user_id');
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────
 
     public function incrementVersion(): void

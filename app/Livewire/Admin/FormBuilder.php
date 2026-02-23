@@ -6,6 +6,7 @@ use App\Enums\FormAssignmentStatus;
 use App\Enums\FormStatus;
 use App\Enums\OrganizationRole;
 use App\Events\UserNotificationReceived;
+use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\FormAssignment;
 use App\Models\FormField;
@@ -14,6 +15,7 @@ use App\Models\OrganizationMembership;
 use App\Models\TicketCategory;
 use App\Notifications\FormAssignmentNotification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -50,7 +52,8 @@ class FormBuilder extends Component
     public string $fb_selected_field_placeholder = '';
     public string $fb_selected_field_help_text = '';
     public bool $fb_selected_field_required = false;
-    public string $fb_selected_field_options = '';
+    /** @var array<int, string> Options for select/radio/checkbox (one entry per option) */
+    public array $fb_selected_field_options_list = [];
 
     // New form
     public string $fb_form_name = '';
@@ -137,7 +140,19 @@ class FormBuilder extends Component
         $this->fb_selected_field_placeholder = '';
         $this->fb_selected_field_help_text = '';
         $this->fb_selected_field_required = false;
-        $this->fb_selected_field_options = '';
+        $this->fb_selected_field_options_list = [];
+    }
+
+    public function addOption(): void
+    {
+        $this->fb_selected_field_options_list[] = '';
+    }
+
+    public function removeOption(int $index): void
+    {
+        if ($index >= 0 && $index < count($this->fb_selected_field_options_list)) {
+            array_splice($this->fb_selected_field_options_list, $index, 1);
+        }
     }
 
     public function selectForm(int $formId): void
@@ -161,7 +176,7 @@ class FormBuilder extends Component
         $this->fb_selected_field_placeholder = (string) ($field->placeholder ?? '');
         $this->fb_selected_field_help_text = (string) ($field->help_text ?? '');
         $this->fb_selected_field_required = (bool) $field->required;
-        $this->fb_selected_field_options = is_array($field->options) ? implode(', ', $field->options) : '';
+        $this->fb_selected_field_options_list = is_array($field->options) ? array_values($field->options) : [];
         $this->dispatch('field-selected');
     }
 
@@ -235,6 +250,7 @@ class FormBuilder extends Component
                 'public_description' => trim((string) ($validated['fb_selected_form_public_description'] ?? '')) ?: null,
                 'public_thank_you' => trim((string) ($validated['fb_selected_form_public_thank_you'] ?? '')) ?: null,
             ]);
+        CacheHelper::invalidateForms($orgId);
         $this->dispatch('toast', type: 'success', message: 'Formulaire enregistré.');
     }
 
@@ -255,6 +271,7 @@ class FormBuilder extends Component
 
         $form->update(['status' => FormStatus::Published]);
         $this->fb_selected_form_status = FormStatus::Published->value;
+        CacheHelper::invalidateForms($orgId);
         $this->dispatch('toast', type: 'success', message: 'Formulaire publié.');
     }
 
@@ -268,6 +285,7 @@ class FormBuilder extends Component
 
         Form::query()->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id)->update(['status' => FormStatus::Draft]);
         $this->fb_selected_form_status = FormStatus::Draft->value;
+        CacheHelper::invalidateForms($orgId);
         $this->dispatch('toast', type: 'success', message: 'Formulaire repassé en brouillon.');
     }
 
@@ -281,6 +299,7 @@ class FormBuilder extends Component
 
         Form::query()->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id)->update(['status' => FormStatus::Archived]);
         $this->fb_selected_form_status = FormStatus::Archived->value;
+        CacheHelper::invalidateForms($orgId);
         $this->dispatch('toast', type: 'success', message: 'Formulaire archivé.');
     }
 
@@ -318,7 +337,8 @@ class FormBuilder extends Component
             'fb_selected_field_placeholder' => ['nullable', 'string', 'max:255'],
             'fb_selected_field_help_text' => ['nullable', 'string', 'max:2000'],
             'fb_selected_field_required' => ['boolean'],
-            'fb_selected_field_options' => ['nullable', 'string', 'max:2000'],
+            'fb_selected_field_options_list' => ['nullable', 'array', 'max:100'],
+            'fb_selected_field_options_list.*' => ['nullable', 'string', 'max:255'],
         ]);
         $field = FormField::query()
             ->whereKey((int) $this->fb_selected_field_id)
@@ -346,9 +366,12 @@ class FormBuilder extends Component
         $config['placeholder'] = trim((string) ($validated['fb_selected_field_placeholder'] ?? '')) ?: null;
         $config['help_text'] = trim((string) ($validated['fb_selected_field_help_text'] ?? '')) ?: null;
 
-        if (in_array((string) $field->type, ['select', 'radio'], true)) {
-            $raw = trim((string) ($validated['fb_selected_field_options'] ?? ''));
-            $list = collect(preg_split('/[\r\n,]+/', $raw))->map(fn($v) => trim((string) $v))->filter()->values()->all();
+        if (in_array((string) $field->type, ['select', 'radio', 'checkbox'], true)) {
+            $list = collect($validated['fb_selected_field_options_list'] ?? [])
+                ->map(fn($v) => trim((string) $v))
+                ->filter()
+                ->values()
+                ->all();
             $config['options'] = count($list) ? $list : null;
         }
 
@@ -398,7 +421,7 @@ class FormBuilder extends Component
             $suffix++;
         }
         $config = [];
-        if (in_array($type, ['select', 'radio'], true)) {
+        if (in_array($type, ['select', 'radio', 'checkbox'], true)) {
             $config['options'] = ['Option 1', 'Option 2'];
         }
         $sortOrder = (int) (FormField::query()->where('form_id', (int) $form->id)->max('sort_order') ?? 0) + 10;
@@ -433,6 +456,7 @@ class FormBuilder extends Component
         $this->fb_selected_form_id = (int) $form->id;
         $this->loadSelectedForm();
         $this->fb_form_name = '';
+        CacheHelper::invalidateForms($orgId);
         $this->dispatch('toast', type: 'success', message: 'Formulaire créé.');
     }
 
@@ -479,6 +503,7 @@ class FormBuilder extends Component
         });
 
         $this->loadSelectedForm();
+        CacheHelper::invalidateForms($orgId);
         $this->dispatch('toast', type: 'success', message: 'Formulaire dupliqué.');
     }
 
@@ -494,6 +519,7 @@ class FormBuilder extends Component
             $this->fb_selected_form_id = Form::query()->forOrg($orgId)->orderBy('name')->value('id');
             $this->loadSelectedForm();
         }
+        CacheHelper::invalidateForms($orgId);
         $this->dispatch('toast', type: 'success', message: 'Formulaire supprimé.');
     }
 
@@ -514,6 +540,38 @@ class FormBuilder extends Component
             $this->resetSelectedField();
         }
         $this->dispatch('toast', type: 'success', message: 'Champ supprimé.');
+    }
+
+    /** Move a field after another (afterFieldId = 0 means move to start). */
+    public function reorderFormField(int $movedFieldId, int $afterFieldId): void
+    {
+        if (! $this->canManageForms) {
+            abort(403);
+        }
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
+
+        $form = Form::query()->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id)->firstOrFail();
+        $fields = $form->fields()->orderBy('sort_order')->orderBy('id')->get();
+        $ids = $fields->pluck('id')->values()->all();
+
+        if (! in_array($movedFieldId, $ids, true)) {
+            return;
+        }
+
+        $ids = array_values(array_filter($ids, fn($id) => $id !== $movedFieldId));
+        if ($afterFieldId === 0) {
+            $index = 0;
+        } else {
+            $pos = array_search($afterFieldId, $ids, true);
+            $index = $pos === false ? count($ids) : $pos + 1;
+        }
+        array_splice($ids, $index, 0, [$movedFieldId]);
+
+        foreach ($ids as $i => $id) {
+            FormField::query()->whereKey($id)->update(['sort_order' => ($i + 1) * 10]);
+        }
+        $this->dispatch('toast', type: 'success', message: __('forms_builder.field_reordered'));
     }
 
     // ─── Assignments ────────────────────────────────────────────────
@@ -625,17 +683,31 @@ class FormBuilder extends Component
     public function render()
     {
         $orgId = $this->orgId();
-        $categories = $orgId ? TicketCategory::query()->where('organization_id', $orgId)->orderBy('name')->get(['id', 'name', 'is_active']) : collect();
-        $members = $orgId ? OrganizationMembership::query()->where('organization_id', $orgId)->with(['user:id,name,email'])->orderBy('id')->get() : collect();
-        $forms = $orgId ? Form::query()
-            ->forOrg($orgId)
-            ->with([
-                'category:id,name',
-                'targetUser:id,name,email',
-                'fields:id,form_id,key,label,type,required,configuration,sort_order',
-            ])
-            ->orderBy('name')
-            ->get() : collect();
+
+        $categories = $orgId ? Cache::remember(CacheHelper::categoriesKey($orgId, false), CacheHelper::TTL, function () use ($orgId) {
+            return TicketCategory::query()->where('organization_id', $orgId)->orderBy('name')->get(['id', 'name', 'is_active']);
+        }) : collect();
+
+        $members = $orgId ? Cache::remember(CacheHelper::membersKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+            return OrganizationMembership::query()->where('organization_id', $orgId)->with(['user:id,name,email'])->orderBy('id')->get();
+        }) : collect();
+
+        $forms = $orgId ? Cache::remember(CacheHelper::formsListKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+            return Form::query()
+                ->forOrg($orgId)
+                ->with(['category:id,name', 'targetUser:id,name,email'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'description', 'status', 'ticket_category_id', 'target_user_id', 'slug', 'current_version']);
+        }) : collect();
+
+        $selectedForm = null;
+        if ($orgId && $this->fb_selected_form_id) {
+            $selectedForm = Form::query()
+                ->forOrg($orgId)
+                ->with(['fields' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')])
+                ->whereKey((int) $this->fb_selected_form_id)
+                ->first();
+        }
 
         $assignments = collect();
         $organizationFunctions = collect();
@@ -645,17 +717,20 @@ class FormBuilder extends Component
                 ->with(['user:id,name,email', 'assignedBy:id,name', 'organizationFunction:id,name', 'response'])
                 ->latest()
                 ->get();
-            $organizationFunctions = OrganizationFunction::query()
-                ->where('organization_id', $orgId)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(['id', 'name']);
+            $organizationFunctions = Cache::remember(CacheHelper::orgFunctionsKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                return OrganizationFunction::query()
+                    ->where('organization_id', $orgId)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name']);
+            });
         }
 
         return view('livewire.admin.form-builder', [
             'categories' => $categories,
             'members' => $members,
             'forms' => $forms,
+            'selectedForm' => $selectedForm,
             'assignments' => $assignments,
             'organizationFunctions' => $organizationFunctions,
         ]);

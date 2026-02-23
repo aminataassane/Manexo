@@ -4,6 +4,30 @@
     $orgRole = (string) ($org?->pivot?->role ?? 'member');
     // Staff = can access internal pages (agent included).
     $isStaff = in_array($orgRole, ['owner', 'admin', 'agent'], true);
+    // Logo: organisation (URL relative à la requête pour éviter erreur de chargement)
+    $logoUrl = $org && $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
+    $brandName = $org?->name ?? 'Manexo';
+    // Créateur de la plateforme (empreinte visible pour tous les connectés)
+    $platformName = config('app.platform_creator.name', 'Manexo');
+    $platformLogo = config('app.platform_creator.logo');
+    $platformLogoUrl = null;
+    if ($platformLogo) {
+        if (str_starts_with($platformLogo, 'http')) {
+            $platformLogoUrl = $platformLogo;
+        } else {
+            $logoPath = ltrim($platformLogo, '/');
+            if (\Illuminate\Support\Facades\File::exists(public_path($logoPath))) {
+                $platformLogoUrl = asset($logoPath);
+            } else {
+                // Fallback : essayer assets/manexo-logo.png si le fichier configuré est introuvable
+                $fallback = 'assets/manexo-logo.png';
+                if (\Illuminate\Support\Facades\File::exists(public_path($fallback))) {
+                    $platformLogoUrl = asset($fallback);
+                }
+            }
+        }
+    }
+    $platformUrl = config('app.platform_creator.url');
 @endphp
 
 <aside
@@ -16,16 +40,27 @@
         'translate-x-0': mobileOpen
     }"
 >
-    <!-- LOGO AREA -->
+    <!-- LOGO AREA : logo entreprise (repli sur initiale si image ne charge pas) -->
     <div class="flex h-16 shrink-0 items-center px-4 xl:px-5" :class="sidebarOpen ? 'justify-start' : 'justify-center'">
         <a href="{{ route('dashboard') }}" class="flex items-center gap-3 group transition-all duration-300">
-            <div class="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-bold text-sm shadow-lg shadow-[var(--accent-ring)] ring-1 ring-white/10 group-hover:scale-105 transition-transform" 
-                 style="background: linear-gradient(135deg, var(--accent-soft), var(--accent)); color: var(--accent-dark);">
-                M
-                <div class="absolute inset-0 rounded-xl bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            </div>
-            <div class="flex flex-col" x-show="sidebarOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-x-2" x-transition:enter-end="opacity-100 translate-x-0">
-                <span class="text-sm font-bold text-white tracking-wide">MANEXO</span>
+            <span class="relative h-9 w-9 shrink-0 rounded-xl overflow-hidden ring-1 ring-white/10 shadow-lg shadow-[var(--accent-ring)]">
+                {{-- Fallback : initiale (affiché si pas de logo ou si image en erreur) --}}
+                <span id="sidebar-org-logo-fallback"
+                      class="absolute inset-0 flex items-center justify-center font-bold text-sm transition-transform group-hover:scale-105"
+                      style="background: linear-gradient(135deg, var(--accent-soft), var(--accent)); color: var(--accent-dark); {{ $logoUrl ? 'display: none' : '' }}">
+                    {{ mb_substr($brandName, 0, 1) }}
+                </span>
+                @if ($logoUrl)
+                    <img src="{{ $logoUrl }}"
+                         alt="{{ $brandName }}"
+                         class="h-full w-full object-contain object-center absolute inset-0 group-hover:scale-105 transition-transform"
+                         loading="eager"
+                         onerror="this.style.display='none'; document.getElementById('sidebar-org-logo-fallback').style.display='flex';"
+                    />
+                @endif
+            </span>
+            <div class="flex flex-col min-w-0" x-show="sidebarOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-x-2" x-transition:enter-end="opacity-100 translate-x-0">
+                <span class="text-sm font-bold text-white tracking-wide truncate">{{ strtoupper($brandName) }}</span>
                 <span class="text-[10px] font-medium text-white/40 uppercase tracking-widest">Helpdesk</span>
             </div>
         </a>
@@ -33,10 +68,10 @@
 
     <!-- Navigation -->
     <div class="custom-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
-        
+
         <!-- Section Label -->
         <div class="px-3 mb-2 mt-2 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">
-            Menu Principal
+            {{ __('menu.main_menu') }}
         </div>
 
         @php
@@ -57,11 +92,11 @@
                 <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
             @endif
             <iconify-icon icon="solar:widget-5-bold-duotone" width="20" class="{{ $isDashboard ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-            <span x-show="sidebarOpen" class="truncate">Tableau de bord</span>
-            
+            <span x-show="sidebarOpen" class="truncate">{{ __('menu.dashboard') }}</span>
+
             <!-- Tooltip for collapsed state -->
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
-                Tableau de bord
+                {{ __('menu.dashboard') }}
             </div>
         </a>
 
@@ -75,29 +110,29 @@
                 >
                     <div class="flex items-center gap-3">
                         <iconify-icon icon="solar:ticket-bold-duotone" width="20" class="{{ $isTickets ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-                        <span>Tickets</span>
+                        <span>{{ __('menu.tickets') }}</span>
                     </div>
                     <iconify-icon :icon="ticketsOpen ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" width="12" class="opacity-50 transition-transform duration-200" :class="ticketsOpen ? 'rotate-0' : '-rotate-90'"></iconify-icon>
                 </button>
-                
+
                 <div x-show="ticketsOpen" x-collapse class="mt-1 space-y-1 px-3">
                     <a
                         href="{{ route('tickets.index', ['displayMode' => 'list']) }}"
                         class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isTickets && $currentDisplayMode === 'list' ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
                     >
                         <div class="h-1.5 w-1.5 rounded-full {{ $isTickets && $currentDisplayMode === 'list' ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
-                        {{ __('Vue Liste') }}
+                        {{ __('menu.list_view') }}
                     </a>
                     <a
                         href="{{ route('tickets.index', ['displayMode' => 'kanban']) }}"
                         class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isTickets && $currentDisplayMode === 'kanban' ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
                     >
                         <div class="h-1.5 w-1.5 rounded-full {{ $isTickets && $currentDisplayMode === 'kanban' ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
-                        {{ __('Vue Kanban') }}
+                        {{ __('menu.kanban_view') }}
                     </a>
                 </div>
             </div>
-            
+
             <!-- Collapsed Ticket Icon -->
             <a
                 x-show="!sidebarOpen"
@@ -109,7 +144,7 @@
                 @endif
                 <iconify-icon icon="solar:ticket-bold-duotone" width="20" class="{{ $isTickets ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <div class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
-                    Tickets
+                    {{ __('menu.tickets') }}
                 </div>
             </a>
         </div>
@@ -124,10 +159,10 @@
                 <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
             @endif
             <iconify-icon icon="solar:chat-round-bold-duotone" width="20" class="{{ $isDiscussions ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-            <span x-show="sidebarOpen" class="truncate">Discussions</span>
-            
+            <span x-show="sidebarOpen" class="truncate">{{ __('menu.discussions') }}</span>
+
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
-                Discussions
+                {{ __('menu.discussions') }}
             </div>
         </a>
 
@@ -141,16 +176,16 @@
                 <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
             @endif
             <iconify-icon icon="solar:clipboard-text-bold-duotone" width="20" class="{{ $isForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-            <span x-show="sidebarOpen" class="truncate">Formulaires</span>
+            <span x-show="sidebarOpen" class="truncate">{{ __('menu.forms') }}</span>
 
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
-                Formulaires
+                {{ __('menu.forms') }}
             </div>
         </a>
 
         @if ($isStaff)
             <div class="px-3 mb-2 mt-6 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">
-                Administration
+                {{ __('menu.administration') }}
             </div>
 
             @php
@@ -170,7 +205,10 @@
                     <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
                 @endif
                 <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" class="{{ $isAdminUsers ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-                <span x-show="sidebarOpen" class="truncate">Équipe</span>
+                <span x-show="sidebarOpen" class="truncate">{{ __('menu.team') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('menu.team') }}
+                </div>
             </a>
 
             <!-- Reports -->
@@ -183,7 +221,10 @@
                     <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
                 @endif
                 <iconify-icon icon="solar:chart-2-bold-duotone" width="20" class="{{ $isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-                <span x-show="sidebarOpen" class="truncate">Rapports</span>
+                <span x-show="sidebarOpen" class="truncate">{{ __('menu.reports') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('menu.reports') }}
+                </div>
             </a>
 
             <!-- Admin Formulaires -->
@@ -196,7 +237,7 @@
                     <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
                 @endif
                 <iconify-icon icon="solar:document-add-bold-duotone" width="20" class="{{ $isAdminForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-                <span x-show="sidebarOpen" class="truncate">Formulaires</span>
+                <span x-show="sidebarOpen" class="truncate">{{ __('menu.forms') }}</span>
             </a>
 
             <!-- Settings -->
@@ -209,30 +250,67 @@
                     <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
                 @endif
                 <iconify-icon icon="solar:settings-bold-duotone" width="20" class="{{ $isSettings ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-                <span x-show="sidebarOpen" class="truncate">Paramètres</span>
+                <span x-show="sidebarOpen" class="truncate">{{ __('menu.settings') }}</span>
             </a>
         @endif
     </div>
 
-    <!-- Sidebar Footer -->
-    <div class="border-t border-white/5 px-4 py-4" x-show="sidebarOpen">
+    <!-- Sidebar Footer (ordre : plateforme → espace → langue) -->
+    <div class="border-t border-white/5 px-4 py-4 space-y-2" x-show="sidebarOpen">
+        {{-- 1. Empreinte créateur de la plateforme (en premier) — fond clair pour logo sombre --}}
+        <a href="{{ $platformUrl }}" target="_blank" rel="noopener noreferrer" class="group flex items-center gap-2.5 rounded-xl bg-white/5 px-3 py-2.5 ring-1 ring-white/5 hover:bg-white/10 hover:ring-white/10 transition-all duration-200">
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-black/5 p-1">
+                @if ($platformLogoUrl)
+                    <img src="{{ $platformLogoUrl }}" alt="{{ $platformName }}" class="h-full w-full object-contain" />
+                @else
+                    <span class="text-xs font-bold text-slate-700">{{ mb_substr($platformName, 0, 1) }}</span>
+                @endif
+            </span>
+            <div class="min-w-0 flex-1">
+                <span class="text-[10px] font-medium uppercase tracking-wider text-white/40">{{ __('menu.powered_by') }}</span>
+                <span class="block truncate text-xs font-semibold text-white/80 group-hover:text-white transition-colors">{{ $platformName }}</span>
+            </div>
+            <iconify-icon icon="solar:link-round-linear" class="h-3.5 w-3.5 shrink-0 text-white/30 group-hover:text-white/60 transition-colors" aria-hidden="true"></iconify-icon>
+        </a>
+
+        {{-- 2. Carte espace actuel (Quality Center, etc.) --}}
         <div class="rounded-xl bg-white/5 p-3 ring-1 ring-white/5">
             <div class="flex items-center gap-3">
                 <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-xs font-bold text-white">
                     {{ substr($org?->name ?? 'M', 0, 1) }}
                 </div>
                 <div class="min-w-0 flex-1">
-                    <p class="truncate text-xs font-medium text-white">{{ $org?->name ?? 'Entreprise' }}</p>
-                    <p class="truncate text-[10px] text-white/40">Plan Gratuit</p>
+                    <p class="truncate text-xs font-medium text-white">{{ $org?->name ?? __('menu.company') }}</p>
+                    <p class="truncate text-[10px] text-white/40">{{ __('menu.free_plan') }}</p>
                 </div>
             </div>
         </div>
+
+        {{-- 3. Sélecteur de langue --}}
+        <div class="flex items-center gap-1 rounded-lg bg-white/5 p-2 ring-1 ring-white/5">
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-white/40 shrink-0">{{ __('menu.language') }}</span>
+            <div class="flex gap-1 flex-1">
+                <a href="{{ route('locale.switch', 'fr') }}" class="flex-1 rounded-md px-2 py-1.5 text-center text-[11px] font-semibold transition-colors {{ app()->getLocale() === 'fr' ? 'bg-white/20 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white' }}">{{ __('menu.french') }}</a>
+                <a href="{{ route('locale.switch', 'en') }}" class="flex-1 rounded-md px-2 py-1.5 text-center text-[11px] font-semibold transition-colors {{ app()->getLocale() === 'en' ? 'bg-white/20 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white' }}">{{ __('menu.english') }}</a>
+            </div>
+        </div>
     </div>
-    
+
+    {{-- Empreinte plateforme (sidebar repliée) : logo sur fond blanc pour lisibilité --}}
+    <div class="border-t border-white/5 px-2 py-3 flex justify-center" x-show="!sidebarOpen" x-cloak>
+        <a href="{{ $platformUrl }}" target="_blank" rel="noopener noreferrer" class="group flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-black/5 p-1.5 hover:ring-white/20 transition-colors" title="{{ __('menu.powered_by') }} {{ $platformName }}">
+            @if ($platformLogoUrl)
+                <img src="{{ $platformLogoUrl }}" alt="{{ $platformName }}" class="h-full w-full object-contain" />
+            @else
+                <span class="text-xs font-bold text-slate-700">{{ mb_substr($platformName, 0, 1) }}</span>
+            @endif
+        </a>
+    </div>
+
     <!-- Collapse Button (Desktop) -->
-    <button 
-        type="button" 
-        class="absolute -right-3 top-20 hidden md:flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-md ring-1 ring-slate-100 hover:text-[var(--accent)] transition-colors z-50" 
+    <button
+        type="button"
+        class="absolute -right-3 top-20 hidden md:flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-md ring-1 ring-slate-100 hover:text-[var(--accent)] transition-colors z-50"
         @click="sidebarOpen = !sidebarOpen"
     >
         <iconify-icon :icon="sidebarOpen ? 'solar:alt-arrow-left-linear' : 'solar:alt-arrow-right-linear'" width="14"></iconify-icon>

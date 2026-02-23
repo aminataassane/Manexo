@@ -5,18 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Laravel') }}</title>
+    <title>{{ config('app.name', 'Manexo') }}</title>
 
     <!-- Scripts / Styles -->
     <script defer src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet"></noscript>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet"></noscript>
     
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .font-serif { font-family: 'Playfair Display', serif; }
+        body, .font-serif {
+            font-family: "Mona Sans", sans-serif;
+            font-optical-sizing: auto;
+            font-style: normal;
+            font-variation-settings: "wdth" 100;
+        }
         
         /* Smooth Floating Animations */
         .animate-float-slow { animation: float 8s ease-in-out infinite; }
@@ -107,13 +111,19 @@
         <div class="fixed z-50 fade-in top-4 left-4 sm:top-6 sm:left-6 min-[1920px]:top-8 min-[1920px]:left-8" style="animation-delay: 0.1s; top: max(1rem, env(safe-area-inset-top)); left: max(1rem, env(safe-area-inset-left));">
             <a href="{{ route('home') }}" class="group inline-flex items-center gap-2 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-full bg-white/50 border border-white/60 hover:bg-white hover:border-slate-200 transition-all duration-200 shadow-sm backdrop-blur-sm">
                 <iconify-icon icon="solar:arrow-left-linear" class="text-slate-500 group-hover:text-[#005F02] transition-colors" width="14"></iconify-icon>
-                <span class="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">Retour à l'accueil</span>
+                <span class="text-[11px] font-medium text-slate-600 group-hover:text-slate-900">{{ __('Back') }}</span>
             </a>
+        </div>
+        <!-- Language switcher (guest) -->
+        <div class="fixed z-50 fade-in top-4 right-4 sm:top-6 sm:right-6 min-[1920px]:top-8 min-[1920px]:right-8 flex items-center gap-1 rounded-full bg-white/50 border border-white/60 px-2 py-1.5 shadow-sm backdrop-blur-sm" style="top: max(1rem, env(safe-area-inset-top)); right: max(1rem, env(safe-area-inset-right));">
+            <a href="{{ route('locale.switch', 'fr') }}" class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors {{ app()->getLocale() === 'fr' ? 'bg-[#005F02]/15 text-[#005F02]' : 'text-slate-500 hover:text-slate-800' }}">{{ __('French') }}</a>
+            <span class="text-slate-300">|</span>
+            <a href="{{ route('locale.switch', 'en') }}" class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors {{ app()->getLocale() === 'en' ? 'bg-[#005F02]/15 text-[#005F02]' : 'text-slate-500 hover:text-slate-800' }}">{{ __('English') }}</a>
         </div>
 
         {{ $slot }}
 
-        <p class="mt-8 text-center text-[10px] text-slate-400 tracking-wide font-medium">© {{ date('Y') }} {{ config('app.name') }} INC.</p>
+        <p class="mt-8 text-center text-[10px] text-slate-400 tracking-wide font-medium">© {{ date('Y') }} {{ config('app.name', 'Manexo') }} INC.</p>
     </div>
 
     <script>if(!window.Echo){var _c={listen:function(){return _c},stopListening:function(){return _c},notification:function(){return _c},listenForWhisper:function(){return _c},subscribed:function(){return _c},error:function(){return _c}};window.Echo={private:function(){return _c},channel:function(){return _c},encryptedPrivate:function(){return _c},join:function(){return _c},leave:function(){},leaveChannel:function(){},leaveAllChannels:function(){},socketId:function(){return null},connector:{pusher:{connection:{state:"stub"}}}}}</script>

@@ -7,9 +7,8 @@
     <title>Code de vérification</title>
     <style>
         /* Best-effort webfonts (many clients will fallback) */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap');
-        .font-sans { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
-        .font-serif { font-family: "Playfair Display", Georgia, "Times New Roman", serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
+        .font-sans, .font-serif { font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-optical-sizing: auto; font-variation-settings: "wdth" 100; }
         a { color: inherit; }
     </style>
 </head>
@@ -23,16 +22,20 @@
         <tr>
             <td align="center">
                 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px; width:100%; margin:0 auto;">
-                    <!-- Brand header -->
+                    <!-- Brand header : logo entreprise si fourni, sinon Manexo par défaut -->
                     <tr>
                         <td style="padding:0 16px 16px 16px;">
                             <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
                                     <td align="left" style="padding:0;">
                                         <div style="display:inline-flex; align-items:center; gap:10px;">
-                                            <div style="width:34px; height:34px; border-radius:10px; background:rgba(0,95,2,0.06); border:1px solid rgba(0,95,2,0.10); display:inline-block;">
-                                                <div style="width:34px; height:34px; line-height:34px; text-align:center; color:#005F02; font-weight:700;">M</div>
-                                            </div>
+                                            @if(!empty($logoUrl ?? null))
+                                                <img src="{{ $logoUrl }}" alt="{{ $appName }}" style="width:34px; height:34px; border-radius:10px; object-fit:contain; display:block;" />
+                                            @else
+                                                <div style="width:34px; height:34px; border-radius:10px; background:rgba(0,95,2,0.06); border:1px solid rgba(0,95,2,0.10); display:inline-block;">
+                                                    <div style="width:34px; height:34px; line-height:34px; text-align:center; color:#005F02; font-weight:700;">M</div>
+                                                </div>
+                                            @endif
                                             <div>
                                                 <div class="font-serif" style="font-size:18px; font-weight:600; letter-spacing:-0.2px; color:#002e01;">
                                                     {{ $appName }}

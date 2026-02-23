@@ -1,12 +1,12 @@
 @php
     $statusLabel = function (string $status): array {
         return match ($status) {
-            'open' => [__('Ouvert'), 'solar:bolt-circle-bold-duotone'],
-            'in_progress' => [__('En cours'), 'solar:clock-circle-bold-duotone'],
-            'pending' => [__('En attente'), 'solar:hourglass-bold-duotone'],
-            'resolved' => [__('Résolu'), 'solar:check-circle-bold-duotone'],
-            'closed' => [__('Fermé'), 'solar:lock-keyhole-bold-duotone'],
-            default => [ucfirst(str_replace('_', ' ', $status)), 'solar:question-circle-bold-duotone'],
+            'open' => [__('tickets.status.open'), 'solar:bolt-circle-bold-duotone'],
+            'in_progress' => [__('tickets.status.in_progress'), 'solar:clock-circle-bold-duotone'],
+            'pending' => [__('tickets.status.pending'), 'solar:hourglass-bold-duotone'],
+            'resolved' => [__('tickets.status.resolved'), 'solar:check-circle-bold-duotone'],
+            'closed' => [__('tickets.status.closed'), 'solar:lock-keyhole-bold-duotone'],
+            default => [__('tickets.status.' . $status) ?: ucfirst(str_replace('_', ' ', $status)), 'solar:question-circle-bold-duotone'],
         };
     };
 
@@ -42,14 +42,14 @@
     <!-- HEADER (stack on mobile) -->
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
         <div class="min-w-0">
-            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl lg:text-3xl min-[1920px]:text-4xl">{{ __('Tickets') }}</h1>
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl lg:text-3xl min-[1920px]:text-4xl">{{ __('pages.tickets.title') }}</h1>
             <p class="mt-1 text-xs sm:text-sm text-slate-500">
                 @if(($box ?? 'active') === 'trash')
-                    {{ __('Tickets supprimés. Restaurez-les pour les remettre dans les listes.') }}
+                    {{ __('pages.tickets.subtitle_trash') }}
                 @elseif(($box ?? 'active') === 'archived')
-                    {{ __('Tickets archivés (lecture / restauration).') }}
+                    {{ __('pages.tickets.subtitle_archived') }}
                 @else
-                    {{ __('Gérez et suivez les demandes de support.') }}
+                    {{ __('pages.tickets.subtitle') }}
                 @endif
             </p>
         </div>
@@ -67,7 +67,7 @@
 
             <a href="{{ route('tickets.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 sm:px-4 text-sm font-semibold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0" style="background-color: var(--accent);">
                 <iconify-icon icon="solar:add-circle-bold" width="18"></iconify-icon>
-                {{ __('Nouveau ticket') }}
+                {{ __('pages.tickets.new_ticket') }}
             </a>
         </div>
     </div>
@@ -136,7 +136,7 @@
                 <!-- Views Menu -->
                 <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-50 bg-slate-50/50">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('Vues rapides') }}</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('pages.tickets.quick_views') }}</h3>
                     </div>
                     <div class="p-2 space-y-1">
                         @php
@@ -153,14 +153,14 @@
                                     class="flex-1 min-w-0 rounded-lg px-2 py-2 sm:px-3 text-xs sm:text-sm font-bold transition-all {{ $boxKey === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
                                     <span class="inline-flex items-center gap-1 sm:gap-2 justify-center w-full truncate">
                                         <iconify-icon icon="solar:ticket-bold-duotone" width="16" class="sm:w-[18px] shrink-0"></iconify-icon>
-                                        <span class="truncate">{{ __('Actifs') }}</span>
+                                        <span class="truncate">{{ __('pages.tickets.active') }}</span>
                                     </span>
                                 </button>
                                 <button type="button" wire:click="setBox('archived')"
                                     class="flex-1 min-w-0 rounded-lg px-2 py-2 sm:px-3 text-xs sm:text-sm font-bold transition-all {{ $boxKey === 'archived' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
                                     <span class="inline-flex items-center gap-1 sm:gap-2 justify-center w-full truncate">
                                         <iconify-icon icon="solar:archive-bold-duotone" width="16" class="sm:w-[18px] shrink-0"></iconify-icon>
-                                        <span class="truncate">{{ __('Archivés') }}</span>
+                                        <span class="truncate">{{ __('pages.tickets.archived') }}</span>
                                         <span class="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] shrink-0 {{ $boxKey === 'archived' ? 'bg-slate-100 text-slate-700' : 'bg-white/60 text-slate-500' }}">{{ $viewCounts['archived'] ?? 0 }}</span>
                                     </span>
                                 </button>
@@ -169,7 +169,7 @@
                                     class="flex-1 min-w-0 rounded-lg px-2 py-2 sm:px-3 text-xs sm:text-sm font-bold transition-all {{ $boxKey === 'trash' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">
                                     <span class="inline-flex items-center gap-1 sm:gap-2 justify-center w-full truncate">
                                         <iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="16" class="sm:w-[18px] shrink-0"></iconify-icon>
-                                        <span class="truncate">{{ __('Corbeille') }}</span>
+                                        <span class="truncate">{{ __('pages.tickets.trash') }}</span>
                                         <span class="ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] shrink-0 {{ $boxKey === 'trash' ? 'bg-slate-100 text-slate-700' : 'bg-white/60 text-slate-500' }}">{{ $viewCounts['trash'] ?? 0 }}</span>
                                     </span>
                                 </button>
@@ -228,19 +228,19 @@
                     @click="viewsOpen = true"
                 >
                     <iconify-icon icon="solar:sidebar-minimalistic-bold-duotone" width="18"></iconify-icon>
-                    {{ __('Afficher le menu') }}
+                    {{ __('pages.tickets.show_menu') }}
                 </button>
             </div>
 
             @if (($displayMode ?? 'list') === 'kanban' && ($box ?? 'active') !== 'trash')
-                <!-- KANBAN VIEW (horizontal scroll on mobile) -->
-                <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden h-[calc(100vh-14rem)] sm:h-[calc(100vh-12rem)] min-h-[400px]">
-                    <div class="p-3 sm:p-4 border-b border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-slate-50/50">
-                        <h2 class="text-sm font-bold text-slate-900">{{ __('Tableau Kanban') }}</h2>
-                        <div class="text-xs text-slate-500 hidden sm:block">{{ __('Glisser-déposer pour changer le statut') }}</div>
+                <!-- KANBAN VIEW (horizontal scroll) -->
+                <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden h-[calc(100vh-14rem)] sm:h-[calc(100vh-12rem)] min-h-[400px] flex flex-col">
+                    <div class="shrink-0 p-3 sm:p-4 border-b border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-slate-50/50">
+                        <h2 class="text-sm font-bold text-slate-900">{{ __('pages.tickets.kanban_board') }}</h2>
+                        <div class="text-xs text-slate-500 hidden sm:block">{{ __('pages.tickets.drag_to_change_status') }}</div>
                     </div>
-                    <div class="p-2 sm:p-4 h-full overflow-x-auto overflow-y-hidden custom-scrollbar scroll-touch">
-                        <div class="flex gap-3 sm:gap-4 h-full min-w-max">
+                    <div class="flex-1 min-h-0 min-w-0 p-2 sm:p-4 overflow-x-auto overflow-y-hidden custom-scrollbar scroll-touch">
+                        <div class="flex gap-3 sm:gap-4 h-full min-w-max pb-2">
                             @foreach (($statusColumns ?? []) as $colStatus)
                                 @php
                                     [$colLabel, $colIcon] = $statusLabel($colStatus);
@@ -293,7 +293,7 @@
                                                 </div>
                                             </div>
                                         @empty
-                                            <div class="py-8 text-center text-xs text-slate-400 italic">{{ __('Vide') }}</div>
+                                            <div class="py-8 text-center text-xs text-slate-400 italic">{{ __('pages.tickets.empty_column') }}</div>
                                         @endforelse
                                     </div>
                                 </div>
@@ -311,14 +311,14 @@
                             <input
                                 type="text"
                                 class="w-full h-11 pl-10 pr-4 rounded-xl border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-shadow shadow-sm"
-                                placeholder="{{ __('Rechercher un ticket...') }}"
+                                placeholder="{{ __('pages.tickets.search_placeholder') }}"
                                 wire:model.live="search"
                             />
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <div class="w-full min-w-0 sm:w-40 flex-1 sm:flex-none">
                                 <x-select-input wire:model.live="status">
-                                    <option value="">{{ __('Statut') }}</option>
+                                    <option value="">{{ __('pages.dashboard.status') }}</option>
                                     <option value="open">{{ __('Ouvert') }}</option>
                                     <option value="in_progress">{{ __('En cours') }}</option>
                                     <option value="pending">{{ __('En attente') }}</option>
@@ -328,14 +328,14 @@
                             </div>
                             <div class="w-full min-w-0 sm:w-40 flex-1 sm:flex-none">
                                 <x-select-input wire:model.live="priority">
-                                    <option value="">{{ __('Priorité') }}</option>
+                                    <option value="">{{ __('pages.dashboard.priority') }}</option>
                                     @foreach ($priorities as $p)
                                         <option value="{{ $p->id }}">{{ $p->name }}</option>
                                     @endforeach
                                 </x-select-input>
                             </div>
                             <button wire:click="resetFilters" class="h-11 min-h-[44px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors shadow-sm touch-target sm:min-h-0">
-                                {{ __('Reset') }}
+                                {{ __('Réinitialiser') }}
                             </button>
                         </div>
                     </div>
@@ -345,13 +345,13 @@
                         <table class="w-full text-left min-w-[640px]">
                             <thead class="bg-slate-50 text-[10px] sm:text-xs uppercase font-bold text-slate-500 tracking-wider">
                                 <tr>
-                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Sujet') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.dashboard.subject') }}</th>
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Catégorie') }}</th>
-                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Priorité') }}</th>
-                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Statut') }}</th>
-                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4 text-right">{{ __('Activité') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.dashboard.priority') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.dashboard.status') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4 text-right">{{ __('pages.tickets.activity') }}</th>
                                     @if(($box ?? 'active') === 'trash')
-                                        <th class="px-3 sm:px-6 py-2.5 sm:py-4 text-right">{{ __('Actions') }}</th>
+                                        <th class="px-3 sm:px-6 py-2.5 sm:py-4 text-right">{{ __('pages.tickets.actions') }}</th>
                                     @endif
                                 </tr>
                             </thead>
@@ -381,7 +381,7 @@
                                                         @endif
                                                     </div>
                                                     <div class="text-xs text-slate-500 mt-0.5 flex items-center gap-1 flex-wrap">
-                                                        <span>{{ $t->creator?->name ?? 'Inconnu' }}</span>
+                                                        <span>{{ $t->creator?->name ?? __('pages.tickets.unknown_user') }}</span>
                                                         @if($t->assignees->isNotEmpty())
                                                             <span class="text-slate-300">|</span>
                                                             <span class="flex items-center gap-1">
@@ -421,7 +421,7 @@
                                             <td class="px-3 sm:px-6 py-2.5 sm:py-4 text-right whitespace-nowrap">
                                                 <button type="button" wire:click="restoreFromTrash({{ $t->id }})" data-restore class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors touch-manipulation">
                                                     <iconify-icon icon="solar:restart-bold-duotone" width="14"></iconify-icon>
-                                                    {{ __('Restaurer') }}
+                                                    {{ __('pages.tickets.restore') }}
                                                 </button>
                                             </td>
                                         @endif
@@ -433,8 +433,8 @@
                                                 <div class="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
                                                     <iconify-icon icon="solar:ticket-linear" width="32" class="text-slate-400"></iconify-icon>
                                                 </div>
-                                                <p class="font-medium text-slate-900">{{ __('Aucun ticket trouvé') }}</p>
-                                                <p class="text-sm text-slate-500 mt-1">{{ __('Essayez de modifier vos filtres ou créez un nouveau ticket.') }}</p>
+                                                <p class="font-medium text-slate-900">{{ __('pages.tickets.no_tickets_found') }}</p>
+                                                <p class="text-sm text-slate-500 mt-1">{{ __('pages.tickets.no_tickets_try_filters') }}</p>
                                             </div>
                                         </td>
                                     </tr>

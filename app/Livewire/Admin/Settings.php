@@ -3,12 +3,14 @@
 namespace App\Livewire\Admin;
 
 use App\Enums\OrganizationRole;
+use App\Helpers\CacheHelper;
 use App\Models\Organization;
 use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -102,9 +104,7 @@ class Settings extends Component
         $this->name = (string) $org->name;
         $this->slug = (string) $org->slug;
         $this->primary_color = $this->normalizeHexColorForDisplay($org->primary_color);
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
-        $this->currentLogoUrl = $org->logo_path ? $disk->url($org->logo_path) : null;
+        $this->currentLogoUrl = $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
 
         $settings = is_array($org->settings) ? $org->settings : [];
 
@@ -142,6 +142,29 @@ class Settings extends Component
         $this->validate([
             'logo' => ['nullable', 'image', 'max:2048'], // 2MB
         ]);
+
+        // Enregistrer le logo immédiatement : Livewire ne renvoie pas le fichier lors du submit "Save"
+        if (! $this->logo || ! $this->canManage) {
+            return;
+        }
+
+        $org = $this->orgOrFail();
+        $ext = $this->logo->getClientOriginalExtension() ?: 'png';
+        $filename = 'org-' . $org->id . '-' . Str::lower(Str::random(10)) . '.' . $ext;
+        $logoPath = $this->logo->storeAs('org-logos', $filename, 'public');
+
+        if ($org->logo_path) {
+            Storage::disk('public')->delete($org->logo_path);
+        }
+
+        $org->update(['logo_path' => $logoPath]);
+        $org->refresh();
+
+        $this->currentLogoUrl = asset('storage/' . ltrim($logoPath, '/'));
+        $this->logo = null;
+
+        CacheHelper::invalidateAll($this->orgId());
+        $this->dispatch('toast', type: 'success', message: __('Logo enregistré.'));
     }
 
     /**
@@ -274,9 +297,7 @@ class Settings extends Component
         $this->slug = (string) $org->slug;
         $this->primary_color = $this->normalizeHexColorForDisplay($org->primary_color);
 
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
-        $this->currentLogoUrl = $org->logo_path ? $disk->url($org->logo_path) : null;
+        $this->currentLogoUrl = $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
         $this->logo = null;
 
         $settings = is_array($org->settings) ? $org->settings : [];
@@ -288,6 +309,7 @@ class Settings extends Component
 
         view()->share('currentOrganization', $org);
 
+        CacheHelper::invalidateAll($this->orgId());
         $this->successMessage = __('Paramètres mis à jour.');
     }
 
@@ -366,6 +388,7 @@ class Settings extends Component
         ]);
 
         $this->newCategoryName = '';
+        CacheHelper::invalidateCategories($orgId);
         $this->dispatch('toast', type: 'success', message: 'Catégorie créée.');
     }
 
@@ -430,6 +453,7 @@ class Settings extends Component
 
         $this->editingCategoryId = null;
         $this->editingCategoryName = '';
+        CacheHelper::invalidateCategories($orgId);
         $this->dispatch('toast', type: 'success', message: 'Catégorie mise à jour.');
     }
 
@@ -446,6 +470,7 @@ class Settings extends Component
             ->firstOrFail();
 
         $cat->update(['is_active' => ! $cat->is_active]);
+        CacheHelper::invalidateCategories($orgId);
         $this->dispatch('toast', type: 'success', message: $cat->is_active ? 'Catégorie activée.' : 'Catégorie désactivée.');
     }
 
@@ -477,6 +502,7 @@ class Settings extends Component
             $org->update(['settings' => $settings]);
         }
 
+        CacheHelper::invalidateCategories($orgId);
         $this->dispatch('toast', type: 'success', message: 'Catégorie supprimée.');
     }
 
@@ -510,6 +536,7 @@ class Settings extends Component
 
         $this->newPriorityName = '';
         $this->newPriorityLevel = null;
+        CacheHelper::invalidatePriorities($orgId);
         $this->dispatch('toast', type: 'success', message: 'Priorité créée.');
     }
 
@@ -571,6 +598,7 @@ class Settings extends Component
         $this->editingPriorityId = null;
         $this->editingPriorityName = '';
         $this->editingPriorityLevel = null;
+        CacheHelper::invalidatePriorities($orgId);
         $this->dispatch('toast', type: 'success', message: 'Priorité mise à jour.');
     }
 
@@ -587,6 +615,7 @@ class Settings extends Component
             ->firstOrFail();
 
         $prio->update(['is_active' => ! $prio->is_active]);
+        CacheHelper::invalidatePriorities($orgId);
         $this->dispatch('toast', type: 'success', message: $prio->is_active ? 'Priorité activée.' : 'Priorité désactivée.');
     }
 
@@ -618,6 +647,7 @@ class Settings extends Component
             $org->update(['settings' => $settings]);
         }
 
+        CacheHelper::invalidatePriorities($orgId);
         $this->dispatch('toast', type: 'success', message: 'Priorité supprimée.');
     }
 
@@ -628,17 +658,21 @@ class Settings extends Component
         $org = $orgId ? Organization::query()->find($orgId) : null;
 
         $categories = $orgId
-            ? TicketCategory::query()
-            ->where('organization_id', $orgId)
-            ->orderBy('name')
-            ->get(['id', 'name', 'is_active'])
+            ? Cache::remember(CacheHelper::categoriesKey($orgId, false), CacheHelper::TTL, function () use ($orgId) {
+                return TicketCategory::query()
+                    ->where('organization_id', $orgId)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'is_active']);
+            })
             : collect();
 
         $priorities = $orgId
-            ? TicketPriority::query()
-            ->where('organization_id', $orgId)
-            ->orderByDesc('level')
-            ->get(['id', 'name', 'level', 'is_active'])
+            ? Cache::remember(CacheHelper::prioritiesKey($orgId, false), CacheHelper::TTL, function () use ($orgId) {
+                return TicketPriority::query()
+                    ->where('organization_id', $orgId)
+                    ->orderByDesc('level')
+                    ->get(['id', 'name', 'level', 'is_active']);
+            })
             : collect();
 
         $members = $orgId
@@ -650,11 +684,13 @@ class Settings extends Component
             : collect();
 
         $organizationFunctions = $orgId
-            ? OrganizationFunction::query()
-                ->where('organization_id', $orgId)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(['id', 'name', 'sort_order'])
+            ? Cache::remember(CacheHelper::orgFunctionsKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                return OrganizationFunction::query()
+                    ->where('organization_id', $orgId)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'sort_order']);
+            })
             : collect();
 
         return view('livewire.admin.settings', [
@@ -683,6 +719,7 @@ class Settings extends Component
             'sort_order' => OrganizationFunction::query()->where('organization_id', $orgId)->max('sort_order') + 1,
         ]);
         $this->newFunctionName = '';
+        CacheHelper::invalidateOrgFunctions($orgId);
         $this->dispatch('toast', type: 'success', message: __('Fonction créée.'));
     }
 
@@ -716,6 +753,7 @@ class Settings extends Component
         $fn->update(['name' => trim($this->editingFunctionName)]);
         $this->editingFunctionId = null;
         $this->editingFunctionName = '';
+        CacheHelper::invalidateOrgFunctions($orgId);
         $this->dispatch('toast', type: 'success', message: __('Fonction mise à jour.'));
     }
 
@@ -732,6 +770,7 @@ class Settings extends Component
         }
         $fn->memberships()->update(['organization_function_id' => null]);
         $fn->delete();
+        CacheHelper::invalidateOrgFunctions($orgId);
         $this->dispatch('toast', type: 'success', message: __('Fonction supprimée.'));
     }
 }

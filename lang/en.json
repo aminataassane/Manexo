@@ -109,6 +109,24 @@
   "Aucun événement.": "No events.",
   "Informations supplémentaires": "Additional information",
   "Ces champs dépendent de la catégorie / du client.": "These fields depend on the category / customer.",
-  "Activer / désactiver": "Enable / disable"
+  "Activer / désactiver": "Enable / disable",
+  "Main menu": "Main menu",
+  "Dashboard": "Dashboard",
+  "List view": "List view",
+  "Kanban view": "Kanban view",
+  "Discussions": "Discussions",
+  "Forms": "Forms",
+  "Administration": "Administration",
+  "Team": "Team",
+  "Reports": "Reports",
+  "Settings": "Settings",
+  "Company": "Company",
+  "Free plan": "Free plan",
+  "Language": "Language",
+  "French": "French",
+  "English": "English",
+  "Language switched to English.": "Language switched to English.",
+  "Langue changée en français.": "Language switched to French.",
+  "Back": "Back"
 }
 

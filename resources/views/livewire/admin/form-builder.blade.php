@@ -12,32 +12,32 @@
     <header class="shrink-0 z-20 border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/30">
         <div class="h-[72px] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 sm:gap-4 min-w-0">
-                <a href="{{ route('admin.settings') }}" class="p-2.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/80 transition-colors shadow-sm border border-transparent hover:border-slate-200" aria-label="{{ __('Retour') }}">
+                <a href="{{ route('admin.settings') }}" class="p-2.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/80 transition-colors shadow-sm border border-transparent hover:border-slate-200" aria-label="{{ __('forms_builder.back') }}">
                     <iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
                 </a>
                 <div class="lg:hidden flex items-center gap-1.5">
-                    <button type="button" @click="openMobile('elements')" class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition flex items-center justify-center shadow-sm" title="{{ __('Éléments') }}">
+                    <button type="button" @click="openMobile('elements')" class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition flex items-center justify-center shadow-sm" title="{{ __('forms_builder.elements') }}">
                         <iconify-icon icon="solar:widget-2-linear" width="20"></iconify-icon>
                     </button>
-                    <button type="button" @click="openMobile('properties')" class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition flex items-center justify-center shadow-sm" title="{{ __('Propriétés') }}">
+                    <button type="button" @click="openMobile('properties')" class="h-10 w-10 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition flex items-center justify-center shadow-sm" title="{{ __('forms_builder.properties') }}">
                         <iconify-icon icon="solar:slider-minimalistic-horizontal-linear" width="20"></iconify-icon>
                     </button>
                 </div>
                 <div class="min-w-0">
                     <h1 class="text-xl font-bold text-slate-900 tracking-tight truncate flex items-center gap-2.5 flex-wrap">
-                        <span class="truncate">{{ $fb_selected_form_name ?: __('Nouveau formulaire') }}</span>
+                        <span class="truncate">{{ $fb_selected_form_name ?: __('forms_builder.new_form') }}</span>
                         @if($fb_selected_form_id)
                             @php
                                 $statusBadge = match($fb_selected_form_status) {
-                                    'published' => ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-700', 'label' => 'Publié'],
-                                    'archived' => ['bg' => 'bg-slate-100', 'text' => 'text-slate-500', 'label' => 'Archivé'],
-                                    default => ['bg' => 'bg-amber-100', 'text' => 'text-amber-700', 'label' => 'Brouillon'],
+                                    'published' => ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-700', 'label' => __('forms_builder.published')],
+                                    'archived' => ['bg' => 'bg-slate-100', 'text' => 'text-slate-500', 'label' => __('forms_builder.archived')],
+                                    default => ['bg' => 'bg-amber-100', 'text' => 'text-amber-700', 'label' => __('forms_builder.draft')],
                                 };
                             @endphp
                             <span class="shrink-0 px-2.5 py-1 rounded-full {{ $statusBadge['bg'] }} text-[11px] font-semibold {{ $statusBadge['text'] }}">{{ $statusBadge['label'] }}</span>
                         @endif
                     </h1>
-                    <p class="text-xs text-slate-500 mt-0.5">{{ __('Éditeur de formulaire') }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">{{ __('forms_builder.editor_title') }}</p>
                 </div>
             </div>
 
@@ -48,21 +48,21 @@
                                 @disabled(! $canManageForms)
                                 class="h-10 px-4 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-sm">
                             <iconify-icon icon="solar:check-circle-bold" width="18"></iconify-icon>
-                            <span class="hidden sm:inline">{{ __('Publier') }}</span>
+                            <span class="hidden sm:inline">{{ __('forms_builder.publish') }}</span>
                         </button>
                     @else
                         <button type="button" wire:click="unpublishForm"
                                 @disabled(! $canManageForms)
                                 class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-sm">
                             <iconify-icon icon="solar:pause-circle-linear" width="18"></iconify-icon>
-                            <span class="hidden sm:inline">{{ __('Brouillon') }}</span>
+                            <span class="hidden sm:inline">{{ __('forms_builder.draft') }}</span>
                         </button>
                     @endif
                     <button type="button" wire:click="duplicateSelectedForm"
                             @disabled(! $canManageForms)
                             class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2">
                         <iconify-icon icon="solar:copy-linear" width="18"></iconify-icon>
-                        <span class="hidden sm:inline">{{ __('Dupliquer') }}</span>
+                        <span class="hidden sm:inline">{{ __('forms_builder.duplicate') }}</span>
                     </button>
                 @endif
                 <button type="button" wire:click="saveSelectedForm"
@@ -70,8 +70,8 @@
                         class="h-10 px-5 rounded-xl text-white text-sm font-bold shadow-md shadow-[var(--accent)]/20 inline-flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-95"
                         style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, black) 100%);">
                     <iconify-icon icon="solar:diskette-bold" width="18"></iconify-icon>
-                    <span class="hidden sm:inline">{{ __('Sauvegarder') }}</span>
-                    <span class="sm:hidden">{{ __('Save') }}</span>
+                    <span class="hidden sm:inline">{{ __('forms_builder.save') }}</span>
+                    <span class="sm:hidden">{{ __('forms_builder.save_short') }}</span>
                 </button>
             </div>
         </div>
@@ -89,18 +89,18 @@
                         <iconify-icon icon="solar:danger-triangle-bold" width="20"></iconify-icon>
                     </div>
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-semibold text-amber-800">{{ __('Impossible d\'enregistrer le formulaire') }}</p>
+                        <p class="text-sm font-semibold text-amber-800">{{ __('forms_builder.save_error') }}</p>
                         <ul class="mt-1 list-inside list-disc text-xs text-amber-700 space-y-0.5">
                             @foreach($formSaveErrors as $msg)
                                 <li>{{ $msg }}</li>
                             @endforeach
                         </ul>
                         <p class="mt-2 text-xs text-amber-600">
-                            {{ __('Ouvrez l\'onglet') }} <strong>{{ __('Propriétés') }}</strong> {{ __('(panneau droit) pour corriger le nom, la catégorie ou le slug public.') }}
+                            {{ __('forms_builder.save_error_hint', ['tab' => __('forms_builder.properties')]) }}
                         </p>
                     </div>
                     <button type="button" @click="sidebarTab = 'properties'; mobileSidebarOpen = true" class="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors">
-                        {{ __('Ouvrir Propriétés') }}
+                        {{ __('forms_builder.open_properties') }}
                     </button>
                 </div>
             </div>
@@ -108,21 +108,21 @@
 
         <!-- TABS -->
         @if($fb_selected_form_id)
-        <nav class="flex gap-1 px-4 sm:px-6 lg:px-8 pb-0" aria-label="{{ __('Onglets') }}">
+        <nav class="flex gap-1 px-4 sm:px-6 lg:px-8 pb-0" aria-label="{{ __('forms_builder.tabs_label') }}">
             <button type="button" wire:click="$set('activeTab', 'champs')"
                     class="px-4 py-3.5 text-sm font-semibold rounded-t-xl transition-colors {{ $activeTab === 'champs' ? 'bg-white text-[var(--accent)] shadow-sm border border-b-0 border-slate-200 -mb-px' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50' }}">
-                {{ __('Champs') }}
+                {{ __('forms_builder.fields_tab') }}
             </button>
             <button type="button" wire:click="$set('activeTab', 'assignations')"
                     class="px-4 py-3.5 text-sm font-semibold rounded-t-xl transition-colors flex items-center gap-1.5 {{ $activeTab === 'assignations' ? 'bg-white text-[var(--accent)] shadow-sm border border-b-0 border-slate-200 -mb-px' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50' }}">
-                {{ __('Assignations') }}
+                {{ __('forms_builder.assignments_tab') }}
                 @if($assignments->where('status.value', 'pending')->count() > 0)
                     <span class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">{{ $assignments->where('status.value', 'pending')->count() }}</span>
                 @endif
             </button>
             <button type="button" wire:click="$set('activeTab', 'reponses')"
                     class="px-4 py-3.5 text-sm font-semibold rounded-t-xl transition-colors {{ $activeTab === 'reponses' ? 'bg-white text-[var(--accent)] shadow-sm border border-b-0 border-slate-200 -mb-px' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50' }}">
-                {{ __('Réponses') }}
+                {{ __('forms_builder.responses_tab') }}
             </button>
         </nav>
         @endif
@@ -148,13 +148,13 @@
                             class="flex-1 py-2.5 px-3 text-sm font-semibold rounded-lg transition-colors"
                             :class="sidebarTab === 'elements' ? 'bg-white text-[var(--accent)] shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70'"
                             @click="sidebarTab = 'elements'; $wire.set('fb_selected_field_id', null)">
-                        {{ __('Éléments') }}
+                        {{ __('forms_builder.elements') }}
                     </button>
                     <button type="button"
                             class="flex-1 py-2.5 px-3 text-sm font-semibold rounded-lg transition-colors"
                             :class="sidebarTab === 'properties' ? 'bg-white text-[var(--accent)] shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-white/70'"
                             @click="sidebarTab = 'properties'">
-                        {{ __('Propriétés') }}
+                        {{ __('forms_builder.properties') }}
                     </button>
                 </div>
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-5">
@@ -173,12 +173,12 @@
                     <!-- Assign form -->
                     @if($canManageForms)
                     <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-                        <h3 class="text-sm font-bold text-slate-900 mb-4">{{ __('Nouvelle assignation') }}</h3>
+                        <h3 class="text-sm font-bold text-slate-900 mb-4">{{ __('forms_builder.new_assignment') }}</h3>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
-                                <label class="text-[11px] font-medium text-slate-700 mb-1 block">{{ __('Utilisateur') }}</label>
+                                <label class="text-[11px] font-medium text-slate-700 mb-1 block">{{ __('forms_builder.user') }}</label>
                                 <select wire:model="assign_user_id" class="w-full rounded-lg border-slate-200 text-xs py-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
-                                    <option value="">{{ __('— Choisir —') }}</option>
+                                    <option value="">{{ __('forms_builder.choose') }}</option>
                                     @foreach($members as $m)
                                         <option value="{{ $m->user_id }}">{{ $m->user?->name ?? '—' }}</option>
                                     @endforeach
@@ -186,9 +186,9 @@
                                 <x-input-error :messages="$errors->get('assign_user_id')" />
                             </div>
                             <div>
-                                <label class="text-[11px] font-medium text-slate-700 mb-1 block">{{ __('Ou fonction') }}</label>
+                                <label class="text-[11px] font-medium text-slate-700 mb-1 block">{{ __('forms_builder.or_function') }}</label>
                                 <select wire:model="assign_function_id" class="w-full rounded-lg border-slate-200 text-xs py-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
-                                    <option value="">{{ __('— Choisir —') }}</option>
+                                    <option value="">{{ __('forms_builder.choose') }}</option>
                                     @foreach($organizationFunctions as $fn)
                                         <option value="{{ $fn->id }}">{{ $fn->name }}</option>
                                     @endforeach
@@ -196,14 +196,14 @@
                                 <x-input-error :messages="$errors->get('assign_function_id')" />
                             </div>
                             <div>
-                                <label class="text-[11px] font-medium text-slate-700 mb-1 block">{{ __('Date limite') }}</label>
+                                <label class="text-[11px] font-medium text-slate-700 mb-1 block">{{ __('forms_builder.due_date') }}</label>
                                 <input type="date" wire:model="assign_due_date" class="w-full rounded-lg border-slate-200 text-xs py-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
                             </div>
                         </div>
                         <button type="button" wire:click="assignForm"
                                 class="mt-4 h-9 px-4 text-white text-xs font-bold rounded-lg shadow-sm inline-flex items-center gap-2 bg-[var(--accent)] hover:opacity-90 transition-all">
                             <iconify-icon icon="solar:user-plus-bold" width="16"></iconify-icon>
-                            {{ __('Assigner') }}
+                            {{ __('forms_builder.assign') }}
                         </button>
                     </div>
                     @endif
@@ -211,16 +211,16 @@
                     <!-- Assignments list -->
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div class="px-6 py-4 border-b border-slate-100">
-                            <h3 class="text-sm font-bold text-slate-900">{{ __('Assignations') }} ({{ $assignments->count() }})</h3>
+                            <h3 class="text-sm font-bold text-slate-900">{{ __('forms_builder.assignments_count') }} ({{ $assignments->count() }})</h3>
                         </div>
                         <div class="divide-y divide-slate-100">
                             @forelse($assignments as $a)
                                 @php
                                     $aStatus = $a->status instanceof \App\Enums\FormAssignmentStatus ? $a->status->value : (string) $a->status;
                                     $aBadge = match($aStatus) {
-                                        'submitted' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'label' => 'Soumis'],
-                                        'overdue' => ['bg' => 'bg-red-50', 'text' => 'text-red-700', 'label' => 'En retard'],
-                                        default => ['bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'label' => 'En attente'],
+                                        'submitted' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'label' => __('forms_builder.submitted')],
+                                        'overdue' => ['bg' => 'bg-red-50', 'text' => 'text-red-700', 'label' => __('forms_builder.overdue')],
+                                        default => ['bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'label' => __('forms_builder.pending')],
                                     };
                                 @endphp
                                 <div class="px-6 py-3 flex items-center justify-between">
@@ -229,14 +229,14 @@
                                             {{ $a->user?->name ?? $a->organizationFunction?->name ?? '—' }}
                                         </p>
                                         <p class="text-xs text-slate-500">
-                                            {{ __('Par') }} {{ $a->assignedBy?->name ?? '—' }}
-                                            @if($a->due_date) · {{ __('Échéance') }}: {{ $a->due_date->format('d/m/Y') }} @endif
+                                            {{ __('forms_builder.by') }} {{ $a->assignedBy?->name ?? '—' }}
+                                            @if($a->due_date) · {{ __('forms_builder.due') }}: {{ $a->due_date->format('d/m/Y') }} @endif
                                         </p>
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-medium {{ $aBadge['bg'] }} {{ $aBadge['text'] }}">{{ $aBadge['label'] }}</span>
                                         @if($canManageForms && $aStatus === 'pending')
-                                            <button type="button" wire:click="deleteAssignment({{ $a->id }})" wire:confirm="Supprimer cette assignation ?"
+                                            <button type="button" wire:click="deleteAssignment({{ $a->id }})" wire:confirm="{{ __('forms_builder.delete_assignment_confirm') }}"
                                                     class="p-1 text-slate-400 hover:text-red-600 transition-colors">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="14"></iconify-icon>
                                             </button>
@@ -245,7 +245,7 @@
                                 </div>
                             @empty
                                 <div class="px-6 py-8 text-center text-sm text-slate-500">
-                                    {{ __('Aucune assignation pour ce formulaire.') }}
+                                    {{ __('forms_builder.no_assignments') }}
                                 </div>
                             @endforelse
                         </div>
@@ -258,13 +258,13 @@
                 <div class="max-w-3xl mx-auto">
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
                         <iconify-icon icon="solar:chart-2-bold-duotone" width="48" class="text-slate-300 mb-4"></iconify-icon>
-                        <h3 class="text-sm font-bold text-slate-900 mb-1">{{ __('Réponses') }}</h3>
-                        <p class="text-xs text-slate-500 mb-4">{{ __('Consultez les réponses détaillées sur la page dédiée.') }}</p>
+                        <h3 class="text-sm font-bold text-slate-900 mb-1">{{ __('forms_builder.responses_tab') }}</h3>
+                        <p class="text-xs text-slate-500 mb-4">{{ __('forms_builder.view_responses_hint') }}</p>
                         @if($fb_selected_form_id)
                             <a href="{{ route('admin.forms.responses', $fb_selected_form_id) }}"
                                class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white rounded-lg bg-[var(--accent)] hover:opacity-90 transition-all">
                                 <iconify-icon icon="solar:eye-bold" width="16"></iconify-icon>
-                                {{ __('Voir les réponses') }}
+                                {{ __('forms_builder.view_responses') }}
                             </a>
                         @endif
                     </div>
@@ -280,13 +280,13 @@
             <div class="h-16 px-4 border-b border-slate-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold" :class="sidebarTab === 'elements' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50'" @click="sidebarTab='elements'; $wire.set('fb_selected_field_id', null)">
-                        {{ __('Éléments') }}
+                        {{ __('forms_builder.elements') }}
                     </button>
                     <button type="button" class="px-3 py-1.5 rounded-lg text-xs font-bold" :class="sidebarTab === 'properties' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50'" @click="sidebarTab='properties'">
-                        {{ __('Propriétés') }}
+                        {{ __('forms_builder.properties') }}
                     </button>
                 </div>
-                <button type="button" @click="closeMobile()" class="h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition flex items-center justify-center" aria-label="{{ __('Fermer') }}">
+                <button type="button" @click="closeMobile()" class="h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition flex items-center justify-center" aria-label="{{ __('forms_builder.close') }}">
                     <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
                 </button>
             </div>
