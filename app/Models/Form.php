@@ -19,6 +19,7 @@ class Form extends Model
         'description',
         'status',
         'is_public',
+        'creates_ticket',
         'public_title',
         'public_description',
         'public_thank_you',
@@ -32,6 +33,7 @@ class Form extends Model
         return [
             'status' => FormStatus::class,
             'is_public' => 'bool',
+            'creates_ticket' => 'bool',
             'current_version' => 'int',
         ];
     }

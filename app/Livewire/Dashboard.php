@@ -34,8 +34,21 @@ class Dashboard extends Component
     #[Computed]
     public function organization(): ?\App\Models\Organization
     {
-        return request()->attributes->get('currentOrganization')
-            ?? \App\Models\Organization::find(session('current_organization_id'));
+        $org = request()->attributes->get('currentOrganization');
+        if ($org !== null) {
+            return $org;
+        }
+        $orgId = session('current_organization_id');
+        if (! $orgId) {
+            return null;
+        }
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user) {
+            return \App\Models\Organization::find($orgId);
+        }
+        // Load via user's organizations so pivot (role) is present (needed for isAdminView)
+        return $user->organizations()->whereKey($orgId)->first();
     }
 
     #[Computed]
@@ -60,7 +73,7 @@ class Dashboard extends Component
         return $this->organization?->id;
     }
 
-    /** KPI counts (open, in_progress, pending, resolved last 7d). */
+    /** KPI counts — single aggregated query instead of 4 separate COUNTs. */
     #[Computed]
     public function kpis(): array
     {
@@ -70,21 +83,26 @@ class Dashboard extends Component
         }
 
         return Cache::remember(CacheHelper::dashboardKpisKey($orgId), CacheHelper::TTL, function () use ($orgId) {
-            $base = Ticket::query()->where('organization_id', $orgId);
+            $row = DB::table('tickets')
+                ->where('organization_id', $orgId)
+                ->select([
+                    DB::raw("COUNT(*) FILTER (WHERE status = 'open') as open_count"),
+                    DB::raw("COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count"),
+                    DB::raw("COUNT(*) FILTER (WHERE status = 'pending') as pending_count"),
+                    DB::raw("COUNT(*) FILTER (WHERE status IN ('resolved','closed') AND updated_at >= '" . now()->subDays(7)->toDateTimeString() . "') as resolved7d_count"),
+                ])
+                ->first();
 
             return [
-                'open' => (clone $base)->where('status', 'open')->count(),
-                'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
-                'pending' => (clone $base)->where('status', 'pending')->count(),
-                'resolved7d' => (clone $base)
-                    ->whereIn('status', ['resolved', 'closed'])
-                    ->where('updated_at', '>=', now()->subDays(7))
-                    ->count(),
+                'open' => (int) ($row->open_count ?? 0),
+                'in_progress' => (int) ($row->in_progress_count ?? 0),
+                'pending' => (int) ($row->pending_count ?? 0),
+                'resolved7d' => (int) ($row->resolved7d_count ?? 0),
             ];
         });
     }
 
-    /** Chart data: activity per day (message count per day for the selected range). */
+    /** Chart data: activity per day — uses JOIN instead of whereHas. */
     #[Computed]
     public function chartData(): array
     {
@@ -95,14 +113,16 @@ class Dashboard extends Component
 
         return Cache::remember(CacheHelper::dashboardChartKey($orgId, $this->chartDays), CacheHelper::TTL, function () use ($orgId) {
             $start = now()->subDays($this->chartDays)->startOfDay();
-            $raw = TicketMessage::query()
-                ->whereHas('ticket', fn ($q) => $q->where('organization_id', $orgId))
-                ->where('created_at', '>=', $start)
-                ->select(DB::raw('DATE(created_at) as day'), DB::raw('COUNT(*) as count'))
+            $raw = DB::table('ticket_messages')
+                ->join('tickets', 'ticket_messages.ticket_id', '=', 'tickets.id')
+                ->where('tickets.organization_id', $orgId)
+                ->where('ticket_messages.created_at', '>=', $start)
+                ->select(DB::raw('DATE(ticket_messages.created_at) as day'), DB::raw('COUNT(*) as count'))
                 ->groupBy('day')
                 ->orderBy('day')
                 ->pluck('count', 'day')
                 ->all();
+
             $jours = [
                 __('pages.dashboard.weekday_sun'),
                 __('pages.dashboard.weekday_mon'),
@@ -150,7 +170,7 @@ class Dashboard extends Component
         return array_map(fn ($label) => ['label' => $label, 'count' => 0, 'pct' => 0], $labels);
     }
 
-    /** Priority tickets (open/in_progress/pending, ordered by priority level then updated_at). */
+    /** Priority tickets — JOIN for ordering, skip redundant eager load. */
     #[Computed]
     public function priorityTickets()
     {
@@ -166,14 +186,13 @@ class Dashboard extends Component
                 ->join('ticket_priorities', 'tickets.ticket_priority_id', '=', 'ticket_priorities.id')
                 ->orderByDesc('ticket_priorities.level')
                 ->orderByDesc('tickets.updated_at')
-                ->select('tickets.*')
-                ->with(['priority'])
+                ->select('tickets.*', 'ticket_priorities.name as priority_name', 'ticket_priorities.level as priority_level', 'ticket_priorities.color as priority_color')
                 ->limit(5)
                 ->get();
         });
     }
 
-    /** Recent discussion threads (Discussions feature) with last message. */
+    /** Recent discussion threads with last message. */
     #[Computed]
     public function recentDiscussions(): \Illuminate\Support\Collection
     {
@@ -188,7 +207,7 @@ class Dashboard extends Component
                 ->active()
                 ->with(['messages' => fn ($q) => $q->latest('created_at')->limit(1), 'messages.user:id,name'])
                 ->orderByDesc('updated_at')
-                ->limit(15)
+                ->limit(5)
                 ->get();
 
             return $threads
@@ -204,12 +223,11 @@ class Dashboard extends Component
                     ];
                 })
                 ->sortByDesc('last_at')
-                ->take(5)
                 ->values();
         });
     }
 
-    /** Unread-like count: threads with at least one message in last 24h (for badge). */
+    /** Unread-like count: threads with at least one message in last 24h. */
     #[Computed]
     public function discussionsUnreadCount(): int
     {
@@ -227,7 +245,7 @@ class Dashboard extends Component
         });
     }
 
-    /** Recent activity: one entry per ticket (last message on that ticket), max 8 tickets. */
+    /** Recent activity — uses JOIN instead of whereHas, SQL-level dedup. */
     #[Computed]
     public function recentActivity(): \Illuminate\Support\Collection
     {
@@ -237,16 +255,21 @@ class Dashboard extends Component
         }
 
         return Cache::remember(CacheHelper::dashboardRecentActivityKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+            // Use a subquery to get the latest message per ticket (SQL-level dedup)
+            $latestPerTicket = DB::table('ticket_messages')
+                ->join('tickets', 'ticket_messages.ticket_id', '=', 'tickets.id')
+                ->where('tickets.organization_id', $orgId)
+                ->where('ticket_messages.type', TicketMessageType::Message->value)
+                ->select('ticket_messages.ticket_id', DB::raw('MAX(ticket_messages.id) as max_id'))
+                ->groupBy('ticket_messages.ticket_id')
+                ->orderByRaw('MAX(ticket_messages.created_at) DESC')
+                ->limit(8);
+
             return TicketMessage::query()
-                ->where('ticket_messages.type', TicketMessageType::Message)
-                ->whereHas('ticket', fn ($q) => $q->where('organization_id', $orgId))
+                ->joinSub($latestPerTicket, 'latest', fn ($join) => $join->on('ticket_messages.id', '=', 'latest.max_id'))
                 ->with(['ticket:id,subject', 'user:id,name'])
                 ->orderByDesc('ticket_messages.created_at')
-                ->limit(50)
                 ->get()
-                ->unique('ticket_id')
-                ->take(8)
-                ->values()
                 ->map(function (TicketMessage $m) {
                     $isYou = Auth::id() && (int) $m->user_id === (int) Auth::id();
                     return (object) [

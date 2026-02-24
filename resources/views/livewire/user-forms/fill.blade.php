@@ -173,7 +173,7 @@
                                 <input type="email" wire:model="answers.{{ $key }}" placeholder="{{ $placeholder }}"
                                        class="input-manexo w-full rounded-xl border-slate-200 text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] py-2.5">
                             @elseif($type === 'file')
-                                <input type="file" wire:model="answers.{{ $key }}"
+                                <input type="file" wire:model="fileUploads.{{ $key }}"
                                        class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[var(--accent-soft)] file:text-[var(--accent)] hover:file:opacity-90 transition-opacity">
                             @else
                                 <input type="text" wire:model="answers.{{ $key }}" placeholder="{{ $placeholder }}"

@@ -4,12 +4,16 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureOrganizationIsSelected
 {
     /**
      * Ensure the authenticated user has an active organization selected.
+     *
+     * Caches the org lookup per request cycle to avoid repeated DB queries
+     * (especially important for Livewire persistent middleware).
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -24,10 +28,19 @@ class EnsureOrganizationIsSelected
             return $next($request);
         }
 
+        // Already resolved in this request cycle (Livewire re-entrance)
+        if ($request->attributes->get('currentOrganization')) {
+            return $next($request);
+        }
+
         $currentId = $request->session()->get('current_organization_id');
 
         if ($currentId) {
-            $org = $user->organizations()->whereKey($currentId)->first();
+            // Cache per user+org for 5 min to avoid querying on every Livewire update
+            $cacheKey = "user_org:{$user->id}:{$currentId}";
+            $org = Cache::remember($cacheKey, 300, function () use ($user, $currentId) {
+                return $user->organizations()->whereKey($currentId)->first();
+            });
 
             if ($org) {
                 $request->attributes->set('currentOrganization', $org);
@@ -37,24 +50,24 @@ class EnsureOrganizationIsSelected
             }
 
             // Selected org no longer accessible
+            Cache::forget($cacheKey);
             $request->session()->forget('current_organization_id');
         }
 
         // Auto-select if the user belongs to exactly one organization
-        $orgCount = $user->organizations()->count();
-        if ($orgCount === 1) {
-            $org = $user->organizations()->first();
+        $orgs = Cache::remember("user_orgs:{$user->id}", 300, function () use ($user) {
+            return $user->organizations()->limit(2)->get();
+        });
 
-            if ($org) {
-                $request->session()->put('current_organization_id', $org->id);
-                $request->attributes->set('currentOrganization', $org);
-                view()->share('currentOrganization', $org);
+        if ($orgs->count() === 1) {
+            $org = $orgs->first();
+            $request->session()->put('current_organization_id', $org->id);
+            $request->attributes->set('currentOrganization', $org);
+            view()->share('currentOrganization', $org);
 
-                return $next($request);
-            }
+            return $next($request);
         }
 
         return redirect()->route('organizations.select');
     }
 }
-

@@ -38,6 +38,7 @@ class FormBuilder extends Component
     public ?int $fb_selected_form_target_user_id = null;
     public string $fb_selected_form_status = 'draft';
     public bool $fb_selected_form_public = false;
+    public bool $fb_selected_form_creates_ticket = true;
     public string $fb_selected_form_slug = '';
     public string $fb_selected_form_public_title = '';
     public string $fb_selected_form_public_description = '';
@@ -52,6 +53,8 @@ class FormBuilder extends Component
     public string $fb_selected_field_placeholder = '';
     public string $fb_selected_field_help_text = '';
     public bool $fb_selected_field_required = false;
+    public string $fb_selected_field_layout = 'full';
+    public string $fb_selected_field_display_mode = 'list';
     /** @var array<int, string> Options for select/radio/checkbox (one entry per option) */
     public array $fb_selected_field_options_list = [];
 
@@ -100,6 +103,7 @@ class FormBuilder extends Component
             $this->fb_selected_form_target_user_id = null;
             $this->fb_selected_form_status = 'draft';
             $this->fb_selected_form_public = false;
+            $this->fb_selected_form_creates_ticket = true;
             $this->fb_selected_form_slug = '';
             $this->fb_selected_form_public_title = '';
             $this->fb_selected_form_public_description = '';
@@ -123,6 +127,7 @@ class FormBuilder extends Component
         $this->fb_selected_form_target_user_id = $form->target_user_id ? (int) $form->target_user_id : null;
         $this->fb_selected_form_status = $form->status instanceof FormStatus ? $form->status->value : (string) $form->status;
         $this->fb_selected_form_public = (bool) $form->is_public;
+        $this->fb_selected_form_creates_ticket = (bool) ($form->creates_ticket ?? true);
         $this->fb_selected_form_slug = (string) ($form->slug ?? '');
         $this->fb_selected_form_public_title = (string) ($form->public_title ?? '');
         $this->fb_selected_form_public_description = (string) ($form->public_description ?? '');
@@ -140,6 +145,8 @@ class FormBuilder extends Component
         $this->fb_selected_field_placeholder = '';
         $this->fb_selected_field_help_text = '';
         $this->fb_selected_field_required = false;
+        $this->fb_selected_field_layout = 'full';
+        $this->fb_selected_field_display_mode = 'list';
         $this->fb_selected_field_options_list = [];
     }
 
@@ -176,6 +183,8 @@ class FormBuilder extends Component
         $this->fb_selected_field_placeholder = (string) ($field->placeholder ?? '');
         $this->fb_selected_field_help_text = (string) ($field->help_text ?? '');
         $this->fb_selected_field_required = (bool) $field->required;
+        $this->fb_selected_field_layout = (string) ($field->layout ?? 'full');
+        $this->fb_selected_field_display_mode = (string) ($field->display_mode ?? 'list');
         $this->fb_selected_field_options_list = is_array($field->options) ? array_values($field->options) : [];
         $this->dispatch('field-selected');
     }
@@ -192,6 +201,7 @@ class FormBuilder extends Component
             'fb_selected_form_category_id' => ['nullable', 'integer'],
             'fb_selected_form_target_user_id' => ['nullable', 'integer'],
             'fb_selected_form_public' => ['boolean'],
+            'fb_selected_form_creates_ticket' => ['boolean'],
             'fb_selected_form_slug' => ['nullable', 'string', 'max:140'],
             'fb_selected_form_public_title' => ['nullable', 'string', 'max:160'],
             'fb_selected_form_public_description' => ['nullable', 'string', 'max:2000'],
@@ -245,6 +255,7 @@ class FormBuilder extends Component
                 'ticket_category_id' => $validated['fb_selected_form_category_id'] ?? null,
                 'target_user_id' => $validated['fb_selected_form_target_user_id'] ?? null,
                 'is_public' => $isPublic,
+                'creates_ticket' => (bool) ($validated['fb_selected_form_creates_ticket'] ?? true),
                 'slug' => $slug !== '' ? $slug : null,
                 'public_title' => trim((string) ($validated['fb_selected_form_public_title'] ?? '')) ?: null,
                 'public_description' => trim((string) ($validated['fb_selected_form_public_description'] ?? '')) ?: null,
@@ -308,6 +319,9 @@ class FormBuilder extends Component
         if (! $this->canManageForms) {
             abort(403);
         }
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
+
         $base = $this->fb_selected_form_name ?: 'formulaire';
         $slug = Str::slug($base);
         if ($slug === '') {
@@ -316,12 +330,24 @@ class FormBuilder extends Component
         $slug = Str::limit($slug, 120, '');
         $candidate = $slug;
         $i = 2;
-        while (Form::query()->where('slug', $candidate)->exists()) {
+        while (Form::query()->where('slug', $candidate)->where('id', '!=', (int) $this->fb_selected_form_id)->exists()) {
             $candidate = Str::limit($slug . '-' . $i, 140, '');
             $i++;
         }
+
         $this->fb_selected_form_slug = $candidate;
         $this->fb_selected_form_public = true;
+
+        // Enregistrer immédiatement en base pour que le lien public fonctionne tout de suite
+        Form::query()
+            ->forOrg($orgId)
+            ->whereKey((int) $this->fb_selected_form_id)
+            ->update([
+                'is_public' => true,
+                'slug' => $candidate,
+            ]);
+        CacheHelper::invalidateForms($orgId);
+        $this->dispatch('toast', type: 'success', message: __('forms_builder.public_link_generated'));
     }
 
     public function saveSelectedField(): void
@@ -337,6 +363,8 @@ class FormBuilder extends Component
             'fb_selected_field_placeholder' => ['nullable', 'string', 'max:255'],
             'fb_selected_field_help_text' => ['nullable', 'string', 'max:2000'],
             'fb_selected_field_required' => ['boolean'],
+            'fb_selected_field_layout' => ['string', 'in:full,half,third'],
+            'fb_selected_field_display_mode' => ['string', 'in:list,inline,grid,card'],
             'fb_selected_field_options_list' => ['nullable', 'array', 'max:100'],
             'fb_selected_field_options_list.*' => ['nullable', 'string', 'max:255'],
         ]);
@@ -365,6 +393,10 @@ class FormBuilder extends Component
         $config = is_array($field->configuration) ? $field->configuration : [];
         $config['placeholder'] = trim((string) ($validated['fb_selected_field_placeholder'] ?? '')) ?: null;
         $config['help_text'] = trim((string) ($validated['fb_selected_field_help_text'] ?? '')) ?: null;
+        $layout = $validated['fb_selected_field_layout'] ?? 'full';
+        $config['layout'] = $layout !== 'full' ? $layout : null;
+        $displayMode = $validated['fb_selected_field_display_mode'] ?? 'list';
+        $config['display_mode'] = $displayMode !== 'list' ? $displayMode : null;
 
         if (in_array((string) $field->type, ['select', 'radio', 'checkbox'], true)) {
             $list = collect($validated['fb_selected_field_options_list'] ?? [])

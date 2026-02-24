@@ -38,8 +38,10 @@ Route::view('/', 'home')->name('home');
 
 // Public Form Builder (published forms)
 Route::middleware(['throttle:20,1'])->group(function () {
-    Route::get('/f/{slug}', [PublicFormController::class, 'show'])->name('forms.public.show');
-    Route::post('/f/{slug}', [PublicFormController::class, 'submit'])->name('forms.public.submit');
+    // Redirect GET /f/slug/ → /f/slug so link with trailing slash works
+    Route::get('/f/{slug}/', fn (string $slug) => redirect()->to('/f/' . trim($slug, '/'), 301))->where('slug', '.+');
+    Route::get('/f/{slug}', [PublicFormController::class, 'show'])->name('forms.public.show')->where('slug', '[^/]+');
+    Route::post('/f/{slug}', [PublicFormController::class, 'submit'])->name('forms.public.submit')->where('slug', '[^/]+');
 });
 
 /**
@@ -144,6 +146,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/settings', AdminSettings::class)->name('admin.settings');
         Route::get('/admin/forms', AdminFormBuilder::class)->name('admin.forms');
         Route::get('/admin/forms/{form}/responses', AdminFormResponses::class)->name('admin.forms.responses');
+        Route::get('/admin/forms/responses/{response}/file/{fieldKey}', [PublicFormController::class, 'serveFile'])->where('fieldKey', '[a-zA-Z0-9_]+')->name('admin.forms.responses.file');
         Route::get('/reports', ReportsIndex::class)->name('reports.index');
     });
 });

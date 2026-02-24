@@ -99,8 +99,8 @@ class Fill extends Component
                     $fieldRules[] = Rule::in($f->options);
                 }
             } elseif ($type === 'file') {
-                // File handled separately
                 $fieldRules = ['nullable'];
+                $rules["fileUploads.{$f->key}"] = ['nullable', 'file', 'max:10240'];
             } else {
                 $fieldRules[] = 'string';
                 $fieldRules[] = 'max:255';
@@ -111,10 +111,20 @@ class Fill extends Component
 
         $this->validate($rules);
 
-        // Build clean responses
+        // Build clean responses (excluding file fields)
         $responses = [];
+        $fileFields = [];
         foreach ($fields as $f) {
             $key = (string) $f->key;
+
+            if ($f->type === 'file') {
+                $uploaded = $this->fileUploads[$key] ?? null;
+                if ($uploaded instanceof \Illuminate\Http\UploadedFile) {
+                    $fileFields[$key] = $uploaded;
+                }
+                continue;
+            }
+
             $val = $this->answers[$key] ?? null;
             if ($f->type === 'checkbox') {
                 if (is_array($f->options) && count($f->options) > 0) {
@@ -132,6 +142,8 @@ class Fill extends Component
             $responses[$key] = $val;
         }
 
+        $orgId = (int) session('current_organization_id');
+
         $response = FormResponse::create([
             'form_id' => $form->id,
             'user_id' => $user->id,
@@ -140,7 +152,25 @@ class Fill extends Component
             'responses' => $responses,
             'field_snapshot' => $form->snapshotFields(),
             'ip_address' => request()->ip(),
+            'respondent_name' => $user->name,
+            'respondent_email' => $user->email,
+            'submitted_from' => 'internal_assignment',
         ]);
+
+        // Store uploaded files
+        if (! empty($fileFields)) {
+            $updatedResponses = $response->responses ?? [];
+            foreach ($fileFields as $key => $uploadedFile) {
+                $path = FormResponse::storeUploadedFile($uploadedFile, $orgId, $response->id, $key);
+                $updatedResponses[$key] = [
+                    'type' => 'file',
+                    'path' => $path,
+                    'original_name' => $uploadedFile->getClientOriginalName(),
+                    'size' => $uploadedFile->getSize(),
+                ];
+            }
+            $response->update(['responses' => $updatedResponses]);
+        }
 
         $this->assignment->update([
             'status' => FormAssignmentStatus::Submitted,

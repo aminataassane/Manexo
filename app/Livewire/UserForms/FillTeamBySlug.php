@@ -102,6 +102,7 @@ class FillTeamBySlug extends Component
                 }
             } elseif ($type === 'file') {
                 $fieldRules = ['nullable'];
+                $rules["fileUploads.{$f->key}"] = ['nullable', 'file', 'max:10240'];
             } else {
                 $fieldRules[] = 'string';
                 $fieldRules[] = 'max:255';
@@ -113,8 +114,18 @@ class FillTeamBySlug extends Component
         $this->validate($rules);
 
         $responses = [];
+        $fileFields = [];
         foreach ($fields as $f) {
             $key = (string) $f->key;
+
+            if ($f->type === 'file') {
+                $uploaded = $this->fileUploads[$key] ?? null;
+                if ($uploaded instanceof \Illuminate\Http\UploadedFile) {
+                    $fileFields[$key] = $uploaded;
+                }
+                continue;
+            }
+
             $val = $this->answers[$key] ?? null;
             if ($f->type === 'checkbox') {
                 if (is_array($f->options) && count($f->options) > 0) {
@@ -132,7 +143,9 @@ class FillTeamBySlug extends Component
             $responses[$key] = $val;
         }
 
-        FormResponse::create([
+        $orgId = (int) session('current_organization_id');
+
+        $response = FormResponse::create([
             'form_id' => $this->form->id,
             'user_id' => $user->id,
             'assignment_id' => null,
@@ -140,7 +153,26 @@ class FillTeamBySlug extends Component
             'responses' => $responses,
             'field_snapshot' => $this->form->snapshotFields(),
             'ip_address' => request()->ip(),
+            'respondent_name' => $user->name,
+            'respondent_email' => $user->email,
+            'submitted_from' => 'internal_team_slug',
+            'public_form_slug' => $this->slug,
         ]);
+
+        // Store uploaded files
+        if (! empty($fileFields)) {
+            $updatedResponses = $response->responses ?? [];
+            foreach ($fileFields as $key => $uploadedFile) {
+                $path = FormResponse::storeUploadedFile($uploadedFile, $orgId, $response->id, $key);
+                $updatedResponses[$key] = [
+                    'type' => 'file',
+                    'path' => $path,
+                    'original_name' => $uploadedFile->getClientOriginalName(),
+                    'size' => $uploadedFile->getSize(),
+                ];
+            }
+            $response->update(['responses' => $updatedResponses]);
+        }
 
         session()->flash('form_success', __('pages.forms.response_saved'));
         $this->redirectRoute('forms.index');

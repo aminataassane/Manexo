@@ -112,6 +112,12 @@ return [
         'no_tickets_found' => 'No tickets found',
         'no_tickets_try_filters' => 'Try adjusting your filters or create a new ticket.',
         'unknown_user' => 'Unknown',
+        'source' => 'Source',
+        'source_all' => 'All',
+        'source_from_form' => 'From form',
+        'source_from_platform' => 'Created on platform',
+        'source_label_form' => 'Form',
+        'source_label_platform' => 'Platform',
     ],
     'discussions' => [
         'title' => 'Discussions',

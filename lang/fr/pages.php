@@ -112,6 +112,12 @@ return [
         'no_tickets_found' => 'Aucun ticket trouvé',
         'no_tickets_try_filters' => 'Essayez de modifier vos filtres ou créez un nouveau ticket.',
         'unknown_user' => 'Inconnu',
+        'source' => 'Source',
+        'source_all' => 'Tous',
+        'source_from_form' => 'Depuis un formulaire',
+        'source_from_platform' => 'Créés sur la plateforme',
+        'source_label_form' => 'Formulaire',
+        'source_label_platform' => 'Plateforme',
     ],
     'discussions' => [
         'title' => 'Discussions',

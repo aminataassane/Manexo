@@ -55,4 +55,14 @@ class FormField extends Model
     {
         return $this->configuration['accept'] ?? null;
     }
+
+    public function getLayoutAttribute(): string
+    {
+        return $this->configuration['layout'] ?? 'full';
+    }
+
+    public function getDisplayModeAttribute(): string
+    {
+        return $this->configuration['display_mode'] ?? 'list';
+    }
 }

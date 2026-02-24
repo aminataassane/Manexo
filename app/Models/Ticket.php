@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -127,6 +128,20 @@ class Ticket extends Model
     public function checklistItems(): HasMany
     {
         return $this->hasMany(TicketChecklistItem::class)->orderBy('sort_order');
+    }
+
+    /** Ticket créé à partir d'une soumission de formulaire (1 réponse = 1 ticket). */
+    public function formResponse(): HasOne
+    {
+        return $this->hasOne(FormResponse::class);
+    }
+
+    /** Vérifie si le ticket provient d'un formulaire. */
+    public function isFromForm(): bool
+    {
+        return $this->relationLoaded('formResponse')
+            ? $this->formResponse !== null
+            : $this->formResponse()->exists();
     }
 
     /** Nombre d'items cochés / total (0–100). */

@@ -177,8 +177,8 @@
                                     </td>
                                     <td class="px-4 sm:px-6 py-3 sm:py-4">
                                         <div class="flex items-center gap-1.5">
-                                            <div class="h-2 w-2 shrink-0 rounded-full" style="background-color: {{ $t->priority?->color ?? '#cbd5e1' }}"></div>
-                                            <span class="text-sm text-slate-700">{{ $t->priority?->name ?? __('pages.dashboard.normal_priority') }}</span>
+                                            <div class="h-2 w-2 shrink-0 rounded-full" style="background-color: {{ $t->priority_color ?? '#cbd5e1' }}"></div>
+                                            <span class="text-sm text-slate-700">{{ $t->priority_name ?? __('pages.dashboard.normal_priority') }}</span>
                                         </div>
                                     </td>
                                     <td class="px-4 sm:px-6 py-3 sm:py-4 text-right text-sm text-slate-500 whitespace-nowrap">{{ $t->updated_at?->diffForHumans() }}</td>

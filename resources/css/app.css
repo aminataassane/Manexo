@@ -144,8 +144,96 @@
     }
 }
 
+/* Form Builder: full-bleed layout + SaaS inputs */
+@layer components {
+    /* Negates page-content-safe padding so builder fills edge-to-edge */
+    .builder-full-bleed {
+        margin-left: calc(-0.75rem - env(safe-area-inset-left, 0px));
+        margin-right: calc(-0.75rem - env(safe-area-inset-right, 0px));
+        margin-top: -1rem;
+        max-width: none !important;
+    }
+    @media (min-width: 640px) {
+        .builder-full-bleed { margin-left: calc(-1rem - env(safe-area-inset-left, 0px)); margin-right: calc(-1rem - env(safe-area-inset-right, 0px)); margin-top: -1.25rem; }
+    }
+    @media (min-width: 768px) {
+        .builder-full-bleed { margin-left: calc(-1.5rem - env(safe-area-inset-left, 0px)); margin-right: calc(-1.5rem - env(safe-area-inset-right, 0px)); margin-top: -1.5rem; }
+    }
+    @media (min-width: 1024px) {
+        .builder-full-bleed { margin-left: calc(-2rem - env(safe-area-inset-left, 0px)); margin-right: calc(-2rem - env(safe-area-inset-right, 0px)); margin-top: -2rem; }
+    }
+    @media (min-width: 1280px) {
+        .builder-full-bleed { margin-left: calc(-2.5rem - env(safe-area-inset-left, 0px)); margin-right: calc(-2.5rem - env(safe-area-inset-right, 0px)); margin-top: -2.5rem; }
+    }
+    @media (min-width: 1536px) {
+        .builder-full-bleed { margin-left: calc(-3rem - env(safe-area-inset-left, 0px)); margin-right: calc(-3rem - env(safe-area-inset-right, 0px)); margin-top: -3rem; }
+    }
+
+    /* SaaS-style input for builder panels */
+    .input-builder {
+        @apply block w-full rounded-lg bg-white py-2 px-3 text-sm placeholder:text-slate-400 transition-all duration-150;
+        border: 1px solid #e2e8f0;
+    }
+    .input-builder:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-ring);
+    }
+    .input-builder:disabled {
+        opacity: 0.5;
+        background: #f8fafc;
+    }
+
+    /* Canvas grid: 6-column layout for form fields */
+    .canvas-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 0.75rem 1rem;
+        align-items: start;
+    }
+    .canvas-field-full  { grid-column: span 6; }
+    .canvas-field-half  { grid-column: span 3; }
+    .canvas-field-third { grid-column: span 2; }
+    @media (max-width: 640px) {
+        .canvas-field-half,
+        .canvas-field-third { grid-column: span 6; }
+    }
+
+    /* Canvas field preview inputs (read-only look) */
+    .canvas-input {
+        @apply block w-full rounded-lg py-2.5 px-3.5 text-sm transition-all;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #94a3b8;
+    }
+
+    /* Layout selector buttons in properties panel */
+    .layout-btn {
+        @apply flex flex-col items-center gap-1 px-3 py-2 rounded-lg border text-xs font-medium transition-all cursor-pointer;
+        border-color: #e2e8f0;
+        color: #64748b;
+    }
+    .layout-btn:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+    .layout-btn.active {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+    }
+}
+
 /* Responsive utilities: touch targets, scroll containers, safe areas */
 @layer utilities {
+    /* Builder viewport height (below topbar) */
+    .h-builder {
+        height: calc(100vh - 3.5rem);
+    }
+    @media (min-width: 640px) {
+        .h-builder { height: calc(100vh - 4rem); }
+    }
     .touch-target {
         min-height: 2.75rem;
         min-width: 2.75rem;

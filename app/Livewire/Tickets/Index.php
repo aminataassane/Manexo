@@ -59,6 +59,9 @@ class Index extends Component
     public string $assignee = '';
 
     #[Url(history: true)]
+    public string $source = 'all'; // all | from_form | from_platform
+
+    #[Url(history: true)]
     public int $perPage = 10;
 
     public array $selected = [];
@@ -100,6 +103,11 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatedSource(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatedPerPage(): void
     {
         $this->resetPage();
@@ -131,7 +139,7 @@ class Index extends Component
 
     public function resetFilters(): void
     {
-        $this->reset(['search', 'status', 'priority', 'assignee']);
+        $this->reset(['search', 'status', 'priority', 'assignee', 'source']);
         $this->resetPage();
     }
 
@@ -204,6 +212,12 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function setSource(string $source): void
+    {
+        $this->source = in_array($source, ['all', 'from_form', 'from_platform'], true) ? $source : 'all';
+        $this->resetPage();
+    }
+
     /** Restaure un ticket depuis la corbeille (staff uniquement). */
     public function restoreFromTrash(int $ticketId): void
     {
@@ -245,7 +259,7 @@ class Index extends Component
         $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
 
         $query = Ticket::query()
-            ->with(['category', 'priority', 'creator', 'assignees'])
+            ->with(['category', 'priority', 'creator', 'assignees', 'formResponse'])
             ->where('tickets.organization_id', $orgId);
 
         // Box: Corbeille (soft-deleted) ou Actifs / Archivés
@@ -293,6 +307,13 @@ class Index extends Component
                 $query->whereHas('priority', fn($p) => $p->where('level', '>=', 3));
             } elseif ($viewKey === 'unassigned') {
                 $query->whereDoesntHave('assignees');
+            }
+
+            // Filtre par source : formulaire ou plateforme
+            if ($this->source === 'from_form') {
+                $query->whereHas('formResponse');
+            } elseif ($this->source === 'from_platform') {
+                $query->whereDoesntHave('formResponse');
             }
         }
 
@@ -429,7 +450,22 @@ class Index extends Component
             'all' => (int) ($viewsRow?->all_count ?? 0),
             'archived' => (int) ($viewsRow?->archived_count ?? 0),
             'trash' => ($isStaff && $orgId) ? (int) Ticket::onlyTrashed()->where('organization_id', $orgId)->count() : 0,
+            'from_form' => 0,
+            'from_platform' => 0,
         ];
+
+        if ($user && $orgId && $this->box !== 'trash') {
+            $baseQuery = Ticket::query()
+                ->where('tickets.organization_id', $orgId)
+                ->whereNull('tickets.archived_at')
+                ->when(! $isStaff, fn($q) => $q->where(function ($sub) use ($user) {
+                    $sub->where('tickets.created_by', $user->id)
+                        ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$user->id])
+                        ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$user->id]);
+                }));
+            $viewCounts['from_form'] = (int) (clone $baseQuery)->whereHas('formResponse')->count();
+            $viewCounts['from_platform'] = (int) (clone $baseQuery)->whereDoesntHave('formResponse')->count();
+        }
 
         $ticketIds = $tickets->pluck('id')->values()->all();
         if ($this->displayMode === 'kanban' && ! empty($kanbanTickets)) {
@@ -460,6 +496,7 @@ class Index extends Component
             'statusColumns' => $statusColumns,
             'kanbanTickets' => $kanbanTickets,
             'box' => $this->box,
+            'source' => $this->source,
             'checklistProgress' => $checklistProgress,
         ]);
     }

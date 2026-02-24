@@ -22,15 +22,31 @@ use Illuminate\Validation\ValidationException;
 
 class PublicFormController extends Controller
 {
-    public function show(Request $request, string $slug)
+    private function findPublicForm(string $slug): Form
     {
+        $slug = trim($slug, '/');
+        if ($slug === '') {
+            abort(404);
+        }
+
         $form = Form::query()
-            ->published()
             ->where('is_public', true)
+            ->where('status', FormStatus::Published)
+            ->whereNotNull('slug')
             ->where('slug', $slug)
             ->with(['organization', 'category', 'fields'])
-            ->firstOrFail();
+            ->first();
 
+        if (! $form) {
+            abort(404);
+        }
+
+        return $form;
+    }
+
+    public function show(Request $request, string $slug)
+    {
+        $form = $this->findPublicForm($slug);
         $org = $form->organization;
 
         $categories = $form->ticket_category_id
@@ -41,20 +57,10 @@ class PublicFormController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']);
 
-        $priorities = TicketPriority::query()
-            ->where('organization_id', $org->id)
-            ->where('is_active', true)
-            ->orderBy('level')
-            ->get(['id', 'name', 'level']);
-
-        $defaultPriorityId = (int) ($priorities->first()?->id ?? 0);
-
         return view('forms.public', [
             'form' => $form,
             'organization' => $org,
             'categories' => $categories,
-            'priorities' => $priorities,
-            'defaultPriorityId' => $defaultPriorityId,
             'embed' => (bool) $request->boolean('embed'),
         ]);
     }
@@ -66,27 +72,17 @@ class PublicFormController extends Controller
             abort(422);
         }
 
-        $form = Form::query()
-            ->published()
-            ->where('is_public', true)
-            ->where('slug', $slug)
-            ->with(['organization', 'category', 'fields'])
-            ->firstOrFail();
-
+        $form = $this->findPublicForm($slug);
         $org = $form->organization;
 
         $actor = Auth::user();
         $guestEmail = null;
+        $guestName = null;
 
         $baseRules = [
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:10000'],
-            'ticket_priority_id' => ['required', 'integer', 'exists:ticket_priorities,id'],
             'ticket_category_id' => ['nullable', 'integer', 'exists:ticket_categories,id'],
-            'files' => ['array', 'max:5'],
-            'files.*' => ['file', 'max:10240'],
-            'links' => ['array', 'max:5'],
-            'links.*' => ['url', 'max:2000'],
         ];
 
         if (! $actor) {
@@ -110,7 +106,13 @@ class PublicFormController extends Controller
             } elseif (in_array($type, ['date', 'datetime'], true)) {
                 $rules[] = 'date';
             } elseif ($type === 'checkbox') {
-                $rules[] = 'boolean';
+                $cbOptions = is_array($f->configuration['options'] ?? null) ? $f->configuration['options'] : [];
+                if (count($cbOptions) > 0) {
+                    $rules = [$f->required ? 'required' : 'nullable', 'array'];
+                    $dynamicRules["{$path}.*"] = ['string', Rule::in($cbOptions)];
+                } else {
+                    $rules[] = 'boolean';
+                }
             } elseif ($type === 'textarea') {
                 $rules[] = 'string';
                 $rules[] = 'max:5000';
@@ -132,31 +134,35 @@ class PublicFormController extends Controller
 
         $validated = $request->validate(array_merge($baseRules, $dynamicRules));
 
-        // Force organization scoping
-        $priorityOk = TicketPriority::query()
-            ->where('id', (int) $validated['ticket_priority_id'])
-            ->where('organization_id', $org->id)
-            ->exists();
-        if (! $priorityOk) {
-            throw ValidationException::withMessages([
-                'ticket_priority_id' => __("Sélection invalide pour l'entreprise."),
-            ]);
-        }
+        $shouldCreateTicket = (bool) $form->creates_ticket;
 
-        $categoryId = $form->ticket_category_id ? (int) $form->ticket_category_id : (int) ($validated['ticket_category_id'] ?? 0);
-        if ($categoryId <= 0) {
-            throw ValidationException::withMessages([
-                'ticket_category_id' => __('Veuillez choisir une catégorie.'),
-            ]);
-        }
-        $categoryOk = TicketCategory::query()
-            ->where('id', $categoryId)
-            ->where('organization_id', $org->id)
-            ->exists();
-        if (! $categoryOk) {
-            throw ValidationException::withMessages([
-                'ticket_category_id' => __("Sélection invalide pour l'entreprise."),
-            ]);
+        $categoryId = null;
+        $categoryName = null;
+        $defaultPriority = null;
+
+        if ($shouldCreateTicket) {
+            $defaultPriority = TicketPriority::query()
+                ->where('organization_id', $org->id)
+                ->where('is_active', true)
+                ->orderBy('level')
+                ->first();
+
+            $categoryId = $form->ticket_category_id ? (int) $form->ticket_category_id : (int) ($validated['ticket_category_id'] ?? 0);
+            if ($categoryId <= 0) {
+                throw ValidationException::withMessages([
+                    'ticket_category_id' => __('Veuillez choisir une catégorie.'),
+                ]);
+            }
+            $categoryOk = TicketCategory::query()
+                ->where('id', $categoryId)
+                ->where('organization_id', $org->id)
+                ->exists();
+            if (! $categoryOk) {
+                throw ValidationException::withMessages([
+                    'ticket_category_id' => __("Sélection invalide pour l'entreprise."),
+                ]);
+            }
+            $categoryName = TicketCategory::find($categoryId)?->name;
         }
 
         if (! $actor) {
@@ -186,14 +192,29 @@ class PublicFormController extends Controller
             ]);
         }
 
-        // Build custom_fields payload
+        // Build custom_fields payload (excluding file fields for now)
         $customFields = [];
+        $fileFields = [];
         foreach ($formFields as $f) {
             $key = (string) $f->key;
             $val = data_get($validated, "custom.{$key}");
 
+            if ($f->type === 'file') {
+                if ($val instanceof \Illuminate\Http\UploadedFile) {
+                    $fileFields[$key] = $val;
+                }
+                continue;
+            }
+
             if ($f->type === 'checkbox') {
-                $val = (bool) $val;
+                $cbOptions = is_array($f->configuration['options'] ?? null) ? $f->configuration['options'] : [];
+                if (count($cbOptions) > 0) {
+                    if (! is_array($val) || empty($val)) {
+                        continue;
+                    }
+                } else {
+                    $val = (bool) $val;
+                }
             }
             if (is_string($val)) {
                 $val = trim($val);
@@ -205,65 +226,100 @@ class PublicFormController extends Controller
             $customFields[$key] = $val;
         }
 
-        $ticket = Ticket::query()->create([
-            'organization_id' => $org->id,
-            'created_by' => $actor->id,
-            'ticket_category_id' => $categoryId,
-            'ticket_priority_id' => (int) $validated['ticket_priority_id'],
-            'assigned_to' => null,
-            'status' => TicketStatus::Open,
-            'subject' => trim((string) $validated['subject']),
-            'description' => trim((string) $validated['description']),
-            'custom_fields' => $customFields ?: null,
-        ]);
+        $ticket = null;
 
-        // Attachments
-        $attachments = ['files' => [], 'links' => []];
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
-
-        foreach (($validated['files'] ?? []) as $file) {
-            $original = (string) ($file->getClientOriginalName() ?: 'file');
-            $ext = (string) ($file->getClientOriginalExtension() ?: '');
-            $safeBase = Str::slug(pathinfo($original, PATHINFO_FILENAME)) ?: 'file';
-            $filename = $safeBase . '-' . Str::lower(Str::random(10)) . ($ext ? '.' . $ext : '');
-            $path = $file->storeAs("ticket-attachments/org-{$org->id}/ticket-{$ticket->id}", $filename, 'public');
-
-            $attachments['files'][] = [
-                'disk' => 'public',
-                'path' => $path,
-                'name' => $original,
-                'size' => method_exists($file, 'getSize') ? (int) $file->getSize() : null,
-                'mime' => method_exists($file, 'getMimeType') ? (string) $file->getMimeType() : null,
-                'url' => $disk->url($path),
-            ];
+        if ($shouldCreateTicket) {
+            $ticket = Ticket::query()->create([
+                'organization_id' => $org->id,
+                'created_by' => $actor->id,
+                'ticket_category_id' => $categoryId,
+                'ticket_priority_id' => $defaultPriority?->id,
+                'assigned_to' => null,
+                'status' => TicketStatus::Open,
+                'subject' => trim((string) $validated['subject']),
+                'description' => trim((string) $validated['description']),
+                'custom_fields' => $customFields ?: null,
+            ]);
         }
 
-        foreach (($validated['links'] ?? []) as $url) {
-            $attachments['links'][] = ['url' => (string) $url];
-        }
-
-        if (count($attachments['files']) || count($attachments['links'])) {
-            $ticket->update(['attachments' => $attachments]);
-        }
-
-        // Create FormResponse
-        FormResponse::create([
+        // Create FormResponse (need ID for file storage)
+        $formResponse = FormResponse::create([
             'form_id' => $form->id,
             'user_id' => $actor->id,
             'form_version' => $form->current_version,
             'responses' => $customFields,
             'field_snapshot' => $form->snapshotFields(),
-            'ticket_id' => $ticket->id,
+            'ticket_id' => $ticket?->id,
             'ip_address' => $request->ip(),
+            'respondent_name' => $guestName ?? $actor->name,
+            'respondent_email' => $guestEmail ?? $actor->email,
+            'base_fields' => [
+                'subject' => trim((string) $validated['subject']),
+                'description' => trim((string) $validated['description']),
+                'category_name' => $categoryName,
+                'ticket_category_id' => $categoryId,
+                'guest_name' => $guestName,
+                'guest_email' => $guestEmail,
+            ],
+            'submitted_from' => 'public',
+            'public_form_slug' => $slug,
         ]);
+
+        // Store uploaded files and update responses JSON
+        if (! empty($fileFields)) {
+            $responses = $formResponse->responses ?? [];
+            foreach ($fileFields as $key => $uploadedFile) {
+                $path = FormResponse::storeUploadedFile($uploadedFile, $org->id, $formResponse->id, $key);
+                $responses[$key] = [
+                    'type' => 'file',
+                    'path' => $path,
+                    'original_name' => $uploadedFile->getClientOriginalName(),
+                    'size' => $uploadedFile->getSize(),
+                ];
+            }
+            $formResponse->update(['responses' => $responses]);
+        }
 
         $message = $form->public_thank_you ?: __('Merci, votre demande a bien été envoyée.');
 
-        return redirect()
+        $redirect = redirect()
             ->route('forms.public.show', ['slug' => $slug, 'embed' => $request->boolean('embed') ? 1 : null])
             ->with('public_form_success', $message)
-            ->with('public_form_ticket_id', $ticket->id)
             ->with('public_form_email', $guestEmail);
+
+        if ($ticket) {
+            $redirect->with('public_form_ticket_id', $ticket->id);
+        }
+
+        return $redirect;
+    }
+
+    /**
+     * Serve a file attached to a form response.
+     */
+    public function serveFile(Request $request, FormResponse $response, string $fieldKey)
+    {
+        $user = Auth::user();
+        abort_if(! $user, 403);
+
+        $orgId = (int) session('current_organization_id');
+        $form = $response->form;
+        abort_if(! $form || (int) $form->organization_id !== $orgId, 403);
+
+        $responses = $response->responses ?? [];
+        $fileData = $responses[$fieldKey] ?? null;
+
+        if (! is_array($fileData) || ($fileData['type'] ?? '') !== 'file' || empty($fileData['path'])) {
+            abort(404);
+        }
+
+        $storage = Storage::disk('public');
+        if (! $storage->exists($fileData['path'])) {
+            abort(404);
+        }
+
+        return $storage->response($fileData['path'], $fileData['original_name'] ?? basename($fileData['path']), [
+            'Content-Type' => $storage->mimeType($fileData['path']),
+        ]);
     }
 }

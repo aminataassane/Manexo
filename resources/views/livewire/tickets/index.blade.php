@@ -214,6 +214,39 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Source (formulaire vs plateforme) -->
+                <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-50 bg-slate-50/50">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('pages.tickets.source') }}</h3>
+                    </div>
+                    <div class="p-2 space-y-1">
+                        <button type="button" wire:click="setSource('all')"
+                            class="{{ $itemBase }} {{ ($source ?? 'all') === 'all' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:layers-bold-duotone" width="18"></iconify-icon>
+                                {{ __('pages.tickets.source_all') }}
+                            </span>
+                            <span class="{{ $badgeBase }} {{ ($source ?? 'all') === 'all' ? 'bg-white/50 text-[var(--accent)]' : 'bg-slate-100 text-slate-500' }}">{{ ($viewCounts['all'] ?? 0) }}</span>
+                        </button>
+                        <button type="button" wire:click="setSource('from_form')"
+                            class="{{ $itemBase }} {{ ($source ?? 'all') === 'from_form' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:document-text-bold-duotone" width="18"></iconify-icon>
+                                {{ __('pages.tickets.source_from_form') }}
+                            </span>
+                            <span class="{{ $badgeBase }} {{ ($source ?? 'all') === 'from_form' ? 'bg-white/50 text-[var(--accent)]' : 'bg-slate-100 text-slate-500' }}">{{ $viewCounts['from_form'] ?? 0 }}</span>
+                        </button>
+                        <button type="button" wire:click="setSource('from_platform')"
+                            class="{{ $itemBase }} {{ ($source ?? 'all') === 'from_platform' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:pen-new-square-bold-duotone" width="18"></iconify-icon>
+                                {{ __('pages.tickets.source_from_platform') }}
+                            </span>
+                            <span class="{{ $badgeBase }} {{ ($source ?? 'all') === 'from_platform' ? 'bg-white/50 text-[var(--accent)]' : 'bg-slate-100 text-slate-500' }}">{{ $viewCounts['from_platform'] ?? 0 }}</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -276,6 +309,19 @@
                                                     <span class="h-2 w-2 rounded-full {{ $prio['dot'] }}" title="{{ $prio['label'] }}"></span>
                                                 </div>
                                                 <h4 class="text-sm font-bold text-slate-900 mb-1 line-clamp-2 group-hover:text-[var(--accent)] transition-colors">{{ $t->subject }}</h4>
+                                                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                                    @if ($t->formResponse)
+                                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-50 text-violet-700 border border-violet-100">
+                                                            <iconify-icon icon="solar:document-text-bold-duotone" width="10"></iconify-icon>
+                                                            {{ __('pages.tickets.source_label_form') }}
+                                                        </span>
+                                                    @else
+                                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">
+                                                            <iconify-icon icon="solar:pen-new-square-bold-duotone" width="10"></iconify-icon>
+                                                            {{ __('pages.tickets.source_label_platform') }}
+                                                        </span>
+                                                    @endif
+                                                </div>
                                                 @if ($pct !== null)
                                                     <div class="mb-2">
                                                         <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold {{ $pct >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
@@ -334,6 +380,13 @@
                                     @endforeach
                                 </x-select-input>
                             </div>
+                            <div class="w-full min-w-0 sm:w-40 flex-1 sm:flex-none">
+                                <x-select-input wire:model.live="source">
+                                    <option value="all">{{ __('pages.tickets.source_all') }}</option>
+                                    <option value="from_form">{{ __('pages.tickets.source_from_form') }}</option>
+                                    <option value="from_platform">{{ __('pages.tickets.source_from_platform') }}</option>
+                                </x-select-input>
+                            </div>
                             <button wire:click="resetFilters" class="h-11 min-h-[44px] px-4 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors shadow-sm touch-target sm:min-h-0">
                                 {{ __('Réinitialiser') }}
                             </button>
@@ -349,6 +402,7 @@
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Catégorie') }}</th>
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.dashboard.priority') }}</th>
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.dashboard.status') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.tickets.source') }}</th>
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4 text-right">{{ __('pages.tickets.activity') }}</th>
                                     @if(($box ?? 'active') === 'trash')
                                         <th class="px-3 sm:px-6 py-2.5 sm:py-4 text-right">{{ __('pages.tickets.actions') }}</th>
@@ -414,6 +468,19 @@
                                                 {{ $label }}
                                             </span>
                                         </td>
+                                        <td class="px-3 sm:px-6 py-2.5 sm:py-4 whitespace-nowrap">
+                                            @if($t->formResponse)
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100" title="{{ __('pages.tickets.source_from_form') }}">
+                                                    <iconify-icon icon="solar:document-text-bold-duotone" width="12"></iconify-icon>
+                                                    {{ __('pages.tickets.source_label_form') }}
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200" title="{{ __('pages.tickets.source_from_platform') }}">
+                                                    <iconify-icon icon="solar:pen-new-square-bold-duotone" width="12"></iconify-icon>
+                                                    {{ __('pages.tickets.source_label_platform') }}
+                                                </span>
+                                            @endif
+                                        </td>
                                         <td class="px-3 sm:px-6 py-2.5 sm:py-4 text-right text-sm text-slate-500 whitespace-nowrap">
                                             {{ ($box ?? 'active') === 'trash' ? ($t->deleted_at?->diffForHumans() ?? '—') : $t->updated_at?->diffForHumans() }}
                                         </td>
@@ -428,7 +495,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="{{ ($box ?? 'active') === 'trash' ? 6 : 5 }}" class="px-4 sm:px-6 py-8 sm:py-12 text-center text-slate-500">
+                                        <td colspan="{{ ($box ?? 'active') === 'trash' ? 7 : 6 }}" class="px-4 sm:px-6 py-8 sm:py-12 text-center text-slate-500">
                                             <div class="flex flex-col items-center justify-center">
                                                 <div class="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
                                                     <iconify-icon icon="solar:ticket-linear" width="32" class="text-slate-400"></iconify-icon>

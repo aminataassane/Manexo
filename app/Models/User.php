@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
@@ -63,20 +63,15 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $code = (string) random_int(100000, 999999);
         $expiresMinutes = (int) config('auth.email_otp_expires_minutes', 10);
-        $ttlSeconds = max(60, $expiresMinutes * 60);
 
-        $key = $this->emailOtpRedisKey();
-        $connection = (string) config('auth.email_otp_redis_connection', 'cache');
+        $key = $this->emailOtpCacheKey();
 
-        Redis::connection($connection)->hmset($key, [
+        Cache::put($key, [
             'code_hash' => Hash::make($code),
             'expires_at' => now()->addMinutes($expiresMinutes)->timestamp,
             'attempts' => 0,
             'last_sent_at' => now()->timestamp,
-        ]);
-
-        // Expire the whole OTP payload automatically
-        Redis::connection($connection)->expire($key, $ttlSeconds);
+        ], now()->addMinutes($expiresMinutes));
 
         $this->notify(new EmailVerificationOtpNotification(
             code: $code,
@@ -85,23 +80,21 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Redis key for email OTP.
+     * Cache key for email OTP.
      */
-    public function emailOtpRedisKey(): string
+    public function emailOtpCacheKey(): string
     {
-        // Spec prefix: otp:signup:user:{id}
         return "otp:signup:user:{$this->id}";
     }
 
     /**
-     * Get the current email OTP payload from Redis.
+     * Get the current email OTP payload from cache.
      *
      * @return array{code_hash:string|null, expires_at:Carbon|null, attempts:int, last_sent_at:Carbon|null}|null
      */
     public function getEmailOtpPayload(): ?array
     {
-        $connection = (string) config('auth.email_otp_redis_connection', 'cache');
-        $data = Redis::connection($connection)->hgetall($this->emailOtpRedisKey());
+        $data = Cache::get($this->emailOtpCacheKey());
 
         if (! is_array($data) || $data === []) {
             return null;
@@ -119,22 +112,32 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Increment OTP attempts counter in Redis.
+     * Increment OTP attempts counter in cache.
      */
     public function incrementEmailOtpAttempts(): int
     {
-        $connection = (string) config('auth.email_otp_redis_connection', 'cache');
+        $key = $this->emailOtpCacheKey();
+        $data = Cache::get($key);
 
-        return (int) Redis::connection($connection)->hincrby($this->emailOtpRedisKey(), 'attempts', 1);
+        if (! is_array($data)) {
+            return 0;
+        }
+
+        $data['attempts'] = ((int) ($data['attempts'] ?? 0)) + 1;
+
+        // Preserve remaining TTL
+        $expiresAt = isset($data['expires_at']) ? Carbon::createFromTimestamp((int) $data['expires_at']) : now()->addMinutes(10);
+        Cache::put($key, $data, $expiresAt);
+
+        return $data['attempts'];
     }
 
     /**
-     * Delete OTP payload from Redis.
+     * Delete OTP payload from cache.
      */
     public function clearEmailOtpPayload(): void
     {
-        $connection = (string) config('auth.email_otp_redis_connection', 'cache');
-        Redis::connection($connection)->del($this->emailOtpRedisKey());
+        Cache::forget($this->emailOtpCacheKey());
     }
 
     /**

@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetLocaleFromSession::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'f/*',
+        ]);
+
         $middleware->alias([
             'ensure.organization' => \App\Http\Middleware\EnsureOrganizationIsSelected::class,
         ]);

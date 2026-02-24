@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 
 class FormResponse extends Model
 {
@@ -16,6 +18,11 @@ class FormResponse extends Model
         'field_snapshot',
         'ticket_id',
         'ip_address',
+        'respondent_name',
+        'respondent_email',
+        'base_fields',
+        'submitted_from',
+        'public_form_slug',
     ];
 
     protected function casts(): array
@@ -23,8 +30,21 @@ class FormResponse extends Model
         return [
             'responses' => 'array',
             'field_snapshot' => 'array',
+            'base_fields' => 'array',
             'form_version' => 'int',
         ];
+    }
+
+    /**
+     * Store an uploaded file for this response and return the relative path.
+     */
+    public static function storeUploadedFile(UploadedFile $file, int $orgId, int $responseId, string $fieldKey): string
+    {
+        $ext = $file->getClientOriginalExtension() ?: 'bin';
+        $filename = $fieldKey . '-' . Str::random(12) . '.' . $ext;
+        $dir = "form-responses/org-{$orgId}/response-{$responseId}";
+
+        return $file->storeAs($dir, $filename, 'public');
     }
 
     public function form(): BelongsTo
