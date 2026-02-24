@@ -2,14 +2,14 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DiscussionInviteNotification extends Notification implements ShouldQueue
+/**
+ * Notification en base uniquement (sans file) pour que le badge et la cloche
+ * affichent les invitations même sans queue worker.
+ */
+class DiscussionInviteNotification extends Notification
 {
-    use Queueable;
-
     public function __construct(
         public int $threadId,
         public string $threadName,

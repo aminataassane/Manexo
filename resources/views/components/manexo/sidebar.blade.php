@@ -4,6 +4,13 @@
     $orgRole = (string) ($org?->pivot?->role ?? 'member');
     // Staff = can access internal pages (agent included).
     $isStaff = in_array($orgRole, ['owner', 'admin', 'agent'], true);
+    // Nombre de nouveaux messages / invitations pour les discussions (badge sidebar).
+    $discussionsUnreadCount = \Illuminate\Support\Facades\Auth::user()?->unreadNotifications()
+        ->whereIn('type', [
+            \App\Notifications\DiscussionNewMessageNotification::class,
+            \App\Notifications\DiscussionInviteNotification::class,
+        ])
+        ->count() ?? 0;
     // Logo: organisation (URL relative à la requête pour éviter erreur de chargement)
     $logoUrl = $org && $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
     $brandName = $org?->name ?? 'Manexo';
@@ -158,8 +165,16 @@
             @if($isDiscussions)
                 <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
             @endif
-            <iconify-icon icon="solar:chat-round-bold-duotone" width="20" class="{{ $isDiscussions ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+            <span class="relative shrink-0">
+                <iconify-icon icon="solar:chat-round-bold-duotone" width="20" class="{{ $isDiscussions ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                @if ($discussionsUnreadCount > 0)
+                    <span x-show="!sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak>{{ $discussionsUnreadCount > 99 ? '99+' : $discussionsUnreadCount }}</span>
+                @endif
+            </span>
             <span x-show="sidebarOpen" class="truncate">{{ __('menu.discussions') }}</span>
+            @if ($discussionsUnreadCount > 0)
+                <span x-show="sidebarOpen" class="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white ring-2 ring-white/20">{{ $discussionsUnreadCount > 99 ? '99+' : $discussionsUnreadCount }}</span>
+            @endif
 
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                 {{ __('menu.discussions') }}

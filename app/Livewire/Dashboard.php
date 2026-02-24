@@ -186,7 +186,7 @@ class Dashboard extends Component
                 ->join('ticket_priorities', 'tickets.ticket_priority_id', '=', 'ticket_priorities.id')
                 ->orderByDesc('ticket_priorities.level')
                 ->orderByDesc('tickets.updated_at')
-                ->select('tickets.*', 'ticket_priorities.name as priority_name', 'ticket_priorities.level as priority_level', 'ticket_priorities.color as priority_color')
+                ->select('tickets.*', 'ticket_priorities.name as priority_name', 'ticket_priorities.level as priority_level')
                 ->limit(5)
                 ->get();
         });

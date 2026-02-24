@@ -12,7 +12,7 @@
     x-data="threadWebSocket({{ $thread->id }}, {{ auth()->id() ?? 'null' }})"
     @keydown.enter.window="if (document.activeElement?.closest('[data-composer]') && !$event.shiftKey) { $event.preventDefault(); $refs.submitBtn?.click() }"
 >
-    <div class="flex flex-1 min-h-0 overflow-hidden" x-data="{ infoOpen: true, mobileInfoOpen: false, toggleInfo(){ if (window.innerWidth >= 1024) this.infoOpen = !this.infoOpen; else this.mobileInfoOpen = !this.mobileInfoOpen; } }">
+    <div class="flex flex-1 min-h-0 overflow-hidden" x-data="{ infoOpen: false, mobileInfoOpen: false, toggleInfo(){ if (window.innerWidth >= 1024) this.infoOpen = !this.infoOpen; else this.mobileInfoOpen = !this.mobileInfoOpen; } }">
         <!-- CENTER -->
         <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50/50">
             <header class="shrink-0 bg-white border-b border-slate-100 px-3 py-2.5 sm:px-6 sm:py-3" style="padding-top: max(0.625rem, env(safe-area-inset-top));">
@@ -118,6 +118,7 @@
                                 rows="3"
                                 class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm p-2"
                                 placeholder="{{ __('pages.discussions.write_message') }}"
+                                @keydown.enter="if (!$event.shiftKey) { $event.preventDefault(); $el.closest('form').requestSubmit(); }"
                             ></textarea>
                         </div>
                         <div class="flex items-center justify-between px-3 py-2 border-t border-slate-200/50 bg-white/50 rounded-b-2xl">

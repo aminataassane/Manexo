@@ -102,7 +102,7 @@
             </div>
 
             <!-- Organizations -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div id="organizations" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                     <div>
                         <h2 class="text-base font-semibold text-slate-900">{{ __('pages.profile.my_companies') }}</h2>

@@ -101,7 +101,7 @@
                         <iconify-icon icon="solar:user-linear" width="16"></iconify-icon>
                         Mon Profil
                     </a>
-                    <a href="{{ route('organizations.select') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <a href="{{ route('organizations.select', ['mode' => 'switch']) }}" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:buildings-linear" width="16"></iconify-icon>
                         Changer d'entreprise
                     </a>

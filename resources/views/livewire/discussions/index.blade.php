@@ -79,9 +79,9 @@
         </div>
     </div>
 
-    <div class="mt-3 sm:mt-4 md:mt-5 flex-1 grid grid-cols-1 gap-3 min-h-0 min-w-0 sm:gap-4 md:gap-5 lg:grid-cols-4 lg:gap-5 xl:gap-6 2xl:gap-8 min-[1920px]:gap-10 overflow-hidden px-0">
+    <div class="mt-3 sm:mt-4 md:mt-5 flex-1 grid grid-cols-1 grid-rows-1 gap-3 min-h-0 min-w-0 sm:gap-4 md:gap-5 lg:grid-cols-4 lg:gap-5 xl:gap-6 2xl:gap-8 min-[1920px]:gap-10 overflow-hidden px-0">
         <!-- LEFT: Vues + liste. Sur mobile masqué quand une discussion est sélectionnée (on affiche uniquement le détail). -->
-        <div class="lg:col-span-1 flex flex-col min-h-0 min-w-0 {{ ($selectedThread ?? null) || ($selectedTicket ?? null) ? 'hidden lg:flex' : '' }}">
+        <div class="lg:col-span-1 flex flex-col min-h-0 min-w-0 overflow-hidden {{ ($selectedThread ?? null) || ($selectedTicket ?? null) ? 'hidden lg:flex' : '' }}">
             {{-- 1. Panneau "Vues" --}}
             <div class="rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden shrink-0" x-show="viewsOpen" x-transition:enter.duration.200ms x-transition:leave.duration.150ms>
                 <div class="w-full px-4 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB] flex items-center justify-between">
@@ -178,7 +178,7 @@
             </div>
 
             {{-- 2. Liste des discussions (toujours visible, pas de bouton fermer — s’agrandit quand les vues sont masquées) --}}
-            <div class="flex-1 min-h-[200px] sm:min-h-[280px] flex flex-col rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden" :class="viewsOpen ? 'mt-2' : 'mt-0'">
+            <div class="flex-1 min-h-0 flex flex-col rounded-xl border border-[#E5E7EB] bg-white shadow-sm overflow-hidden" :class="viewsOpen ? 'mt-2' : 'mt-0'">
                 <div class="p-2 border-b border-[#E5E7EB] shrink-0 space-y-2">
                     @if(($pendingMessagesCount ?? 0) > 0)
                         <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
@@ -211,7 +211,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                <div class="flex-1 min-h-0 max-h-full overflow-y-auto custom-scrollbar p-2 space-y-1">
                     @if(($scope ?? 'tickets') === 'threads')
                         @forelse($threads as $thread)
                             @php
@@ -221,14 +221,18 @@
                                 $title = $thread->is_group
                                     ? ($thread->name ?: __('pages.discussions.discussion_group'))
                                     : ($participants->where('id', '!=', auth()->id())->first()?->name ?: __('pages.discussions.discussion'));
+                                $unreadCount = (int) ($unreadCountByThreadId[$thread->id] ?? 0);
                             @endphp
                             <a
                                 href="{{ route('discussions.index', ['ticket' => 'd-'.$thread->id]) }}"
                                 class="block rounded-lg p-3 min-h-[52px] sm:min-h-0 transition-all touch-manipulation {{ $isSelected ? 'bg-[color:var(--accent-soft)] border border-[color:var(--accent-soft)]' : 'bg-[#F9FAFB] border border-transparent hover:bg-[#F3F4F6] hover:border-[#E5E7EB] active:bg-[#E5E7EB]' }}"
                             >
                                 <div class="flex items-start gap-3">
-                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E5E7EB] text-[#6B7280]">
+                                    <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E5E7EB] text-[#6B7280]">
                                         <iconify-icon icon="{{ $thread->is_group ? 'solar:users-group-rounded-linear' : 'solar:user-circle-linear' }}" width="20"></iconify-icon>
+                                        @if($unreadCount > 0)
+                                            <span class="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">{{ $unreadCount > 99 ? '99+' : $unreadCount }}</span>
+                                        @endif
                                     </div>
                                     <div class="min-w-0 flex-1">
                                         <div class="flex flex-wrap items-center gap-1.5">

@@ -2,14 +2,14 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DiscussionNewMessageNotification extends Notification implements ShouldQueue
+/**
+ * Notification en base uniquement (sans file) pour que le badge et la cloche
+ * affichent les nouveaux messages même sans queue worker.
+ */
+class DiscussionNewMessageNotification extends Notification
 {
-    use Queueable;
-
     public function __construct(
         public int $threadId,
         public string $threadName,

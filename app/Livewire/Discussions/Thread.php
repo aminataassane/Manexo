@@ -10,7 +10,10 @@ use App\Models\DiscussionThread;
 use App\Models\User;
 use App\Notifications\DiscussionInviteNotification;
 use App\Notifications\DiscussionNewMessageNotification;
+use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -44,6 +47,7 @@ class Thread extends Component
     {
         $this->threadId = (int) $thread;
         $this->authorizeThread();
+        $this->markThreadNotificationsAsRead($this->threadId);
     }
 
     private function getThread(): DiscussionThread
@@ -140,16 +144,16 @@ class Thread extends Component
             inviterId: $user->id,
             inviterName: $user->name,
         ));
-        event(new UserNotificationReceived((int) $invitee->id, 'discussion_invite'));
+        $this->broadcastSafe(fn () => event(new UserNotificationReceived((int) $invitee->id, 'discussion_invite')));
 
         // Broadcast to all current participants
-        event(new DiscussionParticipantChanged(
+        $this->broadcastSafe(fn () => event(new DiscussionParticipantChanged(
             threadId: $thread->id,
             userId: $userId,
             action: 'added',
             actorName: $user->name,
             userName: $invitee->name,
-        ));
+        )));
 
         $this->addParticipantSearch = '';
     }
@@ -189,13 +193,13 @@ class Thread extends Component
         $thread->participants()->detach($userId);
 
         // Broadcast to remaining participants
-        event(new DiscussionParticipantChanged(
+        $this->broadcastSafe(fn () => event(new DiscussionParticipantChanged(
             threadId: $thread->id,
             userId: $userId,
             action: 'removed',
             actorName: $user->name,
             userName: $removedUser->name,
-        ));
+        )));
     }
 
     public function sendMessage(): void
@@ -242,17 +246,34 @@ class Thread extends Component
             'attachments' => $savedAttachments ?: null,
         ]);
 
-        // Broadcast real-time message (primitives)
-        event(new DiscussionMessageSent(
-            messageId: $message->id,
-            threadId: $thread->id,
-            userId: $user->id,
-            userName: $user->name,
-            body: $message->body,
-            attachments: $message->attachments,
-            meta: $message->meta ?? null,
-            createdAt: $message->created_at->toIso8601String(),
-        ));
+        // Marquer comme lues les notifs de ce fil pour l'utilisateur (il est dans la conversation)
+        $this->markThreadNotificationsAsRead($thread->id);
+
+        // Broadcast en après-réponse pour ne pas bloquer l'envoi (Pusher peut être lent ou injoignable)
+        $createdAt = $message->created_at->toIso8601String();
+        $messageId = $message->id;
+        $threadId = $thread->id;
+        $userId = $user->id;
+        $userName = $user->name;
+        $body = $message->body;
+        $attachments = $message->attachments;
+        $meta = $message->meta ?? null;
+        dispatch(function () use ($messageId, $threadId, $userId, $userName, $body, $attachments, $meta, $createdAt) {
+            try {
+                event(new DiscussionMessageSent(
+                    messageId: $messageId,
+                    threadId: $threadId,
+                    userId: $userId,
+                    userName: $userName,
+                    body: $body,
+                    attachments: $attachments,
+                    meta: $meta,
+                    createdAt: $createdAt,
+                ));
+            } catch (BroadcastException $e) {
+                Log::warning('Broadcast failed (Pusher/WebSocket may be down).', ['exception' => $e->getMessage()]);
+            }
+        })->afterResponse();
 
         // Notify other participants
         $threadName = $thread->is_group
@@ -273,11 +294,67 @@ class Thread extends Component
                 senderName: $user->name,
                 bodyExcerpt: $bodyExcerpt,
             ));
-            event(new UserNotificationReceived((int) $participant->id, 'discussion_new_message'));
+            $participantId = (int) $participant->id;
+            dispatch(function () use ($participantId) {
+                try {
+                    event(new UserNotificationReceived($participantId, 'discussion_new_message'));
+                } catch (BroadcastException $e) {
+                    Log::warning('Broadcast notification failed.', ['exception' => $e->getMessage()]);
+                }
+            })->afterResponse();
         }
 
         $this->body = '';
         $this->attachmentFiles = [];
+    }
+
+    /**
+     * Run a broadcast (event) in a try-catch so that if Pusher/WebSocket is unavailable,
+     * the request still succeeds (message is saved, notifications are sent).
+     */
+    private function broadcastSafe(callable $fn): void
+    {
+        try {
+            $fn();
+        } catch (BroadcastException $e) {
+            Log::warning('Broadcast failed (Pusher/WebSocket may be down). Message and notifications were still saved.', [
+                'exception' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Marquer comme lues toutes les notifications de discussion liées à ce fil
+     * (ouverture du fil ou envoi d'un message = considéré comme lu).
+     * Une seule requête UPDATE avec filtre JSON pour éviter de charger toutes les notifs.
+     */
+    private function markThreadNotificationsAsRead(int $threadId): void
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return;
+        }
+
+        $driver = DB::connection()->getDriverName();
+        $types = [
+            DiscussionNewMessageNotification::class,
+            DiscussionInviteNotification::class,
+        ];
+
+        $query = DB::table('notifications')
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', $user->id)
+            ->whereNull('read_at')
+            ->whereIn('type', $types);
+
+        if ($driver === 'pgsql') {
+            // data is text; cast to jsonb so ->> works
+            $query->whereRaw("((data::jsonb)->>'thread_id')::bigint = ?", [$threadId]);
+        } else {
+            $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.thread_id')) = ?", [(string) $threadId]);
+        }
+
+        $query->update(['read_at' => now()]);
     }
 
     public function render()

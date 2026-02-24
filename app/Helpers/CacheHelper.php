@@ -9,6 +9,9 @@ class CacheHelper
     /** Cache TTL in seconds (30 minutes). */
     public const TTL = 1800;
 
+    /** Short TTL for notification counts (1 minute). */
+    public const TTL_SHORT = 60;
+
     // ─── Key generators ──────────────────────────────────────────────
 
     public static function dashboardKpisKey(int $orgId): string
@@ -85,6 +88,18 @@ class CacheHelper
         return "reports:{$orgId}:{$period}";
     }
 
+    /** Notifications: unread count (topbar bell). */
+    public static function notificationsUnreadCountKey(int $userId): string
+    {
+        return "notifications:unread_count:{$userId}";
+    }
+
+    /** Sidebar: discussions unread badge (DiscussionNewMessage + DiscussionInvite only). */
+    public static function sidebarDiscussionsUnreadKey(int $userId): string
+    {
+        return "sidebar:discussions_unread:{$userId}";
+    }
+
     // ─── Invalidation ────────────────────────────────────────────────
 
     public static function invalidateDashboard(int $orgId): void
@@ -140,6 +155,16 @@ class CacheHelper
         Cache::forget(self::reportsKey($orgId, 'default'));
         Cache::forget(self::reportsKey($orgId, 'monthly'));
         Cache::forget(self::reportsKey($orgId, 'yearly'));
+    }
+
+    public static function invalidateNotificationsCount(int $userId): void
+    {
+        Cache::forget(self::notificationsUnreadCountKey($userId));
+    }
+
+    public static function invalidateSidebarDiscussionsUnread(int $userId): void
+    {
+        Cache::forget(self::sidebarDiscussionsUnreadKey($userId));
     }
 
     public static function invalidateAll(int $orgId): void

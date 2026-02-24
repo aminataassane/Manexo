@@ -2,13 +2,19 @@
 
 namespace App\Livewire;
 
+use App\Helpers\CacheHelper;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class NotificationsBell extends Component
 {
     public bool $open = false;
+
+    /** Charge la liste des notifications uniquement à l'ouverture du dropdown (évite la requête à chaque page). */
+    public bool $notificationsLoaded = false;
 
     public function getListeners(): array
     {
@@ -19,25 +25,48 @@ class NotificationsBell extends Component
         }
 
         return [
-            "echo-private:App.Models.User.{$userId},.notification.received" => '$refresh',
+            "echo-private:App.Models.User.{$userId},.notification.received" => 'invalidateNotificationsCache',
         ];
+    }
+
+    public function invalidateNotificationsCache(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $this->dispatch('$refresh');
+        if ($user) {
+            CacheHelper::invalidateNotificationsCount((int) $user->id);
+            CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
+        }
     }
 
     public function getUnreadCountProperty(): int
     {
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         if (! $user) {
             return 0;
         }
 
-        return $user->unreadNotifications()->count();
+        $userId = (int) $user->id;
+
+        return (int) Cache::remember(
+            CacheHelper::notificationsUnreadCountKey($userId),
+            CacheHelper::TTL_SHORT,
+            fn () => $user->unreadNotifications()->count()
+        );
     }
 
-    public function getNotificationsProperty(): \Illuminate\Database\Eloquent\Collection
+    public function getNotificationsProperty(): EloquentCollection
     {
+        if (! $this->notificationsLoaded) {
+            return new EloquentCollection([]);
+        }
+
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         if (! $user) {
-            return collect();
+            return new EloquentCollection([]);
         }
 
         return $user->notifications()->latest()->limit(20)->get(['id', 'type', 'data', 'read_at', 'created_at']);
@@ -45,18 +74,31 @@ class NotificationsBell extends Component
 
     public function markAsRead(string $id): void
     {
-        Auth::user()?->unreadNotifications()->where('id', $id)->first()?->markAsRead();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if ($user) {
+            $user->unreadNotifications()->where('id', $id)->first()?->markAsRead();
+            CacheHelper::invalidateNotificationsCount((int) $user->id);
+            CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
+        }
     }
 
     public function markAllAsRead(): void
     {
-        Auth::user()?->unreadNotifications()->update(['read_at' => now()]);
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if ($user) {
+            $user->unreadNotifications()->update(['read_at' => now()]);
+            CacheHelper::invalidateNotificationsCount((int) $user->id);
+            CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
+        }
     }
 
     public function toggle(): void
     {
         $this->open = ! $this->open;
         if ($this->open) {
+            $this->notificationsLoaded = true;
             $this->dispatch('notifications-opened');
         }
     }

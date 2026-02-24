@@ -10,6 +10,7 @@ use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Notifications\DiscussionInviteNotification;
+use App\Notifications\DiscussionNewMessageNotification;
 use App\Notifications\TicketNewMessageNotification;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -426,6 +427,7 @@ class Index extends Component
                 'selectedThread' => null,
                 'orgUsers' => collect(),
                 'pendingMessagesCount' => 0,
+                'unreadCountByThreadId' => collect(),
                 'scope' => $this->scope,
             ]);
         }
@@ -451,6 +453,16 @@ class Index extends Component
             ->where('type', TicketNewMessageNotification::class)
             ->count();
 
+        // Nombre de messages non lus par fil de discussion (pour badge sur chaque discussion)
+        $unreadCountByThreadId = $user->unreadNotifications()
+            ->whereIn('type', [
+                DiscussionNewMessageNotification::class,
+                DiscussionInviteNotification::class,
+            ])
+            ->get()
+            ->groupBy(fn ($n) => (int) ($n->data['thread_id'] ?? 0))
+            ->map->count();
+
         return view('livewire.discussions.index', [
             'threads' => $threadsData['threads'],
             'lastThreadMessages' => $threadsData['lastThreadMessages'],
@@ -462,6 +474,7 @@ class Index extends Component
             'selectedThread' => $selected['selectedThread'],
             'orgUsers' => $orgUsers,
             'pendingMessagesCount' => $pendingMessagesCount,
+            'unreadCountByThreadId' => $unreadCountByThreadId,
             'scope' => $this->scope,
         ]);
     }

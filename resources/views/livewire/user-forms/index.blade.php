@@ -57,9 +57,9 @@
         <div class="mb-6 sm:mb-8">
             <h2 class="text-sm font-bold text-slate-800 mb-2">{{ __('pages.forms.team_forms_title') }}</h2>
             <p class="text-xs text-slate-500 mb-3">{{ __('pages.forms.team_forms_help') }}</p>
-            <div class="space-y-2 sm:space-y-3">
+            <ul class="space-y-3">
                 @foreach($this->teamForms as $teamForm)
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl bg-white border border-slate-100 sm:border-slate-200 shadow-sm hover:shadow-md transition-all min-w-0">
+                    <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50/30 sm:bg-white shadow-sm hover:shadow-md hover:bg-slate-50/50 sm:hover:bg-slate-50/30 transition-all min-w-0">
                         <div class="min-w-0 flex-1">
                             <h3 class="text-sm font-bold text-slate-900 truncate">{{ $teamForm->name }}</h3>
                             @if($teamForm->description)
@@ -86,14 +86,14 @@
                                 </a>
                             @endif
                         </div>
-                    </div>
+                    </li>
                 @endforeach
-            </div>
+            </ul>
         </div>
     @endif
 
     {{-- Liste des assignations --}}
-    <div class="space-y-3 sm:space-y-4">
+    <div class="space-y-3">
         @if($this->teamForms->isNotEmpty())
             <h2 class="text-sm font-bold text-slate-800 mb-2">{{ __('pages.forms.assigned_to_you') }}</h2>
         @endif
@@ -103,13 +103,13 @@
                 $aBadge = match($aStatus) {
                     'submitted' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-100', 'label' => $statusLabels['submitted'] ?? __('pages.forms.status_submitted'), 'icon' => 'solar:check-circle-bold'],
                     'overdue' => ['bg' => 'bg-red-50', 'text' => 'text-red-700', 'border' => 'border-red-100', 'label' => $statusLabels['overdue'] ?? __('pages.forms.status_overdue'), 'icon' => 'solar:alarm-bold'],
-                    default => ['bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-100', 'label' => $statusLabels['pending'] ?? __('pages.forms.status_pending'), 'icon' => 'solar:clock-circle-bold'],
+                    default => ['bg' => 'bg-[var(--accent-soft)]', 'text' => 'text-[var(--accent)]', 'border' => 'border-[var(--accent)]/20', 'label' => $statusLabels['pending'] ?? __('pages.forms.status_pending'), 'icon' => 'solar:clock-circle-bold'],
                 };
             @endphp
-            <div class="group relative overflow-hidden rounded-xl sm:rounded-2xl bg-white border border-slate-100 sm:border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 min-w-0">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 sm:p-5">
+            <article class="rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/30 sm:bg-white shadow-sm hover:shadow-md transition-all duration-200 min-w-0 overflow-hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5">
                     <div class="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
-                        <div class="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105 {{ $aStatus === 'overdue' ? 'bg-red-50 text-red-600' : ($aStatus === 'submitted' ? 'bg-emerald-50 text-emerald-600' : 'bg-[var(--accent-soft)] text-[var(--accent)]') }}">
+                        <div class="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 sm:group-hover:scale-105 {{ $aStatus === 'overdue' ? 'bg-red-50 text-red-600' : ($aStatus === 'submitted' ? 'bg-emerald-50 text-emerald-600' : 'bg-[var(--accent-soft)] text-[var(--accent)]') }}">
                             @if($aStatus === 'submitted')
                                 <iconify-icon icon="solar:check-circle-bold-duotone" width="20"></iconify-icon>
                             @elseif($aStatus === 'overdue')
@@ -119,7 +119,10 @@
                             @endif
                         </div>
                         <div class="min-w-0 flex-1">
-                            <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate">{{ $a->form?->name ?? '—' }}</h3>
+                            @if($aStatus !== 'submitted')
+                                <a href="{{ route('forms.fill', $a->id) }}" class="group block">
+                            @endif
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate {{ $aStatus !== 'submitted' ? 'group-hover:text-[var(--accent)] transition-colors' : '' }}">{{ $a->form?->name ?? '—' }}</h3>
                             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
                                 <span class="flex items-center gap-1">
                                     <iconify-icon icon="solar:user-linear" width="12"></iconify-icon>
@@ -132,10 +135,13 @@
                                     </span>
                                 @endif
                             </div>
+                            @if($aStatus !== 'submitted')
+                                </a>
+                            @endif
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 sm:pl-4 border-t border-slate-100 sm:border-t-0 sm:border-l border-slate-100 pt-3 sm:pt-0 sm:pl-4">
-                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border {{ $aBadge['bg'] }} {{ $aBadge['text'] }} {{ $aBadge['border'] }}">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border {{ $aBadge['bg'] }} {{ $aBadge['text'] }} {{ $aBadge['border'] }}">
                             <iconify-icon icon="{{ $aBadge['icon'] }}" width="12"></iconify-icon>
                             {{ $aBadge['label'] }}
                         </span>
@@ -149,9 +155,9 @@
                         @endif
                     </div>
                 </div>
-            </div>
+            </article>
         @empty
-            <div class="rounded-xl sm:rounded-2xl bg-white border border-slate-100 sm:border-slate-200 p-8 sm:p-10 lg:p-12 text-center shadow-sm min-w-0">
+            <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white p-8 sm:p-10 lg:p-12 text-center shadow-sm min-w-0">
                 <div class="mx-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-5">
                     <iconify-icon icon="solar:clipboard-check-linear" width="36" class="sm:w-10 sm:h-10"></iconify-icon>
                 </div>

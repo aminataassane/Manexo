@@ -1,7 +1,7 @@
-<div class="relative" x-data="{ open: false }" @click.outside="open = false" wire:poll.120s>
+<div class="relative" x-data="{ open: @entangle('open') }" @click.outside="open = false" wire:poll.120s>
     <button
         type="button"
-        @click="open = !open"
+        wire:click="toggle"
         class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
         title="{{ __('Notifications') }}"
     >
