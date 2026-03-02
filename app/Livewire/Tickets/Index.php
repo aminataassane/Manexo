@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Tickets;
 
+use App\Enums\Permission;
 use App\Enums\TicketStatus;
 use App\Helpers\CacheHelper;
 use App\Models\Ticket;
@@ -171,14 +172,11 @@ class Index extends Component
             ->whereKey($ticketId)
             ->firstOrFail();
 
-        $org = request()->attributes->get('currentOrganization');
-        $role = $org?->pivot?->role ?? 'member';
-
-        $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
+        $canChangeStatus = $user->hasPermission(Permission::TicketsChangeStatus);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
         $isAssignee = $ticket->assignees()->where('users.id', $user->id)->exists();
 
-        if (! ($isStaff || $isCreator || $isAssignee)) {
+        if (! ($canChangeStatus || $isCreator || $isAssignee)) {
             abort(403);
         }
 
@@ -229,9 +227,7 @@ class Index extends Component
         if (! $orgId) {
             abort(403);
         }
-        $org = request()->attributes->get('currentOrganization');
-        $role = $org?->pivot?->role ?? 'member';
-        if (! in_array($role, ['owner', 'admin', 'agent'], true)) {
+        if (! $user->hasPermission(Permission::TicketsViewTrash)) {
             abort(403);
         }
         $ticket = Ticket::query()
@@ -256,7 +252,7 @@ class Index extends Component
 
         $role = $org?->pivot?->role ?? 'member';
 
-        $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
+        $isStaff = $user ? $user->hasPermission(Permission::TicketsViewAll) : false;
 
         $query = Ticket::query()
             ->with(['category', 'priority', 'creator', 'assignees', 'formResponse'])
@@ -449,7 +445,7 @@ class Index extends Component
             'unassigned' => (int) ($viewsRow?->unassigned_count ?? 0),
             'all' => (int) ($viewsRow?->all_count ?? 0),
             'archived' => (int) ($viewsRow?->archived_count ?? 0),
-            'trash' => ($isStaff && $orgId) ? (int) Ticket::onlyTrashed()->where('organization_id', $orgId)->count() : 0,
+            'trash' => ($user && $user->hasPermission(Permission::TicketsViewTrash) && $orgId) ? (int) Ticket::onlyTrashed()->where('organization_id', $orgId)->count() : 0,
             'from_form' => 0,
             'from_platform' => 0,
         ];

@@ -9,6 +9,11 @@ return [
     'archived' => 'Archived',
     'draft' => 'Draft',
     'editor_title' => 'Form builder',
+    'page_subtitle' => 'Create and edit your forms, assign them to users or functions.',
+    'stat_forms' => 'Forms',
+    'stat_published' => 'Published',
+    'stat_pending_assignments' => 'Pending',
+    'stat_responses' => 'Responses',
     'publish' => 'Publish',
     'duplicate' => 'Duplicate',
     'save' => 'Save',
@@ -204,4 +209,14 @@ return [
     'display_mode_grid' => 'Grid',
     'display_mode_card' => 'Cards',
     'display_mode_help' => 'How to display options in the form.',
+
+    // Notifications
+    'notif_response_public' => 'New public response',
+    'notif_response_team' => 'New team response',
+    'notif_response_assignment' => 'Submitted a response',
+
+    // Expiration
+    'expired' => 'Expired',
+    'assign_expires_at' => 'Expiration date',
+    'assign_expires_at_help' => 'After this date, submission will be blocked.',
 ];

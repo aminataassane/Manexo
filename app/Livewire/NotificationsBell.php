@@ -11,8 +11,6 @@ use Livewire\Component;
 
 class NotificationsBell extends Component
 {
-    public bool $open = false;
-
     /** Charge la liste des notifications uniquement à l'ouverture du dropdown (évite la requête à chaque page). */
     public bool $notificationsLoaded = false;
 
@@ -94,13 +92,10 @@ class NotificationsBell extends Component
         }
     }
 
-    public function toggle(): void
+    /** Called from Alpine when the dropdown opens — loads notifications on first open. */
+    public function loadNotifications(): void
     {
-        $this->open = ! $this->open;
-        if ($this->open) {
-            $this->notificationsLoaded = true;
-            $this->dispatch('notifications-opened');
-        }
+        $this->notificationsLoaded = true;
     }
 
     public function render(): View

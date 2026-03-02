@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Tickets;
 
+use App\Enums\Permission;
 use App\Enums\TicketStatus;
 use App\Enums\FormStatus;
 use App\Helpers\CacheHelper;
@@ -400,8 +401,7 @@ class Create extends Component
 
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
-        $role = $user && $orgId ? $user->organizations()->where('organization_id', $orgId)->first()?->pivot?->role : 'member';
-        $canAssignAtCreate = in_array($role, ['owner', 'admin', 'agent'], true);
+        $canAssignAtCreate = $user && $user->hasPermission(Permission::TicketsAssign);
 
         return view('livewire.tickets.create', [
             'categories' => $categories,

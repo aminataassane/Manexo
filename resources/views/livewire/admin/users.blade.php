@@ -4,7 +4,8 @@
             'owner' => ['label_key' => 'pages.team.role_owner', 'bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-100', 'icon' => 'solar:crown-bold-duotone'],
             'admin' => ['label_key' => 'pages.team.role_admin', 'bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'border' => 'border-blue-100', 'icon' => 'solar:shield-check-bold-duotone'],
             'agent' => ['label_key' => 'pages.team.role_agent', 'bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'border' => 'border-amber-100', 'icon' => 'solar:headphones-round-sound-bold-duotone'],
-            default => ['label_key' => 'pages.team.role_member', 'bg' => 'bg-slate-50', 'text' => 'text-slate-600', 'border' => 'border-slate-100', 'icon' => 'solar:user-bold-duotone'],
+            'member' => ['label_key' => 'pages.team.role_member', 'bg' => 'bg-slate-50', 'text' => 'text-slate-600', 'border' => 'border-slate-100', 'icon' => 'solar:user-bold-duotone'],
+            default => ['label_key' => null, 'label' => $role, 'bg' => 'bg-indigo-50', 'text' => 'text-indigo-700', 'border' => 'border-indigo-100', 'icon' => 'solar:star-bold-duotone'],
         };
     };
 @endphp
@@ -99,10 +100,9 @@
                 <div class="w-40">
                     <x-select-input wire:model.live="role">
                         <option value="">{{ __('pages.team.all_roles') }}</option>
-                        <option value="owner">{{ __('pages.team.role_owner') }}</option>
-                        <option value="admin">{{ __('pages.team.role_admin') }}</option>
-                        <option value="agent">{{ __('pages.team.role_agent') }}</option>
-                        <option value="member">{{ __('pages.team.role_member') }}</option>
+                        @foreach ($roles as $r)
+                            <option value="{{ $r->slug }}">{{ $r->name }}</option>
+                        @endforeach
                     </x-select-input>
                 </div>
 
@@ -143,7 +143,7 @@
                             <td class="px-6 py-4">
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border {{ $b['bg'] }} {{ $b['text'] }} {{ $b['border'] }}">
                                     <iconify-icon icon="{{ $b['icon'] }}" width="14"></iconify-icon>
-                                    {{ __($b['label_key']) }}
+                                    {{ $b['label_key'] ? __($b['label_key']) : ($b['label'] ?? $m->role) }}
                                 </span>
                             </td>
                             <td class="px-6 py-4">
@@ -164,10 +164,9 @@
                                             class="h-8 rounded-lg border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] pl-2 pr-8"
                                             wire:change="updateRole({{ (int) $m->id }}, $event.target.value)"
                                         >
-                                            <option value="owner" @selected($m->role === 'owner')>{{ __('pages.team.role_owner') }}</option>
-                                            <option value="admin" @selected($m->role === 'admin')>{{ __('pages.team.role_admin') }}</option>
-                                            <option value="agent" @selected($m->role === 'agent')>{{ __('pages.team.role_agent') }}</option>
-                                            <option value="member" @selected($m->role === 'member')>{{ __('pages.team.role_member') }}</option>
+                                            @foreach ($roles as $r)
+                                                <option value="{{ $r->slug }}" @selected($m->role === $r->slug)>{{ $r->name }}</option>
+                                            @endforeach
                                         </select>
                                     </div>
 
@@ -235,10 +234,11 @@
                     <div class="space-y-1.5">
                         <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.role') }}</label>
                         <x-select-input wire:model.live="inviteRole">
-                            <option value="member">{{ __('pages.team.role_member') }}</option>
-                            <option value="agent">{{ __('pages.team.role_agent') }}</option>
-                            <option value="admin">{{ __('pages.team.role_admin') }}</option>
-                            <option value="owner">{{ __('pages.team.role_owner') }}</option>
+                            @foreach ($roles as $r)
+                                @if ($r->slug !== 'owner')
+                                    <option value="{{ $r->slug }}">{{ $r->name }}</option>
+                                @endif
+                            @endforeach
                         </x-select-input>
                         <x-input-error :messages="$errors->get('inviteRole')" />
                     </div>

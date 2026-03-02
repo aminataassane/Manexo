@@ -40,6 +40,16 @@
         prev() { if (this.canPrev) this.step--; }
     }"
 >
+    {{-- Bannière d'avertissement : formulaire en retard --}}
+    @if(isset($assignment) && $assignment && $assignment->isOverdue() && !$assignment->isExpired())
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3 shadow-sm mb-4 sm:mb-6 shrink-0">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                <iconify-icon icon="solar:danger-triangle-bold" width="18"></iconify-icon>
+            </div>
+            <span>{{ __('pages.forms.form_overdue_warning') }}</span>
+        </div>
+    @endif
+
     {{-- En-tête : retour + titre formulaire (aligné maquette) — fixe --}}
     <div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6 shrink-0">
         <a href="{{ route('forms.index') }}"

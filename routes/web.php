@@ -105,6 +105,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/forms/l/{slug}', UserFormsFillTeamBySlug::class)->name('forms.fill-team-by-slug');
         Route::get('/forms/{assignment}', UserFormsFill::class)->name('forms.fill');
 
+        Route::get('/notifications', \App\Livewire\Notifications\Index::class)->name('notifications.index');
+
         Route::get('/discussions/{ticket?}', \App\Livewire\Discussions\Index::class)->name('discussions.index');
 
         Route::get('/tickets', TicketsIndex::class)->name('tickets.index');
@@ -148,6 +150,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/forms/{form}/responses', AdminFormResponses::class)->name('admin.forms.responses');
         Route::get('/admin/forms/responses/{response}/file/{fieldKey}', [PublicFormController::class, 'serveFile'])->where('fieldKey', '[a-zA-Z0-9_]+')->name('admin.forms.responses.file');
         Route::get('/reports', ReportsIndex::class)->name('reports.index');
+        Route::get('/reports/tasks', \App\Livewire\Reports\TaskReport::class)->name('reports.tasks');
+        Route::get('/reports/tasks/export/{format}', [\App\Http\Controllers\TaskReportExportController::class, '__invoke'])
+            ->where('format', 'csv|pdf')
+            ->name('reports.tasks.export');
     });
 });
 
@@ -155,6 +161,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
  * Dev / sandbox routes
  */
 Route::get('/test', Test::class);
+
+/**
+ * Shared reports (signed URL, no auth required)
+ */
+Route::get('/reports/tasks/shared', \App\Http\Controllers\SharedTaskReportController::class)
+    ->name('reports.tasks.shared')
+    ->middleware('signed');
 
 /**
  * Auth routes (login/register/logout/forgot password/verify email)

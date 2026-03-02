@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TicketChecklistItem extends Model
 {
@@ -23,6 +24,7 @@ class TicketChecklistItem extends Model
         'done_by',
         'status',
         'description',
+        'assigned_to_function_id',
     ];
 
     protected function casts(): array
@@ -50,6 +52,16 @@ class TicketChecklistItem extends Model
         return $this->belongsTo(User::class, 'done_by');
     }
 
+    public function assignedToFunction(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationFunction::class, 'assigned_to_function_id');
+    }
+
+    public function logs(): HasMany
+    {
+        return $this->hasMany(TicketChecklistItemLog::class);
+    }
+
     public function markDone(int $userId): void
     {
         $this->update([
@@ -58,9 +70,11 @@ class TicketChecklistItem extends Model
             'done_by' => $userId,
             'status' => self::STATUS_DONE,
         ]);
+
+        $this->logAction($userId, 'done');
     }
 
-    public function markUndone(): void
+    public function markUndone(int $userId): void
     {
         $this->update([
             'is_done' => false,
@@ -68,5 +82,23 @@ class TicketChecklistItem extends Model
             'done_by' => null,
             'status' => self::STATUS_TODO,
         ]);
+
+        $this->logAction($userId, 'undone');
+    }
+
+    public function claim(int $userId): void
+    {
+        $this->update(['assigned_to' => $userId]);
+
+        $this->logAction($userId, 'claimed');
+    }
+
+    private function logAction(int $userId, string $action): void
+    {
+        try {
+            $this->logs()->create(['user_id' => $userId, 'action' => $action]);
+        } catch (\Throwable) {
+            // Audit logging must never block core toggle functionality
+        }
     }
 }

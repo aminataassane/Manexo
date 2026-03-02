@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Models\RoleDefinition;
 use Illuminate\Support\Facades\Cache;
 
 class CacheHelper
@@ -100,6 +101,12 @@ class CacheHelper
         return "sidebar:discussions_unread:{$userId}";
     }
 
+    /** Permissions for a specific org + role combination. */
+    public static function rolePermissionsKey(int $orgId, string $role): string
+    {
+        return "org_perms:{$orgId}:{$role}";
+    }
+
     // ─── Invalidation ────────────────────────────────────────────────
 
     public static function invalidateDashboard(int $orgId): void
@@ -167,6 +174,19 @@ class CacheHelper
         Cache::forget(self::sidebarDiscussionsUnreadKey($userId));
     }
 
+    public static function invalidateRolePermissions(int $orgId): void
+    {
+        $slugs = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->pluck('slug')
+            ->merge(['owner', 'admin', 'agent', 'member'])
+            ->unique();
+
+        foreach ($slugs as $role) {
+            Cache::forget(self::rolePermissionsKey($orgId, $role));
+        }
+    }
+
     public static function invalidateAll(int $orgId): void
     {
         self::invalidateDashboard($orgId);
@@ -177,5 +197,6 @@ class CacheHelper
         self::invalidateOrgFunctions($orgId);
         self::invalidateForms($orgId);
         self::invalidateReports($orgId);
+        self::invalidateRolePermissions($orgId);
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Reports;
 
-use App\Enums\OrganizationRole;
+use App\Enums\Permission;
 use App\Helpers\CacheHelper;
 use App\Models\OrganizationMembership;
 use App\Models\Ticket;
@@ -24,18 +24,6 @@ class Index extends Component
     private function orgId(): int
     {
         return (int) session('current_organization_id');
-    }
-
-    private function currentRole(): string
-    {
-        $user = Auth::user();
-        $orgId = $this->orgId();
-
-        if (! $user instanceof \App\Models\User || ! $orgId) {
-            return OrganizationRole::Member->value;
-        }
-
-        return (string) ($user->organizations()->whereKey($orgId)->first()?->pivot?->role ?? OrganizationRole::Member->value);
     }
 
     /** @return array{dir: string, val: int} */
@@ -82,10 +70,8 @@ class Index extends Component
             return redirect()->route('organizations.select');
         }
 
-        $role = $this->currentRole();
-
-        // Staff only (owner/admin/agent) for reports
-        if (! in_array($role, [OrganizationRole::Owner->value, OrganizationRole::Admin->value, OrganizationRole::Agent->value], true)) {
+        // Only users with reports.view permission
+        if (! $user->hasPermission(Permission::ReportsView)) {
             abort(403);
         }
 
@@ -263,7 +249,7 @@ class Index extends Component
             );
         });
 
-        return view('livewire.reports.index', array_merge(['role' => $role], $data));
+        return view('livewire.reports.index', $data);
     }
 }
 

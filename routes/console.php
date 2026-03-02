@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('forms:mark-overdue')->hourly();
+Schedule::command('forms:update-statuses')->everyFifteenMinutes();

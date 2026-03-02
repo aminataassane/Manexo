@@ -39,7 +39,7 @@ class Index extends Component
             ->with(['form:id,name,description,status', 'assignedBy:id,name']);
 
         if ($this->tab === 'pending') {
-            $query->whereIn('status', [FormAssignmentStatus::Pending, FormAssignmentStatus::Overdue]);
+            $query->whereIn('status', [FormAssignmentStatus::Pending, FormAssignmentStatus::Overdue, FormAssignmentStatus::Expired]);
         } elseif ($this->tab === 'submitted') {
             $query->where('status', FormAssignmentStatus::Submitted);
         }
@@ -62,6 +62,37 @@ class Index extends Component
             ->where('status', FormStatus::Published)
             ->orderBy('name')
             ->get(['id', 'name', 'description', 'slug']);
+    }
+
+    /** Statistics for assigned forms: pending, overdue, submitted, total. */
+    #[Computed]
+    public function formStats(): array
+    {
+        $userId = Auth::id();
+        $orgId = $this->orgId;
+        if (! $userId || ! $orgId) {
+            return ['pending' => 0, 'overdue' => 0, 'expired' => 0, 'submitted' => 0, 'total' => 0];
+        }
+
+        $counts = FormAssignment::query()
+            ->forUser($userId, $orgId)
+            ->whereHas('form', fn ($q) => $q->where('organization_id', $orgId))
+            ->selectRaw('status, count(*) as c')
+            ->groupBy('status')
+            ->pluck('c', 'status');
+
+        $pending = (int) ($counts[FormAssignmentStatus::Pending->value] ?? 0);
+        $overdue = (int) ($counts[FormAssignmentStatus::Overdue->value] ?? 0);
+        $expired = (int) ($counts[FormAssignmentStatus::Expired->value] ?? 0);
+        $submitted = (int) ($counts[FormAssignmentStatus::Submitted->value] ?? 0);
+
+        return [
+            'pending' => $pending,
+            'overdue' => $overdue,
+            'expired' => $expired,
+            'submitted' => $submitted,
+            'total' => $pending + $overdue + $expired + $submitted,
+        ];
     }
 
     public function render()

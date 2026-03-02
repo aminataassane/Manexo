@@ -2,7 +2,7 @@
 
 namespace App\Livewire\Admin;
 
-use App\Enums\OrganizationRole;
+use App\Enums\Permission;
 use App\Models\Form;
 use App\Models\FormResponse;
 use Illuminate\Support\Facades\Auth;
@@ -41,10 +41,13 @@ class FormResponses extends Component
         $orgId = (int) session('current_organization_id');
         abort_if(! $orgId || (int) $form->organization_id !== $orgId, 403);
 
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
-        $role = $user?->organizations()->whereKey($orgId)->first()?->pivot?->role ?? OrganizationRole::Member->value;
-        $canView = in_array($role, [OrganizationRole::Owner->value, OrganizationRole::Admin->value], true)
-            || app()->environment('local');
+        $canView = ($user && $user->hasAnyPermission([
+            Permission::FormsViewResponses,
+            Permission::FormsManage,
+            Permission::SettingsManageForms,
+        ])) || app()->environment('local');
         abort_if(! $canView, 403);
 
         $this->form = $form;

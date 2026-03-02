@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Notifications\EmailVerificationOtpNotification;
 use App\Notifications\ResetPasswordManexoNotification;
+use App\Traits\HasOrganizationPermissions;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,7 +20,7 @@ use Illuminate\Support\Str;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, MustVerifyEmailTrait;
+    use HasFactory, Notifiable, MustVerifyEmailTrait, HasOrganizationPermissions;
 
     /**
      * The attributes that are mass assignable.
@@ -31,6 +32,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'mention_tag',
         'email',
         'password',
+        'status',
+        'last_login_at',
+        'last_login_ip',
+        'deactivated_at',
+        'is_super_admin',
     ];
 
     /**
@@ -53,6 +59,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'last_login_at' => 'datetime',
+            'deactivated_at' => 'datetime',
+            'is_super_admin' => 'boolean',
         ];
     }
 
@@ -162,6 +171,11 @@ class User extends Authenticatable implements MustVerifyEmail
         $first = Str::before($name, ' ');
         $slug = Str::slug($first);
         return $slug !== '' ? $slug : 'user' . ($this->attributes['id'] ?? 0);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return (bool) $this->is_super_admin;
     }
 
     public function organizationMemberships(): HasMany

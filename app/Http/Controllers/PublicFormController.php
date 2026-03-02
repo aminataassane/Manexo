@@ -12,6 +12,8 @@ use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
 use App\Models\User;
+use App\Events\UserNotificationReceived;
+use App\Notifications\FormResponseNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -278,6 +280,27 @@ class PublicFormController extends Controller
                 ];
             }
             $formResponse->update(['responses' => $responses]);
+        }
+
+        // Notify admins/owners of the organization
+        $admins = User::query()
+            ->whereHas('organizationMemberships', function ($q) use ($org) {
+                $q->where('organization_id', $org->id)
+                    ->whereIn('role', ['owner', 'admin']);
+            })
+            ->where('id', '!=', $actor->id)
+            ->get();
+
+        foreach ($admins as $admin) {
+            $admin->notify(new FormResponseNotification(
+                formId: $form->id,
+                formName: $form->name,
+                responseId: $formResponse->id,
+                responderId: $actor->id,
+                responderName: $actor->name ?? $guestName ?? '—',
+                source: 'public',
+            ));
+            event(new UserNotificationReceived(userId: (int) $admin->id, notificationType: 'form_response'));
         }
 
         $message = $form->public_thank_you ?: __('Merci, votre demande a bien été envoyée.');

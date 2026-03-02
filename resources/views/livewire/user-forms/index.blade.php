@@ -3,6 +3,7 @@
         'submitted' => __('pages.forms.status_submitted'),
         'overdue' => __('pages.forms.status_overdue'),
         'pending' => __('pages.forms.status_pending'),
+        'expired' => __('pages.forms.status_expired'),
     ];
 @endphp
 
@@ -31,6 +32,57 @@
                 <span>{{ session('form_success') }}</span>
             </div>
         @endif
+
+        {{-- Statistiques --}}
+        @php
+            $stats = $this->formStats;
+        @endphp
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div class="rounded-xl border border-slate-100 bg-white p-4 shadow-sm min-w-0">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]">
+                        <iconify-icon icon="solar:clipboard-text-linear" width="20"></iconify-icon>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-2xl font-bold text-slate-900 tabular-nums">{{ $stats['pending'] + $stats['overdue'] }}</p>
+                        <p class="text-xs font-medium text-slate-500 truncate">{{ __('pages.forms.stat_to_fill') }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-xl border border-red-100 bg-red-50/50 p-4 shadow-sm min-w-0">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600">
+                        <iconify-icon icon="solar:alarm-linear" width="20"></iconify-icon>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-2xl font-bold text-red-700 tabular-nums">{{ $stats['overdue'] }}</p>
+                        <p class="text-xs font-medium text-slate-500 truncate">{{ __('pages.forms.stat_overdue') }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 shadow-sm min-w-0">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                        <iconify-icon icon="solar:check-circle-linear" width="20"></iconify-icon>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-2xl font-bold text-emerald-700 tabular-nums">{{ $stats['submitted'] }}</p>
+                        <p class="text-xs font-medium text-slate-500 truncate">{{ __('pages.forms.stat_submitted') }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4 shadow-sm min-w-0">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-slate-500">
+                        <iconify-icon icon="solar:lock-keyhole-linear" width="20"></iconify-icon>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-2xl font-bold text-slate-600 tabular-nums">{{ $stats['expired'] }}</p>
+                        <p class="text-xs font-medium text-slate-500 truncate">{{ __('pages.forms.stat_expired') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         {{-- Onglets (style aligné Discussions / Dashboard) --}}
         <div class="flex rounded-xl bg-slate-100 p-1 w-full max-w-full sm:w-fit">
@@ -103,26 +155,29 @@
                 $aBadge = match($aStatus) {
                     'submitted' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-100', 'label' => $statusLabels['submitted'] ?? __('pages.forms.status_submitted'), 'icon' => 'solar:check-circle-bold'],
                     'overdue' => ['bg' => 'bg-red-50', 'text' => 'text-red-700', 'border' => 'border-red-100', 'label' => $statusLabels['overdue'] ?? __('pages.forms.status_overdue'), 'icon' => 'solar:alarm-bold'],
+                    'expired' => ['bg' => 'bg-slate-100', 'text' => 'text-slate-500', 'border' => 'border-slate-200', 'label' => $statusLabels['expired'] ?? __('pages.forms.status_expired'), 'icon' => 'solar:lock-keyhole-bold'],
                     default => ['bg' => 'bg-[var(--accent-soft)]', 'text' => 'text-[var(--accent)]', 'border' => 'border-[var(--accent)]/20', 'label' => $statusLabels['pending'] ?? __('pages.forms.status_pending'), 'icon' => 'solar:clock-circle-bold'],
                 };
             @endphp
             <article class="rounded-xl sm:rounded-2xl border border-slate-100 bg-slate-50/30 sm:bg-white shadow-sm hover:shadow-md transition-all duration-200 min-w-0 overflow-hidden">
                 <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5">
                     <div class="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
-                        <div class="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 sm:group-hover:scale-105 {{ $aStatus === 'overdue' ? 'bg-red-50 text-red-600' : ($aStatus === 'submitted' ? 'bg-emerald-50 text-emerald-600' : 'bg-[var(--accent-soft)] text-[var(--accent)]') }}">
+                        <div class="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 sm:group-hover:scale-105 {{ $aStatus === 'overdue' ? 'bg-red-50 text-red-600' : ($aStatus === 'submitted' ? 'bg-emerald-50 text-emerald-600' : ($aStatus === 'expired' ? 'bg-slate-100 text-slate-500' : 'bg-[var(--accent-soft)] text-[var(--accent)]')) }}">
                             @if($aStatus === 'submitted')
                                 <iconify-icon icon="solar:check-circle-bold-duotone" width="20"></iconify-icon>
                             @elseif($aStatus === 'overdue')
                                 <iconify-icon icon="solar:alarm-bold-duotone" width="20"></iconify-icon>
+                            @elseif($aStatus === 'expired')
+                                <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="20"></iconify-icon>
                             @else
                                 <iconify-icon icon="solar:clipboard-text-bold-duotone" width="20"></iconify-icon>
                             @endif
                         </div>
                         <div class="min-w-0 flex-1">
-                            @if($aStatus !== 'submitted')
+                            @if(!in_array($aStatus, ['submitted', 'expired']))
                                 <a href="{{ route('forms.fill', $a->id) }}" class="group block">
                             @endif
-                            <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate {{ $aStatus !== 'submitted' ? 'group-hover:text-[var(--accent)] transition-colors' : '' }}">{{ $a->form?->name ?? '—' }}</h3>
+                            <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate {{ !in_array($aStatus, ['submitted', 'expired']) ? 'group-hover:text-[var(--accent)] transition-colors' : '' }}">{{ $a->form?->name ?? '—' }}</h3>
                             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
                                 <span class="flex items-center gap-1">
                                     <iconify-icon icon="solar:user-linear" width="12"></iconify-icon>
@@ -134,8 +189,14 @@
                                         {{ __('pages.forms.due_date') }}: {{ $a->due_date->format('d/m/Y') }}
                                     </span>
                                 @endif
+                                @if($a->expires_at)
+                                    <span class="flex items-center gap-1 {{ $aStatus === 'expired' ? 'text-slate-500 font-medium' : '' }}">
+                                        <iconify-icon icon="solar:lock-keyhole-linear" width="12"></iconify-icon>
+                                        {{ __('pages.forms.expires_at') }}: {{ $a->expires_at->format('d/m/Y H:i') }}
+                                    </span>
+                                @endif
                             </div>
-                            @if($aStatus !== 'submitted')
+                            @if(!in_array($aStatus, ['submitted', 'expired']))
                                 </a>
                             @endif
                         </div>
@@ -145,7 +206,7 @@
                             <iconify-icon icon="{{ $aBadge['icon'] }}" width="12"></iconify-icon>
                             {{ $aBadge['label'] }}
                         </span>
-                        @if($aStatus !== 'submitted')
+                        @if(!in_array($aStatus, ['submitted', 'expired']))
                             <a href="{{ route('forms.fill', $a->id) }}"
                                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 text-xs font-bold text-white rounded-xl shadow-sm hover:opacity-90 transition-all touch-manipulation min-h-[40px] sm:min-h-0"
                                style="background-color: var(--accent);">

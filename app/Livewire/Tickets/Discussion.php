@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Tickets;
 
+use App\Enums\Permission;
 use App\Enums\TicketMessageType;
 use App\Events\TicketAssigneeChanged;
 use App\Helpers\CacheHelper;
@@ -55,6 +56,7 @@ class Discussion extends Component
     public bool $showAddChecklistItem = false;
     public string $newChecklistTitle = '';
     public ?int $newChecklistAssignedTo = null;
+    public ?int $newChecklistAssignedToFunction = null;
     public ?string $newChecklistDueDate = null;
 
     /** Édition du ticket (titre, description, pièces jointes) */
@@ -102,10 +104,8 @@ class Discussion extends Component
             return;
         }
 
-        $isStaff = in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true);
-
-        $this->canSeeInternalNotes = $isStaff;
-        $this->canWriteInternalNotes = $isStaff;
+        $this->canSeeInternalNotes = $user->hasPermission(Permission::DiscussionsViewInternalNotes);
+        $this->canWriteInternalNotes = $user->hasPermission(Permission::DiscussionsWriteInternalNotes);
 
         if (! $this->canSeeInternalNotes) {
             $this->asInternalNote = false;
@@ -139,10 +139,12 @@ class Discussion extends Component
         event(new UserNotificationReceived($userId, 'ticket_assignee'));
     }
 
-    /** Vérifie si l'utilisateur courant peut assigner (Admin/Owner/Agent uniquement). */
+    /** Vérifie si l'utilisateur courant peut assigner. */
     private function canAssignTicket(): bool
     {
-        return in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true);
+        /** @var User|null $user */
+        $user = Auth::user();
+        return $user && $user->hasPermission(Permission::TicketsAssign);
     }
 
     /** Rôle de l'utilisateur dans l'organisation courante (session). Fiable en requêtes Livewire. */
@@ -431,12 +433,12 @@ class Discussion extends Component
             abort(403);
         }
 
-        // Only staff or creator/assignee can archive.
-        $isStaff = in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true);
+        // Only users with archive permission or creator/assignee can archive.
+        $canArchive = $user->hasPermission(Permission::TicketsArchive);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
         $isAssignee = $ticket->assignees()->where('users.id', $user->id)->exists();
 
-        if (! ($isStaff || $isCreator || $isAssignee)) {
+        if (! ($canArchive || $isCreator || $isAssignee)) {
             abort(403);
         }
 
@@ -459,11 +461,11 @@ class Discussion extends Component
             abort(403);
         }
 
-        $isStaff = in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true);
+        $canArchive = $user->hasPermission(Permission::TicketsArchive);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
         $isAssignee = $ticket->assignees()->where('users.id', $user->id)->exists();
 
-        if (! ($isStaff || $isCreator || $isAssignee)) {
+        if (! ($canArchive || $isCreator || $isAssignee)) {
             abort(403);
         }
 
@@ -484,9 +486,9 @@ class Discussion extends Component
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
             abort(403);
         }
-        $isStaff = in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true);
+        $hasDeletePerm = $user->hasPermission(Permission::TicketsDelete);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
-        $canDelete = $isStaff || ($isCreator && $ticket->status !== TicketStatus::Closed);
+        $canDelete = $hasDeletePerm || ($isCreator && $ticket->status !== TicketStatus::Closed);
         if (! $canDelete) {
             abort(403);
         }
@@ -521,13 +523,9 @@ class Discussion extends Component
             return false;
         }
         $ticket = $this->getTicket();
-        // Rôle depuis la relation user->organizations (pivot fiable) plutôt que request()->attributes
-        $orgId = (int) $ticket->organization_id;
-        $membership = $user->organizations()->where('organization_id', $orgId)->first();
-        $role = $membership?->pivot?->role ?? 'member';
-        $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
+        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
         $isCreator = $ticket->created_by !== null && (int) $ticket->created_by === (int) $user->id;
-        return $isStaff || $isCreator;
+        return $hasEditPerm || $isCreator;
     }
 
     /** Modifier le titre du ticket. Autorisé au créateur ou au staff. */
@@ -698,7 +696,12 @@ class Discussion extends Component
             return;
         }
 
-        $ticket->update(['status' => $newStatus]);
+        $isClosed = in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true);
+        $ticket->update([
+            'status' => $newStatus,
+            'closed_by' => $isClosed ? $user->id : null,
+            'closed_at' => $isClosed ? now() : null,
+        ]);
         TicketMessage::create([
             'ticket_id' => $ticket->id,
             'user_id' => null,
@@ -757,11 +760,11 @@ class Discussion extends Component
         }
         $ticket = $this->getTicket();
 
-        $isStaff = in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true);
+        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
         $isAssignee = $ticket->assignees()->where('users.id', $user->id)->exists();
 
-        if (! ($isStaff || $isCreator || $isAssignee)) {
+        if (! ($hasEditPerm || $isCreator || $isAssignee)) {
             abort(403);
         }
 
@@ -801,11 +804,11 @@ class Discussion extends Component
         }
 
         // Check canEditChecklist logic
-        $isStaff = in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true);
+        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
         $isAssignee = $ticket->assignees->contains('id', $user->id);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
 
-        if (! ($isStaff || $isAssignee || $isCreator)) {
+        if (! ($hasEditPerm || $isAssignee || $isCreator)) {
             abort(403);
         }
 
@@ -829,11 +832,11 @@ class Discussion extends Component
             abort(403);
         }
 
-        $isStaff = in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true);
+        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
         $isAssignee = $ticket->assignees->contains('id', $user->id);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
 
-        if (! ($isStaff || $isAssignee || $isCreator)) {
+        if (! ($hasEditPerm || $isAssignee || $isCreator)) {
             abort(403);
         }
 
@@ -856,6 +859,7 @@ class Discussion extends Component
                 'assignedToFunction:id,name',
                 'checklistItems.assignee:id,name,email',
                 'checklistItems.doneByUser:id,name,email',
+                'checklistItems.assignedToFunction:id,name',
             ])
             ->whereKey($this->ticketId)
             ->where('organization_id', session('current_organization_id'))
@@ -902,11 +906,13 @@ class Discussion extends Component
     /**
      * Compute permission flags for the current user on a ticket.
      *
-     * @return array{canEditChecklist: bool, canEditTicket: bool, canDeleteTicket: bool, canEditDueDate: bool, canArchive: bool}
+     * @return array{canEditChecklist: bool, canEditTicket: bool, canDeleteTicket: bool, canEditDueDate: bool, canArchive: bool, isStaffOrTicketOwner: bool, authUserId: int}
      */
     private function buildPermissionFlags(Ticket $ticket): array
     {
-        $userId = (int) (Auth::id() ?: 0);
+        /** @var User|null $user */
+        $user = Auth::user();
+        $userId = (int) ($user?->id ?: 0);
 
         $canEditChecklist = $this->canSeeInternalNotes;
         if (! $canEditChecklist && $ticket->assignees->contains('id', $userId)) {
@@ -916,18 +922,23 @@ class Discussion extends Component
             $canEditChecklist = true;
         }
 
-        // Même source de rôle que les actions (évite 403 sur priorité / statut / etc.)
-        $role = $this->getCurrentUserRole();
-        $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
+        $hasEditPerm = $user && $user->hasPermission(Permission::TicketsEdit);
+        $hasDeletePerm = $user && $user->hasPermission(Permission::TicketsDelete);
+        $hasArchivePerm = $user && $user->hasPermission(Permission::TicketsArchive);
         $isCreator = $ticket->created_by !== null && (int) $ticket->created_by === $userId;
         $isAssignee = $ticket->assignees->contains('id', $userId);
 
+        // isStaffOrTicketOwner = can toggle any checklist item (staff, ticket creator, or ticket assignee)
+        $isStaffOrTicketOwner = $hasEditPerm || $isCreator || $isAssignee;
+
         return [
             'canEditChecklist' => $canEditChecklist,
-            'canEditTicket' => $isStaff || $isCreator,
-            'canDeleteTicket' => $isStaff || ($isCreator && $ticket->status !== TicketStatus::Closed),
-            'canEditDueDate' => $isStaff || $isCreator || $isAssignee,
-            'canArchive' => $isStaff || $isCreator || $isAssignee,
+            'canEditTicket' => $hasEditPerm || $isCreator,
+            'canDeleteTicket' => $hasDeletePerm || ($isCreator && $ticket->status !== TicketStatus::Closed),
+            'canEditDueDate' => $hasEditPerm || $isCreator || $isAssignee,
+            'canArchive' => $hasArchivePerm || $isCreator || $isAssignee,
+            'isStaffOrTicketOwner' => $isStaffOrTicketOwner,
+            'authUserId' => $userId,
         ];
     }
 
@@ -968,6 +979,19 @@ class Discussion extends Component
         $permissions = $this->buildPermissionFlags($ticket);
         $orgRef = $this->buildOrgReferenceData($ticket);
 
+        // Get current user's function IDs for "Je prends" button visibility
+        $orgId = (int) session('current_organization_id');
+        $userFunctionIds = [];
+        if ($permissions['authUserId'] && $orgId) {
+            $userFunctionIds = \Illuminate\Support\Facades\DB::table('organization_memberships')
+                ->where('organization_id', $orgId)
+                ->where('user_id', $permissions['authUserId'])
+                ->whereNotNull('organization_function_id')
+                ->pluck('organization_function_id')
+                ->map(fn ($v) => (int) $v)
+                ->all();
+        }
+
         return [
             'ticket' => $ticket,
             'orgUsers' => $usersData['orgUsers'],
@@ -982,6 +1006,9 @@ class Discussion extends Component
             'canAssignTicket' => $this->canAssignTicket(),
             'canEditDueDate' => $permissions['canEditDueDate'],
             'canArchive' => $permissions['canArchive'],
+            'isStaffOrTicketOwner' => $permissions['isStaffOrTicketOwner'],
+            'authUserId' => $permissions['authUserId'],
+            'userFunctionIds' => $userFunctionIds,
             'orgPriorities' => $orgRef['orgPriorities'],
             'formResponse' => $orgRef['formResponse'],
             'orgMemberRoles' => $orgRef['orgMemberRoles'],
@@ -1019,7 +1046,7 @@ class Discussion extends Component
             abort(403);
         }
         $ticket = $this->getTicket();
-        if (! in_array($this->getCurrentUserRole(), ['owner', 'admin', 'agent'], true)) {
+        if (! $user->hasPermission(Permission::TicketsAssign)) {
             abort(403);
         }
         $id = $functionId === '' || $functionId === null ? null : (int) $functionId;
@@ -1044,11 +1071,57 @@ class Discussion extends Component
         }
         /** @var TicketChecklistItem $item */
         $item = $ticket->checklistItems()->whereKey($id)->firstOrFail();
-        if ($item->is_done) {
-            $item->markUndone();
-        } else {
-            $item->markDone((int) $user->id);
+
+        $userId = (int) $user->id;
+        $isItemAssignee = $item->assigned_to && (int) $item->assigned_to === $userId;
+        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
+        $isTicketAssignee = $ticket->assignees->contains('id', $userId);
+        $isTicketCreator = $ticket->created_by && (int) $ticket->created_by === $userId;
+
+        if (! ($isItemAssignee || $hasEditPerm || $isTicketAssignee || $isTicketCreator)) {
+            abort(403);
         }
+
+        if ($item->is_done) {
+            $item->markUndone($userId);
+        } else {
+            $item->markDone($userId);
+        }
+    }
+
+    public function claimChecklistItem(int $id): void
+    {
+        $user = Auth::user();
+        if (! $user) {
+            abort(403);
+        }
+        $ticket = $this->getTicket();
+        if (! $ticket->hasDiscussionAccess((int) $user->id)) {
+            abort(403);
+        }
+
+        /** @var TicketChecklistItem $item */
+        $item = $ticket->checklistItems()->whereKey($id)->firstOrFail();
+
+        if (! $item->assigned_to_function_id) {
+            abort(403);
+        }
+        if ($item->assigned_to) {
+            return; // Already claimed
+        }
+
+        $orgId = (int) session('current_organization_id');
+        $belongsToFunction = \Illuminate\Support\Facades\DB::table('organization_memberships')
+            ->where('organization_id', $orgId)
+            ->where('user_id', $user->id)
+            ->where('organization_function_id', $item->assigned_to_function_id)
+            ->exists();
+
+        if (! $belongsToFunction) {
+            abort(403);
+        }
+
+        $item->claim((int) $user->id);
     }
 
     public function openAddChecklistForm(): void
@@ -1066,13 +1139,22 @@ class Discussion extends Component
         $this->newChecklistAssignedTo = ($this->newChecklistAssignedTo === '' || $this->newChecklistAssignedTo === null)
             ? null
             : (int) $this->newChecklistAssignedTo;
+        $this->newChecklistAssignedToFunction = ($this->newChecklistAssignedToFunction === '' || $this->newChecklistAssignedToFunction === null)
+            ? null
+            : (int) $this->newChecklistAssignedToFunction;
         $this->newChecklistDueDate = ($this->newChecklistDueDate === '' || $this->newChecklistDueDate === null)
             ? null
             : $this->newChecklistDueDate;
 
+        // Mutual exclusivity: function OR responsable, not both
+        if ($this->newChecklistAssignedToFunction) {
+            $this->newChecklistAssignedTo = null;
+        }
+
         $this->validate([
             'newChecklistTitle' => ['required', 'string', 'max:500'],
             'newChecklistAssignedTo' => ['nullable', 'integer', 'exists:users,id'],
+            'newChecklistAssignedToFunction' => ['nullable', 'integer', 'exists:organization_functions,id'],
             'newChecklistDueDate' => ['nullable', 'date'],
         ]);
         $user = Auth::user();
@@ -1088,12 +1170,14 @@ class Discussion extends Component
             'ticket_id' => $ticket->id,
             'title' => trim($this->newChecklistTitle),
             'assigned_to' => $this->newChecklistAssignedTo,
+            'assigned_to_function_id' => $this->newChecklistAssignedToFunction,
             'due_date' => $this->newChecklistDueDate ? \Carbon\Carbon::parse($this->newChecklistDueDate) : null,
             'sort_order' => $maxOrder + 1,
         ]);
         $this->showAddChecklistItem = false;
         $this->newChecklistTitle = '';
         $this->newChecklistAssignedTo = null;
+        $this->newChecklistAssignedToFunction = null;
         $this->newChecklistDueDate = null;
     }
 }

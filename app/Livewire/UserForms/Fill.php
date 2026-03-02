@@ -40,6 +40,7 @@ class Fill extends Component
 
         abort_if(! $hasAccess, 403);
         abort_if($assignment->status === FormAssignmentStatus::Submitted, 403, 'Ce formulaire a déjà été soumis.');
+        abort_if($assignment->isExpired(), 403, __('pages.forms.form_expired'));
 
         $this->assignment = $assignment;
         $this->assignment->loadMissing('form.fields');
@@ -59,6 +60,9 @@ class Fill extends Component
     {
         $user = Auth::user();
         abort_if(! $user, 403);
+
+        $this->assignment->refresh();
+        abort_if($this->assignment->isExpired(), 403, __('pages.forms.form_expired'));
 
         $this->assignment->loadMissing('form.fields');
         $form = $this->assignment->form;
@@ -186,6 +190,7 @@ class Fill extends Component
                 responseId: $response->id,
                 responderId: $user->id,
                 responderName: $user->name,
+                source: 'assignment',
             ));
             event(new UserNotificationReceived(userId: $creator->id, notificationType: 'form_response'));
         }

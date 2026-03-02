@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Helpers\PermissionSeeder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Organization extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(function (Organization $org) {
+            PermissionSeeder::seedForOrganization((int) $org->id);
+        });
+    }
+
     protected $fillable = [
         'name',
         'slug',
@@ -16,13 +24,32 @@ class Organization extends Model
         'logo_path',
         'settings',
         'created_by',
+        'status',
+        'suspended_at',
+        'suspension_reason',
     ];
 
     protected function casts(): array
     {
         return [
             'settings' => 'array',
+            'suspended_at' => 'datetime',
         ];
+    }
+
+    public function isActive(): bool
+    {
+        return ($this->status ?? 'active') === 'active';
+    }
+
+    public function isSuspended(): bool
+    {
+        return ($this->status ?? 'active') === 'suspended';
+    }
+
+    public function isDisabled(): bool
+    {
+        return ($this->status ?? 'active') === 'disabled';
     }
 
     public function creator(): BelongsTo
@@ -46,6 +73,11 @@ class Organization extends Model
     public function organizationFunctions(): HasMany
     {
         return $this->hasMany(OrganizationFunction::class, 'organization_id')->orderBy('sort_order');
+    }
+
+    public function roleDefinitions(): HasMany
+    {
+        return $this->hasMany(RoleDefinition::class);
     }
 
     public function ticketCategories(): HasMany

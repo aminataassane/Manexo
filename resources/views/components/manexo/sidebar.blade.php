@@ -2,8 +2,25 @@
     // currentOrganization is injected by EnsureOrganizationIsSelected middleware (includes pivot role).
     $org = $currentOrganization ?? request()->attributes->get('currentOrganization');
     $orgRole = (string) ($org?->pivot?->role ?? 'member');
-    // Staff = can access internal pages (agent included).
-    $isStaff = in_array($orgRole, ['owner', 'admin', 'agent'], true);
+    /** @var \App\Models\User|null $authUser */
+    $authUser = \Illuminate\Support\Facades\Auth::user();
+    // Admin section visible if user has at least one admin-level permission.
+    $canSeeTeam = $authUser && $authUser->hasAnyPermission([
+        \App\Enums\Permission::TeamInvite,
+        \App\Enums\Permission::TeamEditRole,
+        \App\Enums\Permission::TeamRemove,
+    ]);
+    $canSeeReports = $authUser && $authUser->hasPermission(\App\Enums\Permission::ReportsView);
+    $canSeeForms = $authUser && $authUser->hasPermission(\App\Enums\Permission::SettingsManageForms);
+    $canSeeSettings = $authUser && $authUser->hasAnyPermission([
+        \App\Enums\Permission::SettingsManageBranding,
+        \App\Enums\Permission::SettingsManageCategories,
+        \App\Enums\Permission::SettingsManagePriorities,
+        \App\Enums\Permission::SettingsManageFunctions,
+        \App\Enums\Permission::SettingsManageRoles,
+        \App\Enums\Permission::SettingsDeleteOrg,
+    ]);
+    $isStaff = $canSeeTeam || $canSeeReports || $canSeeForms || $canSeeSettings;
     // Nombre de nouveaux messages / invitations pour les discussions (badge sidebar).
     $discussionsUnreadCount = \Illuminate\Support\Facades\Auth::user()?->unreadNotifications()
         ->whereIn('type', [
@@ -86,6 +103,7 @@
             $isTickets = request()->routeIs('tickets.*');
             $isDiscussions = request()->routeIs('discussions.*');
             $isForms = request()->routeIs('forms.*');
+            $isMyTasks = request()->routeIs('reports.tasks');
             $currentDisplayMode = request()->query('displayMode', 'list');
         @endphp
 
@@ -198,6 +216,53 @@
             </div>
         </a>
 
+        <!-- Mes tâches (visible si permission view_tasks mais pas la vue globale reports) -->
+        @if(!$canSeeReports && $authUser && $authUser->hasPermission(\App\Enums\Permission::ReportsViewTasks))
+        <a
+            href="{{ route('reports.tasks') }}"
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isMyTasks ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+            :class="sidebarOpen ? '' : 'justify-center'"
+        >
+            @if($isMyTasks)
+                <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
+            @endif
+            <iconify-icon icon="solar:checklist-bold-duotone" width="20" class="{{ $isMyTasks ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+            <span x-show="sidebarOpen" class="truncate">{{ __('menu.reports_tasks') }}</span>
+            <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                {{ __('menu.reports_tasks') }}
+            </div>
+        </a>
+        @endif
+
+        <!-- Notifications -->
+        @php
+            $isNotifications = request()->routeIs('notifications.*');
+            $notificationsUnreadCount = \Illuminate\Support\Facades\Auth::user()?->unreadNotifications()->count() ?? 0;
+        @endphp
+        <a
+            href="{{ route('notifications.index') }}"
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isNotifications ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+            :class="sidebarOpen ? '' : 'justify-center'"
+        >
+            @if($isNotifications)
+                <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
+            @endif
+            <span class="relative shrink-0">
+                <iconify-icon icon="solar:bell-bold-duotone" width="20" class="{{ $isNotifications ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                @if ($notificationsUnreadCount > 0)
+                    <span x-show="!sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak>{{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}</span>
+                @endif
+            </span>
+            <span x-show="sidebarOpen" class="truncate">{{ __('menu.notifications') }}</span>
+            @if ($notificationsUnreadCount > 0)
+                <span x-show="sidebarOpen" class="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white ring-2 ring-white/20">{{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}</span>
+            @endif
+
+            <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                {{ __('menu.notifications') }}
+            </div>
+        </a>
+
         @if ($isStaff)
             <div class="px-3 mb-2 mt-6 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">
                 {{ __('menu.administration') }}
@@ -205,11 +270,14 @@
 
             @php
                 $isAdminUsers = request()->routeIs('admin.users');
-                $isReports = request()->routeIs('reports.*');
+                $isReportsOverview = request()->routeIs('reports.index');
+                $isReportsTasks = request()->routeIs('reports.tasks');
+                $isReports = $isReportsOverview || $isReportsTasks;
                 $isAdminForms = request()->routeIs('admin.forms*');
                 $isSettings = request()->routeIs('admin.settings');
             @endphp
 
+            @if ($canSeeTeam)
             <!-- Team -->
             <a
                 href="{{ route('admin.users') }}"
@@ -225,23 +293,60 @@
                     {{ __('menu.team') }}
                 </div>
             </a>
+            @endif
 
-            <!-- Reports -->
-            <a
-                href="{{ route('reports.index') }}"
-                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isReports ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-                :class="sidebarOpen ? '' : 'justify-center'"
-            >
-                @if($isReports)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-                @endif
-                <iconify-icon icon="solar:chart-2-bold-duotone" width="20" class="{{ $isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
-                <span x-show="sidebarOpen" class="truncate">{{ __('menu.reports') }}</span>
-                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
-                    {{ __('menu.reports') }}
+            @if ($canSeeReports)
+            <!-- Reports (submenu) -->
+            <div x-data="{ reportsOpen: {{ $isReports ? 'true' : 'false' }} }">
+                <div x-show="sidebarOpen">
+                    <button
+                        type="button"
+                        @click="reportsOpen = !reportsOpen"
+                        class="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200 {{ $isReports ? 'text-white' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <iconify-icon icon="solar:chart-2-bold-duotone" width="20" class="{{ $isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                            <span>{{ __('menu.reports') }}</span>
+                        </div>
+                        <iconify-icon :icon="reportsOpen ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" width="12" class="opacity-50 transition-transform duration-200" :class="reportsOpen ? 'rotate-0' : '-rotate-90'"></iconify-icon>
+                    </button>
+
+                    <div x-show="reportsOpen" x-collapse class="mt-1 space-y-1 px-3">
+                        <a
+                            href="{{ route('reports.index') }}"
+                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isReportsOverview ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                        >
+                            <div class="h-1.5 w-1.5 rounded-full {{ $isReportsOverview ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
+                            {{ __('menu.reports_overview') }}
+                        </a>
+                        <a
+                            href="{{ route('reports.tasks') }}"
+                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isReportsTasks ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                        >
+                            <div class="h-1.5 w-1.5 rounded-full {{ $isReportsTasks ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
+                            {{ __('menu.reports_tasks') }}
+                        </a>
+                    </div>
                 </div>
-            </a>
 
+                <!-- Collapsed Reports Icon -->
+                <a
+                    x-show="!sidebarOpen"
+                    href="{{ route('reports.index') }}"
+                    class="group relative flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isReports ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                >
+                    @if($isReports)
+                        <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+                    @endif
+                    <iconify-icon icon="solar:chart-2-bold-duotone" width="20" class="{{ $isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                    <div class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                        {{ __('menu.reports') }}
+                    </div>
+                </a>
+            </div>
+            @endif
+
+            @if ($canSeeForms)
             <!-- Admin Formulaires -->
             <a
                 href="{{ route('admin.forms') }}"
@@ -254,7 +359,9 @@
                 <iconify-icon icon="solar:document-add-bold-duotone" width="20" class="{{ $isAdminForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('menu.forms') }}</span>
             </a>
+            @endif
 
+            @if ($canSeeSettings)
             <!-- Settings -->
             <a
                 href="{{ route('admin.settings') }}"
@@ -267,7 +374,9 @@
                 <iconify-icon icon="solar:settings-bold-duotone" width="20" class="{{ $isSettings ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('menu.settings') }}</span>
             </a>
+            @endif
         @endif
+
     </div>
 
     <!-- Sidebar Footer (ordre : plateforme → espace → langue) -->

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Discussions;
 
+use App\Enums\Permission;
 use App\Enums\TicketMessageType;
 use App\Events\UserNotificationReceived;
 use App\Models\DiscussionMessage;
@@ -436,7 +437,7 @@ class Index extends Component
 
         $org = request()->attributes->get('currentOrganization');
         $role = $org?->pivot?->role ?? 'member';
-        $isStaff = in_array($role, ['owner', 'admin', 'agent'], true);
+        $isStaff = $user->hasPermission(Permission::DiscussionsViewInternalNotes);
         $search = trim($this->search);
 
         $threadsData = $this->buildThreadsData($user, $orgId, $search);

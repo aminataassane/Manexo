@@ -36,6 +36,18 @@ class EnsureOrganizationIsSelected
         $currentId = $request->session()->get('current_organization_id');
 
         if ($currentId) {
+            // Super admins can access any active organization without membership
+            if ($user->is_super_admin) {
+                $org = Cache::remember("sa_org:{$currentId}", 300, fn () =>
+                    \App\Models\Organization::find($currentId)
+                );
+                if ($org && $org->isActive()) {
+                    $request->attributes->set('currentOrganization', $org);
+                    view()->share('currentOrganization', $org);
+                    return $next($request);
+                }
+            }
+
             // Cache per user+org for 5 min to avoid querying on every Livewire update
             $cacheKey = "user_org:{$user->id}:{$currentId}";
             $org = Cache::remember($cacheKey, 300, function () use ($user, $currentId) {
@@ -43,6 +55,14 @@ class EnsureOrganizationIsSelected
             });
 
             if ($org) {
+                if (! $org->isActive()) {
+                    Cache::forget($cacheKey);
+                    $request->session()->forget('current_organization_id');
+
+                    return redirect()->route('organizations.select')
+                        ->with('error', __('super_admin.org_not_active'));
+                }
+
                 $request->attributes->set('currentOrganization', $org);
                 view()->share('currentOrganization', $org);
 

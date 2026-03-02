@@ -4,12 +4,13 @@ namespace App\Livewire\Admin;
 
 use App\Enums\FormAssignmentStatus;
 use App\Enums\FormStatus;
-use App\Enums\OrganizationRole;
+use App\Enums\Permission;
 use App\Events\UserNotificationReceived;
 use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\FormAssignment;
 use App\Models\FormField;
+use App\Models\FormResponse;
 use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
 use App\Models\TicketCategory;
@@ -27,6 +28,8 @@ use Livewire\Component;
 class FormBuilder extends Component
 {
     public bool $canManageForms = false;
+    public bool $canAssignForms = false;
+    public bool $canViewResponses = false;
 
     // Active tab: champs | assignations | reponses
     public string $activeTab = 'champs';
@@ -65,28 +68,26 @@ class FormBuilder extends Component
     public ?int $assign_user_id = null;
     public ?int $assign_function_id = null;
     public ?string $assign_due_date = null;
+    public ?string $assign_expires_at = null;
 
     private function orgId(): int
     {
         return (int) session('current_organization_id');
     }
 
-    private function currentRole(): string
-    {
-        $user = Auth::user();
-        $orgId = $this->orgId();
-        if (! $user instanceof \App\Models\User || ! $orgId) {
-            return OrganizationRole::Member->value;
-        }
-        return (string) ($user->organizations()->whereKey($orgId)->first()?->pivot?->role ?? OrganizationRole::Member->value);
-    }
-
     public function mount(): void
     {
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
-        $this->canManageForms = in_array($this->currentRole(), [OrganizationRole::Owner->value, OrganizationRole::Admin->value], true)
-            || app()->environment('local');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        $isLocal = app()->environment('local');
+        $this->canManageForms = ($user && $user->hasAnyPermission([Permission::FormsManage, Permission::SettingsManageForms]))
+            || $isLocal;
+        $this->canAssignForms = ($user && $user->hasAnyPermission([Permission::FormsAssign, Permission::FormsManage, Permission::SettingsManageForms]))
+            || $isLocal;
+        $this->canViewResponses = ($user && $user->hasAnyPermission([Permission::FormsViewResponses, Permission::FormsManage, Permission::SettingsManageForms]))
+            || $isLocal;
         $this->fb_selected_form_id = Form::query()
             ->forOrg($orgId)
             ->orderBy('name')
@@ -610,7 +611,7 @@ class FormBuilder extends Component
 
     public function assignForm(): void
     {
-        if (! $this->canManageForms) {
+        if (! $this->canAssignForms) {
             abort(403);
         }
         $orgId = $this->orgId();
@@ -620,6 +621,7 @@ class FormBuilder extends Component
             'assign_user_id' => ['nullable', 'integer'],
             'assign_function_id' => ['nullable', 'integer'],
             'assign_due_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'assign_expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
         if (! $validated['assign_user_id'] && ! $validated['assign_function_id']) {
@@ -651,6 +653,7 @@ class FormBuilder extends Component
             'assigned_by' => $user->id,
             'status' => FormAssignmentStatus::Pending,
             'due_date' => $validated['assign_due_date'] ?? null,
+            'expires_at' => $validated['assign_expires_at'] ?? null,
             'form_version' => $form->current_version,
         ]);
 
@@ -696,12 +699,13 @@ class FormBuilder extends Component
         $this->assign_user_id = null;
         $this->assign_function_id = null;
         $this->assign_due_date = null;
+        $this->assign_expires_at = null;
         $this->dispatch('toast', type: 'success', message: 'Formulaire assigné.');
     }
 
     public function deleteAssignment(int $assignmentId): void
     {
-        if (! $this->canManageForms) {
+        if (! $this->canAssignForms) {
             abort(403);
         }
         $orgId = $this->orgId();
@@ -710,6 +714,31 @@ class FormBuilder extends Component
             ->whereHas('form', fn($q) => $q->forOrg($orgId))
             ->delete();
         $this->dispatch('toast', type: 'success', message: 'Assignation supprimée.');
+    }
+
+    /** @return array{forms_total: int, forms_published: int, assignments_pending: int, responses_total: int} */
+    private function computeFormStats(int $orgId): array
+    {
+        if (! $orgId) {
+            return ['forms_total' => 0, 'forms_published' => 0, 'assignments_pending' => 0, 'responses_total' => 0];
+        }
+        $formsTotal = Form::query()->forOrg($orgId)->count();
+        $formsPublished = Form::query()->forOrg($orgId)->where('status', FormStatus::Published)->count();
+        $formIds = Form::query()->forOrg($orgId)->pluck('id');
+        $assignmentsPending = FormAssignment::query()
+            ->whereIn('form_id', $formIds)
+            ->where('status', FormAssignmentStatus::Pending)
+            ->count();
+        $responsesTotal = FormResponse::query()
+            ->whereIn('form_id', $formIds)
+            ->count();
+
+        return [
+            'forms_total' => $formsTotal,
+            'forms_published' => $formsPublished,
+            'assignments_pending' => $assignmentsPending,
+            'responses_total' => $responsesTotal,
+        ];
     }
 
     public function render()
@@ -758,6 +787,8 @@ class FormBuilder extends Component
             });
         }
 
+        $stats = $this->computeFormStats($orgId);
+
         return view('livewire.admin.form-builder', [
             'categories' => $categories,
             'members' => $members,
@@ -765,6 +796,7 @@ class FormBuilder extends Component
             'selectedForm' => $selectedForm,
             'assignments' => $assignments,
             'organizationFunctions' => $organizationFunctions,
+            'stats' => $stats,
         ]);
     }
 }

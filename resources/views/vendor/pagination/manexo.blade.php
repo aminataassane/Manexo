@@ -1,27 +1,31 @@
 @if ($paginator->hasPages())
-    <nav role="navigation" aria-label="{{ __('Pagination Navigation') }}" class="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center sm:justify-between" style="gap: 0.75rem;">
-        {{-- Info "X à Y sur Z" --}}
-        <p class="text-[13px] order-2 sm:order-1" style="color: #6B7280;">
+    <nav role="navigation" aria-label="{{ __('pagination.navigation') }}" class="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between w-full min-w-0">
+        {{-- Résumé : "Affichage de X à Y sur Z résultats" --}}
+        <p class="text-sm text-slate-500 order-2 sm:order-1">
             @if ($paginator->firstItem())
-                <span style="color: #111827; font-weight: 500;">{{ $paginator->firstItem() }}</span>
-                {{ __('to') }}
-                <span style="color: #111827; font-weight: 500;">{{ $paginator->lastItem() }}</span>
-                {{ __('of') }}
+                {{ __('pagination.showing') }}
+                <span class="font-semibold text-slate-700">{{ number_format($paginator->firstItem()) }}</span>
+                {{ __('pagination.to') }}
+                <span class="font-semibold text-slate-700">{{ number_format($paginator->lastItem()) }}</span>
+                {{ __('pagination.of') }}
             @else
-                {{ $paginator->count() }} {{ __('of') }}
+                {{ $paginator->count() }} {{ __('pagination.of') }}
             @endif
-            <span style="color: #111827; font-weight: 500;">{{ $paginator->total() }}</span>
+            <span class="font-semibold text-slate-700">{{ number_format($paginator->total()) }}</span>
+            {{ __('pagination.results') }}
         </p>
 
-        {{-- Contrôles : Précédent + numéros + Suivant --}}
-        <div class="inline-flex items-center rounded-xl border bg-white p-1 order-1 sm:order-2" style="gap: 4px; border-color: #E5E7EB; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        {{-- Stepper : Précédent | numéros | Suivant --}}
+        <div class="inline-flex items-center gap-1 p-1.5 rounded-xl bg-white border border-slate-200 shadow-sm order-1 sm:order-2 shrink-0">
             {{-- Précédent --}}
             @if ($paginator->onFirstPage())
-                <span class="inline-flex items-center justify-center rounded-lg cursor-not-allowed" aria-hidden="true" style="width: 36px; height: 36px; color: #9CA3AF;">
+                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-300 cursor-not-allowed" aria-hidden="true">
                     <iconify-icon icon="solar:alt-arrow-left-linear" width="18"></iconify-icon>
                 </span>
             @else
-                <a href="{{ $paginator->previousPageUrl() }}" rel="prev" class="inline-flex items-center justify-center rounded-lg transition-colors hover:bg-[#F3F4F6]" style="width: 36px; height: 36px; color: #6B7280; text-decoration: none;" aria-label="{{ __('pagination.previous') }}">
+                <a href="{{ $paginator->previousPageUrl() }}" rel="prev"
+                   class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                   aria-label="{{ __('pagination.previous') }}">
                     <iconify-icon icon="solar:alt-arrow-left-linear" width="18"></iconify-icon>
                 </a>
             @endif
@@ -29,16 +33,19 @@
             {{-- Numéros de page --}}
             @foreach ($elements as $element)
                 @if (is_string($element))
-                    <span class="inline-flex items-center justify-center px-2" style="min-width: 2.25rem; height: 36px; font-size: 13px; font-weight: 500; color: #9CA3AF;">…</span>
+                    <span class="inline-flex items-center justify-center min-w-[2.25rem] h-9 text-sm font-medium text-slate-400">…</span>
                 @endif
                 @if (is_array($element))
                     @foreach ($element as $page => $url)
                         @if ($page == $paginator->currentPage())
-                            <span aria-current="page" class="inline-flex items-center justify-center rounded-lg font-semibold" style="min-width: 2.25rem; height: 36px; font-size: 13px; background: var(--accent-soft, #dcfce7); color: var(--accent, #005F02);">
+                            <span aria-current="page"
+                                  class="inline-flex items-center justify-center min-w-[2.25rem] h-9 rounded-lg text-sm font-semibold bg-[var(--accent-soft)] text-[var(--accent)]">
                                 {{ $page }}
                             </span>
                         @else
-                            <a href="{{ $url }}" class="inline-flex items-center justify-center rounded-lg transition-colors hover:bg-[#F3F4F6]" style="min-width: 2.25rem; height: 36px; font-size: 13px; font-weight: 500; color: #374151; text-decoration: none;" aria-label="{{ __('Go to page :page', ['page' => $page]) }}">
+                            <a href="{{ $url }}"
+                               class="inline-flex items-center justify-center min-w-[2.25rem] h-9 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                               aria-label="{{ __('pagination.goto_page', ['page' => $page]) }}">
                                 {{ $page }}
                             </a>
                         @endif
@@ -48,11 +55,13 @@
 
             {{-- Suivant --}}
             @if ($paginator->hasMorePages())
-                <a href="{{ $paginator->nextPageUrl() }}" rel="next" class="inline-flex items-center justify-center rounded-lg transition-colors hover:bg-[#F3F4F6]" style="width: 36px; height: 36px; color: #6B7280; text-decoration: none;" aria-label="{{ __('pagination.next') }}">
+                <a href="{{ $paginator->nextPageUrl() }}" rel="next"
+                   class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                   aria-label="{{ __('pagination.next') }}">
                     <iconify-icon icon="solar:alt-arrow-right-linear" width="18"></iconify-icon>
                 </a>
             @else
-                <span class="inline-flex items-center justify-center rounded-lg cursor-not-allowed" aria-hidden="true" style="width: 36px; height: 36px; color: #9CA3AF;">
+                <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-300 cursor-not-allowed" aria-hidden="true">
                     <iconify-icon icon="solar:alt-arrow-right-linear" width="18"></iconify-icon>
                 </span>
             @endif

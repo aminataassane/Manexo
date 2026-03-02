@@ -72,6 +72,15 @@
                     <iconify-icon icon="solar:clipboard-list-bold-duotone" width="20" :class="tab === 'forms' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
                     {{ __('settings.forms') }}
                 </button>
+                <button type="button" class="{{ $navItemClass }}" :class="tab === 'roles' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'roles'">
+                    <iconify-icon icon="solar:shield-keyhole-bold-duotone" width="20" :class="tab === 'roles' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
+                    {{ __('settings.roles_permissions') }}
+                </button>
+
+                <button type="button" class="{{ $navItemClass }}" :class="tab === 'maintenance' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'maintenance'">
+                    <iconify-icon icon="solar:tuning-2-bold-duotone" width="20" :class="tab === 'maintenance' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
+                    {{ __('settings.maintenance') }}
+                </button>
 
                 <div class="pt-4 mt-4 border-t border-slate-200">
                     <button type="button" class="{{ $navItemClass }}" :class="tab === 'danger' ? 'bg-red-50 text-red-700 ring-1 ring-red-100' : 'text-slate-600 hover:bg-red-50 hover:text-red-700'" @click="tab = 'danger'">
@@ -281,7 +290,7 @@
                                 wire:model="auto_close_days"
                                 min="1"
                                 max="365"
-                                :placeholder="__('settings.auto_close_placeholder')"
+                                placeholder="{{ __('settings.auto_close_placeholder') }}"
                                 class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all disabled:bg-slate-50 disabled:text-slate-500"
                                 @disabled(! $canManage)
                             />
@@ -315,7 +324,7 @@
                                     id="new_cat_name"
                                     type="text"
                                     wire:model="newCategoryName"
-                                    :placeholder="__('settings.category_placeholder')"
+                                    placeholder="{{ __('settings.category_placeholder') }}"
                                     class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 />
                                 <x-input-error :messages="$errors->get('newCategoryName')" class="mt-1" />
@@ -350,10 +359,10 @@
                                                 class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                                 autofocus
                                             />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" :title="__('settings.save')">
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="cancelEditCategory" class="text-slate-400 hover:text-slate-600" :title="__('settings.cancel')">
+                                            <button type="button" wire:click="cancelEditCategory" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
                                         </form>
@@ -378,11 +387,11 @@
 
                                         @if ($canManage)
                                             {{-- Edit --}}
-                                            <button type="button" wire:click="startEditCategory({{ $cat->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" :title="__('settings.edit')">
+                                            <button type="button" wire:click="startEditCategory({{ $cat->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="{{ __('settings.edit') }}">
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
                                             {{-- Delete --}}
-                                            <button type="button" wire:click="deleteCategory({{ $cat->id }})" wire:confirm="{{ __('settings.delete_category_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" :title="__('settings.delete')">
+                                            <button type="button" wire:click="deleteCategory({{ $cat->id }})" wire:confirm="{{ __('settings.delete_category_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -411,7 +420,7 @@
                                     id="new_prio_name"
                                     type="text"
                                     wire:model="newPriorityName"
-                                    :placeholder="__('settings.priority_placeholder')"
+                                    placeholder="{{ __('settings.priority_placeholder') }}"
                                     class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 />
                                 <x-input-error :messages="$errors->get('newPriorityName')" class="mt-1" />
@@ -464,10 +473,10 @@
                                                 min="0"
                                                 class="w-20 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                             />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" :title="__('settings.save')">
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="cancelEditPriority" class="text-slate-400 hover:text-slate-600" :title="__('settings.cancel')">
+                                            <button type="button" wire:click="cancelEditPriority" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
                                         </form>
@@ -493,11 +502,11 @@
 
                                         @if ($canManage)
                                             {{-- Edit --}}
-                                            <button type="button" wire:click="startEditPriority({{ $prio->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" :title="__('settings.edit')">
+                                            <button type="button" wire:click="startEditPriority({{ $prio->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="{{ __('settings.edit') }}">
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
                                             {{-- Delete --}}
-                                            <button type="button" wire:click="deletePriority({{ $prio->id }})" wire:confirm="{{ __('settings.delete_priority_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" :title="__('settings.delete')">
+                                            <button type="button" wire:click="deletePriority({{ $prio->id }})" wire:confirm="{{ __('settings.delete_priority_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -520,7 +529,7 @@
                         <form wire:submit.prevent="createFunction" class="flex items-end gap-3">
                             <div class="flex-1">
                                 <x-input-label for="new_function_name" :value="__('settings.function_name')" />
-                                <input id="new_function_name" type="text" wire:model="newFunctionName" :placeholder="__('settings.function_placeholder')" class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all" />
+                                <input id="new_function_name" type="text" wire:model="newFunctionName" placeholder="{{ __('settings.function_placeholder') }}" class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all" />
                                 <x-input-error :messages="$errors->get('newFunctionName')" class="mt-1" />
                             </div>
                             <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
@@ -544,10 +553,10 @@
                                     @if ($editingFunctionId === $fn->id)
                                         <form wire:submit.prevent="updateFunction" class="flex-1 flex items-center gap-3">
                                             <input type="text" wire:model="editingFunctionName" class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" autofocus />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" :title="__('settings.save')">
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="cancelEditFunction" class="text-slate-400 hover:text-slate-600" :title="__('settings.cancel')">
+                                            <button type="button" wire:click="cancelEditFunction" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
                                         </form>
@@ -555,10 +564,10 @@
                                     @else
                                         <span class="flex-1 text-sm font-medium text-slate-900">{{ $fn->name }}</span>
                                         @if ($canManage)
-                                            <button type="button" wire:click="startEditFunction({{ $fn->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" :title="__('settings.edit')">
+                                            <button type="button" wire:click="startEditFunction({{ $fn->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="{{ __('settings.edit') }}">
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="deleteFunction({{ $fn->id }})" wire:confirm="{{ __('settings.delete_function_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" :title="__('settings.delete')">
+                                            <button type="button" wire:click="deleteFunction({{ $fn->id }})" wire:confirm="{{ __('settings.delete_function_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -571,17 +580,387 @@
             </div>
 
             <div x-show="tab === 'forms'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-8 flex flex-col items-center text-center">
-                    <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent-soft)] mb-4 text-[var(--accent)]">
-                        <iconify-icon icon="solar:clipboard-list-bold-duotone" width="32"></iconify-icon>
+                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('settings.forms_editor_title') }}</h2>
+                    <p class="text-sm text-slate-500 mt-1">{{ __('settings.forms_editor_subtitle') }}</p>
+                </div>
+                <form wire:submit.prevent="saveFormsSettings" class="p-6 space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label for="forms_default_due_days" class="block text-sm font-semibold text-slate-700 mb-1.5">{{ __('settings.forms_default_due_days') }}</label>
+                            <input type="number" id="forms_default_due_days" wire:model="forms_default_due_days" min="1" max="365" placeholder="7"
+                                   class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm">
+                            <p class="mt-1 text-xs text-slate-500">{{ __('settings.forms_default_due_days_help') }}</p>
+                        </div>
+                        <div>
+                            <label for="forms_default_expiry_days" class="block text-sm font-semibold text-slate-700 mb-1.5">{{ __('settings.forms_default_expiry_days') }}</label>
+                            <input type="number" id="forms_default_expiry_days" wire:model="forms_default_expiry_days" min="1" max="365" placeholder="30"
+                                   class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm">
+                            <p class="mt-1 text-xs text-slate-500">{{ __('settings.forms_default_expiry_days_help') }}</p>
+                        </div>
                     </div>
-                    <h3 class="text-xl font-bold text-slate-900">{{ __('settings.forms_editor_title') }}</h3>
-                    <p class="text-slate-500 mt-2 max-w-lg mx-auto mb-8">{{ __('settings.forms_editor_subtitle') }}</p>
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" id="forms_notify_on_response" wire:model="forms_notify_on_response"
+                               class="h-4 w-4 rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]">
+                        <div>
+                            <label for="forms_notify_on_response" class="text-sm font-semibold text-slate-700">{{ __('settings.forms_notify_on_response') }}</label>
+                            <p class="text-xs text-slate-500 mt-0.5">{{ __('settings.forms_notify_on_response_help') }}</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 pt-2">
+                        <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                            <iconify-icon icon="solar:check-circle-bold" width="18"></iconify-icon>
+                            {{ __('settings.save') }}
+                        </button>
+                        <a href="{{ route('admin.forms') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                            <iconify-icon icon="solar:magic-stick-3-bold-duotone" width="18"></iconify-icon>
+                            {{ __('settings.open_builder') }}
+                        </a>
+                    </div>
+                </form>
+            </div>
 
-                    <a href="{{ route('admin.forms') }}" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white shadow-lg hover:bg-slate-800 hover:-translate-y-0.5 transition-all">
-                        <iconify-icon icon="solar:magic-stick-3-bold-duotone" width="20"></iconify-icon>
-                        {{ __('settings.open_builder') }}
-                    </a>
+            <!-- ROLES & PERMISSIONS TAB -->
+            <div x-show="tab === 'roles'" x-cloak class="space-y-6">
+                {{-- Card 1: Role Management --}}
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                        <h2 class="text-lg font-bold text-slate-900">{{ __('settings.roles_management_title') }}</h2>
+                        <p class="text-sm text-slate-500">{{ __('settings.roles_management_subtitle') }}</p>
+                    </div>
+
+                    <div class="p-6 space-y-6">
+                        {{-- Create form --}}
+                        @if ($canManage)
+                            <form wire:submit.prevent="createRole" class="flex items-end gap-3">
+                                <div class="flex-1">
+                                    <x-input-label for="new_role_name" :value="__('settings.role_name')" />
+                                    <input
+                                        id="new_role_name"
+                                        type="text"
+                                        wire:model="newRoleName"
+                                        placeholder="{{ __('settings.role_placeholder') }}"
+                                        class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
+                                    />
+                                    <x-input-error :messages="$errors->get('newRoleName')" class="mt-1" />
+                                </div>
+                                <div class="w-44">
+                                    <x-input-label for="new_role_base" :value="__('settings.role_base')" />
+                                    <x-select-input id="new_role_base" wire:model="newRoleBaseSlug" class="mt-1">
+                                        <option value="">{{ __('settings.role_base_none') }}</option>
+                                        @foreach ($roles as $r)
+                                            @if ($r->slug !== 'owner')
+                                                <option value="{{ $r->slug }}">{{ $r->name }}</option>
+                                            @endif
+                                        @endforeach
+                                    </x-select-input>
+                                </div>
+                                <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                                    <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
+                                    {{ __('settings.add') }}
+                                </button>
+                            </form>
+                            <hr class="border-slate-100">
+                        @endif
+
+                        {{-- Role list --}}
+                        @if ($roles->isEmpty())
+                            <div class="py-8 text-center">
+                                <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-3">
+                                    <iconify-icon icon="solar:shield-keyhole-linear" width="28" class="text-slate-400"></iconify-icon>
+                                </div>
+                                <p class="text-sm text-slate-500">{{ __('settings.no_roles') }}</p>
+                            </div>
+                        @else
+                            <div class="space-y-2">
+                                @foreach ($roles as $r)
+                                    <div
+                                        class="flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors group cursor-pointer {{ $selectedRole === $r->slug ? 'border-[var(--accent)] bg-[var(--accent-soft)]/10 ring-1 ring-[var(--accent)]/20' : 'border-slate-100 hover:border-slate-200' }}"
+                                        wire:key="role-{{ $r->id }}"
+                                        wire:click="selectRoleTab('{{ $r->slug }}')"
+                                    >
+                                        @if ($editingRoleId === $r->id)
+                                            {{-- Inline edit --}}
+                                            <form wire:submit.prevent="updateRoleName" class="flex-1 flex items-center gap-3" @click.stop>
+                                                <input
+                                                    type="text"
+                                                    wire:model="editingRoleName"
+                                                    class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                    autofocus
+                                                />
+                                                <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
+                                                    <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
+                                                </button>
+                                                <button type="button" wire:click.stop="cancelEditRole" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
+                                                    <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
+                                                </button>
+                                            </form>
+                                            <x-input-error :messages="$errors->get('editingRoleName')" class="mt-1" />
+                                        @else
+                                            {{-- Selection dot --}}
+                                            <span class="h-2.5 w-2.5 rounded-full shrink-0 {{ $selectedRole === $r->slug ? 'bg-[var(--accent)]' : 'bg-slate-300' }}"></span>
+
+                                            {{-- Display --}}
+                                            <div class="flex-1 min-w-0 flex items-center gap-2">
+                                                <span class="text-sm font-medium text-slate-900">{{ $r->name }}</span>
+                                                @if ($r->is_default)
+                                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{{ __('settings.role_default_badge') }}</span>
+                                                @endif
+                                            </div>
+
+                                            {{-- Member count --}}
+                                            <span class="text-xs text-slate-400 tabular-nums">{{ trans_choice('settings.role_member_count', $roleMemberCounts[$r->slug] ?? 0, ['count' => $roleMemberCounts[$r->slug] ?? 0]) }}</span>
+
+                                            @if ($canManage)
+                                                {{-- Edit --}}
+                                                <button type="button" wire:click.stop="startEditRole({{ $r->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="{{ __('settings.edit') }}">
+                                                    <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
+                                                </button>
+                                                {{-- Delete (custom roles only) --}}
+                                                @if (! $r->is_default)
+                                                    <button type="button" wire:click.stop="deleteRole({{ $r->id }})" wire:confirm="{{ __('settings.delete_role_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
+                                                        <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                                                    </button>
+                                                @endif
+                                            @endif
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Card 2: Tableau des permissions du rôle sélectionné (clic sur un rôle = ouvre son tableau) --}}
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                        @php
+                            $selectedRoleDef = $roles->firstWhere('slug', $selectedRole);
+                        @endphp
+                        <h2 class="text-lg font-bold text-slate-900">{{ __('settings.permissions_for', ['role' => $selectedRoleDef?->name ?? $selectedRole]) }}</h2>
+                        <p class="text-sm text-slate-500">{{ __('settings.permissions_subtitle') }}</p>
+                    </div>
+
+                    <div class="p-6">
+                        @if ($roles->isEmpty())
+                            <div class="py-8 text-center text-slate-500 text-sm">
+                                {{ __('settings.no_roles') }}
+                            </div>
+                        @elseif (! $selectedRoleDef)
+                            <div class="py-8 text-center text-slate-500 text-sm">
+                                {{ __('settings.select_role_to_manage') }}
+                            </div>
+                        @else
+                            {{-- Message propriétaire --}}
+                            @if ($selectedRole === 'owner')
+                                <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3 mb-6">
+                                    <iconify-icon icon="solar:crown-bold-duotone" width="22" class="text-amber-600 shrink-0"></iconify-icon>
+                                    {{ __('settings.owner_all_permissions') }}
+                                </div>
+                            @endif
+
+                            @php
+                                $grouped = \App\Enums\Permission::grouped();
+                                $groupIcons = [
+                                    'tickets' => 'solar:ticket-bold-duotone',
+                                    'team' => 'solar:users-group-rounded-bold-duotone',
+                                    'forms' => 'solar:clipboard-list-bold-duotone',
+                                    'settings' => 'solar:settings-bold-duotone',
+                                    'reports' => 'solar:chart-2-bold-duotone',
+                                    'discussions' => 'solar:chat-round-bold-duotone',
+                                ];
+                            @endphp
+
+                            {{-- Accordéon : un groupe ouvert à la fois pour raccourcir la page --}}
+                            <div class="rounded-xl border border-slate-200 overflow-hidden" x-data="{ openGroup: 'tickets' }">
+                                <div class="divide-y divide-slate-100">
+                                    @foreach ($grouped as $group => $permissions)
+                                        <div class="bg-white">
+                                            <button
+                                                type="button"
+                                                @click="openGroup = openGroup === '{{ $group }}' ? null : '{{ $group }}'"
+                                                class="w-full flex items-center justify-between gap-3 px-4 py-3 text-left rounded-lg hover:bg-slate-50 transition-colors"
+                                            >
+                                                <span class="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                                                    <iconify-icon icon="{{ $groupIcons[$group] ?? 'solar:widget-bold-duotone' }}" width="18" class="text-slate-500"></iconify-icon>
+                                                    {{ __('permissions.group_' . $group) }}
+                                                </span>
+                                                <span class="text-slate-400 transition-transform" :class="openGroup === '{{ $group }}' ? 'rotate-180' : ''">
+                                                    <iconify-icon icon="solar:alt-arrow-down-linear" width="20"></iconify-icon>
+                                                </span>
+                                            </button>
+                                            <div x-show="openGroup === '{{ $group }}'" x-cloak class="border-t border-slate-100">
+                                                <div class="overflow-x-auto">
+                                                    <table class="w-full text-left border-collapse">
+                                                        <tbody class="divide-y divide-slate-50">
+                                                            @foreach ($permissions as $perm)
+                                                                @php
+                                                                    $isGranted = $selectedRole === 'owner' || ($rolePermissions[$selectedRole][$perm->value] ?? false);
+                                                                @endphp
+                                                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                                                    <td class="px-4 py-2 text-sm text-slate-900 pl-8">
+                                                                        {{ __('permissions.' . $perm->value) }}
+                                                                    </td>
+                                                                    <td class="px-4 py-2 w-20 text-center">
+                                                                        <label class="inline-flex items-center justify-center {{ $selectedRole === 'owner' ? 'cursor-default opacity-80' : 'cursor-pointer' }}">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                @checked($isGranted)
+                                                                                @if ($selectedRole !== 'owner')
+                                                                                    wire:click="toggleRolePermission('{{ $selectedRole }}', '{{ $perm->value }}')"
+                                                                                @else
+                                                                                    disabled
+                                                                                @endif
+                                                                                class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]"
+                                                                            />
+                                                                        </label>
+                                                                    </td>
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            @if ($canManage && $selectedRole !== 'owner')
+                                <div class="mt-6 pt-4 flex justify-end border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        wire:click="saveRolePermissions"
+                                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all disabled:opacity-50"
+                                    >
+                                        <span wire:loading.remove wire:target="saveRolePermissions">{{ __('settings.save_permissions') }}</span>
+                                        <span wire:loading wire:target="saveRolePermissions"><iconify-icon icon="solar:refresh-linear" class="animate-spin" width="18"></iconify-icon></span>
+                                    </button>
+                                </div>
+                            @endif
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- MAINTENANCE TAB -->
+            <div x-show="tab === 'maintenance'" x-cloak class="space-y-6">
+                {{-- Org Info Card --}}
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                        <h2 class="text-lg font-bold text-slate-900">{{ __('settings.org_info_title') }}</h2>
+                        <p class="text-sm text-slate-500">{{ __('settings.org_info_subtitle') }}</p>
+                    </div>
+                    <div class="p-6">
+                        {{-- Org details --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100">
+                                <iconify-icon icon="solar:buildings-2-bold-duotone" width="20" class="text-slate-400 shrink-0"></iconify-icon>
+                                <div class="min-w-0">
+                                    <span class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ __('settings.org_name_label') }}</span>
+                                    <span class="block text-sm font-medium text-slate-900 truncate">{{ $org?->name ?? '-' }}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100">
+                                <iconify-icon icon="solar:link-round-bold-duotone" width="20" class="text-slate-400 shrink-0"></iconify-icon>
+                                <div class="min-w-0">
+                                    <span class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ __('settings.org_slug_label') }}</span>
+                                    <span class="block text-sm font-mono text-slate-900 truncate">{{ $org?->slug ?? '-' }}</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-100 sm:col-span-2">
+                                <iconify-icon icon="solar:calendar-bold-duotone" width="20" class="text-slate-400 shrink-0"></iconify-icon>
+                                <div class="min-w-0">
+                                    <span class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{{ __('settings.org_created_label') }}</span>
+                                    <span class="block text-sm font-medium text-slate-900">{{ $org?->created_at?->translatedFormat('d F Y à H:i') ?? '-' }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Stats grid --}}
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            @php
+                                $statItems = [
+                                    ['key' => 'members', 'icon' => 'solar:users-group-rounded-bold-duotone', 'label' => __('settings.org_members_label'), 'color' => 'text-blue-500'],
+                                    ['key' => 'tickets', 'icon' => 'solar:ticket-bold-duotone', 'label' => __('settings.org_tickets_label'), 'color' => 'text-amber-500'],
+                                    ['key' => 'forms', 'icon' => 'solar:clipboard-text-bold-duotone', 'label' => __('settings.org_forms_label'), 'color' => 'text-violet-500'],
+                                    ['key' => 'categories', 'icon' => 'solar:tag-bold-duotone', 'label' => __('settings.org_categories_label'), 'color' => 'text-emerald-500'],
+                                    ['key' => 'priorities', 'icon' => 'solar:flag-bold-duotone', 'label' => __('settings.org_priorities_label'), 'color' => 'text-rose-500'],
+                                    ['key' => 'roles', 'icon' => 'solar:shield-keyhole-bold-duotone', 'label' => __('settings.org_roles_label'), 'color' => 'text-cyan-500'],
+                                ];
+                            @endphp
+                            @foreach ($statItems as $stat)
+                                <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 bg-white hover:bg-slate-50/50 transition-colors">
+                                    <iconify-icon icon="{{ $stat['icon'] }}" width="22" class="{{ $stat['color'] }} shrink-0"></iconify-icon>
+                                    <div>
+                                        <span class="block text-lg font-bold text-slate-900 tabular-nums">{{ number_format($maintenanceStats[$stat['key']] ?? 0) }}</span>
+                                        <span class="block text-[11px] text-slate-500 font-medium">{{ $stat['label'] }}</span>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Cache Management Card --}}
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                        <h2 class="text-lg font-bold text-slate-900">{{ __('settings.cache_title') }}</h2>
+                        <p class="text-sm text-slate-500">{{ __('settings.cache_subtitle') }}</p>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        {{-- Clear org cache --}}
+                        <div class="flex items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors flex-col sm:flex-row">
+                            <div class="flex items-start gap-3">
+                                <iconify-icon icon="solar:database-bold-duotone" width="22" class="text-amber-500 mt-0.5 shrink-0"></iconify-icon>
+                                <div>
+                                    <span class="block text-sm font-semibold text-slate-900">{{ __('settings.clear_org_cache') }}</span>
+                                    <span class="block text-xs text-slate-500 mt-0.5 leading-relaxed">{{ __('settings.clear_org_cache_help') }}</span>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                wire:click="clearOrganizationCache"
+                                wire:confirm="{{ __('settings.clear_org_cache') }} ?"
+                                class="shrink-0 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 transition-all"
+                                @disabled(! $canManage)
+                            >
+                                <span wire:loading.remove wire:target="clearOrganizationCache">
+                                    <iconify-icon icon="solar:trash-bin-minimalistic-linear" width="16"></iconify-icon>
+                                    {{ __('settings.clear_org_cache') }}
+                                </span>
+                                <span wire:loading wire:target="clearOrganizationCache">
+                                    <iconify-icon icon="solar:refresh-linear" class="animate-spin" width="16"></iconify-icon>
+                                </span>
+                            </button>
+                        </div>
+
+                        {{-- Clear view cache --}}
+                        <div class="flex items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors flex-col sm:flex-row">
+                            <div class="flex items-start gap-3">
+                                <iconify-icon icon="solar:code-bold-duotone" width="22" class="text-blue-500 mt-0.5 shrink-0"></iconify-icon>
+                                <div>
+                                    <span class="block text-sm font-semibold text-slate-900">{{ __('settings.clear_view_cache') }}</span>
+                                    <span class="block text-xs text-slate-500 mt-0.5 leading-relaxed">{{ __('settings.clear_view_cache_help') }}</span>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                wire:click="clearViewCache"
+                                wire:confirm="{{ __('settings.clear_view_cache') }} ?"
+                                class="shrink-0 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-all"
+                                @disabled(! $canManage)
+                            >
+                                <span wire:loading.remove wire:target="clearViewCache">
+                                    <iconify-icon icon="solar:trash-bin-minimalistic-linear" width="16"></iconify-icon>
+                                    {{ __('settings.clear_view_cache') }}
+                                </span>
+                                <span wire:loading wire:target="clearViewCache">
+                                    <iconify-icon icon="solar:refresh-linear" class="animate-spin" width="16"></iconify-icon>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

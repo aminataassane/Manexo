@@ -24,6 +24,8 @@ class Ticket extends Model
         'assigned_at',
         'assigned_to_function_id',
         'status',
+        'closed_by',
+        'closed_at',
         'subject',
         'description',
         'custom_fields',
@@ -44,6 +46,7 @@ class Ticket extends Model
             'archived_at' => 'datetime',
             'deleted_at' => 'datetime',
             'assigned_at' => 'datetime',
+            'closed_at' => 'datetime',
         ];
     }
 
@@ -86,6 +89,12 @@ class Ticket extends Model
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    /** Qui a clôturé le ticket. */
+    public function closedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
     }
 
     /** Qui a effectué la dernière assignation (audit). */

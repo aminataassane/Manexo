@@ -200,15 +200,18 @@
         @if($checklistTotal > 0)
             <ul class="mt-4 space-y-2">
                 @foreach($checklistItems as $item)
+                    @php
+                        $canToggleThis = ($isStaffOrTicketOwner ?? false) || ($item->assigned_to && (int)$item->assigned_to === ($authUserId ?? 0));
+                    @endphp
                     <li class="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3" x-data="{ editing: false, editTitle: '{{ str_replace("'", "\\'", $item->title) }}' }">
-                        @if($canEditChecklist ?? false)
+                        @if($canToggleThis)
                             <button type="button" wire:click="toggleChecklistItem({{ $item->id }})" class="cursor-pointer mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded border-2 transition-colors {{ $item->is_done ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-slate-300 bg-white text-transparent hover:border-[var(--accent)]' }}">
                                 @if($item->is_done)
                                     <iconify-icon icon="solar:check-read-linear" width="12"></iconify-icon>
                                 @endif
                             </button>
                         @else
-                            <span class="mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded border-2 {{ $item->is_done ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-slate-300 bg-white' }}">
+                            <span class="mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded border-2 {{ $item->is_done ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-slate-300 bg-white' }}" title="{{ __('checklist_items.cannot_toggle') }}">
                                 @if($item->is_done)
                                     <iconify-icon icon="solar:check-read-linear" width="12"></iconify-icon>
                                 @endif
@@ -238,12 +241,24 @@
                             @if($item->assignee)
                                 <div class="mt-0.5 text-[11px] text-slate-500">{{ __('Responsable') }}: {{ $item->assignee->name }}</div>
                             @endif
+                            @if($item->assigned_to_function_id && !$item->assigned_to)
+                                <div class="mt-0.5 flex items-center gap-2">
+                                    <span class="text-[11px] text-amber-600 font-medium">
+                                        {{ $item->assignedToFunction?->name ?? '—' }} — {{ __('checklist_items.to_claim') }}
+                                    </span>
+                                    @if(in_array((int)$item->assigned_to_function_id, $userFunctionIds ?? []))
+                                        <button type="button" wire:click="claimChecklistItem({{ $item->id }})" class="text-[11px] font-bold text-[var(--accent)] hover:underline">
+                                            {{ __('checklist_items.claim') }}
+                                        </button>
+                                    @endif
+                                </div>
+                            @endif
                             @if($item->due_date)
                                 <div class="mt-0.5 text-[11px] text-slate-500">{{ __('Échéance') }}: {{ $item->due_date->translatedFormat('d M Y') }}</div>
                             @endif
                             @if($item->is_done && $item->done_at)
                                 <div class="mt-1 text-[10px] text-slate-400">
-                                    {{ __('Fait par') }} {{ $item->doneByUser?->name ?? '—' }} · {{ $item->done_at->diffForHumans() }}
+                                    {{ __('checklist_items.done_by_at', ['name' => $item->doneByUser?->name ?? '—', 'time' => $item->done_at->format('H:i')]) }}
                                 </div>
                             @endif
                         </div>
@@ -260,18 +275,37 @@
         @endif
         @if($canEditChecklist ?? false)
             @if($showAddChecklistItem ?? false)
-                <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2" x-data="{ assignMode: 'user' }">
                     <input type="text" wire:model="newChecklistTitle" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm @error('newChecklistTitle') border-red-500 @enderror" placeholder="{{ __('Intitulé') }}" />
                     @error('newChecklistTitle')
                         <p class="text-xs text-red-600">{{ $message }}</p>
                     @enderror
+                    {{-- Toggle: Responsable / Fonction --}}
+                    <div class="flex items-center gap-2 text-xs">
+                        <button type="button" @click="assignMode = 'user'; $wire.set('newChecklistAssignedToFunction', null)" :class="assignMode === 'user' ? 'bg-[var(--accent)] text-white' : 'bg-white text-slate-700 border border-slate-200'" class="rounded-lg px-2.5 py-1.5 font-medium transition-colors">
+                            {{ __('Responsable') }}
+                        </button>
+                        <button type="button" @click="assignMode = 'function'; $wire.set('newChecklistAssignedTo', null)" :class="assignMode === 'function' ? 'bg-[var(--accent)] text-white' : 'bg-white text-slate-700 border border-slate-200'" class="rounded-lg px-2.5 py-1.5 font-medium transition-colors">
+                            {{ __('checklist_items.assigned_to_function') }}
+                        </button>
+                    </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <select wire:model="newChecklistAssignedTo" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-                            <option value="">{{ __('— Responsable') }}</option>
-                            @foreach($orgUsers ?? [] as $u)
-                                <option value="{{ (int) optional($u)->id }}">{{ optional($u)->name ?? '—' }}</option>
-                            @endforeach
-                        </select>
+                        <template x-if="assignMode === 'user'">
+                            <select wire:model="newChecklistAssignedTo" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                                <option value="">{{ __('— Responsable') }}</option>
+                                @foreach($orgUsers ?? [] as $u)
+                                    <option value="{{ (int) optional($u)->id }}">{{ optional($u)->name ?? '—' }}</option>
+                                @endforeach
+                            </select>
+                        </template>
+                        <template x-if="assignMode === 'function'">
+                            <select wire:model="newChecklistAssignedToFunction" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                                <option value="">{{ __('— Fonction') }}</option>
+                                @foreach($organizationFunctions ?? [] as $fn)
+                                    <option value="{{ $fn->id }}">{{ $fn->name }}</option>
+                                @endforeach
+                            </select>
+                        </template>
                         <input type="date" wire:model="newChecklistDueDate" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" />
                     </div>
                     <div class="flex gap-2">

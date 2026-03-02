@@ -3,14 +3,20 @@
 namespace App\Livewire\Admin;
 
 use App\Enums\OrganizationRole;
+use App\Enums\Permission;
 use App\Helpers\CacheHelper;
 use App\Models\Organization;
 use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
+use App\Models\OrganizationRolePermission;
+use App\Models\RoleDefinition;
+use App\Models\Form;
+use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -62,24 +68,28 @@ class Settings extends Component
 
     public string $dangerConfirmName = '';
 
+    /** Paramètres formulaires (onglet Formulaires) */
+    public ?int $forms_default_due_days = 7;
+    public bool $forms_notify_on_response = true;
+    public ?int $forms_default_expiry_days = 30;
+
     /** Message de succès après enregistrement (affiché sans redirection). */
     public string $successMessage = '';
+
+    // --- Roles & Permissions
+    /** @var array<string, array<string, bool>> [role => [permission => bool]] */
+    public array $rolePermissions = [];
+    public string $selectedRole = 'admin';
+
+    // --- Role CRUD
+    public string $newRoleName = '';
+    public string $newRoleBaseSlug = '';
+    public ?int $editingRoleId = null;
+    public string $editingRoleName = '';
 
     private function orgId(): int
     {
         return (int) session('current_organization_id');
-    }
-
-    private function currentRole(): string
-    {
-        $user = Auth::user();
-        $orgId = $this->orgId();
-
-        if (! $user instanceof \App\Models\User || ! $orgId) {
-            return OrganizationRole::Member->value;
-        }
-
-        return (string) ($user->organizations()->whereKey($orgId)->first()?->pivot?->role ?? OrganizationRole::Member->value);
     }
 
     private function orgOrFail(): Organization
@@ -97,9 +107,17 @@ class Settings extends Component
     {
         $org = $this->orgOrFail();
 
-        $role = $this->currentRole();
-        $this->canManage = in_array($role, [OrganizationRole::Owner->value, OrganizationRole::Admin->value], true);
-        $this->isOwner = $role === OrganizationRole::Owner->value;
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $this->canManage = $user->hasAnyPermission([
+            Permission::SettingsManageBranding,
+            Permission::SettingsManageCategories,
+            Permission::SettingsManagePriorities,
+            Permission::SettingsManageFunctions,
+            Permission::SettingsManageForms,
+            Permission::SettingsManageRoles,
+        ]);
+        $this->isOwner = $user->hasPermission(Permission::SettingsDeleteOrg);
 
         $this->name = (string) $org->name;
         $this->slug = (string) $org->slug;
@@ -119,6 +137,178 @@ class Settings extends Component
             : null;
         $this->members_can_edit = (bool) ($settings['permissions']['members_can_edit'] ?? true);
         $this->members_can_delete = (bool) ($settings['permissions']['members_can_delete'] ?? false);
+
+        $forms = $settings['forms'] ?? [];
+        $this->forms_default_due_days = isset($forms['default_due_days']) ? (int) $forms['default_due_days'] : 7;
+        $this->forms_notify_on_response = (bool) ($forms['notify_on_response'] ?? true);
+        $this->forms_default_expiry_days = isset($forms['default_expiry_days']) ? (int) $forms['default_expiry_days'] : 30;
+
+        $this->loadRolePermissions();
+    }
+
+    public function loadRolePermissions(): void
+    {
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            return;
+        }
+
+        $existing = OrganizationRolePermission::query()
+            ->where('organization_id', $orgId)
+            ->get()
+            ->groupBy('role')
+            ->map(fn ($rows) => $rows->pluck('permission')->flip()->map(fn () => true)->all())
+            ->all();
+
+        $allPermissions = array_map(fn (Permission $p) => $p->value, Permission::cases());
+
+        $roleSlugs = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->pluck('slug');
+
+        $this->rolePermissions = [];
+        foreach ($roleSlugs as $slug) {
+            $granted = $existing[$slug] ?? [];
+            $this->rolePermissions[$slug] = [];
+            foreach ($allPermissions as $perm) {
+                $this->rolePermissions[$slug][$perm] = isset($granted[$perm]);
+            }
+        }
+
+        // Ensure selectedRole is valid
+        if (! isset($this->rolePermissions[$this->selectedRole]) && $roleSlugs->isNotEmpty()) {
+            $this->selectedRole = $roleSlugs->contains('admin') ? 'admin' : $roleSlugs->first();
+        }
+    }
+
+    public function selectRoleTab(string $role): void
+    {
+        $orgId = $this->orgId();
+        $allowed = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->pluck('slug')
+            ->all();
+
+        if (in_array($role, $allowed, true)) {
+            $this->selectedRole = $role;
+        }
+    }
+
+    /** Bascule une permission pour un rôle (évite wire:model avec clés contenant un point). */
+    public function toggleRolePermission(string $role, string $permission): void
+    {
+        if ($role === 'owner') {
+            return;
+        }
+        $allValid = array_map(fn (Permission $p) => $p->value, Permission::cases());
+        if (! in_array($permission, $allValid, true)) {
+            return;
+        }
+        if (! isset($this->rolePermissions[$role])) {
+            $this->rolePermissions[$role] = [];
+        }
+        $current = $this->rolePermissions[$role][$permission] ?? false;
+        $this->rolePermissions[$role][$permission] = ! $current;
+    }
+
+    public function saveRolePermissions(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageRoles)) {
+            $this->addError('rolePermissions', __('Acces refuse.'));
+            return;
+        }
+
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            return;
+        }
+
+        $role = $this->selectedRole;
+
+        // Owner permissions cannot be changed
+        if ($role === 'owner') {
+            return;
+        }
+
+        $allValid = array_map(fn (Permission $p) => $p->value, Permission::cases());
+        $granted = [];
+        foreach ($this->rolePermissions[$role] ?? [] as $perm => $enabled) {
+            if ($enabled && in_array($perm, $allValid, true)) {
+                $granted[] = $perm;
+            }
+        }
+
+        // Delete all existing permissions for this org+role, then insert new ones
+        OrganizationRolePermission::query()
+            ->where('organization_id', $orgId)
+            ->where('role', $role)
+            ->delete();
+
+        $now = now();
+        $rows = array_map(fn (string $p) => [
+            'organization_id' => $orgId,
+            'role' => $role,
+            'permission' => $p,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $granted);
+
+        if (! empty($rows)) {
+            OrganizationRolePermission::query()->insert($rows);
+        }
+
+        CacheHelper::invalidateRolePermissions($orgId);
+        $this->dispatch('toast', type: 'success', message: __('settings.permissions_saved'));
+    }
+
+    /** Enregistre les permissions de tous les rôles (sauf owner) en une fois. */
+    public function saveAllRolePermissions(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageRoles)) {
+            $this->addError('rolePermissions', __('Acces refuse.'));
+            return;
+        }
+
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            return;
+        }
+
+        $allValid = array_map(fn (Permission $p) => $p->value, Permission::cases());
+
+        foreach ($this->rolePermissions as $role => $perms) {
+            if ($role === 'owner') {
+                continue;
+            }
+            $granted = [];
+            foreach ($perms ?? [] as $perm => $enabled) {
+                if ($enabled && in_array($perm, $allValid, true)) {
+                    $granted[] = $perm;
+                }
+            }
+            OrganizationRolePermission::query()
+                ->where('organization_id', $orgId)
+                ->where('role', $role)
+                ->delete();
+            $now = now();
+            $rows = array_map(fn (string $p) => [
+                'organization_id' => $orgId,
+                'role' => $role,
+                'permission' => $p,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $granted);
+            if (! empty($rows)) {
+                OrganizationRolePermission::query()->insert($rows);
+            }
+        }
+
+        CacheHelper::invalidateRolePermissions($orgId);
+        $this->dispatch('toast', type: 'success', message: __('settings.permissions_saved'));
     }
 
     public function updatedName(string $value): void
@@ -311,6 +501,36 @@ class Settings extends Component
 
         CacheHelper::invalidateAll($this->orgId());
         $this->successMessage = __('Paramètres mis à jour.');
+    }
+
+    public function saveFormsSettings(): void
+    {
+        if (! $this->canManage) {
+            $this->addError('canManage', __('Accès refusé.'));
+            return;
+        }
+
+        $validated = $this->validate([
+            'forms_default_due_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+            'forms_notify_on_response' => ['boolean'],
+            'forms_default_expiry_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        $org = $this->orgOrFail();
+        $settings = is_array($org->settings) ? $org->settings : [];
+        $settings['forms'] = [
+            'default_due_days' => $validated['forms_default_due_days'] ?? null,
+            'notify_on_response' => (bool) ($validated['forms_notify_on_response'] ?? true),
+            'default_expiry_days' => $validated['forms_default_expiry_days'] ?? null,
+        ];
+        $org->update(['settings' => $settings]);
+
+        $this->forms_default_due_days = $validated['forms_default_due_days'] ?? null;
+        $this->forms_notify_on_response = (bool) ($validated['forms_notify_on_response'] ?? true);
+        $this->forms_default_expiry_days = $validated['forms_default_expiry_days'] ?? null;
+
+        CacheHelper::invalidateAll($this->orgId());
+        $this->dispatch('toast', type: 'success', message: __('settings.forms_settings_saved'));
     }
 
     public function removeLogo(): void
@@ -651,6 +871,199 @@ class Settings extends Component
         $this->dispatch('toast', type: 'success', message: 'Priorité supprimée.');
     }
 
+    // ─── Role CRUD ────────────────────────────────────────────────
+
+    public function createRole(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $this->validate([
+            'newRoleName' => ['required', 'string', 'max:80'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $slug = Str::slug($this->newRoleName);
+        if ($slug === '') {
+            $slug = 'role-' . Str::lower(Str::random(6));
+        }
+
+        $baseSlug = $slug;
+        $suffix = 2;
+        while (RoleDefinition::query()->where('organization_id', $orgId)->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $suffix;
+            $suffix++;
+        }
+
+        RoleDefinition::query()->create([
+            'organization_id' => $orgId,
+            'name' => trim($this->newRoleName),
+            'slug' => $slug,
+            'is_default' => false,
+        ]);
+
+        // Clone permissions from base role if specified
+        if ($this->newRoleBaseSlug !== '') {
+            $basePerms = OrganizationRolePermission::query()
+                ->where('organization_id', $orgId)
+                ->where('role', $this->newRoleBaseSlug)
+                ->pluck('permission');
+
+            $now = now();
+            $rows = $basePerms->map(fn (string $p) => [
+                'organization_id' => $orgId,
+                'role' => $slug,
+                'permission' => $p,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])->all();
+
+            if (! empty($rows)) {
+                OrganizationRolePermission::query()->insert($rows);
+            }
+        }
+
+        $this->newRoleName = '';
+        $this->newRoleBaseSlug = '';
+        $this->loadRolePermissions();
+        CacheHelper::invalidateRolePermissions($orgId);
+        $this->dispatch('toast', type: 'success', message: __('settings.role_created'));
+    }
+
+    public function startEditRole(int $id): void
+    {
+        $orgId = $this->orgId();
+        $role = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $this->editingRoleId = (int) $role->id;
+        $this->editingRoleName = (string) $role->name;
+    }
+
+    public function cancelEditRole(): void
+    {
+        $this->editingRoleId = null;
+        $this->editingRoleName = '';
+    }
+
+    public function updateRoleName(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $this->validate([
+            'editingRoleName' => ['required', 'string', 'max:80'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->editingRoleId, 403);
+
+        $role = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->whereKey((int) $this->editingRoleId)
+            ->firstOrFail();
+
+        if ($role->is_default) {
+            // Default roles: only rename display name, keep slug
+            $role->update(['name' => trim($this->editingRoleName)]);
+        } else {
+            // Custom roles: rename name + slug + update memberships.role and permissions.role
+            $newSlug = Str::slug($this->editingRoleName);
+            if ($newSlug === '') {
+                $newSlug = 'role-' . Str::lower(Str::random(6));
+            }
+
+            $baseSlug = $newSlug;
+            $suffix = 2;
+            while (
+                RoleDefinition::query()
+                    ->where('organization_id', $orgId)
+                    ->where('slug', $newSlug)
+                    ->where('id', '!=', $role->id)
+                    ->exists()
+            ) {
+                $newSlug = $baseSlug . '-' . $suffix;
+                $suffix++;
+            }
+
+            $oldSlug = $role->slug;
+
+            DB::transaction(function () use ($role, $orgId, $oldSlug, $newSlug) {
+                $role->update([
+                    'name' => trim($this->editingRoleName),
+                    'slug' => $newSlug,
+                ]);
+
+                OrganizationMembership::query()
+                    ->where('organization_id', $orgId)
+                    ->where('role', $oldSlug)
+                    ->update(['role' => $newSlug]);
+
+                OrganizationRolePermission::query()
+                    ->where('organization_id', $orgId)
+                    ->where('role', $oldSlug)
+                    ->update(['role' => $newSlug]);
+            });
+
+            // Update selectedRole if it was the renamed one
+            if ($this->selectedRole === $oldSlug) {
+                $this->selectedRole = $newSlug;
+            }
+        }
+
+        $this->editingRoleId = null;
+        $this->editingRoleName = '';
+        $this->loadRolePermissions();
+        CacheHelper::invalidateRolePermissions($orgId);
+        $this->dispatch('toast', type: 'success', message: __('settings.role_updated'));
+    }
+
+    public function deleteRole(int $id): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        $role = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        if ($role->is_default) {
+            $this->dispatch('toast', type: 'error', message: __('settings.role_cannot_delete_default'));
+            return;
+        }
+
+        if ($role->memberCount() > 0) {
+            $this->dispatch('toast', type: 'error', message: __('settings.role_cannot_delete_members'));
+            return;
+        }
+
+        $deletedSlug = $role->slug;
+
+        OrganizationRolePermission::query()
+            ->where('organization_id', $orgId)
+            ->where('role', $deletedSlug)
+            ->delete();
+
+        $role->delete();
+
+        if ($this->selectedRole === $deletedSlug) {
+            $this->selectedRole = 'admin';
+        }
+
+        $this->loadRolePermissions();
+        CacheHelper::invalidateRolePermissions($orgId);
+        $this->dispatch('toast', type: 'success', message: __('settings.role_deleted'));
+    }
+
     public function render()
     {
         $orgId = $this->orgId();
@@ -693,13 +1106,89 @@ class Settings extends Component
             })
             : collect();
 
+        $roles = $orgId
+            ? RoleDefinition::query()
+                ->where('organization_id', $orgId)
+                ->orderByRaw("case slug when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 when 'member' then 3 else 4 end")
+                ->get()
+            : collect();
+
+        $roleMemberCounts = [];
+        if ($orgId) {
+            $counts = OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->selectRaw('role, count(*) as cnt')
+                ->groupBy('role')
+                ->pluck('cnt', 'role');
+            foreach ($roles as $r) {
+                $roleMemberCounts[$r->slug] = (int) ($counts[$r->slug] ?? 0);
+            }
+        }
+
+        $maintenanceStats = $orgId ? [
+            'members' => $members->count(),
+            'tickets' => Ticket::query()->where('organization_id', $orgId)->count(),
+            'forms' => Form::query()->where('organization_id', $orgId)->count(),
+            'categories' => $categories->count(),
+            'priorities' => $priorities->count(),
+            'roles' => $roles->count(),
+        ] : [];
+
         return view('livewire.admin.settings', [
             'org' => $org,
             'categories' => $categories,
             'priorities' => $priorities,
             'organizationFunctions' => $organizationFunctions,
             'members' => $members,
+            'roles' => $roles,
+            'roleMemberCounts' => $roleMemberCounts,
+            'maintenanceStats' => $maintenanceStats,
         ]);
+    }
+
+    // ─── Maintenance ──────────────────────────────────────────────────
+
+    public function clearOrganizationCache(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageBranding)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+            return;
+        }
+
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            return;
+        }
+
+        CacheHelper::invalidateAll($orgId);
+
+        // Also invalidate per-user caches for all members
+        $memberIds = OrganizationMembership::query()
+            ->where('organization_id', $orgId)
+            ->pluck('user_id');
+
+        foreach ($memberIds as $userId) {
+            CacheHelper::invalidateNotificationsCount((int) $userId);
+            CacheHelper::invalidateSidebarDiscussionsUnread((int) $userId);
+            CacheHelper::invalidatePendingForms($orgId, (int) $userId);
+        }
+
+        $this->dispatch('toast', type: 'success', message: __('settings.cache_cleared'));
+    }
+
+    public function clearViewCache(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageBranding)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+            return;
+        }
+
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        $this->dispatch('toast', type: 'success', message: __('settings.view_cache_cleared'));
     }
 
     // ─── Function (fonction métier) CRUD ───────────────────────────────────

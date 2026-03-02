@@ -3,8 +3,11 @@
 namespace App\Livewire\UserForms;
 
 use App\Enums\FormStatus;
+use App\Events\UserNotificationReceived;
 use App\Models\Form;
 use App\Models\FormResponse;
+use App\Models\User;
+use App\Notifications\FormResponseNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -157,6 +160,27 @@ class FillTeam extends Component
                 ];
             }
             $response->update(['responses' => $updatedResponses]);
+        }
+
+        // Notify admins/owners of the organization
+        $admins = User::query()
+            ->whereHas('organizationMemberships', function ($q) use ($orgId) {
+                $q->where('organization_id', $orgId)
+                    ->whereIn('role', ['owner', 'admin']);
+            })
+            ->where('id', '!=', $user->id)
+            ->get();
+
+        foreach ($admins as $admin) {
+            $admin->notify(new FormResponseNotification(
+                formId: $this->form->id,
+                formName: $this->form->name,
+                responseId: $response->id,
+                responderId: $user->id,
+                responderName: $user->name,
+                source: 'team',
+            ));
+            event(new UserNotificationReceived(userId: (int) $admin->id, notificationType: 'form_response'));
         }
 
         session()->flash('form_success', __('pages.forms.response_saved'));

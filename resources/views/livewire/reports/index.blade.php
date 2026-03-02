@@ -12,22 +12,22 @@
     $perfCount = count($performanceSeries);
 @endphp
 
-<div class="mx-auto w-full max-w-7xl 2xl:max-w-[90rem] min-[1920px]:max-w-[110rem] py-8 px-4 sm:px-6 lg:px-8">
-    <!-- HEADER -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('reports.title') }}</h1>
-            <p class="mt-1 text-sm text-slate-500">{{ __('reports.subtitle') }}</p>
+<div class="w-full max-w-full min-w-0 mx-auto">
+    <!-- HEADER : titre à gauche, période + filtres à droite (convention Tickets / Task report) -->
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+        <div class="min-w-0">
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl lg:text-3xl min-[1920px]:text-4xl">{{ __('reports.title') }}</h1>
+            <p class="mt-1 text-xs sm:text-sm text-slate-500">{{ __('reports.subtitle') }}</p>
         </div>
-        <div class="flex items-center gap-3">
-            <div class="hidden sm:flex items-center bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
-                <button wire:click="$set('period', 'default')" type="button" class="px-3 py-1 text-xs font-medium rounded-md transition-colors {{ ($period ?? 'default') === 'default' ? 'text-slate-900 bg-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">{{ __('reports.view_default') }}</button>
-                <button wire:click="$set('period', 'monthly')" type="button" class="px-3 py-1 text-xs font-medium rounded-md transition-colors {{ ($period ?? '') === 'monthly' ? 'text-slate-900 bg-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">{{ __('reports.monthly') }}</button>
-                <button wire:click="$set('period', 'yearly')" type="button" class="px-3 py-1 text-xs font-medium rounded-md transition-colors {{ ($period ?? '') === 'yearly' ? 'text-slate-900 bg-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-900' }}">{{ __('reports.yearly') }}</button>
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+            <div class="inline-flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm flex-shrink-0">
+                <button wire:click="$set('period', 'default')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ ($period ?? 'default') === 'default' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('reports.view_default') }}</button>
+                <button wire:click="$set('period', 'monthly')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ ($period ?? '') === 'monthly' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('reports.monthly') }}</button>
+                <button wire:click="$set('period', 'yearly')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ ($period ?? '') === 'yearly' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('reports.yearly') }}</button>
             </div>
-            <x-dropdown align="right" width="56" contentClasses="py-1 bg-white rounded-lg shadow-xl border border-slate-200">
+            <x-dropdown align="right" width="56" contentClasses="py-1 bg-white rounded-xl shadow-xl border border-slate-200">
                 <x-slot name="trigger">
-                    <button type="button" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                    <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
                         <iconify-icon icon="solar:filter-linear" width="18"></iconify-icon>
                         {{ __('reports.filters') }}
                     </button>

@@ -9,6 +9,11 @@ return [
     'archived' => 'Archivé',
     'draft' => 'Brouillon',
     'editor_title' => 'Éditeur de formulaire',
+    'page_subtitle' => 'Créez et modifiez vos formulaires, assignez-les à des utilisateurs ou des fonctions.',
+    'stat_forms' => 'Formulaires',
+    'stat_published' => 'Publiés',
+    'stat_pending_assignments' => 'En attente',
+    'stat_responses' => 'Réponses',
     'publish' => 'Publier',
     'duplicate' => 'Dupliquer',
     'save' => 'Sauvegarder',
@@ -204,4 +209,14 @@ return [
     'display_mode_grid' => 'Grille',
     'display_mode_card' => 'Cartes',
     'display_mode_help' => 'Comment afficher les options dans le formulaire.',
+
+    // Notifications
+    'notif_response_public' => 'Nouvelle réponse publique',
+    'notif_response_team' => 'Nouvelle réponse d\'équipe',
+    'notif_response_assignment' => 'A soumis une réponse',
+
+    // Expiration
+    'expired' => 'Expiré',
+    'assign_expires_at' => 'Date d\'expiration',
+    'assign_expires_at_help' => 'Après cette date, la soumission sera impossible.',
 ];

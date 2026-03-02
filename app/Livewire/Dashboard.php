@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Enums\FormAssignmentStatus;
+use App\Enums\Permission;
 use App\Enums\TicketMessageType;
 use App\Models\DiscussionMessage;
 use App\Models\DiscussionThread;
@@ -64,7 +65,13 @@ class Dashboard extends Component
     #[Computed]
     public function isAdminView(): bool
     {
-        return in_array($this->role, ['owner', 'admin'], true);
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        return $user && $user->hasAnyPermission([
+            Permission::TicketsViewAll,
+            Permission::ReportsView,
+            Permission::TeamInvite,
+        ]);
     }
 
     #[Computed]

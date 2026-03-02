@@ -299,8 +299,12 @@
                                                 $pct = $prog && (int) $prog->total > 0 ? (int) round(100 * (int) $prog->done / (int) $prog->total) : null;
                                             @endphp
                                             <div
+                                                x-data="{ dragging: false }"
                                                 class="rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:shadow-md hover:border-[var(--accent-soft)] transition-all cursor-grab active:cursor-grabbing group"
                                                 draggable="true"
+                                                @mousedown="dragging = false"
+                                                @mousemove="dragging = true"
+                                                @click="if (!dragging) Livewire.navigate('{{ route('tickets.discussion', $t->id) }}')"
                                                 @dragstart="dragId = {{ (int) $t->id }}"
                                                 @dragend="dragId = null"
                                             >

@@ -16,6 +16,7 @@ class FormAssignment extends Model
         'assigned_by',
         'status',
         'due_date',
+        'expires_at',
         'submitted_at',
         'form_version',
     ];
@@ -25,9 +26,35 @@ class FormAssignment extends Model
         return [
             'status' => FormAssignmentStatus::class,
             'due_date' => 'date',
+            'expires_at' => 'datetime',
             'submitted_at' => 'datetime',
             'form_version' => 'int',
         ];
+    }
+
+    public function computedStatus(): FormAssignmentStatus
+    {
+        if ($this->submitted_at !== null) {
+            return FormAssignmentStatus::Submitted;
+        }
+        if ($this->expires_at !== null && now()->gt($this->expires_at)) {
+            return FormAssignmentStatus::Expired;
+        }
+        if ($this->due_date !== null && now()->startOfDay()->gt($this->due_date)) {
+            return FormAssignmentStatus::Overdue;
+        }
+
+        return FormAssignmentStatus::Pending;
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at !== null && now()->gt($this->expires_at);
+    }
+
+    public function isOverdue(): bool
+    {
+        return $this->due_date !== null && now()->startOfDay()->gt($this->due_date);
     }
 
     public function form(): BelongsTo

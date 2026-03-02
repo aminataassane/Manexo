@@ -1,7 +1,7 @@
-<div class="relative" x-data="{ open: @entangle('open') }" @click.outside="open = false" wire:poll.120s>
+<div class="relative" x-data="{ open: false }" @click.outside="open = false">
     <button
         type="button"
-        wire:click="toggle"
+        @click="open = !open; if (open) $wire.loadNotifications()"
         class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
         title="{{ __('Notifications') }}"
     >
@@ -78,7 +78,11 @@
                         } elseif ($nType === 'form_response') {
                             $senderName = $data['responder_name'] ?? '—';
                             $subject = $data['form_name'] ?? __('Formulaire');
-                            $excerpt = __('A soumis une réponse');
+                            $excerpt = match ($data['source'] ?? 'assignment') {
+                                'public' => __('forms_builder.notif_response_public'),
+                                'team' => __('forms_builder.notif_response_team'),
+                                default => __('forms_builder.notif_response_assignment'),
+                            };
                             $isFormResponse = true;
                             $formId = $data['form_id'] ?? null;
                             $notifUrl = $formId ? route('admin.forms.responses', $formId) : '#';
@@ -92,6 +96,11 @@
                             $isFormOverdue = true;
                             $assignmentId = $data['assignment_id'] ?? null;
                             $notifUrl = $assignmentId ? route('forms.fill', $assignmentId) : route('forms.index');
+                        } elseif ($nType === 'task_report_shared') {
+                            $senderName = $data['sender_name'] ?? '—';
+                            $subject = __('task_report.shared_report_title');
+                            $excerpt = __('task_report.shared_by', ['name' => $senderName]);
+                            $notifUrl = $data['report_url'] ?? '#';
                         } elseif ($nType === 'ticket_assignee') {
                             $senderName = $data['assigner_name'] ?? '—';
                             $action = $data['action'] ?? 'assigned';
@@ -146,14 +155,17 @@
                     @endphp
                     <a
                         href="{{ $notifUrl }}"
-                        wire:navigate
                         wire:click="markAsRead('{{ $notification->id }}')"
                         @click="open = false"
                         class="group block border-b border-slate-50 px-4 py-3.5 transition-all hover:bg-slate-50 {{ $isRead ? 'opacity-60 hover:opacity-100' : 'bg-white' }}"
                     >
                         <div class="flex gap-3.5">
                             <div class="relative mt-1 shrink-0">
-                                @if($isFormAssignment)
+                                @if($nType === 'task_report_shared')
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                                        <iconify-icon icon="solar:checklist-bold-duotone" width="18"></iconify-icon>
+                                    </div>
+                                @elseif($isFormAssignment)
                                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100">
                                         <iconify-icon icon="solar:clipboard-add-bold-duotone" width="18"></iconify-icon>
                                     </div>
@@ -204,7 +216,9 @@
                                 </div>
 
                                 <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
-                                    @if($isFormAssignment)
+                                    @if($nType === 'task_report_shared')
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">{{ __('Rapport') }}</span>
+                                    @elseif($isFormAssignment)
                                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">{{ __('Formulaire') }}</span>
                                     @elseif($isFormResponse)
                                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-teal-50 text-teal-700 border border-teal-100">{{ __('Réponse') }}</span>
@@ -247,7 +261,7 @@
             
             @if($this->notifications->count() > 0)
                 <div class="border-t border-slate-100 bg-slate-50 p-2 text-center">
-                    <a href="#" class="block w-full rounded-lg py-2 text-xs font-medium text-slate-600 hover:bg-white hover:text-[var(--accent)] hover:shadow-sm transition-all">
+                    <a href="{{ route('notifications.index') }}" @click="open = false" class="block w-full rounded-lg py-2 text-xs font-medium text-slate-600 hover:bg-white hover:text-[var(--accent)] hover:shadow-sm transition-all">
                         {{ __('Voir tout l\'historique') }}
                     </a>
                 </div>

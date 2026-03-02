@@ -3,8 +3,10 @@
 namespace App\Livewire\Admin;
 
 use App\Enums\OrganizationRole;
+use App\Enums\Permission;
 use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
+use App\Models\RoleDefinition;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
@@ -60,14 +62,11 @@ class Users extends Component
         return (string) ($user->organizations()->whereKey($orgId)->first()?->pivot?->role ?? OrganizationRole::Member->value);
     }
 
-    private function canManage(): bool
-    {
-        return in_array($this->currentRole(), [OrganizationRole::Owner->value, OrganizationRole::Admin->value], true);
-    }
-
     public function openInviteModal(): void
     {
-        if (! $this->canManage()) {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::TeamInvite)) {
             abort(403);
         }
 
@@ -85,14 +84,19 @@ class Users extends Component
 
     public function sendInvite(): void
     {
-        if (! $this->canManage()) {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::TeamInvite)) {
             abort(403);
         }
 
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
 
-        $allowedRoles = array_map(fn($r) => $r->value, OrganizationRole::cases());
+        $allowedRoles = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->pluck('slug')
+            ->all();
 
         $validated = $this->validate([
             'inviteEmail' => ['required', 'email', 'max:255'],
@@ -142,7 +146,9 @@ class Users extends Component
 
     public function updateRole(int $membershipId, string $newRole): void
     {
-        if (! $this->canManage()) {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::TeamEditRole)) {
             abort(403);
         }
 
@@ -151,7 +157,10 @@ class Users extends Component
             abort(403);
         }
 
-        $allowed = array_map(fn($r) => $r->value, OrganizationRole::cases());
+        $allowed = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->pluck('slug')
+            ->all();
         if (! in_array($newRole, $allowed, true)) {
             return;
         }
@@ -185,7 +194,9 @@ class Users extends Component
 
     public function removeMember(int $membershipId): void
     {
-        if (! $this->canManage()) {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::TeamRemove)) {
             abort(403);
         }
 
@@ -233,8 +244,8 @@ class Users extends Component
 
         $currentRole = $this->currentRole();
 
-        // Restrict access to owner/admin
-        if (! in_array($currentRole, [OrganizationRole::Owner->value, OrganizationRole::Admin->value], true)) {
+        // Restrict access to users with team permissions
+        if (! $user->hasAnyPermission([Permission::TeamInvite, Permission::TeamEditRole, Permission::TeamRemove])) {
             abort(403);
         }
 
@@ -278,17 +289,25 @@ class Users extends Component
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $roles = RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->orderByRaw("case slug when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 when 'member' then 3 else 4 end")
+            ->get();
+
         return view('livewire.admin.users', [
             'memberships' => $memberships,
             'stats' => $stats,
             'currentRole' => $currentRole,
             'organizationFunctions' => $organizationFunctions,
+            'roles' => $roles,
         ]);
     }
 
     public function updateFunction(int $membershipId, ?string $functionId): void
     {
-        if (! $this->canManage()) {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::TeamEditRole)) {
             abort(403);
         }
         $orgId = $this->orgId();

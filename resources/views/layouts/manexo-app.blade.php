@@ -37,6 +37,25 @@
 
         /* Organization accent color */
         ::selection { background: var(--accent-soft); color: var(--accent); }
+
+        /* ─── Print: hide shell UI, full-width content ─── */
+        @media print {
+            body { overflow: visible !important; height: auto !important; display: block !important; }
+            aside, header, #livewire-loading-bar,
+            .fixed.inset-0,                 /* mobile overlay */
+            .pointer-events-none.fixed      /* bg safety layer */
+            { display: none !important; }
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                position: static !important;
+            }
+            .page-content-safe {
+                overflow: visible !important;
+                padding: 10px !important;
+            }
+        }
     </style>
 </head>
 @php
