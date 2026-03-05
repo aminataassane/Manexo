@@ -78,6 +78,46 @@
     x-effect="localStorage.setItem('manexo_sidebar', sidebarOpen)"
 >
 
+    <!-- Support Session Banner -->
+    @if (isset($activeSupportSession) && $activeSupportSession)
+        <div
+            class="fixed top-0 left-0 right-0 z-[60] bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium shadow-lg"
+            x-data="{
+                expiresAt: new Date('{{ $activeSupportSession->expires_at->toIso8601String() }}').getTime(),
+                remaining: '',
+                expired: false,
+                init() {
+                    this.tick();
+                    setInterval(() => this.tick(), 1000);
+                },
+                tick() {
+                    const diff = this.expiresAt - Date.now();
+                    if (diff <= 0) {
+                        this.expired = true;
+                        this.remaining = '0:00';
+                        window.location.href = '{{ route('platform-admin.support-sessions') }}';
+                        return;
+                    }
+                    const mins = Math.floor(diff / 60000);
+                    const secs = Math.floor((diff % 60000) / 1000);
+                    this.remaining = mins + ':' + String(secs).padStart(2, '0');
+                }
+            }"
+        >
+            <div class="flex items-center justify-center gap-3">
+                <iconify-icon icon="solar:headphones-round-bold" width="16"></iconify-icon>
+                <span>
+                    {{ __('super_admin.support.active_banner_org', ['org' => $activeSupportSession->organization?->name]) }}
+                    —
+                    <span x-text="remaining"></span>
+                </span>
+                <a href="{{ route('platform-admin.support-sessions') }}" class="ml-2 rounded-lg bg-white/20 px-3 py-1 text-xs font-semibold hover:bg-white/30 transition-colors">
+                    {{ __('super_admin.support.end') }}
+                </a>
+            </div>
+        </div>
+    @endif
+
     <!-- Safety: ensure main app background is never tinted by branding -->
     <div class="pointer-events-none fixed inset-0 -z-10 bg-slate-50"></div>
 
@@ -92,7 +132,7 @@
 
     <!-- MAIN CONTENT: pt = hauteur du header (topbar) pour que le contenu reste sous le topbar -->
         <main
-            class="flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pt-14 sm:pt-16 md:pl-[72px] xl:pl-[80px]"
+            class="flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] {{ isset($activeSupportSession) && $activeSupportSession ? 'pt-24 sm:pt-[6.5rem]' : 'pt-14 sm:pt-16' }} md:pl-[72px] xl:pl-[80px]"
         :class="sidebarOpen ? 'md:!pl-[240px] xl:!pl-[260px]' : ''"
     >
         <!-- PAGE BODY (scrollable) : padding horizontal pour ne pas coller au dashboard / bords -->

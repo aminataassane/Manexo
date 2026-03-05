@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use App\Enums\FormAssignmentStatus;
 use App\Enums\FormStatus;
 use App\Enums\Permission;
+use App\Services\OrganizationAuditService;
 use App\Events\UserNotificationReceived;
 use App\Helpers\CacheHelper;
 use App\Models\Form;
@@ -284,6 +285,14 @@ class FormBuilder extends Component
         $form->update(['status' => FormStatus::Published]);
         $this->fb_selected_form_status = FormStatus::Published->value;
         CacheHelper::invalidateForms($orgId);
+
+        OrganizationAuditService::log(
+            'form.published',
+            'form',
+            (int) $form->id,
+            ['name' => $form->name],
+        );
+
         $this->dispatch('toast', type: 'success', message: 'Formulaire publié.');
     }
 
@@ -490,6 +499,14 @@ class FormBuilder extends Component
         $this->loadSelectedForm();
         $this->fb_form_name = '';
         CacheHelper::invalidateForms($orgId);
+
+        OrganizationAuditService::log(
+            'form.created',
+            'form',
+            (int) $form->id,
+            ['name' => $form->name],
+        );
+
         $this->dispatch('toast', type: 'success', message: 'Formulaire créé.');
     }
 
@@ -547,12 +564,22 @@ class FormBuilder extends Component
         }
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
+        $form = Form::query()->forOrg($orgId)->whereKey($formId)->first();
+        $formName = $form?->name;
         Form::query()->forOrg($orgId)->whereKey($formId)->delete();
         if ($this->fb_selected_form_id === $formId) {
             $this->fb_selected_form_id = Form::query()->forOrg($orgId)->orderBy('name')->value('id');
             $this->loadSelectedForm();
         }
         CacheHelper::invalidateForms($orgId);
+
+        OrganizationAuditService::log(
+            'form.deleted',
+            'form',
+            $formId,
+            ['name' => $formName],
+        );
+
         $this->dispatch('toast', type: 'success', message: 'Formulaire supprimé.');
     }
 
@@ -668,6 +695,7 @@ class FormBuilder extends Component
                     assignedById: $user->id,
                     assignedByName: $user->name,
                     dueDate: $validated['assign_due_date'],
+                    assignmentPublicId: $assignment->public_id,
                 ));
                 event(new UserNotificationReceived(userId: $target->id, notificationType: 'form_assignment'));
             }
@@ -690,6 +718,7 @@ class FormBuilder extends Component
                         assignedById: $user->id,
                         assignedByName: $user->name,
                         dueDate: $validated['assign_due_date'],
+                        assignmentPublicId: $assignment->public_id,
                     ));
                     event(new UserNotificationReceived(userId: (int) $memberId, notificationType: 'form_assignment'));
                 }
@@ -758,7 +787,7 @@ class FormBuilder extends Component
                 ->forOrg($orgId)
                 ->with(['category:id,name', 'targetUser:id,name,email'])
                 ->orderBy('name')
-                ->get(['id', 'name', 'description', 'status', 'ticket_category_id', 'target_user_id', 'slug', 'current_version']);
+                ->get(['id', 'public_id', 'name', 'description', 'status', 'ticket_category_id', 'target_user_id', 'slug', 'current_version']);
         }) : collect();
 
         $selectedForm = null;

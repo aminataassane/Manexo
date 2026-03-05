@@ -175,7 +175,7 @@
                         </div>
                         <div class="min-w-0 flex-1">
                             @if(!in_array($aStatus, ['submitted', 'expired']))
-                                <a href="{{ route('forms.fill', $a->id) }}" class="group block">
+                                <a href="{{ route('forms.fill', $a) }}" class="group block">
                             @endif
                             <h3 class="text-sm sm:text-base font-bold text-slate-900 truncate {{ !in_array($aStatus, ['submitted', 'expired']) ? 'group-hover:text-[var(--accent)] transition-colors' : '' }}">{{ $a->form?->name ?? '—' }}</h3>
                             <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
@@ -207,7 +207,7 @@
                             {{ $aBadge['label'] }}
                         </span>
                         @if(!in_array($aStatus, ['submitted', 'expired']))
-                            <a href="{{ route('forms.fill', $a->id) }}"
+                            <a href="{{ route('forms.fill', $a) }}"
                                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 text-xs font-bold text-white rounded-xl shadow-sm hover:opacity-90 transition-all touch-manipulation min-h-[40px] sm:min-h-0"
                                style="background-color: var(--accent);">
                                 <iconify-icon icon="solar:pen-bold" width="14"></iconify-icon>

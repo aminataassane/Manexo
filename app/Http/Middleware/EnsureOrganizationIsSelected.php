@@ -2,6 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\SupportSession;
+use App\Services\SuperAdminAuditService;
+use App\Services\SupportSessionService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -33,11 +36,42 @@ class EnsureOrganizationIsSelected
             return $next($request);
         }
 
+        // Check support session for platform admins (super_admin + platform_admin)
+        if ($user->canPlatformManage()) {
+            $supportSessionId = $request->session()->get('support_session_id');
+
+            if ($supportSessionId) {
+                $session = SupportSession::with('organization')->find($supportSessionId);
+
+                if ($session) {
+                    $service = new SupportSessionService;
+
+                    if ($service->checkExpiry($session)) {
+                        // Session expired
+                        SuperAdminAuditService::log('support_session.expired', 'Organization', $session->organization_id, [
+                            'session_id' => $session->id,
+                            'org_name' => $session->organization?->name,
+                        ]);
+
+                        $request->session()->forget('current_organization_id');
+                        $request->session()->forget('support_session_id');
+
+                        return redirect()->route('platform-admin.support-sessions')
+                            ->with('error', __('super_admin.support.expired'));
+                    }
+
+                    if ($session->isActive()) {
+                        view()->share('activeSupportSession', $session);
+                    }
+                }
+            }
+        }
+
         $currentId = $request->session()->get('current_organization_id');
 
         if ($currentId) {
-            // Super admins can access any active organization without membership
-            if ($user->is_super_admin) {
+            // Platform admins (super_admin + platform_admin) can access any active org without membership
+            if ($user->canPlatformManage()) {
                 $org = Cache::remember("sa_org:{$currentId}", 300, fn () =>
                     \App\Models\Organization::find($currentId)
                 );

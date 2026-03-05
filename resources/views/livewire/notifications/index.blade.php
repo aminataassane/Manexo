@@ -3,6 +3,8 @@
         $data = $notification->data;
         $nType = $data['type'] ?? 'ticket_new_message';
         $ticketId = $data['ticket_id'] ?? null;
+        $ticketPublicId = $data['ticket_public_id'] ?? null;
+        $ticketRouteKey = $ticketPublicId ?? $ticketId;
         $subject = $data['ticket_subject'] ?? __('Ticket');
         $isRead = !is_null($notification->read_at);
         $excerpt = '';
@@ -16,14 +18,14 @@
             $subject = $data['form_name'] ?? __('Formulaire');
             $dueDate = $data['due_date'] ?? null;
             $excerpt = $dueDate ? __('Échéance :') . ' ' . $dueDate : __('Formulaire assigné');
-            $assignmentId = $data['assignment_id'] ?? null;
+            $assignmentId = $data['assignment_public_id'] ?? $data['assignment_id'] ?? null;
             $notifUrl = $assignmentId ? route('forms.fill', $assignmentId) : route('forms.index');
         } elseif ($nType === 'form_response') {
             $icon = 'solar:clipboard-check-linear';
             $senderName = $data['responder_name'] ?? '—';
             $subject = $data['form_name'] ?? __('Formulaire');
             $excerpt = match ($data['source'] ?? 'assignment') { 'public' => __('Réponse (public)'), 'team' => __('Réponse (équipe)'), default => __('Nouvelle réponse'), };
-            $formId = $data['form_id'] ?? null;
+            $formId = $data['form_public_id'] ?? $data['form_id'] ?? null;
             $notifUrl = $formId ? route('admin.forms.responses', $formId) : '#';
         } elseif ($nType === 'form_overdue') {
             $icon = 'solar:alarm-linear';
@@ -31,7 +33,7 @@
             $subject = $data['form_name'] ?? __('Formulaire');
             $dueDate = $data['due_date'] ?? null;
             $excerpt = $dueDate ? __('Échéance :') . ' ' . $dueDate : __('En retard');
-            $assignmentId = $data['assignment_id'] ?? null;
+            $assignmentId = $data['assignment_public_id'] ?? $data['assignment_id'] ?? null;
             $notifUrl = $assignmentId ? route('forms.fill', $assignmentId) : route('forms.index');
         } elseif ($nType === 'task_report_shared') {
             $icon = 'solar:checklist-linear';
@@ -44,14 +46,14 @@
             $senderName = $data['assigner_name'] ?? '—';
             $action = $data['action'] ?? 'assigned';
             $excerpt = match($action) { 'assigned' => __('Vous a assigné'), 'unassigned' => __('Vous a retiré'), 'participant_added' => __('Vous a ajouté'), 'participant_removed' => __('Vous a retiré'), default => __('Assignation'), };
-            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
+            $notifUrl = $ticketRouteKey ? route('tickets.discussion', $ticketRouteKey) : '#';
         } elseif ($nType === 'ticket_mention') {
             $icon = 'solar:mention-circle-linear';
             $senderName = $data['mentioner_name'] ?? '—';
             $excerpt = $data['body_excerpt'] ?? '';
             $messageId = $data['message_id'] ?? null;
-            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
-            if ($messageId && $ticketId) { $notifUrl .= '#message-' . $messageId; }
+            $notifUrl = $ticketRouteKey ? route('tickets.discussion', $ticketRouteKey) : '#';
+            if ($messageId && $ticketRouteKey) { $notifUrl .= '#message-' . $messageId; }
         } elseif ($nType === 'discussion_invite') {
             $icon = 'solar:users-group-rounded-linear';
             $senderName = $data['inviter_name'] ?? '—';
@@ -70,8 +72,8 @@
             $senderName = $data['sender_name'] ?? '—';
             $excerpt = $data['body_excerpt'] ?? '';
             $messageId = $data['message_id'] ?? null;
-            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
-            if ($messageId && $ticketId) { $notifUrl .= '#message-' . $messageId; }
+            $notifUrl = $ticketRouteKey ? route('tickets.discussion', $ticketRouteKey) : '#';
+            if ($messageId && $ticketRouteKey) { $notifUrl .= '#message-' . $messageId; }
         }
         return compact('isRead', 'senderName', 'subject', 'excerpt', 'notifUrl', 'icon');
     };

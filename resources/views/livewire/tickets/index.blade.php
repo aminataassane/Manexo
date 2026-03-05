@@ -304,12 +304,12 @@
                                                 draggable="true"
                                                 @mousedown="dragging = false"
                                                 @mousemove="dragging = true"
-                                                @click="if (!dragging) Livewire.navigate('{{ route('tickets.discussion', $t->id) }}')"
+                                                @click="if (!dragging) Livewire.navigate('{{ $t->public_id ? url('/tickets/' . e($t->public_id)) : '#' }}')"
                                                 @dragstart="dragId = {{ (int) $t->id }}"
                                                 @dragend="dragId = null"
                                             >
                                                 <div class="flex justify-between items-start mb-2">
-                                                    <span class="text-xs font-mono font-bold text-slate-400">#{{ $t->id }}</span>
+                                                    <span class="text-xs font-mono font-bold text-slate-400">{{ $t->shortReference() }}</span>
                                                     <span class="h-2 w-2 rounded-full {{ $prio['dot'] }}" title="{{ $prio['label'] }}"></span>
                                                 </div>
                                                 <h4 class="text-sm font-bold text-slate-900 mb-1 line-clamp-2 group-hover:text-[var(--accent)] transition-colors">{{ $t->subject }}</h4>
@@ -420,11 +420,11 @@
                                         $pill = $statusPill($t->status->value);
                                         $prio = $priorityMeta($t->priority?->level);
                                     @endphp
-                                    <tr class="group hover:bg-slate-50/80 transition-colors {{ ($box ?? 'active') !== 'trash' ? 'cursor-pointer' : '' }}" @if(($box ?? 'active') !== 'trash') onclick="window.location='{{ route('tickets.discussion', $t->id) }}'" @endif>
+                                    <tr class="group hover:bg-slate-50/80 transition-colors {{ ($box ?? 'active') !== 'trash' ? 'cursor-pointer' : '' }}" @if(($box ?? 'active') !== 'trash' && $t->public_id) onclick="window.location='{{ url('/tickets/' . e($t->public_id)) }}'" @endif>
                                         <td class="px-3 sm:px-6 py-2.5 sm:py-4">
                                             <div class="flex items-center gap-2 sm:gap-4 min-w-0">
                                                 <span class="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500 font-mono">
-                                                    #{{ $t->id }}
+                                                    {{ $t->shortReference() }}
                                                 </span>
                                                 <div class="min-w-0">
                                                     <div class="flex items-center gap-2 flex-wrap">

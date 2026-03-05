@@ -225,7 +225,7 @@
                                         <td class="px-4 sm:px-6 py-3 sm:py-4">
                                             <div class="flex items-center gap-2 sm:gap-3 min-w-0">
                                                 <div class="h-8 w-8 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-mono text-xs font-bold">
-                                                    #{{ $t->id }}
+                                                    {{ $t->shortReference() }}
                                                 </div>
                                                 <div class="min-w-0">
                                                     <p class="text-sm font-semibold text-slate-900 group-hover:text-[var(--accent)] transition-colors truncate">{{ $t->subject }}</p>
@@ -312,7 +312,7 @@
                     <div class="relative pl-4 space-y-6 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
                         <div class="relative pl-6">
                             <div class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white shadow-sm" style="background-color: var(--accent);"></div>
-                            <p class="text-sm font-medium text-slate-900">{{ __('pages.dashboard.ticket_resolved', ['id' => '2940']) }}</p>
+                            <p class="text-sm font-medium text-slate-900">{{ __('pages.dashboard.ticket_resolved', ['reference' => 'TCK-01J9ZK5R']) }}</p>
                             <p class="text-xs text-slate-500 mt-0.5">{{ __('pages.dashboard.ago_by_you', ['time' => '15 min']) }}</p>
                         </div>
                         <div class="relative pl-6">
@@ -323,7 +323,7 @@
                         <div class="relative pl-6">
                             <div class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-slate-300 shadow-sm"></div>
                             <p class="text-sm font-medium text-slate-900">{{ __('pages.dashboard.internal_note_added') }}</p>
-                            <p class="text-xs text-slate-500 mt-0.5">{{ __('pages.dashboard.on_ticket', ['id' => '2938']) }}</p>
+                            <p class="text-xs text-slate-500 mt-0.5">{{ __('pages.dashboard.on_ticket', ['reference' => 'TCK-01J9ZK5R']) }}</p>
                         </div>
                     </div>
                 </div>

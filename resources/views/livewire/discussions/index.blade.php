@@ -283,7 +283,7 @@
                                 <div class="min-w-0 flex-1">
                                     <div class="flex flex-wrap items-center gap-1.5">
                                         <span class="font-medium text-[#111827] truncate text-[13px]">{{ $ticket->subject }}</span>
-                                        <span class="text-[10px] font-mono text-[#9CA3AF] shrink-0">#{{ $ticket->id }}</span>
+                                        <span class="text-[10px] font-mono text-[#9CA3AF] shrink-0">{{ $ticket->shortReference() }}</span>
                                     </div>
                                     @if($lastMsg)
                                         <p class="mt-0.5 text-[12px] text-[#6B7280] line-clamp-1">

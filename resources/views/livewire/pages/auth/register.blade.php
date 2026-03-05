@@ -1,6 +1,10 @@
 <?php
 
+use App\Models\OrganizationInvitation;
+use App\Models\OrganizationMembership;
+use App\Models\PlatformInvitation;
 use App\Models\User;
+use App\Services\SuperAdminAuditService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +21,48 @@ new #[Layout('layouts.guest')] class extends Component
     public string $email = '';
     public string $password = '';
     public string $password_confirmation = '';
+
+    public string $invitation_token = '';
+    public ?string $invitationOrgName = null;
+
+    public string $platform_invitation_token = '';
+    public ?string $platformInvitationRoleName = null;
+
+    public function mount(): void
+    {
+        // Organization invitation
+        $token = request()->query('invitation', session('invitation_token', ''));
+
+        if ($token) {
+            $invitation = OrganizationInvitation::with('organization')
+                ->where('token', $token)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if ($invitation) {
+                $this->invitation_token = $token;
+                $this->email = $invitation->email;
+                $this->invitationOrgName = $invitation->organization?->name;
+            }
+        }
+
+        // Platform invitation
+        $platformToken = request()->query('platform_invitation', session('platform_invitation_token', ''));
+
+        if ($platformToken) {
+            $platformInvitation = PlatformInvitation::where('token', $platformToken)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if ($platformInvitation) {
+                $this->platform_invitation_token = $platformToken;
+                $this->email = $platformInvitation->email;
+                $this->platformInvitationRoleName = $platformInvitation->platform_role->label();
+            }
+        }
+    }
 
     public function register(): void
     {
@@ -40,6 +86,71 @@ new #[Layout('layouts.guest')] class extends Component
 
         Auth::login($user);
 
+        // If registering via organization invitation, auto-accept
+        if ($this->invitation_token) {
+            $invitation = OrganizationInvitation::with('organization')
+                ->where('token', $this->invitation_token)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if ($invitation) {
+                $alreadyMember = OrganizationMembership::where('organization_id', $invitation->organization_id)
+                    ->where('user_id', $user->id)
+                    ->exists();
+
+                if (! $alreadyMember) {
+                    OrganizationMembership::create([
+                        'organization_id' => $invitation->organization_id,
+                        'user_id' => $user->id,
+                        'role' => $invitation->role,
+                    ]);
+
+                    $invitation->update([
+                        'status' => 'accepted',
+                        'accepted_at' => now(),
+                    ]);
+
+                    session(['current_organization_id' => $invitation->organization_id]);
+                    session()->forget('invitation_token');
+
+                    // Skip email verification, redirect to dashboard
+                    $this->redirect(route('dashboard', absolute: false));
+                    return;
+                }
+            }
+        }
+
+        // If registering via platform invitation, auto-accept
+        if ($this->platform_invitation_token) {
+            $platformInvitation = PlatformInvitation::where('token', $this->platform_invitation_token)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->first();
+
+            if ($platformInvitation) {
+                $user->update([
+                    'platform_role' => $platformInvitation->platform_role,
+                ]);
+
+                $platformInvitation->update([
+                    'status' => 'accepted',
+                    'accepted_at' => now(),
+                ]);
+
+                SuperAdminAuditService::log('platform_invitation.accepted', 'User', $user->id, [
+                    'email' => $user->email,
+                    'platform_role' => $platformInvitation->platform_role->value,
+                    'invited_by' => $platformInvitation->inviter?->name,
+                ]);
+
+                session()->forget('platform_invitation_token');
+
+                $this->redirect(route('platform-admin.dashboard', absolute: false));
+                return;
+            }
+        }
+
         // Envoi email verification
         $user->sendEmailVerificationNotification();
         $this->redirect(route('verification.notice', absolute: false));
@@ -48,6 +159,27 @@ new #[Layout('layouts.guest')] class extends Component
 
 <div class="relative z-10 w-full max-w-[440px] px-4">
     <div class="fade-in shadow-slate-200/50 sm:p-6 sm:w-[120%] sm:-ml-[10%] bg-white w-full border-slate-100 border rounded-xl p-5 shadow-2xl">
+
+        <!-- Invitation banner -->
+        @if($invitation_token && $invitationOrgName)
+            <div class="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3">
+                <div class="flex items-center gap-2">
+                    <iconify-icon icon="solar:letter-bold-duotone" width="18" class="text-green-600"></iconify-icon>
+                    <p class="text-xs font-medium text-green-800">
+                        {{ __('invitations.register_banner', ['org' => $invitationOrgName]) }}
+                    </p>
+                </div>
+            </div>
+        @elseif($platform_invitation_token && $platformInvitationRoleName)
+            <div class="mb-4 rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3">
+                <div class="flex items-center gap-2">
+                    <iconify-icon icon="solar:shield-star-bold-duotone" width="18" class="text-indigo-600"></iconify-icon>
+                    <p class="text-xs font-medium text-indigo-800">
+                        {{ __('platform_invitations.register_banner', ['role' => $platformInvitationRoleName]) }}
+                    </p>
+                </div>
+            </div>
+        @endif
 
         <!-- Header -->
         <div class="text-center mb-4">
@@ -84,7 +216,16 @@ new #[Layout('layouts.guest')] class extends Component
                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
                         <iconify-icon icon="solar:letter-linear" class="text-slate-400 text-sm" stroke-width="1.5"></iconify-icon>
                     </div>
-                    <input wire:model="email" id="email" type="email" autocomplete="email" placeholder="exemple@entreprise.com" required class="block w-full rounded-md border-0 bg-slate-50 py-1.5 pl-8 pr-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[#005F02] text-sm sm:leading-6 transition-all duration-200">
+                    <input
+                        wire:model="email"
+                        id="email"
+                        type="email"
+                        autocomplete="email"
+                        placeholder="exemple@entreprise.com"
+                        required
+                        @if($invitation_token || $platform_invitation_token) readonly @endif
+                        class="block w-full rounded-md border-0 py-1.5 pl-8 pr-2.5 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-[#005F02] text-sm sm:leading-6 transition-all duration-200 {{ ($invitation_token || $platform_invitation_token) ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50 focus:bg-white' }}"
+                    >
                 </div>
                 <x-input-error :messages="$errors->get('email')" class="mt-1" />
             </div>

@@ -176,11 +176,12 @@
     <!-- Ticket link -->
     @if($response->ticket_id)
     <div class="pt-2 border-t border-slate-100">
-        <a href="{{ route('tickets.discussion', $response->ticket_id) }}"
+        @php $responseTicket = $response->ticket; @endphp
+        <a href="{{ $responseTicket ? route('tickets.discussion', $responseTicket) : '#' }}"
            class="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-white rounded-lg hover:opacity-90 transition-all"
            style="background: var(--accent);">
             <iconify-icon icon="solar:ticket-linear" width="15"></iconify-icon>
-            {{ __('forms_builder.open_ticket', ['id' => $response->ticket_id]) }}
+            {{ __('forms_builder.open_ticket', ['reference' => $responseTicket?->shortReference() ?? $response->ticket_id]) }}
         </a>
     </div>
     @endif

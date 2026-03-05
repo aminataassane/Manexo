@@ -3,13 +3,27 @@
     $variant = $variant ?? 'theirs'; // theirs | mine | note
     $name = is_array($att) ? ($att['name'] ?? 'Fichier') : 'Fichier';
     $url = '#';
+    // Resolve ticket public_id from numeric ID in storage path
+    $resolveTicketPublicId = function (int $numericId) {
+        static $cache = [];
+        if (!isset($cache[$numericId])) {
+            $cache[$numericId] = \App\Models\Ticket::where('id', $numericId)->value('public_id') ?? $numericId;
+        }
+        return $cache[$numericId];
+    };
+
     if (is_array($att)) {
         if (!empty($att['path'])) {
             $path = $att['path'];
             if (str_starts_with($path, 'ticket-messages/')) {
                 $parts = explode('/', $path, 3);
-                $url = count($parts) >= 3 ? route('tickets.discussion.file', ['ticket' => $parts[1], 'filename' => $parts[2]]) : asset('storage/' . $path);
-            }             elseif (str_starts_with($path, 'ticket-attachments/')) {
+                if (count($parts) >= 3) {
+                    $ticketPublicId = $resolveTicketPublicId((int) $parts[1]);
+                    $url = route('tickets.discussion.file', ['ticket' => $ticketPublicId, 'filename' => $parts[2]]);
+                } else {
+                    $url = asset('storage/' . $path);
+                }
+            } elseif (str_starts_with($path, 'ticket-attachments/')) {
                 $parts = explode('/', $path);
                 $filename = $parts[count($parts) - 1] ?? basename($path);
                 $ticketId = null;
@@ -19,7 +33,12 @@
                         break;
                     }
                 }
-                $url = $ticketId ? route('tickets.attachment', ['ticket' => $ticketId, 'filename' => $filename]) : asset('storage/' . $path);
+                if ($ticketId) {
+                    $ticketPublicId = $resolveTicketPublicId($ticketId);
+                    $url = route('tickets.attachment', ['ticket' => $ticketPublicId, 'filename' => $filename]);
+                } else {
+                    $url = asset('storage/' . $path);
+                }
             } else {
                 $url = asset('storage/' . $path);
             }

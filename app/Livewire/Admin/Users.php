@@ -4,13 +4,19 @@ namespace App\Livewire\Admin;
 
 use App\Enums\OrganizationRole;
 use App\Enums\Permission;
+use App\Models\Organization;
 use App\Models\OrganizationFunction;
+use App\Models\OrganizationInvitation;
 use App\Models\OrganizationMembership;
 use App\Models\RoleDefinition;
 use App\Models\User;
+use App\Notifications\OrganizationInvitationNotification;
+use App\Services\OrganizationAuditService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Throwable;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -84,9 +90,9 @@ class Users extends Component
 
     public function sendInvite(): void
     {
-        /** @var User|null $user */
-        $user = Auth::user();
-        if (! $user || ! $user->hasPermission(Permission::TeamInvite)) {
+        /** @var User|null $authUser */
+        $authUser = Auth::user();
+        if (! $authUser || ! $authUser->hasPermission(Permission::TeamInvite)) {
             abort(403);
         }
 
@@ -106,42 +112,135 @@ class Users extends Component
         $email = Str::lower(trim((string) $validated['inviteEmail']));
         $role = (string) $validated['inviteRole'];
 
-        /** @var User|null $user */
-        $user = User::query()->where('email', $email)->first();
+        // Check if user is already a member
+        $existingUser = User::query()->where('email', $email)->first();
+        if ($existingUser) {
+            $alreadyMember = OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->where('user_id', (int) $existingUser->id)
+                ->exists();
 
-        if (! $user) {
-            $user = User::query()->create([
-                'name' => Str::of($email)->before('@')->replace(['.', '_', '-'], ' ')->title()->toString(),
-                'email' => $email,
-                'password' => Str::random(32),
-            ]);
+            if ($alreadyMember) {
+                $this->addError('inviteEmail', __('pages.team.already_member'));
+                return;
+            }
         }
 
-        $exists = OrganizationMembership::query()
+        // Check if a pending invitation already exists
+        $existingInvitation = OrganizationInvitation::query()
             ->where('organization_id', $orgId)
-            ->where('user_id', (int) $user->id)
+            ->where('email', $email)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
             ->exists();
 
-        if ($exists) {
-            $this->addError('inviteEmail', 'Cet utilisateur est déjà membre de l’organisation.');
+        if ($existingInvitation) {
+            $this->addError('inviteEmail', __('pages.team.invitation_already_pending'));
             return;
         }
 
-        OrganizationMembership::query()->create([
+        // Cancel any old pending invitations for this email+org (expired ones)
+        OrganizationInvitation::query()
+            ->where('organization_id', $orgId)
+            ->where('email', $email)
+            ->where('status', 'pending')
+            ->update(['status' => 'expired']);
+
+        $invitation = OrganizationInvitation::create([
             'organization_id' => $orgId,
-            'user_id' => (int) $user->id,
+            'email' => $email,
+            'role' => $role,
+            'token' => Str::random(64),
+            'invited_by' => (int) $authUser->id,
+            'status' => 'pending',
+            'expires_at' => now()->addDays(OrganizationInvitation::EXPIRY_DAYS),
+        ]);
+
+        $org = Organization::find($orgId);
+
+        OrganizationAuditService::log('team.invitation_sent', 'User', null, [
+            'email' => $email,
             'role' => $role,
         ]);
 
-        // Best-effort: send a password reset email to let the user set a password.
-        Password::sendResetLink(['email' => $email]);
+        try {
+            Notification::route('mail', $email)
+                ->notify(new OrganizationInvitationNotification($invitation, $org));
+            $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_sent'));
+        } catch (Throwable $e) {
+            Log::warning('Organization invitation email could not be sent.', [
+                'email' => $email,
+                'organization_id' => $orgId,
+                'exception' => $e->getMessage(),
+            ]);
+            $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_created_email_failed'));
+        }
 
         $this->showInviteModal = false;
         $this->inviteEmail = '';
         $this->inviteRole = OrganizationRole::Member->value;
-
-        $this->dispatch('toast', type: 'success', message: 'Invitation envoyée.');
         $this->resetPage();
+    }
+
+    public function resendInvitation(int $invitationId): void
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::TeamInvite)) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $invitation = OrganizationInvitation::query()
+            ->where('organization_id', $orgId)
+            ->where('status', 'pending')
+            ->findOrFail($invitationId);
+
+        $invitation->update([
+            'token' => Str::random(64),
+            'expires_at' => now()->addDays(OrganizationInvitation::EXPIRY_DAYS),
+        ]);
+
+        $org = Organization::find($orgId);
+
+        try {
+            Notification::route('mail', $invitation->email)
+                ->notify(new OrganizationInvitationNotification($invitation, $org));
+            $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_resent'));
+        } catch (Throwable $e) {
+            Log::warning('Organization invitation resend email could not be sent.', [
+                'email' => $invitation->email,
+                'invitation_id' => $invitation->id,
+                'exception' => $e->getMessage(),
+            ]);
+            $this->dispatch('toast', type: 'warning', message: __('pages.team.invitation_resent_email_failed'));
+        }
+    }
+
+    public function cancelInvitation(int $invitationId): void
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::TeamInvite)) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $invitation = OrganizationInvitation::query()
+            ->where('organization_id', $orgId)
+            ->where('status', 'pending')
+            ->findOrFail($invitationId);
+
+        $invitation->update([
+            'status' => 'cancelled',
+            'cancelled_at' => now(),
+        ]);
+
+        $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_cancelled'));
     }
 
     public function updateRole(int $membershipId, string $newRole): void
@@ -188,7 +287,13 @@ class Users extends Component
             }
         }
 
+        $oldRole = $membership->role;
         $membership->update(['role' => $newRole]);
+        OrganizationAuditService::log('team.role_changed', 'User', $membership->user_id, [
+            'old_role' => $oldRole,
+            'new_role' => $newRole,
+            'user_name' => $membership->user?->name,
+        ]);
         $this->dispatch('toast', type: 'success', message: "Rôle mis à jour.");
     }
 
@@ -228,6 +333,10 @@ class Users extends Component
             }
         }
 
+        OrganizationAuditService::log('team.member_removed', 'User', $membership->user_id, [
+            'user_name' => $membership->user?->name,
+            'role' => $membership->role,
+        ]);
         $membership->delete();
         $this->dispatch('toast', type: 'success', message: "Membre retiré.");
         $this->resetPage();
@@ -283,6 +392,15 @@ class Users extends Component
             'members' => (int) ($statsRow?->members ?? 0),
         ];
 
+        // Load pending invitations
+        $pendingInvitations = OrganizationInvitation::query()
+            ->with('inviter')
+            ->where('organization_id', $orgId)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->orderByDesc('created_at')
+            ->get();
+
         $organizationFunctions = OrganizationFunction::query()
             ->where('organization_id', $orgId)
             ->orderBy('sort_order')
@@ -300,6 +418,7 @@ class Users extends Component
             'currentRole' => $currentRole,
             'organizationFunctions' => $organizationFunctions,
             'roles' => $roles,
+            'pendingInvitations' => $pendingInvitations,
         ]);
     }
 

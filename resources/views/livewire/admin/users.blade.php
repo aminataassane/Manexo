@@ -27,8 +27,8 @@
         </button>
     </div>
 
-    <!-- STATS CARDS (2 cols mobile, 4 lg) -->
-    <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+    <!-- STATS CARDS (2 cols mobile, 5 lg) -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <!-- Owners -->
         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
             <div class="flex items-start justify-between">
@@ -80,7 +80,89 @@
                 </div>
             </div>
         </div>
+
+        <!-- Pending Invitations -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-all group">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium text-slate-500">{{ __('pages.team.pending_count') }}</p>
+                    <h3 class="mt-2 text-3xl font-bold text-slate-900">{{ $pendingInvitations->count() }}</h3>
+                </div>
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-500 group-hover:scale-110 transition-transform">
+                    <iconify-icon icon="solar:clock-circle-bold-duotone" width="24"></iconify-icon>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- PENDING INVITATIONS -->
+    @if($pendingInvitations->isNotEmpty())
+        <div class="rounded-2xl border border-orange-200 bg-orange-50/30 shadow-sm overflow-hidden mb-6 sm:mb-8">
+            <div class="p-4 border-b border-orange-100 bg-orange-50/50 flex items-center gap-3">
+                <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
+                    <iconify-icon icon="solar:letter-bold-duotone" width="18"></iconify-icon>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">{{ __('pages.team.invitations_pending') }}</h3>
+                    <p class="text-xs text-slate-500">{{ $pendingInvitations->count() }} {{ __('pages.team.invitation_pending') }}</p>
+                </div>
+            </div>
+
+            <div class="divide-y divide-orange-100">
+                @foreach($pendingInvitations as $inv)
+                    @php($ib = $roleBadge($inv->role))
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 hover:bg-orange-50/40 transition-colors">
+                        <div class="flex items-center gap-4 min-w-0">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                                <iconify-icon icon="solar:letter-linear" width="20"></iconify-icon>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-sm font-bold text-slate-900 truncate">{{ $inv->email }}</div>
+                                <div class="flex flex-wrap items-center gap-2 mt-1">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border {{ $ib['bg'] }} {{ $ib['text'] }} {{ $ib['border'] }}">
+                                        <iconify-icon icon="{{ $ib['icon'] }}" width="12"></iconify-icon>
+                                        {{ $ib['label_key'] ? __($ib['label_key']) : ($ib['label'] ?? $inv->role) }}
+                                    </span>
+                                    <span class="text-[10px] text-slate-400">
+                                        {{ __('pages.team.invited_on', ['date' => $inv->created_at->format('d/m/Y')]) }}
+                                    </span>
+                                    @if($inv->inviter)
+                                        <span class="text-[10px] text-slate-400">
+                                            &middot; {{ __('pages.team.invited_by', ['name' => $inv->inviter->name]) }}
+                                        </span>
+                                    @endif
+                                    <span class="text-[10px] text-orange-600 font-medium">
+                                        {{ __('pages.team.expires_in', ['days' => (int) now()->diffInDays($inv->expires_at)]) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0 sm:ml-4">
+                            <button
+                                type="button"
+                                wire:click="resendInvitation({{ $inv->id }})"
+                                class="h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+                                title="{{ __('pages.team.resend') }}"
+                            >
+                                <iconify-icon icon="solar:refresh-linear" width="14"></iconify-icon>
+                                {{ __('pages.team.resend') }}
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="cancelInvitation({{ $inv->id }})"
+                                wire:confirm="{{ __('pages.team.cancel_invitation') }}?"
+                                class="h-8 px-3 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 transition inline-flex items-center gap-1.5"
+                                title="{{ __('pages.team.cancel_invitation') }}"
+                            >
+                                <iconify-icon icon="solar:close-circle-linear" width="14"></iconify-icon>
+                                {{ __('pages.team.cancel_invitation') }}
+                            </button>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
 
     <!-- MEMBERS LIST -->
     <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">

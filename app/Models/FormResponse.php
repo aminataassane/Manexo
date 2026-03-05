@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToOrganization;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\UploadedFile;
@@ -9,7 +11,13 @@ use Illuminate\Support\Str;
 
 class FormResponse extends Model
 {
+    use HasPublicId, BelongsToOrganization;
+
+    public static string $publicIdPrefix = 'RSP';
+
     protected $fillable = [
+        'public_id',
+        'organization_id',
         'form_id',
         'user_id',
         'assignment_id',
@@ -44,7 +52,7 @@ class FormResponse extends Model
         $filename = $fieldKey . '-' . Str::random(12) . '.' . $ext;
         $dir = "form-responses/org-{$orgId}/response-{$responseId}";
 
-        return $file->storeAs($dir, $filename, 'public');
+        return $file->storeAs($dir, $filename, 'local');
     }
 
     public function form(): BelongsTo

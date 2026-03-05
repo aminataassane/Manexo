@@ -3,7 +3,10 @@
 namespace App\Models;
 
 use App\Enums\TicketStatus;
+use App\Traits\BelongsToOrganization;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,8 +16,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Ticket extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasPublicId, BelongsToOrganization, HasFactory;
+
+    public static string $publicIdPrefix = 'TCK';
+
     protected $fillable = [
+        'public_id',
         'organization_id',
         'created_by',
         'ticket_category_id',
@@ -113,8 +120,34 @@ class Ticket extends Model
     {
         return $this->belongsToMany(User::class, 'ticket_assignees', 'ticket_id', 'user_id')
             ->using(TicketAssignee::class)
-            ->withPivot('assigned_by')
+            ->withPivot('assigned_by', 'role')
             ->withTimestamps();
+    }
+
+    /** The assignee with role 'responsible' (primary assignee). */
+    public function responsible(): ?User
+    {
+        return $this->assignees->first(fn ($u) => $u->pivot->role === 'responsible');
+    }
+
+    /** All assignees with role 'collaborator'. */
+    public function collaborators(): \Illuminate\Support\Collection
+    {
+        return $this->assignees->filter(fn ($u) => $u->pivot->role === 'collaborator');
+    }
+
+    /** A closed ticket is locked for non-admin users. */
+    public function isLocked(): bool
+    {
+        return $this->status === TicketStatus::Closed;
+    }
+
+    /** Check if a user can bypass the lock (owner/admin in the org). */
+    public function canBypassLock(User $user): bool
+    {
+        $membership = $user->organizations()->where('organization_id', $this->organization_id)->first();
+
+        return $membership && in_array($membership->pivot->role ?? '', ['owner', 'admin'], true);
     }
 
     public function messages(): HasMany

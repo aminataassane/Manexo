@@ -16,9 +16,33 @@ class AuditLog extends Component
     #[Url]
     public string $actionFilter = '';
 
+    #[Url]
+    public string $targetTypeFilter = '';
+
+    #[Url]
+    public string $dateFrom = '';
+
+    #[Url]
+    public string $dateTo = '';
+
     public int $perPage = 20;
 
     public function updatingActionFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingTargetTypeFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingDateFrom(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingDateTo(): void
     {
         $this->resetPage();
     }
@@ -32,6 +56,18 @@ class AuditLog extends Component
             $query->where('action', $this->actionFilter);
         }
 
+        if ($this->targetTypeFilter !== '') {
+            $query->where('target_type', $this->targetTypeFilter);
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('created_at', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('created_at', '<=', $this->dateTo);
+        }
+
         $logs = $query->orderByDesc('created_at')->paginate($this->perPage);
 
         $actions = SuperAdminAuditLog::query()
@@ -40,9 +76,17 @@ class AuditLog extends Component
             ->orderBy('action')
             ->pluck('action');
 
+        $targetTypes = SuperAdminAuditLog::query()
+            ->select('target_type')
+            ->whereNotNull('target_type')
+            ->distinct()
+            ->orderBy('target_type')
+            ->pluck('target_type');
+
         return view('livewire.super-admin.audit-log', [
             'logs' => $logs,
             'actions' => $actions,
+            'targetTypes' => $targetTypes,
         ]);
     }
 }

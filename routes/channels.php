@@ -7,8 +7,8 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-Broadcast::channel('ticket.{ticketId}', function ($user, $ticketId) {
-    $ticket = Ticket::query()->whereKey($ticketId)->first();
+Broadcast::channel('ticket.{ticketPublicId}', function ($user, $ticketPublicId) {
+    $ticket = Ticket::query()->where('public_id', $ticketPublicId)->first();
     if (! $ticket) {
         return false;
     }
@@ -21,8 +21,8 @@ Broadcast::channel('ticket.{ticketId}', function ($user, $ticketId) {
     return $user->organizations()->where('organization_id', $ticket->organization_id)->exists();
 });
 
-Broadcast::channel('ticket.staff.{ticketId}', function ($user, $ticketId) {
-    $ticket = Ticket::query()->whereKey($ticketId)->first();
+Broadcast::channel('ticket.staff.{ticketPublicId}', function ($user, $ticketPublicId) {
+    $ticket = Ticket::query()->where('public_id', $ticketPublicId)->first();
     if (! $ticket) {
         return false;
     }

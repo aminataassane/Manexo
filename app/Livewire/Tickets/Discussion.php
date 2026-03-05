@@ -10,6 +10,7 @@ use App\Events\TicketMessageSent;
 use App\Events\UserNotificationReceived;
 use App\Enums\TicketStatus;
 use App\Models\FormResponse;
+use App\Models\Organization;
 use App\Models\OrganizationFunction;
 use App\Models\Ticket;
 use App\Models\TicketChecklistItem;
@@ -17,10 +18,13 @@ use App\Models\TicketMessage;
 use App\Models\TicketParticipant;
 use App\Models\TicketPriority;
 use App\Models\User;
+use App\Notifications\ChecklistItemAssignedNotification;
 use App\Notifications\TicketAssigneeNotification;
 use App\Notifications\TicketMentionNotification;
 use App\Notifications\TicketNewMessageNotification;
+use App\Services\OrganizationAuditService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Title;
@@ -33,11 +37,12 @@ class Discussion extends Component
     use WithFileUploads;
 
     public int $ticketId;
+    public string $ticketPublicId = '';
 
     public function getListeners(): array
     {
         return [
-            "echo-private:ticket.{$this->ticketId},.assignee.changed" => '$refresh',
+            "echo-private:ticket.{$this->ticketPublicId},.assignee.changed" => '$refresh',
         ];
     }
 
@@ -66,9 +71,10 @@ class Discussion extends Component
     public $editAttachmentFiles = [];
     public string $editLinkUrl = '';
 
-    public function mount(int|string $ticket): void
+    public function mount(Ticket $ticket): void
     {
-        $this->ticketId = (int) $ticket;
+        $this->ticketId = (int) $ticket->id;
+        $this->ticketPublicId = $ticket->public_id;
         $this->authorizeTicket();
     }
 
@@ -83,29 +89,13 @@ class Discussion extends Component
 
     private function authorizeTicket(): void
     {
-        $user = Auth::user();
-        if (! $user) {
-            abort(403);
-        }
-        $ticket = $this->getTicket();
-        if (! $ticket->hasDiscussionAccess((int) $user->id)) {
-            abort(403);
-        }
+        Gate::authorize('view', $this->getTicket());
     }
 
     private function computeNotePermissions(Ticket $ticket): void
     {
-        /** @var User|null $user */
-        $user = Auth::user();
-        if (! $user) {
-            $this->canSeeInternalNotes = false;
-            $this->canWriteInternalNotes = false;
-
-            return;
-        }
-
-        $this->canSeeInternalNotes = $user->hasPermission(Permission::DiscussionsViewInternalNotes);
-        $this->canWriteInternalNotes = $user->hasPermission(Permission::DiscussionsWriteInternalNotes);
+        $this->canSeeInternalNotes = Gate::allows('viewInternalNotes', Ticket::class);
+        $this->canWriteInternalNotes = Gate::allows('writeInternalNotes', Ticket::class);
 
         if (! $this->canSeeInternalNotes) {
             $this->asInternalNote = false;
@@ -115,13 +105,8 @@ class Discussion extends Component
     public function addParticipant(int $userId): void
     {
         $user = Auth::user();
-        if (! $user) {
-            abort(403);
-        }
         $ticket = $this->getTicket();
-        if (! $ticket->hasDiscussionAccess((int) $user->id)) {
-            abort(403);
-        }
+        Gate::authorize('view', $ticket);
         $orgMember = User::whereKey($userId)->whereHas('organizations', fn($q) => $q->where('organization_id', $ticket->organization_id))->firstOrFail();
         if ($ticket->created_by === (int) $userId || $ticket->assignees()->where('users.id', $userId)->exists()) {
             return;
@@ -135,7 +120,7 @@ class Discussion extends Component
             'meta' => ['action' => 'participant_added', 'user_id' => $userId],
         ]);
         $orgMember->notify(new TicketAssigneeNotification($ticket, $user, 'participant_added'));
-        event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'participant_added', $user->name));
+        event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'participant_added', $user->name, $ticket->public_id));
         event(new UserNotificationReceived($userId, 'ticket_assignee'));
     }
 
@@ -143,8 +128,7 @@ class Discussion extends Component
     private function canAssignTicket(): bool
     {
         /** @var User|null $user */
-        $user = Auth::user();
-        return $user && $user->hasPermission(Permission::TicketsAssign);
+        return Gate::allows('assign', $this->getTicket());
     }
 
     /** Rôle de l'utilisateur dans l'organisation courante (session). Fiable en requêtes Livewire. */
@@ -168,27 +152,22 @@ class Discussion extends Component
     public function assignToMe(): void
     {
         $user = Auth::user();
-        if (! $user) {
-            abort(403);
-        }
-        if (! $this->canAssignTicket()) {
-            abort(403);
-        }
+        abort_if(! $user, 403);
+        $ticket = $this->getTicket();
+        Gate::authorize('assign', $ticket);
         $this->setAssignee((int) $user->id);
     }
 
-    /** Assigner le ticket à une personne (remplace l'assigné actuel). Staff uniquement. Audit: assigned_by, assigned_at. userId=0 pour désassigner. */
+    /** Assigner le ticket à une personne comme responsable. Staff uniquement. userId=0 pour désassigner. */
     public function setAssignee($userId): void
     {
         $user = Auth::user();
-        if (! $user) {
-            abort(403);
-        }
-        if (! $this->canAssignTicket()) {
-            abort(403);
-        }
+        abort_if(! $user, 403);
+        $ticket = $this->getTicket();
+        Gate::authorize('assign', $ticket);
         $userId = (int) $userId;
         $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         if ($userId === 0) {
             $current = $ticket->assignees()->first();
             if ($current) {
@@ -198,7 +177,14 @@ class Discussion extends Component
         }
         $orgMember = User::whereKey($userId)->whereHas('organizations', fn($q) => $q->where('organization_id', $ticket->organization_id))->firstOrFail();
         $previousAssignee = $ticket->assignees()->first();
-        $ticket->assignees()->sync([$userId => ['assigned_by' => $user->id]]);
+        // Demote previous responsible to collaborator
+        $ticket->assignees()->newPivotQuery()->where('role', 'responsible')->update(['role' => 'collaborator']);
+        // Sync the new responsible (attach if not present, update role if present)
+        if ($ticket->assignees()->where('users.id', $userId)->exists()) {
+            $ticket->assignees()->updateExistingPivot($userId, ['role' => 'responsible', 'assigned_by' => $user->id]);
+        } else {
+            $ticket->assignees()->attach($userId, ['assigned_by' => $user->id, 'role' => 'responsible']);
+        }
         $ticket->update([
             'assigned_to' => $userId,
             'assigned_by' => $user->id,
@@ -214,7 +200,7 @@ class Discussion extends Component
             'meta' => ['action' => 'assignee_added', 'user_id' => $userId, 'assigned_by' => $user->id],
         ]);
         $orgMember->notify(new TicketAssigneeNotification($ticket, $user, 'assigned'));
-        event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'assigned', $user->name));
+        event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'assigned', $user->name, $ticket->public_id));
         event(new UserNotificationReceived($userId, 'ticket_assignee'));
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
@@ -230,11 +216,15 @@ class Discussion extends Component
             abort(403);
         }
         $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         $orgMember = User::whereKey($userId)->whereHas('organizations', fn($q) => $q->where('organization_id', $ticket->organization_id))->firstOrFail();
         if ($ticket->assignees()->where('users.id', $userId)->exists()) {
             return;
         }
-        $ticket->assignees()->attach($userId, ['assigned_by' => $user->id]);
+        // If no assignees yet, first one becomes responsible; otherwise collaborator
+        $hasAssignees = $ticket->assignees()->exists();
+        $role = $hasAssignees ? 'collaborator' : 'responsible';
+        $ticket->assignees()->attach($userId, ['assigned_by' => $user->id, 'role' => $role]);
         if (! $ticket->assigned_to) {
             $ticket->update([
                 'assigned_to' => $userId,
@@ -250,7 +240,7 @@ class Discussion extends Component
             'meta' => ['action' => 'assignee_added', 'user_id' => $userId],
         ]);
         $orgMember->notify(new TicketAssigneeNotification($ticket, $user, 'assigned'));
-        event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'assigned', $user->name));
+        event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'assigned', $user->name, $ticket->public_id));
         event(new UserNotificationReceived($userId, 'ticket_assignee'));
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
@@ -266,13 +256,23 @@ class Discussion extends Component
             abort(403);
         }
         $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         $removedUser = User::find($userId);
+        // Check if the removed user was the responsible
+        $wasResponsible = $ticket->assignees()->where('users.id', $userId)->wherePivot('role', 'responsible')->exists();
         $ticket->assignees()->detach($userId);
-        $firstAssignee = $ticket->assignees()->first();
+        // If removed user was responsible, promote first remaining collaborator
+        if ($wasResponsible) {
+            $firstCollaborator = $ticket->assignees()->first();
+            if ($firstCollaborator) {
+                $ticket->assignees()->updateExistingPivot($firstCollaborator->id, ['role' => 'responsible']);
+            }
+        }
+        $newResponsible = $ticket->assignees()->wherePivot('role', 'responsible')->first();
         $ticket->update([
-            'assigned_to' => $firstAssignee?->id,
-            'assigned_by' => $firstAssignee ? $user->id : null,
-            'assigned_at' => $firstAssignee ? now() : null,
+            'assigned_to' => $newResponsible?->id,
+            'assigned_by' => $newResponsible ? $user->id : null,
+            'assigned_at' => $newResponsible ? now() : null,
         ]);
         if ($removedUser) {
             TicketMessage::create([
@@ -283,11 +283,52 @@ class Discussion extends Component
                 'meta' => ['action' => 'assignee_removed', 'user_id' => $userId],
             ]);
             $removedUser->notify(new TicketAssigneeNotification($ticket, $user, 'unassigned'));
-            event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'unassigned', $user->name));
+            event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'unassigned', $user->name, $ticket->public_id));
             event(new UserNotificationReceived($userId, 'ticket_assignee'));
         }
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+    }
+
+    /** Promouvoir un collaborateur en responsable. */
+    public function promoteToResponsible(int $userId): void
+    {
+        $user = Auth::user();
+        if (! $user) {
+            abort(403);
+        }
+        if (! $this->canAssignTicket()) {
+            abort(403);
+        }
+        $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
+        if (! $ticket->assignees()->where('users.id', $userId)->exists()) {
+            return;
+        }
+        // Demote current responsible to collaborator
+        $ticket->assignees()->newPivotQuery()->where('role', 'responsible')->update(['role' => 'collaborator']);
+        // Promote chosen user
+        $ticket->assignees()->updateExistingPivot($userId, ['role' => 'responsible']);
+        $ticket->update([
+            'assigned_to' => $userId,
+            'assigned_by' => $user->id,
+            'assigned_at' => now(),
+        ]);
+        CacheHelper::invalidateDashboard((int) $ticket->organization_id);
+        CacheHelper::invalidateReports((int) $ticket->organization_id);
+    }
+
+    /** Guard: abort 403 if ticket is locked and current user cannot bypass lock. */
+    private function guardAgainstLock(Ticket $ticket): void
+    {
+        if (! $ticket->isLocked()) {
+            return;
+        }
+        $user = Auth::user();
+        if ($user && $ticket->canBypassLock($user)) {
+            return;
+        }
+        abort(403, __('tickets.locked'));
     }
 
     public function setAsInternalNote(bool $value): void
@@ -316,7 +357,7 @@ class Discussion extends Component
                 'meta' => ['action' => 'participant_removed', 'user_id' => $userId],
             ]);
             $removedUser->notify(new TicketAssigneeNotification($ticket, $user, 'participant_removed'));
-            event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'participant_removed', $user->name));
+            event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'participant_removed', $user->name, $ticket->public_id));
             event(new UserNotificationReceived($userId, 'ticket_assignee'));
         }
     }
@@ -325,7 +366,7 @@ class Discussion extends Component
     {
         $this->validate([
             'body' => ['nullable', 'string', 'max:10000'],
-            'attachmentFiles.*' => ['nullable', 'file', 'max:10240'],
+            'attachmentFiles.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip'],
         ]);
         $hasBody = trim($this->body ?? '') !== '';
         $hasAttachments = is_array($this->attachmentFiles) && count($this->attachmentFiles) > 0;
@@ -342,6 +383,7 @@ class Discussion extends Component
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
             abort(403);
         }
+        $this->guardAgainstLock($ticket);
         $type = $this->asInternalNote ? TicketMessageType::InternalNote : TicketMessageType::Message;
         $this->computeNotePermissions($ticket);
         if ($type === TicketMessageType::InternalNote && ! $this->canWriteInternalNotes) {
@@ -350,15 +392,15 @@ class Discussion extends Component
         $body = trim($this->body);
         $mentions = $this->extractMentions($body, $ticket->organization_id);
         $savedAttachments = [];
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $publicDisk */
-        $publicDisk = Storage::disk('public');
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $localDisk */
+        $localDisk = Storage::disk('local');
         foreach ($this->attachmentFiles as $file) {
-            $path = $file->store('ticket-messages/' . $ticket->id, 'public');
+            $path = $file->store('ticket-messages/' . $ticket->id, 'local');
             $savedAttachments[] = [
                 'path' => $path,
                 'name' => $file->getClientOriginalName(),
                 'size' => $file->getSize(),
-                'url' => $publicDisk->url($path),
+                'url' => route('tickets.discussion.file', ['ticket' => $ticket->public_id, 'filename' => basename($path)]),
             ];
         }
         $message = TicketMessage::create([
@@ -432,6 +474,8 @@ class Discussion extends Component
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
             abort(403);
         }
+
+        $this->guardAgainstLock($ticket);
 
         // Only users with archive permission or creator/assignee can archive.
         $canArchive = $user->hasPermission(Permission::TicketsArchive);
@@ -534,11 +578,12 @@ class Discussion extends Component
         if (! $this->canEditTicketBase()) {
             abort(403);
         }
+        $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         $subject = trim($this->editSubject ?? '');
         if ($subject === '') {
             return;
         }
-        $ticket = $this->getTicket();
         if ($ticket->subject === $subject) {
             return;
         }
@@ -553,6 +598,7 @@ class Discussion extends Component
             abort(403);
         }
         $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         $ticket->update(['description' => $this->editDescription ?? '']);
         session()->flash('tickets_status', __('Description mise à jour.'));
     }
@@ -563,8 +609,9 @@ class Discussion extends Component
         if (! $this->canEditTicketBase()) {
             abort(403);
         }
+        $this->guardAgainstLock($this->getTicket());
         $this->validate([
-            'editAttachmentFiles.*' => ['nullable', 'file', 'max:10240'],
+            'editAttachmentFiles.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip'],
         ]);
         $files = $this->editAttachmentFiles ?? [];
         if (! is_array($files) || count($files) === 0) {
@@ -580,14 +627,14 @@ class Discussion extends Component
             $ext = (string) ($file->getClientOriginalExtension() ?: '');
             $safeBase = Str::slug(pathinfo($original, PATHINFO_FILENAME)) ?: 'file';
             $filename = $safeBase . '-' . Str::lower(Str::random(10)) . ($ext ? '.' . $ext : '');
-            $path = $file->storeAs("ticket-attachments/org-{$orgId}/ticket-{$ticket->id}", $filename, 'public');
+            $path = $file->storeAs("ticket-attachments/org-{$orgId}/ticket-{$ticket->id}", $filename, 'local');
             $filesList[] = [
-                'disk' => 'public',
+                'disk' => 'local',
                 'path' => $path,
                 'name' => $original,
                 'size' => method_exists($file, 'getSize') ? (int) $file->getSize() : null,
                 'mime' => method_exists($file, 'getMimeType') ? (string) $file->getMimeType() : null,
-                'url' => asset('storage/' . $path),
+                'url' => route('tickets.attachment', ['ticket' => $ticket->public_id, 'filename' => $filename]),
             ];
         }
         $attachments['files'] = $filesList;
@@ -602,6 +649,7 @@ class Discussion extends Component
         if (! $this->canEditTicketBase()) {
             abort(403);
         }
+        $this->guardAgainstLock($this->getTicket());
         $this->validate([
             'editLinkUrl' => ['required', 'string', 'url', 'max:2000'],
         ], [], ['editLinkUrl' => __('URL')]);
@@ -622,6 +670,7 @@ class Discussion extends Component
         if (! $this->canEditTicketBase()) {
             abort(403);
         }
+        $this->guardAgainstLock($this->getTicket());
         if (! in_array($type, ['files', 'links'], true)) {
             return;
         }
@@ -679,7 +728,7 @@ class Discussion extends Component
         return array_values(array_unique($ids));
     }
 
-    /** Change le statut du ticket. Réservé au staff. */
+    /** Change le statut du ticket. Réservé au staff. Admin/owner can bypass lock to reopen. */
     public function changeStatus(string $status): void
     {
         $user = Auth::user();
@@ -694,6 +743,28 @@ class Discussion extends Component
         $oldStatus = $ticket->status;
         if ($oldStatus === $newStatus) {
             return;
+        }
+
+        // Lock check: only admin/owner can change status on closed ticket (to reopen)
+        if ($ticket->isLocked() && ! $ticket->canBypassLock($user)) {
+            abort(403, __('tickets.locked'));
+        }
+
+        // Strict mode: all checklist items must be done before resolving/closing
+        $isResolving = in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true);
+        if ($isResolving) {
+            $org = Organization::find($ticket->organization_id);
+            $orgSettings = is_array($org?->settings) ? $org->settings : [];
+            $resolutionMode = $orgSettings['workflow']['ticket_resolution_mode'] ?? 'flexible';
+
+            if ($resolutionMode === 'strict') {
+                $totalItems = $ticket->checklistItems()->count();
+                $doneItems = $ticket->checklistItems()->where('is_done', true)->count();
+                if ($totalItems > 0 && $doneItems < $totalItems) {
+                    $this->dispatch('toast', type: 'error', message: __('tickets.ticket_resolution_strict_error'));
+                    return;
+                }
+            }
         }
 
         $isClosed = in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true);
@@ -713,6 +784,11 @@ class Discussion extends Component
             ]),
             'meta' => ['action' => 'status_changed', 'old' => $oldStatus->value, 'new' => $newStatus->value],
         ]);
+        OrganizationAuditService::log('ticket.status_changed', 'Ticket', $ticket->id, [
+            'ticket' => $ticket->subject,
+            'old_status' => $oldStatus->value,
+            'new_status' => $newStatus->value,
+        ]);
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
     }
@@ -725,6 +801,7 @@ class Discussion extends Component
             abort(403);
         }
         $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         $oldPriority = $ticket->priority;
         $newPriority = TicketPriority::where('organization_id', $ticket->organization_id)
             ->where('is_active', true)
@@ -759,6 +836,7 @@ class Discussion extends Component
             abort(403);
         }
         $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
 
         $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
@@ -802,6 +880,7 @@ class Discussion extends Component
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
             abort(403);
         }
+        $this->guardAgainstLock($ticket);
 
         // Check canEditChecklist logic
         $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
@@ -831,6 +910,7 @@ class Discussion extends Component
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
             abort(403);
         }
+        $this->guardAgainstLock($ticket);
 
         $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
         $isAssignee = $ticket->assignees->contains('id', $user->id);
@@ -858,6 +938,7 @@ class Discussion extends Component
                 'organization:id,name',
                 'assignedToFunction:id,name',
                 'checklistItems.assignee:id,name,email',
+                'checklistItems.assignees:id,name,email',
                 'checklistItems.doneByUser:id,name,email',
                 'checklistItems.assignedToFunction:id,name',
             ])
@@ -992,8 +1073,14 @@ class Discussion extends Component
                 ->all();
         }
 
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+        $isLocked = $ticket->isLocked();
+        $canBypassLock = $authUser && $ticket->canBypassLock($authUser);
+
         return [
             'ticket' => $ticket,
+            'ticketPublicId' => $this->ticketPublicId,
             'orgUsers' => $usersData['orgUsers'],
             'mentionableUsers' => $usersData['mentionableUsers'],
             'embedded' => $this->embedded,
@@ -1013,6 +1100,8 @@ class Discussion extends Component
             'formResponse' => $orgRef['formResponse'],
             'orgMemberRoles' => $orgRef['orgMemberRoles'],
             'organizationFunctions' => $orgRef['organizationFunctions'],
+            'isLocked' => $isLocked,
+            'canBypassLock' => $canBypassLock,
         ];
     }
 
@@ -1069,16 +1158,18 @@ class Discussion extends Component
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
             abort(403);
         }
+        $this->guardAgainstLock($ticket);
         /** @var TicketChecklistItem $item */
         $item = $ticket->checklistItems()->whereKey($id)->firstOrFail();
 
         $userId = (int) $user->id;
         $isItemAssignee = $item->assigned_to && (int) $item->assigned_to === $userId;
+        $isItemPivotAssignee = $item->assignees()->where('user_id', $userId)->exists();
         $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
         $isTicketAssignee = $ticket->assignees->contains('id', $userId);
         $isTicketCreator = $ticket->created_by && (int) $ticket->created_by === $userId;
 
-        if (! ($isItemAssignee || $hasEditPerm || $isTicketAssignee || $isTicketCreator)) {
+        if (! ($isItemAssignee || $isItemPivotAssignee || $hasEditPerm || $isTicketAssignee || $isTicketCreator)) {
             abort(403);
         }
 
@@ -1165,8 +1256,9 @@ class Discussion extends Component
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
             abort(403);
         }
+        $this->guardAgainstLock($ticket);
         $maxOrder = $ticket->checklistItems()->max('sort_order') ?? -1;
-        TicketChecklistItem::create([
+        $item = TicketChecklistItem::create([
             'ticket_id' => $ticket->id,
             'title' => trim($this->newChecklistTitle),
             'assigned_to' => $this->newChecklistAssignedTo,
@@ -1174,10 +1266,100 @@ class Discussion extends Component
             'due_date' => $this->newChecklistDueDate ? \Carbon\Carbon::parse($this->newChecklistDueDate) : null,
             'sort_order' => $maxOrder + 1,
         ]);
+        // Insert into pivot table if assigned
+        if ($this->newChecklistAssignedTo) {
+            $item->assignees()->attach($this->newChecklistAssignedTo, [
+                'role' => 'responsible',
+                'assigned_by' => $user->id,
+            ]);
+            // Notify if assigning someone else
+            if ((int) $this->newChecklistAssignedTo !== (int) $user->id) {
+                $assignedUser = User::find($this->newChecklistAssignedTo);
+                if ($assignedUser) {
+                    $assignedUser->notify(new ChecklistItemAssignedNotification($item, $ticket, $user, 'assigned'));
+                    event(new UserNotificationReceived((int) $assignedUser->id, 'checklist_item_assigned'));
+                }
+            }
+        }
         $this->showAddChecklistItem = false;
         $this->newChecklistTitle = '';
         $this->newChecklistAssignedTo = null;
         $this->newChecklistAssignedToFunction = null;
         $this->newChecklistDueDate = null;
+    }
+
+    /** Add a collaborator to a checklist item. */
+    public function addChecklistItemAssignee(int $itemId, int $userId): void
+    {
+        $user = Auth::user();
+        if (! $user) {
+            abort(403);
+        }
+        $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
+        if (! $ticket->hasDiscussionAccess((int) $user->id)) {
+            abort(403);
+        }
+        /** @var TicketChecklistItem $item */
+        $item = $ticket->checklistItems()->whereKey($itemId)->firstOrFail();
+        if ($item->assignees()->where('user_id', $userId)->exists()) {
+            return;
+        }
+        $hasAssignees = $item->assignees()->exists();
+        $role = $hasAssignees ? 'collaborator' : 'responsible';
+        $item->assignees()->attach($userId, ['role' => $role, 'assigned_by' => $user->id]);
+        // Sync assigned_to for backward compatibility if this is the first assignee
+        if (! $hasAssignees) {
+            $item->update(['assigned_to' => $userId]);
+        }
+        // Notify
+        if ((int) $userId !== (int) $user->id) {
+            $assignedUser = User::find($userId);
+            if ($assignedUser) {
+                $assignedUser->notify(new ChecklistItemAssignedNotification($item, $ticket, $user, 'assigned'));
+                event(new UserNotificationReceived($userId, 'checklist_item_assigned'));
+            }
+        }
+    }
+
+    /** Remove an assignee from a checklist item. */
+    public function removeChecklistItemAssignee(int $itemId, int $userId): void
+    {
+        $user = Auth::user();
+        if (! $user) {
+            abort(403);
+        }
+        $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
+        if (! $ticket->hasDiscussionAccess((int) $user->id)) {
+            abort(403);
+        }
+        /** @var TicketChecklistItem $item */
+        $item = $ticket->checklistItems()->whereKey($itemId)->firstOrFail();
+        $wasResponsible = $item->assignees()->where('user_id', $userId)->wherePivot('role', 'responsible')->exists();
+        $item->assignees()->detach($userId);
+        // Promote first remaining if responsible was removed
+        if ($wasResponsible) {
+            $next = $item->assignees()->first();
+            if ($next) {
+                $item->assignees()->updateExistingPivot($next->id, ['role' => 'responsible']);
+                $item->update(['assigned_to' => $next->id]);
+            } else {
+                $item->update(['assigned_to' => null]);
+            }
+        }
+        // Sync assigned_to if the removed user was the main assignee
+        if ($item->assigned_to && (int) $item->assigned_to === $userId) {
+            $next = $item->assignees()->wherePivot('role', 'responsible')->first() ?? $item->assignees()->first();
+            $item->update(['assigned_to' => $next?->id]);
+        }
+        // Notify
+        if ((int) $userId !== (int) $user->id) {
+            $removedUser = User::find($userId);
+            if ($removedUser) {
+                $removedUser->notify(new ChecklistItemAssignedNotification($item, $ticket, $user, 'unassigned'));
+                event(new UserNotificationReceived($userId, 'checklist_item_assigned'));
+            }
+        }
     }
 }

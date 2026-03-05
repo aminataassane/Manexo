@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Enums\TicketStatus;
 use App\Helpers\CacheHelper;
 use App\Models\Ticket;
+use App\Services\OrganizationAuditService;
 use App\Models\TicketChecklistItem;
 use App\Models\TicketPriority;
 use Illuminate\Support\Carbon;
@@ -180,7 +181,16 @@ class Index extends Component
             abort(403);
         }
 
+        $oldStatus = $ticket->status?->value ?? $ticket->status;
         $ticket->update(['status' => $status]);
+
+        OrganizationAuditService::log(
+            'ticket.status_changed',
+            'ticket',
+            (int) $ticket->id,
+            ['from' => $oldStatus, 'to' => $status],
+        );
+
         CacheHelper::invalidateDashboard($orgId);
         CacheHelper::invalidateReports($orgId);
     }
@@ -236,6 +246,13 @@ class Index extends Component
             ->whereKey($ticketId)
             ->firstOrFail();
         $ticket->restore();
+
+        OrganizationAuditService::log(
+            'ticket.restored',
+            'ticket',
+            (int) $ticket->id,
+        );
+
         session()->flash('tickets_status', __('Ticket restauré.'));
     }
 
@@ -323,6 +340,7 @@ class Index extends Component
                 }
 
                 $q->orWhere('tickets.subject', 'ilike', "%{$search}%")
+                    ->orWhere('tickets.public_id', 'ilike', "%{$search}%")
                     ->orWhereHas('creator', fn($u) => $u->where('name', 'ilike', "%{$search}%"))
                     ->orWhereHas('assignees', fn($u) => $u->where('name', 'ilike', "%{$search}%"));
             });

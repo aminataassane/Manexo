@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TicketChecklistItem extends Model
@@ -62,6 +63,21 @@ class TicketChecklistItem extends Model
         return $this->hasMany(TicketChecklistItemLog::class);
     }
 
+    /** Multi-assignees for this checklist item. */
+    public function assignees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'ticket_checklist_item_assignees', 'checklist_item_id', 'user_id')
+            ->using(TicketChecklistItemAssignee::class)
+            ->withPivot('role', 'assigned_by')
+            ->withTimestamps();
+    }
+
+    /** The assignee with role 'responsible' from the pivot table. */
+    public function responsible(): ?User
+    {
+        return $this->assignees->first(fn ($u) => $u->pivot->role === 'responsible');
+    }
+
     public function markDone(int $userId): void
     {
         $this->update([
@@ -89,6 +105,11 @@ class TicketChecklistItem extends Model
     public function claim(int $userId): void
     {
         $this->update(['assigned_to' => $userId]);
+
+        // Also add to pivot table as responsible
+        if (! $this->assignees()->where('user_id', $userId)->exists()) {
+            $this->assignees()->attach($userId, ['role' => 'responsible']);
+        }
 
         $this->logAction($userId, 'claimed');
     }

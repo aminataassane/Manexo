@@ -29,6 +29,8 @@ class TicketNewMessageNotification extends Notification implements ShouldQueue
         return [
             'type' => 'ticket_new_message',
             'ticket_id' => $this->message->ticket_id,
+            'ticket_public_id' => $ticket?->public_id,
+            'ticket_reference' => $ticket?->shortReference(),
             'ticket_subject' => $ticket?->subject,
             'message_id' => $this->message->id,
             'sender_id' => $this->message->user_id,

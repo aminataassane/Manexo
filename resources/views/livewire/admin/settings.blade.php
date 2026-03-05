@@ -281,6 +281,18 @@
                     <hr class="border-slate-100">
 
                     <div>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('settings.ticket_resolution_mode_label') }}</h3>
+                        <div class="max-w-md">
+                            <x-select-input id="ticket_resolution_mode" wire:model="ticket_resolution_mode" :disabled="! $canManage">
+                                <option value="flexible">{{ __('settings.ticket_resolution_mode_flexible') }}</option>
+                                <option value="strict">{{ __('settings.ticket_resolution_mode_strict') }}</option>
+                            </x-select-input>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100">
+
+                    <div>
                         <h3 class="text-sm font-semibold text-slate-900 mb-4">{{ __('settings.auto_close_title') }}</h3>
                         <div class="max-w-xs">
                             <x-input-label for="auto_close_days" :value="__('settings.auto_close_label')" />

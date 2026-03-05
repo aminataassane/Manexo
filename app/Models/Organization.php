@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Helpers\PermissionSeeder;
+use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +12,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Organization extends Model
 {
+    use HasPublicId, HasFactory;
+
+    public static string $publicIdPrefix = 'ORG';
+
     protected static function booted(): void
     {
         static::created(function (Organization $org) {
@@ -18,6 +24,7 @@ class Organization extends Model
     }
 
     protected $fillable = [
+        'public_id',
         'name',
         'slug',
         'primary_color',
@@ -27,6 +34,7 @@ class Organization extends Model
         'status',
         'suspended_at',
         'suspension_reason',
+        'archived_at',
     ];
 
     protected function casts(): array
@@ -34,6 +42,7 @@ class Organization extends Model
         return [
             'settings' => 'array',
             'suspended_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
     }
 
@@ -50,6 +59,11 @@ class Organization extends Model
     public function isDisabled(): bool
     {
         return ($this->status ?? 'active') === 'disabled';
+    }
+
+    public function isArchived(): bool
+    {
+        return ! is_null($this->archived_at);
     }
 
     public function creator(): BelongsTo

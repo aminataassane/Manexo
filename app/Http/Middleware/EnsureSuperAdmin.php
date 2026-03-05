@@ -8,9 +8,22 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureSuperAdmin
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, ?string $level = null): Response
     {
-        if (! $request->user()?->is_super_admin) {
+        $user = $request->user();
+
+        // Not authenticated → redirect to platform admin login
+        if (! $user) {
+            return redirect()->guest(route('platform-admin.login'));
+        }
+
+        $allowed = match ($level) {
+            'super' => $user->canPlatformAdminister(),
+            'manage' => $user->canPlatformManage(),
+            default => $user->hasPlatformAccess(),
+        };
+
+        if (! $allowed) {
             abort(403);
         }
 

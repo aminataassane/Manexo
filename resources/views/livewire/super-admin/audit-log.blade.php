@@ -1,27 +1,61 @@
 <div class="space-y-6">
     <!-- Header -->
-    <div>
-        <h2 class="text-xl font-bold text-slate-800">{{ __('super_admin.audit.title') }}</h2>
-        <p class="mt-1 text-sm text-slate-500">{{ __('super_admin.audit.subtitle') }}</p>
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-bold text-slate-800">{{ __('super_admin.audit.title') }}</h2>
+            <p class="mt-1 text-sm text-slate-500">{{ __('super_admin.audit.subtitle') }}</p>
+        </div>
+        <a href="{{ route('platform-admin.audit-log.export', array_filter(['actionFilter' => $actionFilter, 'targetTypeFilter' => $targetTypeFilter, 'dateFrom' => $dateFrom, 'dateTo' => $dateTo])) }}" class="sa-btn-secondary">
+            <iconify-icon icon="solar:download-minimalistic-bold" width="16"></iconify-icon>
+            {{ __('super_admin.audit.export_csv') }}
+        </a>
     </div>
 
     <!-- Toolbar -->
-    <div class="flex flex-col sm:flex-row gap-3">
+    <div class="flex flex-col sm:flex-row gap-3 flex-wrap">
         <select
             wire:model.live="actionFilter"
             class="rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
         >
             <option value="">{{ __('super_admin.audit.all_actions') }}</option>
             @foreach ($actions as $action)
-                <option value="{{ $action }}">{{ __('super_admin.audit.action_' . $action, [], 'fr') !== 'super_admin.audit.action_' . $action ? __('super_admin.audit.action_' . $action) : $action }}</option>
+                @php
+                    $actionKey = 'super_admin.audit.action_' . str_replace('.', '_', $action);
+                    $actionLabel = __($actionKey) !== $actionKey ? __($actionKey) : $action;
+                @endphp
+                <option value="{{ $action }}">{{ $actionLabel }}</option>
             @endforeach
         </select>
+
+        <select
+            wire:model.live="targetTypeFilter"
+            class="rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+        >
+            <option value="">{{ __('super_admin.audit.all_targets') }}</option>
+            @foreach ($targetTypes as $type)
+                <option value="{{ $type }}">{{ class_basename($type) }}</option>
+            @endforeach
+        </select>
+
+        <input
+            type="date"
+            wire:model.live="dateFrom"
+            class="rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+            placeholder="{{ __('super_admin.audit.date_from') }}"
+        />
+
+        <input
+            type="date"
+            wire:model.live="dateTo"
+            class="rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+            placeholder="{{ __('super_admin.audit.date_to') }}"
+        />
     </div>
 
     <!-- Table -->
     <div class="rounded-2xl border border-slate-200/60 bg-white shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-100">
+            <table class="w-full divide-y divide-slate-100">
                 <thead class="bg-slate-50/50">
                     <tr>
                         <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ __('super_admin.audit.col_date') }}</th>
@@ -39,7 +73,7 @@
                             <td class="px-5 py-3.5 text-sm font-medium text-slate-700">{{ $log->user?->name ?? '—' }}</td>
                             <td class="px-5 py-3.5">
                                 @php
-                                    $actionKey = 'super_admin.audit.action_' . $log->action;
+                                    $actionKey = 'super_admin.audit.action_' . str_replace('.', '_', $log->action);
                                     $actionLabel = __($actionKey) !== $actionKey ? __($actionKey) : $log->action;
                                 @endphp
                                 <span class="inline-flex items-center rounded-full bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
@@ -48,7 +82,16 @@
                             </td>
                             <td class="px-5 py-3.5 text-sm text-slate-500">
                                 @if ($log->target_type)
-                                    {{ class_basename($log->target_type) }} #{{ $log->target_id }}
+                                    <span class="text-slate-400">{{ class_basename($log->target_type) }}</span>
+                                    @if ($log->metadata)
+                                        @if (!empty($log->metadata['name']))
+                                            — {{ $log->metadata['name'] }}
+                                        @elseif (!empty($log->metadata['org_name']))
+                                            — {{ $log->metadata['org_name'] }}
+                                        @elseif (!empty($log->metadata['email']))
+                                            — {{ $log->metadata['email'] }}
+                                        @endif
+                                    @endif
                                 @else
                                     —
                                 @endif

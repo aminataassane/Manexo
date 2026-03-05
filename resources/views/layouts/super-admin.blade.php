@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? __('super_admin.title') }} — Platform Admin</title>
+    <title>{{ __($title ?? 'super_admin.title') }} — Platform Admin</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -30,6 +30,82 @@
         @keyframes subtleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .animate-enter { animation: subtleFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         ::selection { background: #e0e7ff; color: #4f46e5; }
+
+        /* Boutons platform admin — contraste élevé, lisibilité */
+        .sa-btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #fff !important;
+            background: #4f46e5 !important;
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .sa-btn-primary:hover:not(:disabled) {
+            background: #4338ca !important;
+            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+        }
+        .sa-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .sa-btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #334155 !important;
+            background: #fff !important;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.75rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .sa-btn-secondary:hover {
+            background: #f8fafc !important;
+            border-color: #94a3b8;
+        }
+
+        .sa-btn-ghost {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            padding: 0.375rem 0.625rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #475569 !important;
+            background: transparent;
+            border: none;
+            border-radius: 0.5rem;
+            transition: background 0.15s;
+        }
+        .sa-btn-ghost:hover { background: #f1f5f9 !important; }
+
+        /* Tableaux platform admin — contraste renforcé, lisibilité */
+        .page-content-safe table { border-collapse: collapse; }
+        .page-content-safe thead { background: #f1f5f9 !important; }
+        .page-content-safe thead th {
+            color: #334155 !important;
+            font-weight: 600;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        .page-content-safe tbody td { color: #1e293b !important; }
+        .page-content-safe tbody tr:hover { background: #f8fafc !important; }
+        .page-content-safe tbody tr { border-bottom: 1px solid #e2e8f0; }
+        .page-content-safe table td .rounded-full.bg-indigo-50,
+        .page-content-safe table td .rounded-full.border-indigo-200 {
+            background: #4f46e5 !important;
+            color: #fff !important;
+            border-color: #4338ca !important;
+        }
     </style>
 </head>
 <body
@@ -47,7 +123,14 @@
     @php
         $isSaDashboard = request()->routeIs('platform-admin.dashboard');
         $isSaOrgs = request()->routeIs('platform-admin.organizations') || request()->routeIs('platform-admin.organizations.show');
-        $isSaAudit = request()->routeIs('platform-admin.audit-log');
+        $isSaAudit = request()->routeIs('platform-admin.audit-log') || request()->routeIs('platform-admin.audit-log.export');
+        $isSaUsers = request()->routeIs('platform-admin.users');
+        $isSaSecurity = request()->routeIs('platform-admin.security');
+        $isSaFiles = request()->routeIs('platform-admin.files');
+        $isSaNotifications = request()->routeIs('platform-admin.notifications');
+        $isSaMonitoring = request()->routeIs('platform-admin.monitoring');
+        $isSaBackups = request()->routeIs('platform-admin.backups');
+        $isSaSupport = request()->routeIs('platform-admin.support-sessions');
     @endphp
     <aside
         class="fixed left-0 top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/5 text-white/60 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-[85vw] md:max-w-none backdrop-blur-xl"
@@ -126,6 +209,137 @@
                 </div>
             </a>
 
+            <!-- Section: Gestion -->
+            <div class="px-3 mb-2 mt-4 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">
+                {{ __('super_admin.nav.section_management') }}
+            </div>
+
+            <!-- Users -->
+            <a
+                href="{{ route('platform-admin.users') }}"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isSaUsers ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                :class="sidebarOpen ? '' : 'justify-center'"
+            >
+                @if($isSaUsers)
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                @endif
+                <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" class="{{ $isSaUsers ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.users') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('super_admin.nav.users') }}
+                </div>
+            </a>
+
+            <!-- Security (super_admin only) -->
+            @if(auth()->user()->canPlatformAdminister())
+            <a
+                href="{{ route('platform-admin.security') }}"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isSaSecurity ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                :class="sidebarOpen ? '' : 'justify-center'"
+            >
+                @if($isSaSecurity)
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                @endif
+                <iconify-icon icon="solar:shield-keyhole-bold-duotone" width="20" class="{{ $isSaSecurity ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.security') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('super_admin.nav.security') }}
+                </div>
+            </a>
+            @endif
+
+            <!-- Section: Système -->
+            <div class="px-3 mb-2 mt-4 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">
+                {{ __('super_admin.nav.section_system') }}
+            </div>
+
+            <!-- Files -->
+            <a
+                href="{{ route('platform-admin.files') }}"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isSaFiles ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                :class="sidebarOpen ? '' : 'justify-center'"
+            >
+                @if($isSaFiles)
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                @endif
+                <iconify-icon icon="solar:folder-with-files-bold-duotone" width="20" class="{{ $isSaFiles ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.files') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('super_admin.nav.files') }}
+                </div>
+            </a>
+
+            <!-- Notifications -->
+            <a
+                href="{{ route('platform-admin.notifications') }}"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isSaNotifications ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                :class="sidebarOpen ? '' : 'justify-center'"
+            >
+                @if($isSaNotifications)
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                @endif
+                <iconify-icon icon="solar:bell-bold-duotone" width="20" class="{{ $isSaNotifications ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.notifications') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('super_admin.nav.notifications') }}
+                </div>
+            </a>
+
+            <!-- Monitoring (super_admin only) -->
+            @if(auth()->user()->canPlatformAdminister())
+            <a
+                href="{{ route('platform-admin.monitoring') }}"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isSaMonitoring ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                :class="sidebarOpen ? '' : 'justify-center'"
+            >
+                @if($isSaMonitoring)
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                @endif
+                <iconify-icon icon="solar:monitor-bold-duotone" width="20" class="{{ $isSaMonitoring ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.monitoring') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('super_admin.nav.monitoring') }}
+                </div>
+            </a>
+
+            <!-- Backups (super_admin only) -->
+            <a
+                href="{{ route('platform-admin.backups') }}"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isSaBackups ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                :class="sidebarOpen ? '' : 'justify-center'"
+            >
+                @if($isSaBackups)
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                @endif
+                <iconify-icon icon="solar:database-bold-duotone" width="20" class="{{ $isSaBackups ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.backups') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('super_admin.nav.backups') }}
+                </div>
+            </a>
+            @endif
+
+            <!-- Section: Support -->
+            <div class="px-3 mb-2 mt-4 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">
+                {{ __('super_admin.nav.section_support') }}
+            </div>
+
+            <!-- Support Sessions -->
+            <a
+                href="{{ route('platform-admin.support-sessions') }}"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isSaSupport ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                :class="sidebarOpen ? '' : 'justify-center'"
+            >
+                @if($isSaSupport)
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                @endif
+                <iconify-icon icon="solar:headphones-round-bold-duotone" width="20" class="{{ $isSaSupport ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.support_sessions') }}</span>
+                <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                    {{ __('super_admin.nav.support_sessions') }}
+                </div>
+            </a>
+
         </div>
 
         <!-- Collapse Button -->
@@ -148,7 +362,7 @@
             <button type="button" class="md:hidden flex items-center justify-center h-9 w-9 rounded-lg hover:bg-slate-100 transition-colors" @click="mobileOpen = !mobileOpen">
                 <iconify-icon icon="solar:hamburger-menu-linear" width="20" class="text-slate-500"></iconify-icon>
             </button>
-            <h1 class="text-base font-semibold text-slate-800">{{ $title ?? __('super_admin.title') }}</h1>
+            <h1 class="text-base font-semibold text-slate-800">{{ __($title ?? 'super_admin.title') }}</h1>
         </div>
 
         <div class="flex items-center gap-3">
@@ -185,7 +399,7 @@
         class="flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pt-14 sm:pt-16 md:pl-[72px] xl:pl-[80px]"
         :class="sidebarOpen ? 'md:!pl-[240px] xl:!pl-[260px]' : ''"
     >
-        <div class="page-content-safe flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar pt-4 sm:pt-5 md:pt-6 lg:pt-8 px-4 sm:px-5 md:px-6 lg:px-8">
+        <div class="page-content-safe flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar pt-4 sm:pt-5 md:pt-6 lg:pt-8 px-4 sm:px-5 md:px-6 lg:px-8">
             <div class="mx-auto w-full min-w-0 max-w-7xl animate-enter space-y-4 sm:space-y-6">
                 {{-- Session flash messages --}}
                 @if (session('success'))

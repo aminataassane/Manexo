@@ -12,6 +12,8 @@ use App\Livewire\UserForms\FillTeam as UserFormsFillTeam;
 use App\Livewire\UserForms\FillTeamBySlug as UserFormsFillTeamBySlug;
 use App\Livewire\Tickets\Create as CreateTicket;
 use App\Livewire\Tickets\Index as TicketsIndex;
+use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\PlatformInvitationController;
 use App\Http\Controllers\PublicFormController;
 use App\Models\Ticket;
 use Illuminate\Http\Request;
@@ -71,6 +73,22 @@ Route::get('/locale/{locale}', function (Request $request, string $locale) {
 })->where('locale', 'fr|en')->name('locale.switch');
 
 /**
+ * Invitation acceptance (public, no auth required)
+ */
+Route::get('/invitations/{token}/accept', [InvitationController::class, 'accept'])
+    ->name('invitations.accept');
+Route::post('/invitations/{token}/accept', [InvitationController::class, 'processAccept'])
+    ->name('invitations.process-accept');
+
+/**
+ * Platform invitation acceptance (public, no auth required)
+ */
+Route::get('/platform-invitations/{token}/accept', [PlatformInvitationController::class, 'accept'])
+    ->name('platform-invitations.accept');
+Route::post('/platform-invitations/{token}/accept', [PlatformInvitationController::class, 'processAccept'])
+    ->name('platform-invitations.process-accept');
+
+/**
  * Application routes (must be logged in + email verified)
  */
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -117,7 +135,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 abort(403);
             }
             /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
-            $storage = Storage::disk('public');
+            $storage = Storage::disk('local');
             $path = 'ticket-messages/' . $ticket->id . '/' . basename($filename);
             if (! $storage->exists($path)) {
                 abort(404);
@@ -133,7 +151,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 abort(403);
             }
             /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
-            $storage = Storage::disk('public');
+            $storage = Storage::disk('local');
             $path = 'ticket-attachments/org-' . $ticket->organization_id . '/ticket-' . $ticket->id . '/' . basename($filename);
             if (! $storage->exists($path)) {
                 abort(404);

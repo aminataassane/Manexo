@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Enums\FormStatus;
+use App\Traits\BelongsToOrganization;
+use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,9 +13,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Form extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasPublicId, BelongsToOrganization, HasFactory;
+
+    public static string $publicIdPrefix = 'FRM';
 
     protected $fillable = [
+        'public_id',
         'organization_id',
         'name',
         'slug',

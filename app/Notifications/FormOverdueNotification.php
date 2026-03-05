@@ -15,6 +15,7 @@ class FormOverdueNotification extends Notification implements ShouldQueue
         public string $formName,
         public int $assignmentId,
         public string $dueDate,
+        public ?string $assignmentPublicId = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -29,6 +30,7 @@ class FormOverdueNotification extends Notification implements ShouldQueue
             'form_id' => $this->formId,
             'form_name' => $this->formName,
             'assignment_id' => $this->assignmentId,
+            'assignment_public_id' => $this->assignmentPublicId,
             'due_date' => $this->dueDate,
         ];
     }

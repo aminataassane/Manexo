@@ -39,7 +39,7 @@
 <div
     class="flex flex-col min-h-0 rounded-none sm:rounded-xl lg:rounded-2xl overflow-hidden bg-white border-0 sm:border border-slate-200 shadow-sm"
     style="height: calc(100dvh - 5rem); min-height: 14rem; padding-bottom: env(safe-area-inset-bottom, 0);"
-    x-data="discussionWebSocket({{ $ticketId }}, {{ auth()->id() ?? 'null' }}, {{ $canSeeInternalNotes ? 'true' : 'false' }})"
+    x-data="discussionWebSocket('{{ $ticketPublicId }}', {{ auth()->id() ?? 'null' }}, {{ $canSeeInternalNotes ? 'true' : 'false' }})"
     @keydown.enter.window="if (document.activeElement?.closest('[data-composer]') && !$event.shiftKey) { $event.preventDefault(); $refs.submitBtn?.click() }"
     @keydown.escape.window="addParticipantOpen = false"
 >
@@ -95,7 +95,7 @@
                         </a>
                         <span class="text-slate-300 shrink-0">/</span>
                         <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
-                            <span class="font-mono text-xs font-bold text-slate-400 shrink-0">#{{ $ticket->id }}</span>
+                            <span class="font-mono text-xs font-bold text-slate-400 shrink-0">{{ $ticket->shortReference() }}</span>
                             <span class="font-semibold text-slate-900 truncate min-w-0">{{ $ticket->subject }}</span>
                             <span
                                 x-show="!wsConnected"
@@ -152,7 +152,7 @@
                             {{-- Ligne type liste : #id + Sujet --}}
                             <div class="flex items-start gap-2 sm:gap-4 min-w-0">
                                 <span class="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500 font-mono">
-                                    #{{ $ticket->id }}
+                                    {{ $ticket->shortReference() }}
                                 </span>
                                 <div class="min-w-0 flex-1 overflow-hidden">
                                     <h1 class="text-sm sm:text-lg font-bold text-slate-900 tracking-tight break-words">{{ $ticket->subject }}</h1>
@@ -280,7 +280,7 @@
                         @endif
                     </div>
 
-                    <form wire:submit="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-' + {{ $ticketId }})" class="relative rounded-lg sm:rounded-xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all min-w-0"
+                    <form wire:submit="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-{{ $ticketPublicId }}')" class="relative rounded-lg sm:rounded-xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all min-w-0"
                     x-data="{
                         users: {{ \Illuminate\Support\Js::from($mentionableUsers ?? []) }},
                         mentionOpen: false,
@@ -288,7 +288,7 @@
                         mentionStart: 0,
                         mentionCursor: 0,
                         draftTimer: null,
-                        draftKey: 'ticket-draft-' + {{ $ticketId }},
+                        draftKey: 'ticket-draft-{{ $ticketPublicId }}',
                         init() {
                             try {
                                 const saved = localStorage.getItem(this.draftKey);
@@ -578,8 +578,8 @@
 
 @script
 <script>
-    Alpine.data('discussionWebSocket', (ticketId, currentUserId, canSeeInternalNotes) => ({
-        ticketId,
+    Alpine.data('discussionWebSocket', (ticketPublicId, currentUserId, canSeeInternalNotes) => ({
+        ticketPublicId,
         currentUserId,
         canSeeInternalNotes: !!canSeeInternalNotes,
         seenIds: new Set(),
@@ -587,13 +587,13 @@
         init() {
             const tryConnect = () => {
                 if (typeof window.Echo !== 'undefined') {
-                    const chan = window.Echo.private('ticket.' + this.ticketId);
+                    const chan = window.Echo.private('ticket.' + this.ticketPublicId);
                     chan.listen('.message.sent', (e) => this.appendMessage(e));
                     chan.subscribed(() => { this.wsConnected = true; });
 
                     // Internal notes are broadcasted only to staff channel.
                     if (this.canSeeInternalNotes) {
-                        window.Echo.private('ticket.staff.' + this.ticketId)
+                        window.Echo.private('ticket.staff.' + this.ticketPublicId)
                             .listen('.message.sent', (e) => this.appendMessage(e));
                     }
                     return;
@@ -648,7 +648,7 @@
             const origin = window.location.origin;
             if (String(att.path).startsWith('ticket-messages/')) {
                 const filename = att.path.split('/').pop();
-                return origin + '/tickets/' + this.ticketId + '/files/' + encodeURIComponent(filename);
+                return origin + '/tickets/' + this.ticketPublicId + '/files/' + encodeURIComponent(filename);
             }
             return origin + '/storage/' + att.path;
         },

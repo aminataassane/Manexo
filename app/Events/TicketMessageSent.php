@@ -17,9 +17,12 @@ class TicketMessageSent implements ShouldBroadcast
 
     public function broadcastOn(): array
     {
+        $this->message->loadMissing('ticket');
+        $publicId = $this->message->ticket?->public_id ?? $this->message->ticket_id;
+
         $channel = $this->message->type === TicketMessageType::InternalNote
-            ? new PrivateChannel('ticket.staff.' . $this->message->ticket_id)
-            : new PrivateChannel('ticket.' . $this->message->ticket_id);
+            ? new PrivateChannel('ticket.staff.' . $publicId)
+            : new PrivateChannel('ticket.' . $publicId);
 
         return [$channel];
     }
@@ -31,10 +34,11 @@ class TicketMessageSent implements ShouldBroadcast
 
     public function broadcastWith(): array
     {
-        $this->message->load(['user:id,name,email']);
+        $this->message->load(['user:id,name,email', 'ticket:id,public_id']);
         return [
             'id' => $this->message->id,
             'ticket_id' => $this->message->ticket_id,
+            'ticket_public_id' => $this->message->ticket?->public_id,
             'user_id' => $this->message->user_id,
             'user_name' => $this->message->user?->name,
             'type' => $this->message->type->value,

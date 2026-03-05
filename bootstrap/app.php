@@ -18,7 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\SetLocaleFromSession::class,
+            \App\Http\Middleware\EnforceSessionLimits::class,
+            \App\Http\Middleware\Enforce2FA::class,
+            \App\Http\Middleware\EnforcePasswordExpiry::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

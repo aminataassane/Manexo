@@ -3,13 +3,21 @@
 namespace App\Models;
 
 use App\Enums\FormAssignmentStatus;
+use App\Traits\BelongsToOrganization;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class FormAssignment extends Model
 {
+    use HasPublicId, BelongsToOrganization;
+
+    public static string $publicIdPrefix = 'ASG';
+
     protected $fillable = [
+        'public_id',
+        'organization_id',
         'form_id',
         'user_id',
         'organization_function_id',

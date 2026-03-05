@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use App\Enums\OrganizationRole;
 use App\Enums\Permission;
 use App\Helpers\CacheHelper;
+use App\Services\OrganizationAuditService;
 use App\Models\Organization;
 use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
@@ -67,6 +68,9 @@ class Settings extends Component
     public string $editingFunctionName = '';
 
     public string $dangerConfirmName = '';
+
+    /** Mode de résolution des tickets (flexible | strict) */
+    public string $ticket_resolution_mode = 'flexible';
 
     /** Paramètres formulaires (onglet Formulaires) */
     public ?int $forms_default_due_days = 7;
@@ -137,6 +141,7 @@ class Settings extends Component
             : null;
         $this->members_can_edit = (bool) ($settings['permissions']['members_can_edit'] ?? true);
         $this->members_can_delete = (bool) ($settings['permissions']['members_can_delete'] ?? false);
+        $this->ticket_resolution_mode = $settings['workflow']['ticket_resolution_mode'] ?? 'flexible';
 
         $forms = $settings['forms'] ?? [];
         $this->forms_default_due_days = isset($forms['default_due_days']) ? (int) $forms['default_due_days'] : 7;
@@ -260,6 +265,14 @@ class Settings extends Component
         }
 
         CacheHelper::invalidateRolePermissions($orgId);
+
+        OrganizationAuditService::log(
+            'settings.role_permissions_updated',
+            'role',
+            null,
+            ['role' => $role, 'permissions_count' => count($granted)],
+        );
+
         $this->dispatch('toast', type: 'success', message: __('settings.permissions_saved'));
     }
 
@@ -425,6 +438,7 @@ class Settings extends Component
             'auto_close_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'members_can_edit' => ['boolean'],
             'members_can_delete' => ['boolean'],
+            'ticket_resolution_mode' => ['required', 'in:flexible,strict'],
         ]);
 
         if ($validated['default_category_id'] ?? null) {
@@ -467,6 +481,7 @@ class Settings extends Component
         ];
         $settings['workflow'] = [
             'auto_close_days' => $validated['auto_close_days'] ?? null,
+            'ticket_resolution_mode' => $this->ticket_resolution_mode,
         ];
         $settings['permissions'] = [
             'members_can_edit' => (bool) ($validated['members_can_edit'] ?? true),
@@ -494,12 +509,21 @@ class Settings extends Component
         $this->default_category_id = isset($settings['defaults']['ticket_category_id']) ? (int) $settings['defaults']['ticket_category_id'] : null;
         $this->default_priority_id = isset($settings['defaults']['ticket_priority_id']) ? (int) $settings['defaults']['ticket_priority_id'] : null;
         $this->auto_close_days = isset($settings['workflow']['auto_close_days']) ? (int) $settings['workflow']['auto_close_days'] : null;
+        $this->ticket_resolution_mode = $settings['workflow']['ticket_resolution_mode'] ?? 'flexible';
         $this->members_can_edit = (bool) ($settings['permissions']['members_can_edit'] ?? true);
         $this->members_can_delete = (bool) ($settings['permissions']['members_can_delete'] ?? false);
 
         view()->share('currentOrganization', $org);
 
         CacheHelper::invalidateAll($this->orgId());
+
+        OrganizationAuditService::log(
+            'settings.updated',
+            'organization',
+            (int) $org->id,
+            ['fields' => array_keys($validated)],
+        );
+
         $this->successMessage = __('Paramètres mis à jour.');
     }
 
@@ -566,6 +590,13 @@ class Settings extends Component
             $this->addError('dangerConfirmName', "Le nom ne correspond pas.");
             return;
         }
+
+        OrganizationAuditService::log(
+            'organization.deleted',
+            'organization',
+            (int) $org->id,
+            ['name' => $org->name],
+        );
 
         $org->delete();
         session()->forget('current_organization_id');

@@ -15,6 +15,7 @@ class TicketAssignee extends Pivot
         'ticket_id',
         'user_id',
         'assigned_by',
+        'role',
     ];
 
     public function ticket(): BelongsTo

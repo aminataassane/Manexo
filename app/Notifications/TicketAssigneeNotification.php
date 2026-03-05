@@ -29,6 +29,8 @@ class TicketAssigneeNotification extends Notification implements ShouldQueue
             'type' => 'ticket_assignee',
             'action' => $this->action,
             'ticket_id' => $this->ticket->id,
+            'ticket_public_id' => $this->ticket->public_id,
+            'ticket_reference' => $this->ticket->shortReference(),
             'ticket_subject' => $this->ticket->subject,
             'assigner_id' => $this->assigner->id,
             'assigner_name' => $this->assigner->name,

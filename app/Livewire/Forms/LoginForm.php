@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Forms;
 
+use App\Services\PlatformSettingsService;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -31,7 +32,7 @@ class LoginForm extends Form
         $this->ensureIsNotRateLimited();
 
         if (! Auth::attempt($this->only(['email', 'password']), $this->remember)) {
-            RateLimiter::hit($this->throttleKey());
+            RateLimiter::hit($this->throttleKey(), $this->lockoutDurationSeconds());
 
             throw ValidationException::withMessages([
                 'form.email' => trans('auth.failed'),
@@ -39,6 +40,12 @@ class LoginForm extends Form
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        // Set 2FA pending flag if user has 2FA enabled
+        $user = Auth::user();
+        if ($user && $user->two_factor_secret && $user->two_factor_confirmed_at) {
+            session(['2fa_pending' => true]);
+        }
     }
 
     /**
@@ -46,7 +53,7 @@ class LoginForm extends Form
      */
     protected function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), $this->maxLoginAttempts())) {
             return;
         }
 
@@ -60,6 +67,24 @@ class LoginForm extends Form
                 'minutes' => ceil($seconds / 60),
             ]),
         ]);
+    }
+
+    /**
+     * Get max login attempts from platform settings.
+     */
+    protected function maxLoginAttempts(): int
+    {
+        return (int) app(PlatformSettingsService::class)->get('max_login_attempts', 5);
+    }
+
+    /**
+     * Get lockout duration in seconds from platform settings.
+     */
+    protected function lockoutDurationSeconds(): int
+    {
+        $minutes = (int) app(PlatformSettingsService::class)->get('lockout_duration_minutes', 1);
+
+        return max($minutes, 1) * 60;
     }
 
     /**

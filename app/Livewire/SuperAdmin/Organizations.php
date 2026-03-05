@@ -3,7 +3,11 @@
 namespace App\Livewire\SuperAdmin;
 
 use App\Models\Organization;
+use App\Models\OrganizationMembership;
+use App\Models\Scopes\OrganizationScope;
+use App\Models\User;
 use App\Services\SuperAdminAuditService;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -35,6 +39,16 @@ class Organizations extends Component
     public bool $showDisableModal = false;
     public ?int $disableOrgId = null;
 
+    // Create modal
+    public bool $showCreateModal = false;
+    public string $createName = '';
+    public string $createSlug = '';
+    public string $createOwnerEmail = '';
+
+    // Archive modal
+    public bool $showArchiveModal = false;
+    public ?int $archiveOrgId = null;
+
     public function updatingSearch(): void
     {
         $this->resetPage();
@@ -45,8 +59,103 @@ class Organizations extends Component
         $this->resetPage();
     }
 
+    public function updatedCreateName(): void
+    {
+        $this->createSlug = Str::slug($this->createName);
+    }
+
+    public function openCreateModal(): void
+    {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
+        $this->createName = '';
+        $this->createSlug = '';
+        $this->createOwnerEmail = '';
+        $this->showCreateModal = true;
+    }
+
+    public function confirmCreate(): void
+    {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
+        $this->validate([
+            'createName' => 'required|string|min:2|max:255',
+            'createSlug' => 'required|string|min:2|max:255|unique:organizations,slug',
+            'createOwnerEmail' => 'required|email|exists:users,email',
+        ]);
+
+        $owner = User::where('email', $this->createOwnerEmail)->firstOrFail();
+
+        $org = Organization::create([
+            'name' => $this->createName,
+            'slug' => $this->createSlug,
+            'created_by' => $owner->id,
+            'status' => 'active',
+        ]);
+
+        // Add owner as member
+        OrganizationMembership::create([
+            'organization_id' => $org->id,
+            'user_id' => $owner->id,
+            'role' => 'owner',
+        ]);
+
+        SuperAdminAuditService::log('org.create', 'Organization', $org->id, [
+            'name' => $org->name,
+            'slug' => $org->slug,
+            'owner_email' => $this->createOwnerEmail,
+        ]);
+
+        $this->showCreateModal = false;
+        $this->createName = '';
+        $this->createSlug = '';
+        $this->createOwnerEmail = '';
+
+        session()->flash('success', __('super_admin.organizations.create_success', ['name' => $org->name]));
+    }
+
+    public function openArchiveModal(int $id): void
+    {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
+        $this->archiveOrgId = $id;
+        $this->showArchiveModal = true;
+    }
+
+    public function confirmArchive(): void
+    {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
+        $org = Organization::findOrFail($this->archiveOrgId);
+        $org->update([
+            'archived_at' => now(),
+            'status' => 'disabled',
+        ]);
+
+        SuperAdminAuditService::log('org.archive', 'Organization', $org->id, [
+            'name' => $org->name,
+        ]);
+
+        $this->showArchiveModal = false;
+        $this->archiveOrgId = null;
+
+        session()->flash('success', __('super_admin.organizations.archived', ['name' => $org->name]));
+    }
+
     public function activateOrg(int $id): void
     {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
         $org = Organization::findOrFail($id);
         $org->update([
             'status' => 'active',
@@ -63,6 +172,10 @@ class Organizations extends Component
 
     public function openSuspendModal(int $id): void
     {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
         $this->suspendOrgId = $id;
         $this->suspendReason = '';
         $this->showSuspendModal = true;
@@ -70,6 +183,10 @@ class Organizations extends Component
 
     public function confirmSuspend(): void
     {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
         $org = Organization::findOrFail($this->suspendOrgId);
         $org->update([
             'status' => 'suspended',
@@ -91,6 +208,10 @@ class Organizations extends Component
 
     public function openEnterModal(int $id): void
     {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
         $this->enterOrgId = $id;
         $this->showEnterModal = true;
     }
@@ -106,6 +227,10 @@ class Organizations extends Component
 
     public function enterOrganization(int $id): void
     {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
         $org = Organization::find($id);
 
         if (! $org || ! $org->isActive()) {
@@ -154,6 +279,10 @@ class Organizations extends Component
 
     public function disableOrg(int $id): void
     {
+        if (! auth()->user()->canPlatformManage()) {
+            return;
+        }
+
         $org = Organization::findOrFail($id);
         $org->update([
             'status' => 'disabled',
@@ -172,6 +301,7 @@ class Organizations extends Component
     {
         $query = Organization::query()
             ->withCount('memberships')
+            ->withCount(['tickets' => fn ($q) => $q->withoutGlobalScope(OrganizationScope::class)])
             ->with('creator:id,name');
 
         if ($this->search !== '') {

@@ -16,12 +16,17 @@ class TicketAssigneeChanged implements ShouldBroadcast
         public int $affectedUserId,
         public string $action,
         public string $actorName,
+        public string $ticketPublicId = '',
     ) {}
 
     public function broadcastOn(): array
     {
+        $ticketChannel = $this->ticketPublicId !== ''
+            ? $this->ticketPublicId
+            : $this->ticketId;
+
         return [
-            new PrivateChannel('ticket.' . $this->ticketId),
+            new PrivateChannel('ticket.' . $ticketChannel),
             new PrivateChannel('App.Models.User.' . $this->affectedUserId),
         ];
     }
@@ -35,6 +40,7 @@ class TicketAssigneeChanged implements ShouldBroadcast
     {
         return [
             'ticket_id' => $this->ticketId,
+            'ticket_public_id' => $this->ticketPublicId,
             'ticket_subject' => $this->ticketSubject,
             'affected_user_id' => $this->affectedUserId,
             'action' => $this->action,

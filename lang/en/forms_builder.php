@@ -169,7 +169,7 @@ return [
     'source_internal_assignment' => 'Assignment',
     'source_internal_team' => 'Team',
     'source_internal_team_slug' => 'Team (link)',
-    'open_ticket' => 'View ticket #:id',
+    'open_ticket' => 'View ticket :reference',
     'download_file' => 'Download',
     'no_responses' => 'No responses',
     'no_responses_hint' => 'Responses will appear here once submitted.',

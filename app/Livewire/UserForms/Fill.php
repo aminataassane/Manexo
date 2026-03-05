@@ -191,6 +191,7 @@ class Fill extends Component
                 responderId: $user->id,
                 responderName: $user->name,
                 source: 'assignment',
+                formPublicId: $form->public_id,
             ));
             event(new UserNotificationReceived(userId: $creator->id, notificationType: 'form_response'));
         }

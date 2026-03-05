@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PlatformRole;
 use App\Notifications\EmailVerificationOtpNotification;
 use App\Notifications\ResetPasswordManexoNotification;
 use App\Traits\HasOrganizationPermissions;
@@ -37,6 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'last_login_ip',
         'deactivated_at',
         'is_super_admin',
+        'platform_role',
     ];
 
     /**
@@ -62,6 +64,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'last_login_at' => 'datetime',
             'deactivated_at' => 'datetime',
             'is_super_admin' => 'boolean',
+            'platform_role' => PlatformRole::class,
         ];
     }
 
@@ -175,7 +178,22 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isSuperAdmin(): bool
     {
-        return (bool) $this->is_super_admin;
+        return $this->platform_role === PlatformRole::SuperAdmin || (bool) $this->is_super_admin;
+    }
+
+    public function hasPlatformAccess(): bool
+    {
+        return $this->platform_role !== null || (bool) $this->is_super_admin;
+    }
+
+    public function canPlatformManage(): bool
+    {
+        return ($this->platform_role !== null && $this->platform_role->canManage()) || (bool) $this->is_super_admin;
+    }
+
+    public function canPlatformAdminister(): bool
+    {
+        return ($this->platform_role !== null && $this->platform_role->canAdminister()) || (bool) $this->is_super_admin;
     }
 
     public function organizationMemberships(): HasMany

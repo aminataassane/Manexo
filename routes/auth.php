@@ -22,10 +22,21 @@ Route::middleware('guest')->group(function () {
     Volt::route('/login', 'pages.auth.login')->name('login');
 
     /**
-     * Password reset (guest only)
+     * Platform admin login (separate page, rate limited)
      */
-    Volt::route('/forgot-password', 'pages.auth.forgot-password')->name('password.request');
-    Volt::route('/reset-password/{token}', 'pages.auth.reset-password')->name('password.reset');
+    Volt::route('/platform-admin/login', 'pages.auth.platform-login')
+        ->middleware('throttle:platform-login')
+        ->name('platform-admin.login');
+
+    /**
+     * Password reset (guest only, rate limited)
+     */
+    Volt::route('/forgot-password', 'pages.auth.forgot-password')
+        ->middleware('throttle:password-reset')
+        ->name('password.request');
+    Volt::route('/reset-password/{token}', 'pages.auth.reset-password')
+        ->middleware('throttle:password-reset')
+        ->name('password.reset');
 });
 
 Route::middleware('auth')->group(function () {
@@ -34,6 +45,12 @@ Route::middleware('auth')->group(function () {
      */
     Volt::route('/verify-email', 'pages.auth.verify-email')->name('verification.notice');
     Volt::route('/confirm-password', 'pages.auth.confirm-password')->name('password.confirm');
+
+    /**
+     * Two-factor authentication
+     */
+    Route::get('/two-factor/setup', \App\Livewire\Auth\TwoFactorSetup::class)->name('two-factor.setup');
+    Route::get('/two-factor/challenge', \App\Livewire\Auth\TwoFactorChallenge::class)->name('two-factor.challenge');
 
     /**
      * Logout (auth only)

@@ -142,4 +142,9 @@ return [
     'clear_view_cache_help' => 'Recompiles all Blade views. Useful after an update or if the display is incorrect.',
     'cache_cleared' => 'Organization cache cleared.',
     'view_cache_cleared' => 'View cache cleared.',
+
+    // Ticket resolution mode
+    'ticket_resolution_mode_label' => 'Resolution mode',
+    'ticket_resolution_mode_flexible' => 'Flexible (resolve without completing all subtasks)',
+    'ticket_resolution_mode_strict' => 'Strict (all subtasks must be completed)',
 ];

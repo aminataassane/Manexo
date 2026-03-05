@@ -452,8 +452,8 @@
                         </div>
                         <h3 class="text-base font-bold text-slate-900 mb-1.5">{{ __('forms_builder.responses_tab') }}</h3>
                         <p class="text-xs sm:text-sm text-slate-500 mb-6">{{ __('forms_builder.view_responses_hint') }}</p>
-                        @if($fb_selected_form_id)
-                            <a href="{{ route('admin.forms.responses', $fb_selected_form_id) }}"
+                        @if($selectedForm)
+                            <a href="{{ route('admin.forms.responses', $selectedForm) }}"
                                class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all"
                                style="background: var(--accent);">
                                 <iconify-icon icon="solar:eye-bold" width="18"></iconify-icon>

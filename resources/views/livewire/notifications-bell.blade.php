@@ -47,6 +47,8 @@
                         $data = $notification->data;
                         $nType = $data['type'] ?? 'ticket_new_message';
                         $ticketId = $data['ticket_id'] ?? null;
+                        $ticketPublicId = $data['ticket_public_id'] ?? null;
+                        $ticketReference = $data['ticket_reference'] ?? null;
                         $subject = $data['ticket_subject'] ?? __('Ticket');
                         $isRead = !is_null($notification->read_at);
 
@@ -73,7 +75,7 @@
                                 ? __('Vous a assigné un formulaire — échéance :') . ' ' . $dueDate
                                 : __('Vous a assigné un formulaire');
                             $isFormAssignment = true;
-                            $assignmentId = $data['assignment_id'] ?? null;
+                            $assignmentId = $data['assignment_public_id'] ?? $data['assignment_id'] ?? null;
                             $notifUrl = $assignmentId ? route('forms.fill', $assignmentId) : route('forms.index');
                         } elseif ($nType === 'form_response') {
                             $senderName = $data['responder_name'] ?? '—';
@@ -84,7 +86,7 @@
                                 default => __('forms_builder.notif_response_assignment'),
                             };
                             $isFormResponse = true;
-                            $formId = $data['form_id'] ?? null;
+                            $formId = $data['form_public_id'] ?? $data['form_id'] ?? null;
                             $notifUrl = $formId ? route('admin.forms.responses', $formId) : '#';
                         } elseif ($nType === 'form_overdue') {
                             $senderName = __('Système');
@@ -94,7 +96,7 @@
                                 ? __('Formulaire en retard — échéance :') . ' ' . $dueDate
                                 : __('Formulaire en retard');
                             $isFormOverdue = true;
-                            $assignmentId = $data['assignment_id'] ?? null;
+                            $assignmentId = $data['assignment_public_id'] ?? $data['assignment_id'] ?? null;
                             $notifUrl = $assignmentId ? route('forms.fill', $assignmentId) : route('forms.index');
                         } elseif ($nType === 'task_report_shared') {
                             $senderName = $data['sender_name'] ?? '—';
@@ -112,14 +114,14 @@
                                 default => __('Vous a assigné au ticket'),
                             };
                             $isAssignee = true;
-                            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
+                            $notifUrl = ($ticketPublicId ?? $ticketId) ? route('tickets.discussion', $ticketPublicId ?? $ticketId) : '#';
                         } elseif ($nType === 'ticket_mention') {
                             $senderName = $data['mentioner_name'] ?? '—';
                             $excerpt = $data['body_excerpt'] ?? '';
                             $isMention = true;
                             $messageId = $data['message_id'] ?? null;
-                            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
-                            if ($messageId && $ticketId) {
+                            $notifUrl = ($ticketPublicId ?? $ticketId) ? route('tickets.discussion', $ticketPublicId ?? $ticketId) : '#';
+                            if ($messageId && ($ticketPublicId ?? $ticketId)) {
                                 $notifUrl .= '#message-' . $messageId;
                             }
                         } elseif ($nType === 'discussion_invite') {
@@ -147,8 +149,8 @@
                             $excerpt = $data['body_excerpt'] ?? '';
                             $isNote = $data['is_internal_note'] ?? false;
                             $messageId = $data['message_id'] ?? null;
-                            $notifUrl = $ticketId ? route('tickets.discussion', $ticketId) : '#';
-                            if ($messageId && $ticketId) {
+                            $notifUrl = ($ticketPublicId ?? $ticketId) ? route('tickets.discussion', $ticketPublicId ?? $ticketId) : '#';
+                            if ($messageId && ($ticketPublicId ?? $ticketId)) {
                                 $notifUrl .= '#message-' . $messageId;
                             }
                         }
@@ -235,7 +237,7 @@
                                     @elseif($isDiscussionMessage)
                                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-sky-50 text-sky-700 border border-sky-100">{{ __('Message') }}</span>
                                     @else
-                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">Ticket #{{ $ticketId }}</span>
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">{{ $ticketReference ?? 'Ticket #' . $ticketId }}</span>
                                     @endif
                                     <span class="truncate font-medium text-slate-700">{{ $subject }}</span>
                                 </p>

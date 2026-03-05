@@ -14,7 +14,7 @@ new #[Layout('layouts.guest')] class extends Component
         $this->validate();
         $this->form->authenticate();
         Session::regenerate();
-        $default = auth()->user()?->is_super_admin
+        $default = auth()->user()?->hasPlatformAccess()
             ? route('platform-admin.dashboard', absolute: false)
             : route('dashboard', absolute: false);
         $this->redirectIntended(default: $default);

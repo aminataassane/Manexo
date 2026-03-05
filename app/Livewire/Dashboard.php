@@ -274,17 +274,18 @@ class Dashboard extends Component
 
             return TicketMessage::query()
                 ->joinSub($latestPerTicket, 'latest', fn ($join) => $join->on('ticket_messages.id', '=', 'latest.max_id'))
-                ->with(['ticket:id,subject', 'user:id,name'])
+                ->with(['ticket:id,subject,public_id', 'user:id,name'])
                 ->orderByDesc('ticket_messages.created_at')
                 ->get()
                 ->map(function (TicketMessage $m) {
                     $isYou = Auth::id() && (int) $m->user_id === (int) Auth::id();
                     return (object) [
                         'ticket_id' => $m->ticket_id,
-                        'subject' => $m->ticket?->subject ?? __('menu.tickets') . ' #' . $m->ticket_id,
+                        'ticket_reference' => $m->ticket?->shortReference() ?? __('menu.tickets'),
+                        'subject' => $m->ticket?->subject ?? __('menu.tickets'),
                         'user_name' => $isYou ? __('pages.dashboard.you') : ($m->user?->name ?? '—'),
                         'created_at' => $m->created_at,
-                        'url' => route('tickets.discussion', $m->ticket_id),
+                        'url' => $m->ticket?->public_id ? route('tickets.discussion', $m->ticket->public_id) : '#',
                     ];
                 });
         });

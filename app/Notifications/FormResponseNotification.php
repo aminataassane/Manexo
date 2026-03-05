@@ -17,6 +17,7 @@ class FormResponseNotification extends Notification implements ShouldQueue
         public int $responderId,
         public string $responderName,
         public string $source = 'assignment',
+        public ?string $formPublicId = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -29,6 +30,7 @@ class FormResponseNotification extends Notification implements ShouldQueue
         return [
             'type' => 'form_response',
             'form_id' => $this->formId,
+            'form_public_id' => $this->formPublicId,
             'form_name' => $this->formName,
             'response_id' => $this->responseId,
             'responder_id' => $this->responderId,

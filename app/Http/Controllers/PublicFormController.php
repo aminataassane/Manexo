@@ -8,6 +8,7 @@ use App\Enums\TicketStatus;
 use App\Models\Form;
 use App\Models\FormResponse;
 use App\Models\OrganizationMembership;
+use App\Models\Scopes\OrganizationScope;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
@@ -31,7 +32,9 @@ class PublicFormController extends Controller
             abort(404);
         }
 
-        $form = Form::query()
+        // Public forms must bypass the organization scope because
+        // anonymous users (or users from a different org) can access them.
+        $form = Form::withoutGlobalScope(OrganizationScope::class)
             ->where('is_public', true)
             ->where('status', FormStatus::Published)
             ->whereNotNull('slug')
@@ -53,7 +56,7 @@ class PublicFormController extends Controller
 
         $categories = $form->ticket_category_id
             ? collect()
-            : TicketCategory::query()
+            : TicketCategory::withoutGlobalScope(OrganizationScope::class)
                 ->where('organization_id', $org->id)
                 ->where('is_active', true)
                 ->orderBy('name')
@@ -143,7 +146,7 @@ class PublicFormController extends Controller
         $defaultPriority = null;
 
         if ($shouldCreateTicket) {
-            $defaultPriority = TicketPriority::query()
+            $defaultPriority = TicketPriority::withoutGlobalScope(OrganizationScope::class)
                 ->where('organization_id', $org->id)
                 ->where('is_active', true)
                 ->orderBy('level')
@@ -155,7 +158,7 @@ class PublicFormController extends Controller
                     'ticket_category_id' => __('Veuillez choisir une catégorie.'),
                 ]);
             }
-            $categoryOk = TicketCategory::query()
+            $categoryOk = TicketCategory::withoutGlobalScope(OrganizationScope::class)
                 ->where('id', $categoryId)
                 ->where('organization_id', $org->id)
                 ->exists();
@@ -164,7 +167,7 @@ class PublicFormController extends Controller
                     'ticket_category_id' => __("Sélection invalide pour l'entreprise."),
                 ]);
             }
-            $categoryName = TicketCategory::find($categoryId)?->name;
+            $categoryName = TicketCategory::withoutGlobalScope(OrganizationScope::class)->find($categoryId)?->name;
         }
 
         if (! $actor) {
@@ -246,6 +249,7 @@ class PublicFormController extends Controller
 
         // Create FormResponse (need ID for file storage)
         $formResponse = FormResponse::create([
+            'organization_id' => $org->id,
             'form_id' => $form->id,
             'user_id' => $actor->id,
             'form_version' => $form->current_version,
@@ -299,6 +303,7 @@ class PublicFormController extends Controller
                 responderId: $actor->id,
                 responderName: $actor->name ?? $guestName ?? '—',
                 source: 'public',
+                formPublicId: $form->public_id,
             ));
             event(new UserNotificationReceived(userId: (int) $admin->id, notificationType: 'form_response'));
         }
@@ -336,7 +341,7 @@ class PublicFormController extends Controller
             abort(404);
         }
 
-        $storage = Storage::disk('public');
+        $storage = Storage::disk('local');
         if (! $storage->exists($fileData['path'])) {
             abort(404);
         }

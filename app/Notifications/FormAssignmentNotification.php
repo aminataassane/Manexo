@@ -17,6 +17,7 @@ class FormAssignmentNotification extends Notification implements ShouldQueue
         public int $assignedById,
         public string $assignedByName,
         public ?string $dueDate = null,
+        public ?string $assignmentPublicId = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -31,6 +32,7 @@ class FormAssignmentNotification extends Notification implements ShouldQueue
             'form_id' => $this->formId,
             'form_name' => $this->formName,
             'assignment_id' => $this->assignmentId,
+            'assignment_public_id' => $this->assignmentPublicId,
             'assigned_by_id' => $this->assignedById,
             'assigned_by_name' => $this->assignedByName,
             'due_date' => $this->dueDate,

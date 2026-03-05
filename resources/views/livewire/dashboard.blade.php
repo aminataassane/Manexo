@@ -163,7 +163,7 @@
                                 <tr class="group hover:bg-slate-50/80 transition-colors cursor-pointer" onclick="window.location='{{ route('tickets.discussion', $t) }}'">
                                     <td class="px-4 sm:px-6 py-3 sm:py-4">
                                         <div class="flex items-center gap-2 sm:gap-3 min-w-0">
-                                            <div class="h-8 w-8 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-mono text-xs font-bold">#{{ $t->id }}</div>
+                                            <div class="h-8 w-8 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-mono text-xs font-bold">{{ $t->shortReference() }}</div>
                                             <div class="min-w-0">
                                                 <p class="text-sm font-semibold text-slate-900 group-hover:text-[var(--accent)] transition-colors truncate">{{ $t->subject }}</p>
                                                 <p class="text-xs text-slate-500 truncate max-w-[180px] sm:max-w-[200px]">{{ $t->description }}</p>
@@ -246,7 +246,7 @@
                                 $isOverdue = $faStatus === 'overdue';
                             @endphp
                             <li>
-                                <a href="{{ route('forms.fill', $fa->id) }}" class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/30 hover:bg-slate-50/60 transition-colors shadow-sm group block">
+                                <a href="{{ route('forms.fill', $fa) }}" class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/30 hover:bg-slate-50/60 transition-colors shadow-sm group block">
                                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $isOverdue ? 'bg-red-50 text-red-600' : 'bg-[var(--accent-soft)] text-[var(--accent)]' }}">
                                         <iconify-icon icon="{{ $isOverdue ? 'solar:alarm-bold-duotone' : 'solar:clipboard-text-bold-duotone' }}" width="20"></iconify-icon>
                                     </div>
@@ -307,7 +307,7 @@
                         $isOverdue = $faStatus === 'overdue';
                     @endphp
                     <li>
-                        <a href="{{ route('forms.fill', $fa->id) }}" class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/30 hover:bg-slate-50/60 transition-colors shadow-sm group block">
+                        <a href="{{ route('forms.fill', $fa) }}" class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/30 hover:bg-slate-50/60 transition-colors shadow-sm group block">
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $isOverdue ? 'bg-red-50 text-red-600' : 'bg-[var(--accent-soft)] text-[var(--accent)]' }}">
                                 <iconify-icon icon="{{ $isOverdue ? 'solar:alarm-bold-duotone' : 'solar:clipboard-text-bold-duotone' }}" width="20"></iconify-icon>
                             </div>

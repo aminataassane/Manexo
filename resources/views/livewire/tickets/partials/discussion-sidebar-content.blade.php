@@ -13,17 +13,32 @@
     /** @var \Illuminate\Support\Collection<int, \App\Models\OrganizationFunction>|array $organizationFunctions */
 @endphp
 <div class="flex flex-col h-full gap-4 min-w-0">
+    {{-- Lock banner --}}
+    @if($isLocked ?? false)
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3 sm:p-4 shadow-sm min-w-0">
+            <div class="flex items-start gap-2 text-sm text-amber-800">
+                <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="20" class="text-amber-600 shrink-0 mt-0.5"></iconify-icon>
+                <div>
+                    <div class="font-bold">{{ __('tickets.locked_banner') }}</div>
+                    @if($canBypassLock ?? false)
+                        <div class="text-xs text-amber-700/80 mt-0.5">{{ __('Vous avez les droits administrateur pour modifier ce ticket.') }}</div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Aperçu -->
     <div class="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm min-w-0">
         <div class="flex flex-col min-[260px]:flex-row min-[260px]:items-start min-[260px]:justify-between gap-2 sm:gap-3">
             <div class="min-w-0 flex-1">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Ticket') }}</div>
                 <div class="mt-1 flex items-center gap-2 min-w-0 flex-wrap">
-                    <span class="text-xs font-mono font-bold text-slate-400 shrink-0">#{{ $ticket->id }}</span>
+                    <span class="text-xs font-mono font-bold text-slate-400 shrink-0">{{ $ticket->shortReference() }}</span>
                     <span class="text-sm font-bold text-slate-900 truncate min-w-0">{{ $ticket->subject }}</span>
                 </div>
             </div>
-            <a href="{{ route('tickets.discussion', $ticket->id) }}" class="shrink-0 self-start min-[260px]:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+            <a href="{{ route('tickets.discussion', $ticket) }}" class="shrink-0 self-start min-[260px]:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">
                 <iconify-icon icon="solar:arrow-right-linear" width="14"></iconify-icon>
                 {{ __('Ouvrir') }}
             </a>
@@ -32,7 +47,7 @@
         <div class="mt-3 flex flex-wrap gap-2">
             {{-- Statut : dropdown pour staff, badge pour les autres --}}
             @if($canAssignTicket ?? false)
-                <select wire:change="changeStatus($event.target.value)" class="rounded-full border-slate-200 bg-[var(--accent-soft)] text-[var(--accent)] py-1 pl-2.5 pr-7 text-xs font-bold shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer max-w-full min-w-0">
+                <select wire:change="changeStatus($event.target.value)" class="rounded-full border-slate-200 bg-[var(--accent-soft)] text-[var(--accent)] py-1 pl-2.5 pr-7 text-xs font-bold shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer max-w-full min-w-0 disabled:opacity-50 disabled:cursor-not-allowed" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
                     @foreach(TicketStatus::cases() as $s)
                         <option value="{{ $s->value }}" @selected($ticket->status === $s)>{{ __('tickets.status.' . $s->value) }}</option>
                     @endforeach
@@ -46,7 +61,7 @@
 
             {{-- Priorité : dropdown pour staff, badge pour les autres --}}
             @if($canAssignTicket ?? false)
-                <select x-on:change="$wire.changePriority(Number($event.target.value))" class="rounded-full border-slate-200 bg-slate-100 text-slate-700 py-1 pl-2.5 pr-7 text-xs font-bold shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer max-w-full min-w-0">
+                <select x-on:change="$wire.changePriority(Number($event.target.value))" class="rounded-full border-slate-200 bg-slate-100 text-slate-700 py-1 pl-2.5 pr-7 text-xs font-bold shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer max-w-full min-w-0 disabled:opacity-50 disabled:cursor-not-allowed" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
                     @foreach($orgPriorities ?? [] as $p)
                         <option value="{{ $p->id }}" @selected($ticket->ticket_priority_id === $p->id)>{{ $p->name }}</option>
                     @endforeach
@@ -66,18 +81,41 @@
 
         {{-- Assignés, Fonction, Échéance : 1 colonne pour lisibilité (panneau étroit), 2 colonnes sur viewport large --}}
         <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            {{-- Assignés (multi-assignee) --}}
+            {{-- Assignés (multi-assignee avec distinction responsable/collaborateur) --}}
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Assignés') }}</div>
                 <div class="mt-1 flex flex-col gap-2 min-w-0">
                     @if($ticket->assignees->isNotEmpty())
-                        @foreach($ticket->assignees as $asg)
+                        @php
+                            $responsible = $ticket->assignees->first(fn ($u) => ($u->pivot->role ?? '') === 'responsible');
+                            $collaborators = $ticket->assignees->filter(fn ($u) => ($u->pivot->role ?? '') !== 'responsible');
+                        @endphp
+                        {{-- Responsable --}}
+                        @if($responsible)
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 ring-2 ring-[var(--accent)]" style="background: var(--accent-soft); color: var(--accent);">
+                                    {{ strtoupper(mb_substr($responsible->name ?? '?', 0, 1)) }}
+                                </div>
+                                <span class="text-sm font-semibold text-slate-900 truncate flex-1 min-w-0">{{ $responsible->name }}</span>
+                                <span class="text-[10px] font-bold text-white bg-[var(--accent)] px-1.5 py-0.5 rounded-full shrink-0">{{ __('Responsable') }}</span>
+                                @if(($canAssignTicket ?? false) && !($isLocked ?? false))
+                                    <button type="button" wire:click="removeAssignee({{ $responsible->id }})" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Retirer') }}">
+                                        <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
+                                    </button>
+                                @endif
+                            </div>
+                        @endif
+                        {{-- Collaborateurs --}}
+                        @foreach($collaborators as $asg)
                             <div class="flex items-center gap-2 min-w-0">
                                 <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 ring-1 ring-slate-200" style="background: var(--accent-soft); color: var(--accent);">
                                     {{ strtoupper(mb_substr($asg->name ?? '?', 0, 1)) }}
                                 </div>
                                 <span class="text-sm font-semibold text-slate-900 truncate flex-1 min-w-0">{{ $asg->name }}</span>
-                                @if($canAssignTicket ?? false)
+                                @if(($canAssignTicket ?? false) && !($isLocked ?? false))
+                                    <button type="button" wire:click="promoteToResponsible({{ $asg->id }})" class="shrink-0 text-[10px] font-bold text-[var(--accent)] hover:underline" title="{{ __('Promouvoir en responsable') }}">
+                                        <iconify-icon icon="solar:star-bold" width="14"></iconify-icon>
+                                    </button>
                                     <button type="button" wire:click="removeAssignee({{ $asg->id }})" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Retirer') }}">
                                         <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
                                     </button>
@@ -87,7 +125,7 @@
                     @else
                         <span class="text-sm text-slate-400 italic">—</span>
                     @endif
-                    @if($canAssignTicket ?? false)
+                    @if(($canAssignTicket ?? false) && !($isLocked ?? false))
                         <div class="flex flex-wrap gap-1.5">
                             @if($ticket->assignees->isEmpty() || (auth()->id() && !$ticket->assignees->contains('id', auth()->id())))
                                 <button type="button" wire:click="assignToMe" class="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all shrink-0">
@@ -108,7 +146,7 @@
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Fonction') }}</div>
                 @if($canSeeInternalNotes ?? false)
-                    <select class="mt-1 w-full min-w-0 rounded-lg border-slate-200 bg-white py-1.5 px-2 text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" wire:change="setAssignedToFunction($event.target.value)">
+                    <select class="mt-1 w-full min-w-0 rounded-lg border-slate-200 bg-white py-1.5 px-2 text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" wire:change="setAssignedToFunction($event.target.value)" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
                         <option value="">{{ __('— Aucune —') }}</option>
                         @foreach($organizationFunctions ?? [] as $fn)
                             <option value="{{ $fn->id }}" @selected($ticket->assigned_to_function_id === $fn->id)>{{ $fn->name }}</option>
@@ -137,7 +175,8 @@
                             type="date"
                             value="{{ $ticketDueDate?->format('Y-m-d') ?? '' }}"
                             wire:change="updateDueDate($event.target.value)"
-                            class="min-w-0 flex-1 rounded-lg border-slate-200 bg-white py-1 px-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] max-w-full"
+                            class="min-w-0 flex-1 rounded-lg border-slate-200 bg-white py-1 px-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] max-w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                            @disabled(($isLocked ?? false) && !($canBypassLock ?? false))
                         />
                     @else
                         <span class="text-sm font-semibold text-slate-900 truncate">
@@ -201,7 +240,7 @@
             <ul class="mt-4 space-y-2">
                 @foreach($checklistItems as $item)
                     @php
-                        $canToggleThis = ($isStaffOrTicketOwner ?? false) || ($item->assigned_to && (int)$item->assigned_to === ($authUserId ?? 0));
+                        $canToggleThis = (($isStaffOrTicketOwner ?? false) || ($item->assigned_to && (int)$item->assigned_to === ($authUserId ?? 0)) || ($item->relationLoaded('assignees') && $item->assignees->contains('id', $authUserId ?? 0))) && !(($isLocked ?? false) && !($canBypassLock ?? false));
                     @endphp
                     <li class="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3" x-data="{ editing: false, editTitle: '{{ str_replace("'", "\\'", $item->title) }}' }">
                         @if($canToggleThis)
@@ -238,8 +277,38 @@
                                     />
                                 </template>
                             @endif
-                            @if($item->assignee)
+                            @if($item->relationLoaded('assignees') && $item->assignees->isNotEmpty())
+                                <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                                    @foreach($item->assignees as $itemAsg)
+                                        <span class="inline-flex items-center gap-1 text-[11px] {{ ($itemAsg->pivot->role ?? '') === 'responsible' ? 'text-[var(--accent)] font-bold' : 'text-slate-500' }}">
+                                            <span class="h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-semibold shrink-0 {{ ($itemAsg->pivot->role ?? '') === 'responsible' ? 'ring-1 ring-[var(--accent)]' : 'ring-1 ring-slate-200' }}" style="background: var(--accent-soft); color: var(--accent);">{{ strtoupper(mb_substr($itemAsg->name ?? '?', 0, 1)) }}</span>
+                                            {{ $itemAsg->name }}
+                                            @if(($canEditChecklist ?? false) && !($isLocked ?? false))
+                                                <button type="button" wire:click="removeChecklistItemAssignee({{ $item->id }}, {{ $itemAsg->id }})" class="text-slate-400 hover:text-red-500" title="{{ __('Retirer') }}">
+                                                    <iconify-icon icon="solar:close-circle-linear" width="12"></iconify-icon>
+                                                </button>
+                                            @endif
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @elseif($item->assignee)
                                 <div class="mt-0.5 text-[11px] text-slate-500">{{ __('Responsable') }}: {{ $item->assignee->name }}</div>
+                            @endif
+                            @if(($canEditChecklist ?? false) && !($isLocked ?? false))
+                                <div class="mt-1" x-data="{ open: false }">
+                                    <button type="button" @click="open = !open" class="text-[10px] font-medium text-[var(--accent)] hover:underline">
+                                        + {{ __('Assigner') }}
+                                    </button>
+                                    <div x-show="open" x-cloak class="mt-1">
+                                        <select class="w-full rounded-lg border-slate-200 bg-white py-1 px-2 text-[11px] text-slate-700 focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                x-on:change="if ($event.target.value > 0) { $wire.addChecklistItemAssignee({{ $item->id }}, Number($event.target.value)); $event.target.selectedIndex = 0; open = false; }">
+                                            <option value="0">{{ __('Assigner à…') }}</option>
+                                            @foreach($orgUsers ?? [] as $u)
+                                                <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                             @endif
                             @if($item->assigned_to_function_id && !$item->assigned_to)
                                 <div class="mt-0.5 flex items-center gap-2">
@@ -262,7 +331,7 @@
                                 </div>
                             @endif
                         </div>
-                        @if($canEditChecklist ?? false)
+                        @if(($canEditChecklist ?? false) && !(($isLocked ?? false) && !($canBypassLock ?? false)))
                             <button type="button" wire:click="deleteChecklistItem({{ $item->id }})" wire:confirm="{{ __('Supprimer cet élément ?') }}" class="shrink-0 mt-0.5 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Supprimer') }}">
                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="14"></iconify-icon>
                             </button>
@@ -273,7 +342,7 @@
         @else
             <p class="mt-3 text-sm text-slate-400">{{ __('Aucune étape.') }}</p>
         @endif
-        @if($canEditChecklist ?? false)
+        @if(($canEditChecklist ?? false) && !(($isLocked ?? false) && !($canBypassLock ?? false)))
             @if($showAddChecklistItem ?? false)
                 <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2" x-data="{ assignMode: 'user' }">
                     <input type="text" wire:model="newChecklistTitle" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm @error('newChecklistTitle') border-red-500 @enderror" placeholder="{{ __('Intitulé') }}" />

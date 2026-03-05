@@ -194,6 +194,7 @@ class FillTeamBySlug extends Component
                 responderId: $user->id,
                 responderName: $user->name,
                 source: 'team',
+                formPublicId: $this->form->public_id,
             ));
             event(new UserNotificationReceived(userId: (int) $admin->id, notificationType: 'form_response'));
         }

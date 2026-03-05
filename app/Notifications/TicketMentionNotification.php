@@ -30,6 +30,8 @@ class TicketMentionNotification extends Notification implements ShouldQueue
         return [
             'type' => 'ticket_mention',
             'ticket_id' => $this->message->ticket_id,
+            'ticket_public_id' => $ticket?->public_id,
+            'ticket_reference' => $ticket?->shortReference(),
             'ticket_subject' => $ticket?->subject,
             'message_id' => $this->message->id,
             'mentioner_id' => $this->mentioner->id,
