@@ -43,7 +43,7 @@ class InvitationAcceptedNotification extends Notification
             ->subject(__('invitations.accepted_email_subject', ['name' => $this->acceptedByName, 'org' => $this->organizationName]))
             ->view('emails.invitation-accepted', [
                 'appName' => $appName,
-                'logoUrl' => asset('assets/Logo(1).png'),
+                'logoUrl' => asset('assets/logo.png'),
                 'acceptedByName' => $this->acceptedByName,
                 'acceptedByEmail' => $this->acceptedByEmail,
                 'organizationName' => $this->organizationName,

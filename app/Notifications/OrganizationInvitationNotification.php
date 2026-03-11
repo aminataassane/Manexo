@@ -49,7 +49,7 @@ class OrganizationInvitationNotification extends Notification
             ->subject(__('invitations.email_subject', ['org' => $orgName]))
             ->view('emails.organization-invitation', [
                 'appName' => $appName,
-                'logoUrl' => asset('assets/Logo(1).png'),
+                'logoUrl' => asset('assets/logo.png'),
                 'orgName' => $orgName,
                 'roleName' => $roleName,
                 'inviterName' => $inviterName,
