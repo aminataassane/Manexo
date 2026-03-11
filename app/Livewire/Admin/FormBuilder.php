@@ -82,13 +82,9 @@ class FormBuilder extends Component
         abort_if(! $orgId, 403);
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
-        $isLocal = app()->environment('local');
-        $this->canManageForms = ($user && $user->hasAnyPermission([Permission::FormsManage, Permission::SettingsManageForms]))
-            || $isLocal;
-        $this->canAssignForms = ($user && $user->hasAnyPermission([Permission::FormsAssign, Permission::FormsManage, Permission::SettingsManageForms]))
-            || $isLocal;
-        $this->canViewResponses = ($user && $user->hasAnyPermission([Permission::FormsViewResponses, Permission::FormsManage, Permission::SettingsManageForms]))
-            || $isLocal;
+        $this->canManageForms = $user && $user->hasAnyPermission([Permission::FormsManage, Permission::SettingsManageForms]);
+        $this->canAssignForms = $user && $user->hasAnyPermission([Permission::FormsAssign, Permission::FormsManage, Permission::SettingsManageForms]);
+        $this->canViewResponses = $user && $user->hasAnyPermission([Permission::FormsViewResponses, Permission::FormsManage, Permission::SettingsManageForms]);
         $this->fb_selected_form_id = Form::query()
             ->forOrg($orgId)
             ->orderBy('name')

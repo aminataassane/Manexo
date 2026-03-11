@@ -47,7 +47,7 @@ class FormResponses extends Component
             Permission::FormsViewResponses,
             Permission::FormsManage,
             Permission::SettingsManageForms,
-        ])) || app()->environment('local');
+        ]));
         abort_if(! $canView, 403);
 
         $this->form = $form;

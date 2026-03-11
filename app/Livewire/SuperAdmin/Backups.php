@@ -66,7 +66,7 @@ class Backups extends Component
         }
 
         $service = new BackupService;
-        $filepath = $service->getBackupDirectory() . '/' . $filename;
+        $filepath = $service->getBackupDirectory() . '/' . basename($filename);
 
         if (! file_exists($filepath)) {
             session()->flash('error', 'File not found.');

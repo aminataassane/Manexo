@@ -5,6 +5,7 @@ namespace App\Livewire\Auth;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -18,6 +19,7 @@ class TwoFactorSetup extends Component
     public string $code = '';
     public string $qrCodeUrl = '';
     public string $secret = '';
+    public string $disablePassword = '';
     public array $recoveryCodes = [];
     public bool $showRecoveryCodes = false;
     public bool $confirmed = false;
@@ -67,7 +69,7 @@ class TwoFactorSetup extends Component
         }
 
         // Generate recovery codes
-        $recoveryCodes = Collection::times(8, fn () => Str::random(10))->all();
+        $recoveryCodes = Collection::times(8, fn () => Str::random(16))->all();
 
         $user->forceFill([
             'two_factor_secret' => Crypt::encryptString($this->secret),
@@ -87,11 +89,21 @@ class TwoFactorSetup extends Component
         $user = Auth::user();
         abort_if(! $user, 403);
 
+        $this->validate([
+            'disablePassword' => 'required|string',
+        ]);
+
+        if (! Hash::check($this->disablePassword, $user->password)) {
+            $this->addError('disablePassword', __('Mot de passe incorrect.'));
+            return;
+        }
+
         $user->forceFill([
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
         ])->save();
+        $this->disablePassword = '';
 
         $this->confirmed = false;
         $this->showRecoveryCodes = false;

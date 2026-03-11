@@ -15,7 +15,9 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Broadcast;
+use App\Enums\Permission;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -38,6 +40,9 @@ class AppServiceProvider extends ServiceProvider
         // Locale is handled by web middleware to ensure
         // sessions/cookies are available (and decrypted).
 
+        // Password complexity rules
+        Password::defaults(fn () => Password::min(8)->letters()->mixedCase()->numbers());
+
         Broadcast::routes(['middleware' => ['web', 'auth']]);
 
         Paginator::defaultView('vendor.pagination.manexo');
@@ -51,6 +56,25 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Form::class, FormPolicy::class);
         Gate::policy(DiscussionThread::class, DiscussionThreadPolicy::class);
         Gate::policy(Organization::class, OrganizationPolicy::class);
+
+        // Admin access gate: user must have at least one admin-level permission
+        Gate::define('accessAdmin', function ($user) {
+            return $user->hasAnyPermission([
+                Permission::TeamInvite,
+                Permission::TeamEditRole,
+                Permission::TeamRemove,
+                Permission::SettingsManageBranding,
+                Permission::SettingsManageCategories,
+                Permission::SettingsManagePriorities,
+                Permission::SettingsManageFunctions,
+                Permission::SettingsManageForms,
+                Permission::SettingsManageRoles,
+                Permission::SettingsDeleteOrg,
+                Permission::FormsManage,
+                Permission::FormsAssign,
+                Permission::FormsViewResponses,
+            ]);
+        });
 
         // Rate limiters
         RateLimiter::for('password-reset', fn (Request $request) =>

@@ -20,7 +20,7 @@ class LoginForm extends Form
     public string $password = '';
 
     #[Validate('boolean')]
-    public bool $remember = true;
+    public bool $remember = false;
 
     /**
      * Attempt to authenticate the request's credentials.

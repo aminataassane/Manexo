@@ -113,9 +113,9 @@ class PlatformInvitationController extends Controller
 
     private function acceptInvitation(PlatformInvitation $invitation, User $user)
     {
-        $user->update([
+        $user->forceFill([
             'platform_role' => $invitation->platform_role,
-        ]);
+        ])->save();
 
         $invitation->update([
             'status' => 'accepted',

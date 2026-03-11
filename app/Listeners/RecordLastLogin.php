@@ -10,9 +10,9 @@ class RecordLastLogin
     {
         $user = $event->user;
 
-        $user->update([
+        $user->forceFill([
             'last_login_at' => now(),
             'last_login_ip' => request()->ip(),
-        ]);
+        ])->save();
     }
 }

@@ -1325,7 +1325,7 @@ class Settings extends Component
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
-        if (! $user || ! $user->hasPermission(Permission::SettingsManageBranding)) {
+        if (! $user || ! $user->canPlatformAdminister()) {
             $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
             return;
         }

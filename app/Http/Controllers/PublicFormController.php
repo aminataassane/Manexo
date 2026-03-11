@@ -129,7 +129,7 @@ class PublicFormController extends Controller
                     $rules[] = Rule::in($f->options);
                 }
             } elseif ($type === 'file') {
-                $rules = ['nullable', 'file', 'max:10240'];
+                $rules = ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,csv,txt,zip'];
             } else {
                 $rules[] = 'string';
                 $rules[] = 'max:255';
@@ -175,21 +175,43 @@ class PublicFormController extends Controller
             $guestEmail = Str::lower(trim((string) $validated['guest_email']));
             $guestName = trim((string) $validated['guest_name']);
 
-            $existing = User::query()->where('email', $guestEmail)->first();
+            // Check if a guest account already exists for this email in this org
+            $existing = User::query()
+                ->where('email', $guestEmail)
+                ->where('status', 'guest')
+                ->first();
 
             if ($existing) {
                 $actor = $existing;
-                if (! $actor->name && $guestName) {
-                    $actor->forceFill(['name' => $guestName])->save();
-                }
             } else {
-                $actor = User::query()->create([
-                    'name' => $guestName,
-                    'email' => $guestEmail,
-                    'password' => Str::random(32),
-                ]);
+                // Only create a new guest account — never reuse verified/active user accounts
+                $verifiedUser = User::query()->where('email', $guestEmail)->whereNotNull('email_verified_at')->exists();
+                if ($verifiedUser) {
+                    // A verified user with this email exists — store guest info in the response metadata
+                    // but do not attribute the submission to their account
+                    $actor = User::query()->create([
+                        'name' => $guestName,
+                        'email' => $guestEmail . '.guest.' . Str::random(8) . '@unverified',
+                        'password' => Str::random(32),
+                    ]);
+                    $actor->forceFill(['status' => 'guest'])->save();
+                } else {
+                    // No verified user — safe to create or reuse unverified guest
+                    $unverified = User::query()->where('email', $guestEmail)->first();
+                    if ($unverified) {
+                        $actor = $unverified;
+                    } else {
+                        $actor = User::query()->create([
+                            'name' => $guestName,
+                            'email' => $guestEmail,
+                            'password' => Str::random(32),
+                        ]);
+                    }
+                    $actor->forceFill(['status' => 'guest'])->save();
+                }
             }
 
+            // Only create membership for guest accounts
             OrganizationMembership::query()->firstOrCreate([
                 'organization_id' => $org->id,
                 'user_id' => $actor->id,

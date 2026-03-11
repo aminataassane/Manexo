@@ -52,10 +52,10 @@ class UsersGlobal extends Component
         }
 
         $user = User::findOrFail($id);
-        $user->update([
+        $user->forceFill([
             'status' => 'deactivated',
             'deactivated_at' => now(),
-        ]);
+        ])->save();
 
         SuperAdminAuditService::log('user.suspend', 'User', $id, [
             'name' => $user->name,
@@ -72,10 +72,10 @@ class UsersGlobal extends Component
         }
 
         $user = User::findOrFail($id);
-        $user->update([
+        $user->forceFill([
             'status' => 'active',
             'deactivated_at' => null,
-        ]);
+        ])->save();
 
         SuperAdminAuditService::log('user.activate', 'User', $id, [
             'name' => $user->name,
@@ -217,10 +217,10 @@ class UsersGlobal extends Component
             return;
         }
 
-        $user->update([
+        $user->forceFill([
             'platform_role' => $role,
             'is_super_admin' => $role === PlatformRole::SuperAdmin,
-        ]);
+        ])->save();
 
         SuperAdminAuditService::log('platform_role.changed', 'User', $userId, [
             'name' => $user->name,
@@ -254,10 +254,10 @@ class UsersGlobal extends Component
 
         $oldRole = $user->platform_role?->value ?? 'super_admin (legacy)';
 
-        $user->update([
+        $user->forceFill([
             'platform_role' => null,
             'is_super_admin' => false,
-        ]);
+        ])->save();
 
         SuperAdminAuditService::log('platform_role.revoked', 'User', $userId, [
             'name' => $user->name,

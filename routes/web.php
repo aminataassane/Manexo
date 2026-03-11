@@ -1,6 +1,5 @@
 <?php
 
-use App\Livewire\Test;
 use App\Livewire\Admin\FormBuilder as AdminFormBuilder;
 use App\Livewire\Admin\Users as AdminUsers;
 use App\Livewire\Admin\Settings as AdminSettings;
@@ -64,7 +63,17 @@ Route::get('/locale/{locale}', function (Request $request, string $locale) {
         : route('home');
 
     $previous = $request->headers->get('referer');
-    $target = $previous && ! str_contains($previous, '/locale/') ? $previous : $fallback;
+    $target = $fallback;
+    if ($previous && ! str_contains($previous, '/locale/')) {
+        $parsed = parse_url($previous);
+        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+        if (isset($parsed['host']) && $parsed['host'] === $appHost) {
+            $target = $previous;
+        } elseif (! isset($parsed['host'])) {
+            // Relative URL — safe
+            $target = $previous;
+        }
+    }
 
     return redirect()
         ->to($target)
@@ -126,6 +135,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/notifications', \App\Livewire\Notifications\Index::class)->name('notifications.index');
 
         Route::get('/discussions/{ticket?}', \App\Livewire\Discussions\Index::class)->name('discussions.index');
+        Route::get('/discussions/thread/{thread}/files/{filename}', function (int $thread, string $filename) {
+            $user = Auth::user();
+            if (! $user) {
+                abort(403);
+            }
+            $threadModel = \App\Models\DiscussionThread::findOrFail($thread);
+            if (! $threadModel->participants()->where('users.id', $user->id)->exists()) {
+                abort(403);
+            }
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
+            $storage = Storage::disk('local');
+            $path = 'discussion-messages/' . $thread . '/' . basename($filename);
+            if (! $storage->exists($path)) {
+                abort(404);
+            }
+            return $storage->response($path, $filename, [
+                'Content-Type' => $storage->mimeType($path),
+            ]);
+        })->where('filename', '[^/]+')->name('discussions.file');
 
         Route::get('/tickets', TicketsIndex::class)->name('tickets.index');
         Route::get('/tickets/groups', \App\Livewire\Tickets\Groups::class)->name('tickets.groups');
@@ -163,11 +191,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->where('filename', '[^/]+')->name('tickets.attachment');
         Route::get('/tickets/{ticket}', \App\Livewire\Tickets\Discussion::class)->name('tickets.discussion');
 
-        Route::get('/admin/users', AdminUsers::class)->name('admin.users');
-        Route::get('/admin/settings', AdminSettings::class)->name('admin.settings');
-        Route::get('/admin/forms', AdminFormBuilder::class)->name('admin.forms');
-        Route::get('/admin/forms/{form}/responses', AdminFormResponses::class)->name('admin.forms.responses');
-        Route::get('/admin/forms/responses/{response}/file/{fieldKey}', [PublicFormController::class, 'serveFile'])->where('fieldKey', '[a-zA-Z0-9_]+')->name('admin.forms.responses.file');
+        Route::middleware('can:accessAdmin')->group(function () {
+            Route::get('/admin/users', AdminUsers::class)->name('admin.users');
+            Route::get('/admin/settings', AdminSettings::class)->name('admin.settings');
+            Route::get('/admin/forms', AdminFormBuilder::class)->name('admin.forms');
+            Route::get('/admin/forms/{form}/responses', AdminFormResponses::class)->name('admin.forms.responses');
+            Route::get('/admin/forms/responses/{response}/file/{fieldKey}', [PublicFormController::class, 'serveFile'])->where('fieldKey', '[a-zA-Z0-9_]+')->name('admin.forms.responses.file');
+        });
         Route::get('/reports', ReportsIndex::class)->name('reports.index');
         Route::get('/reports/tasks', \App\Livewire\Reports\TaskReport::class)->name('reports.tasks');
         Route::get('/reports/daily', \App\Livewire\Reports\DailyReport::class)->name('reports.daily');
@@ -176,11 +206,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('reports.tasks.export');
     });
 });
-
-/**
- * Dev / sandbox routes
- */
-Route::get('/test', Test::class);
 
 /**
  * Shared reports (signed URL, no auth required)

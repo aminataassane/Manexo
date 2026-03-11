@@ -12,13 +12,7 @@ Broadcast::channel('ticket.{ticketPublicId}', function ($user, $ticketPublicId) 
     if (! $ticket) {
         return false;
     }
-    if ((int) $ticket->created_by === (int) $user->id) {
-        return true;
-    }
-    if ($ticket->assignees()->where('users.id', $user->id)->exists()) {
-        return true;
-    }
-    return $user->organizations()->where('organization_id', $ticket->organization_id)->exists();
+    return $ticket->hasDiscussionAccess((int) $user->id);
 });
 
 Broadcast::channel('ticket.staff.{ticketPublicId}', function ($user, $ticketPublicId) {

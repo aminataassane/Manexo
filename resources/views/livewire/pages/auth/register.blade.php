@@ -8,6 +8,7 @@ use App\Services\SuperAdminAuditService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -94,6 +95,11 @@ new #[Layout('layouts.guest')] class extends Component
                 ->where('expires_at', '>', now())
                 ->first();
 
+            // Validate that the registering email matches the invitation email
+            if ($invitation && Str::lower($user->email) !== Str::lower($invitation->email)) {
+                $invitation = null;
+            }
+
             if ($invitation) {
                 $alreadyMember = OrganizationMembership::where('organization_id', $invitation->organization_id)
                     ->where('user_id', $user->id)
@@ -113,10 +119,7 @@ new #[Layout('layouts.guest')] class extends Component
 
                     session(['current_organization_id' => $invitation->organization_id]);
                     session()->forget('invitation_token');
-
-                    // Skip email verification, redirect to dashboard
-                    $this->redirect(route('dashboard', absolute: false));
-                    return;
+                    // fall through to email verification below
                 }
             }
         }
@@ -128,10 +131,15 @@ new #[Layout('layouts.guest')] class extends Component
                 ->where('expires_at', '>', now())
                 ->first();
 
+            // Validate that the registering email matches the invitation email
+            if ($platformInvitation && Str::lower($user->email) !== Str::lower($platformInvitation->email)) {
+                $platformInvitation = null;
+            }
+
             if ($platformInvitation) {
-                $user->update([
+                $user->forceFill([
                     'platform_role' => $platformInvitation->platform_role,
-                ]);
+                ])->save();
 
                 $platformInvitation->update([
                     'status' => 'accepted',
@@ -145,9 +153,7 @@ new #[Layout('layouts.guest')] class extends Component
                 ]);
 
                 session()->forget('platform_invitation_token');
-
-                $this->redirect(route('platform-admin.dashboard', absolute: false));
-                return;
+                // fall through to email verification below
             }
         }
 

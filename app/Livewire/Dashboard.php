@@ -90,14 +90,15 @@ class Dashboard extends Component
         }
 
         return Cache::remember(CacheHelper::dashboardKpisKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+            $sevenDaysAgo = now()->subDays(7)->toDateTimeString();
             $row = DB::table('tickets')
                 ->where('organization_id', $orgId)
-                ->select([
-                    DB::raw("COUNT(*) FILTER (WHERE status = 'open') as open_count"),
-                    DB::raw("COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count"),
-                    DB::raw("COUNT(*) FILTER (WHERE status = 'pending') as pending_count"),
-                    DB::raw("COUNT(*) FILTER (WHERE status IN ('resolved','closed') AND updated_at >= '" . now()->subDays(7)->toDateTimeString() . "') as resolved7d_count"),
-                ])
+                ->selectRaw("
+                    COUNT(*) FILTER (WHERE status = 'open') as open_count,
+                    COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count,
+                    COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
+                    COUNT(*) FILTER (WHERE status IN ('resolved','closed') AND updated_at >= ?) as resolved7d_count
+                ", [$sevenDaysAgo])
                 ->first();
 
             return [

@@ -252,6 +252,10 @@ class Organizations extends Component
 
     public function confirmEnter(): void
     {
+        if (! auth()->user()?->canPlatformManage()) {
+            return;
+        }
+
         if ($this->enterOrgId) {
             $this->enterOrganization($this->enterOrgId);
         }

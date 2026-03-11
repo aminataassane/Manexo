@@ -11,9 +11,23 @@
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
             <p class="text-green-800 font-medium">{{ __('L\'authentification à deux facteurs est activée.') }}</p>
         </div>
-        <button @click="$dispatch('confirm-action', { title: 'D\u00e9sactiver 2FA', message: 'D\u00e9sactiver l\u0027authentification \u00e0 deux facteurs ? Votre compte sera moins s\u00e9curis\u00e9.', confirmLabel: 'D\u00e9sactiver', variant: 'danger', onConfirm: () => $wire.disable() })" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-            {{ __('Désactiver 2FA') }}
-        </button>
+        <form wire:submit="disable" class="mt-4 space-y-3">
+            <label for="disablePassword" class="block text-sm font-medium text-gray-700">
+                {{ __('Confirmez votre mot de passe pour désactiver') }}
+            </label>
+            <input
+                type="password"
+                id="disablePassword"
+                wire:model="disablePassword"
+                class="w-full px-3 py-2 border rounded-lg"
+                placeholder="{{ __('Mot de passe') }}"
+                autocomplete="current-password"
+            >
+            @error('disablePassword') <p class="text-red-600 text-sm">{{ $message }}</p> @enderror
+            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                {{ __('Désactiver 2FA') }}
+            </button>
+        </form>
     @elseif ($showRecoveryCodes)
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
             <p class="text-green-800 font-medium mb-2">{{ __('2FA activée avec succès !') }}</p>

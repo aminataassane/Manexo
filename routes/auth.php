@@ -18,8 +18,12 @@ Route::middleware('guest')->group(function () {
     /**
      * Auth pages (guest only)
      */
-    Volt::route('/register', 'pages.auth.register')->name('register');
-    Volt::route('/login', 'pages.auth.login')->name('login');
+    Volt::route('/register', 'pages.auth.register')
+        ->middleware('throttle:6,1')
+        ->name('register');
+    Volt::route('/login', 'pages.auth.login')
+        ->middleware('throttle:10,1')
+        ->name('login');
 
     /**
      * Platform admin login (separate page, rate limited)
@@ -50,7 +54,9 @@ Route::middleware('auth')->group(function () {
      * Two-factor authentication
      */
     Route::get('/two-factor/setup', \App\Livewire\Auth\TwoFactorSetup::class)->name('two-factor.setup');
-    Route::get('/two-factor/challenge', \App\Livewire\Auth\TwoFactorChallenge::class)->name('two-factor.challenge');
+    Route::get('/two-factor/challenge', \App\Livewire\Auth\TwoFactorChallenge::class)
+        ->middleware('throttle:5,1')
+        ->name('two-factor.challenge');
 
     /**
      * Logout (auth only)

@@ -17,6 +17,7 @@ class SecurityHeaders
         $response->headers->remove('Server');
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
+        $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
@@ -47,7 +48,7 @@ class SecurityHeaders
             $workerSrc,
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com" . $viteDev,
             "font-src 'self' https://fonts.gstatic.com",
-            "img-src 'self' data:",
+            "img-src 'self' data: https://ui-avatars.com",
             "connect-src 'self' https://api.iconify.design" . $wsConnect . $viteDev,
             "frame-ancestors 'none'",
             "base-uri 'self'",

@@ -66,7 +66,7 @@ class TwoFactorChallenge extends Component
             return;
         }
 
-        $index = array_search($this->recoveryCode, $codes, true);
+        $index = collect($codes)->search(fn ($code) => hash_equals((string) $code, $this->recoveryCode));
 
         if ($index === false) {
             $this->addError('recoveryCode', __('Code de récupération invalide.'));

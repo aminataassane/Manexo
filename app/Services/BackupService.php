@@ -144,7 +144,7 @@ class BackupService
             // Encrypt if requested
             if ($encrypt) {
                 $encryptedPath = $filepath . '.enc';
-                $encKey = config('app.key');
+                $encKey = config('app.backup_encryption_key', config('app.key'));
 
                 $encCommand = sprintf(
                     'openssl enc -aes-256-cbc -salt -pbkdf2 -in %s -out %s -pass pass:%s',
@@ -216,7 +216,7 @@ class BackupService
         // Decrypt if encrypted
         if (str_ends_with($filename, '.enc')) {
             $decryptedPath = $dir . '/restore_tmp_' . date('YmdHis') . '.sql';
-            $encKey = config('app.key');
+            $encKey = config('app.backup_encryption_key', config('app.key'));
 
             $decResult = Process::timeout(120)->run(sprintf(
                 'openssl enc -d -aes-256-cbc -pbkdf2 -in %s -out %s -pass pass:%s',

@@ -67,13 +67,15 @@ class CreateForm extends Component
             return;
         }
 
+        abort_if(! $user->hasPermission(\App\Enums\Permission::TicketsCreate), 403);
+
         $validated = $this->validate([
             'ticket_category_id' => ['required', 'integer', 'exists:ticket_categories,id'],
             'ticket_priority_id' => ['required', 'integer', 'exists:ticket_priorities,id'],
             'subject' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'files' => ['array', 'max:5'],
-            'files.*' => ['file', 'max:10240'], // 10MB each
+            'files.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,csv,txt,zip'], // 10MB each
             'links' => ['array', 'max:5'],
             'links.*' => ['url', 'max:2000'],
         ]);
@@ -108,24 +110,21 @@ class CreateForm extends Component
             'links' => [],
         ];
 
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
-
         foreach (($validated['files'] ?? []) as $file) {
             $original = (string) ($file->getClientOriginalName() ?: 'file');
             $ext = (string) ($file->getClientOriginalExtension() ?: '');
             $safeBase = Str::slug(pathinfo($original, PATHINFO_FILENAME)) ?: 'file';
             $filename = $safeBase . '-' . Str::lower(Str::random(10)) . ($ext ? '.' . $ext : '');
 
-            $path = $file->storeAs("ticket-attachments/org-{$orgId}/ticket-{$ticket->id}", $filename, 'public');
+            $path = $file->storeAs("ticket-attachments/org-{$orgId}/ticket-{$ticket->id}", $filename, 'local');
 
             $attachments['files'][] = [
-                'disk' => 'public',
+                'disk' => 'local',
                 'path' => $path,
                 'name' => $original,
                 'size' => method_exists($file, 'getSize') ? (int) $file->getSize() : null,
                 'mime' => method_exists($file, 'getMimeType') ? (string) $file->getMimeType() : null,
-                'url' => $disk->url($path),
+                'url' => route('tickets.attachment', ['ticket' => $ticket, 'filename' => $filename]),
             ];
         }
 

@@ -206,7 +206,7 @@ class Thread extends Component
     {
         $this->validate([
             'body' => ['nullable', 'string', 'max:10000'],
-            'attachmentFiles.*' => ['nullable', 'file', 'max:10240'],
+            'attachmentFiles.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,csv,txt,zip'],
         ]);
 
         $hasBody = trim($this->body ?? '') !== '';
@@ -226,16 +226,16 @@ class Thread extends Component
             abort(403);
         }
 
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $publicDisk */
-        $publicDisk = Storage::disk('public');
         $savedAttachments = [];
         foreach ($this->attachmentFiles as $file) {
-            $path = $file->store('discussion-messages/'.$thread->id, 'public');
+            $path = $file->store('discussion-messages/'.$thread->id, 'local');
+            $filename = basename($path);
             $savedAttachments[] = [
+                'disk' => 'local',
                 'path' => $path,
                 'name' => $file->getClientOriginalName(),
                 'size' => $file->getSize(),
-                'url' => $publicDisk->url($path),
+                'url' => route('discussions.file', ['thread' => $thread->id, 'filename' => $filename]),
             ];
         }
 
