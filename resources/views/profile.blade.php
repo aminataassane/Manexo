@@ -19,17 +19,21 @@
 
         $activityFilter = request('activity', 'all'); // all | tickets | assignations | commentaires
 
-        $ticketsCreated = \App\Models\Ticket::query()
+        $currentOrgId = (int) session('current_organization_id');
+
+        $ticketsCreated = $currentOrgId ? \App\Models\Ticket::query()
+            ->where('organization_id', $currentOrgId)
             ->where('created_by', $user?->id)
             ->latest('created_at')
             ->limit(25)
-            ->get(['id', 'subject', 'status', 'created_at', 'updated_at']);
+            ->get(['id', 'subject', 'status', 'created_at', 'updated_at']) : collect();
 
-        $ticketsAssigned = \App\Models\Ticket::query()
+        $ticketsAssigned = $currentOrgId ? \App\Models\Ticket::query()
+            ->where('organization_id', $currentOrgId)
             ->where('assigned_to', $user?->id)
             ->latest('updated_at')
             ->limit(25)
-            ->get(['id', 'subject', 'status', 'created_at', 'updated_at']);
+            ->get(['id', 'subject', 'status', 'created_at', 'updated_at']) : collect();
 
         $events = collect();
         if (in_array($activityFilter, ['all', 'tickets'], true)) {
@@ -71,6 +75,14 @@
         $statusLabel = function (string $status): string {
             return __('tickets.status.' . $status);
         };
+
+        $pendingInvitations = $user
+            ? \App\Models\OrganizationInvitation::withoutOrganizationScope()
+                ->where('email', $user->email)
+                ->pending()
+                ->with(['organization', 'inviter'])
+                ->get()
+            : collect();
     @endphp
 
     @if (session('profile_status'))
@@ -81,9 +93,17 @@
     @endif
 
     <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('pages.profile.heading') }}</h1>
-        <p class="text-sm text-slate-500 mt-1">{{ __('pages.profile.subheading') }}</p>
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('pages.profile.heading') }}</h1>
+            <p class="text-sm text-slate-500 mt-1">{{ __('pages.profile.subheading') }}</p>
+        </div>
+        @if (Auth::user()?->hasPlatformAccess())
+            <a href="{{ route('platform-admin.dashboard') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                <iconify-icon icon="solar:arrow-left-linear" width="16"></iconify-icon>
+                {{ __('pages.profile.back_to_platform') }}
+            </a>
+        @endif
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -100,6 +120,63 @@
                     <livewire:profile.update-profile-information-form />
                 </div>
             </div>
+
+            <!-- Pending Invitations -->
+            @if($pendingInvitations->isNotEmpty())
+                <div class="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50/60 to-white shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-cyan-100 bg-cyan-50/50 flex items-center gap-3">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-100 text-cyan-600">
+                            <iconify-icon icon="solar:letter-bold-duotone" width="20"></iconify-icon>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-semibold text-slate-900">{{ __('invitations.pending_title') }}</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">{{ $pendingInvitations->count() }} {{ trans_choice('invitations.pending_count_label', $pendingInvitations->count()) }}</p>
+                        </div>
+                    </div>
+                    <div class="divide-y divide-cyan-100">
+                        @foreach($pendingInvitations as $inv)
+                            @php
+                                $invRoleLabel = match ($inv->role) {
+                                    'owner' => __('pages.team.role_owner'),
+                                    'admin' => __('pages.team.role_admin'),
+                                    'agent' => __('pages.team.role_agent'),
+                                    default => __('pages.team.role_member'),
+                                };
+                                $invInitial = mb_strtoupper(mb_substr((string) ($inv->organization?->name ?? '?'), 0, 1));
+                                $daysLeft = (int) now()->diffInDays($inv->expires_at, false);
+                            @endphp
+                            <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                                <div class="flex items-center gap-4 min-w-0 flex-1">
+                                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl font-bold text-sm shadow-sm"
+                                         style="background: {{ $inv->organization?->primary_color ? 'color-mix(in srgb, '.$inv->organization->primary_color.' 15%, white)' : '#e0f2fe' }}; color: {{ $inv->organization?->primary_color ?: '#0891b2' }};">
+                                        {{ $invInitial }}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-bold text-slate-900 truncate">{{ $inv->organization?->name ?? '—' }}</p>
+                                        <div class="flex flex-wrap items-center gap-2 mt-1">
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-100 text-cyan-700 border border-cyan-200">
+                                                <iconify-icon icon="solar:shield-user-bold-duotone" width="11"></iconify-icon>
+                                                {{ $invRoleLabel }}
+                                            </span>
+                                            @if($inv->inviter)
+                                                <span class="text-[11px] text-slate-500">{{ __('invitations.invited_by', ['name' => $inv->inviter->name]) }}</span>
+                                            @endif
+                                            <span class="text-[11px] text-cyan-600 font-medium">{{ __('invitations.expires_in', ['days' => $daysLeft]) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <a href="{{ route('invitations.accept', ['token' => $inv->token]) }}"
+                                       class="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all">
+                                        <iconify-icon icon="solar:check-circle-bold" width="14"></iconify-icon>
+                                        {{ __('invitations.accept_button') }}
+                                    </a>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
 
             <!-- Organizations -->
             <div id="organizations" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

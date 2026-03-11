@@ -10,6 +10,7 @@ use App\Models\Form;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketChecklistItem;
+use App\Models\TicketGroup;
 use App\Models\TicketPriority;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +31,7 @@ class Create extends Component
 
     public int $ticket_category_id;
     public int $ticket_priority_id;
+    public ?int $ticket_group_id = null;
     /** @var array<int, int> */
     public array $assigned_to_ids = [];
     public ?string $start_date = null;
@@ -53,7 +55,13 @@ class Create extends Component
 
     public function mount(): void
     {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        abort_if(! $user, 403);
+        abort_if(! $user->hasPermission(Permission::TicketsCreate), 403);
+
         $orgId = (int) session('current_organization_id');
+        abort_if(! $orgId, 403);
 
         // Preselect first active options if available
         if ($orgId) {
@@ -71,11 +79,40 @@ class Create extends Component
 
             if ($category) {
                 $this->ticket_category_id = $category->id;
+
+                // Auto-set default group from category
+                if ($category->default_ticket_group_id) {
+                    $this->ticket_group_id = $category->default_ticket_group_id;
+                }
             }
 
             if ($priority) {
                 $this->ticket_priority_id = $priority->id;
             }
+        }
+    }
+
+    public function updatedTicketCategoryId($value): void
+    {
+        $this->custom = [];
+
+        if (! $value) {
+            return;
+        }
+
+        $orgId = (int) session('current_organization_id');
+        if (! $orgId) {
+            return;
+        }
+
+        $category = TicketCategory::query()
+            ->where('organization_id', $orgId)
+            ->where('is_active', true)
+            ->whereKey((int) $value)
+            ->first();
+
+        if ($category && $category->default_ticket_group_id) {
+            $this->ticket_group_id = $category->default_ticket_group_id;
         }
     }
 
@@ -140,6 +177,7 @@ class Create extends Component
         $baseRules = [
             'ticket_category_id' => ['required', 'integer', 'exists:ticket_categories,id'],
             'ticket_priority_id' => ['required', 'integer', 'exists:ticket_priorities,id'],
+            'ticket_group_id' => ['nullable', 'integer', 'exists:ticket_groups,id'],
             'assigned_to_ids' => ['nullable', 'array'],
             'assigned_to_ids.*' => ['integer', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
@@ -168,7 +206,16 @@ class Create extends Component
             ->where('organization_id', $orgId)
             ->exists();
 
-        if (! $categoryOk || ! $priorityOk) {
+        $groupOk = true;
+        if (! empty($validated['ticket_group_id'])) {
+            $groupOk = TicketGroup::query()
+                ->where('id', (int) $validated['ticket_group_id'])
+                ->where('organization_id', $orgId)
+                ->where('is_active', true)
+                ->exists();
+        }
+
+        if (! $categoryOk || ! $priorityOk || ! $groupOk) {
             $this->addError('ticket_category_id', "Sélection invalide pour l'entreprise.");
             return;
         }
@@ -220,6 +267,7 @@ class Create extends Component
             'created_by' => $user->id,
             'ticket_category_id' => $validated['ticket_category_id'],
             'ticket_priority_id' => $validated['ticket_priority_id'],
+            'ticket_group_id' => ! empty($validated['ticket_group_id']) ? (int) $validated['ticket_group_id'] : null,
             'assigned_to' => $firstAssignee,
             'assigned_by' => $firstAssignee ? $user->id : null,
             'assigned_at' => $firstAssignee ? now() : null,
@@ -294,6 +342,7 @@ class Create extends Component
 
         CacheHelper::invalidateDashboard($orgId);
         CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
         $this->redirectRoute('tickets.index');
     }
 
@@ -393,6 +442,17 @@ class Create extends Component
             ->get()
             : collect();
 
+        $ticketGroups = $orgId
+            ? Cache::remember(CacheHelper::ticketGroupsKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketGroup::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'color']);
+            })
+            : collect();
+
         $userId = (int) (Auth::id() ?: 0);
         $form = ($orgId && $userId && ($this->ticket_category_id ?? null))
             ? $this->resolveForm($orgId, (int) $this->ticket_category_id, $userId)
@@ -406,6 +466,7 @@ class Create extends Component
         return view('livewire.tickets.create', [
             'categories' => $categories,
             'priorities' => $priorities,
+            'ticketGroups' => $ticketGroups,
             'assignees' => $assignees,
             'formTemplateName' => $form?->name,
             'formSteps' => collect(),
@@ -463,10 +524,26 @@ class Create extends Component
         }
 
         // Fallback: public + all categories
-        return (clone $base)
+        $fourth = (clone $base)
             ->whereNull('ticket_category_id')
             ->whereNull('target_user_id')
             ->with(['fields'])
             ->first();
+        if ($fourth) {
+            return $fourth;
+        }
+
+        // Last resort: category's default_form_id
+        $category = TicketCategory::query()->find($categoryId);
+        if ($category && $category->default_form_id) {
+            return Form::query()
+                ->where('id', $category->default_form_id)
+                ->where('organization_id', $orgId)
+                ->where('status', FormStatus::Published)
+                ->with(['fields'])
+                ->first();
+        }
+
+        return null;
     }
 }

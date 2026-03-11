@@ -12,14 +12,37 @@ return [
     'register_banner' => 'Vous avez été invité(e) à rejoindre :org. Créez votre compte pour accepter.',
     'invited_by' => 'Invité par :name',
 
+    // Pending invitations
+    'pending_title' => 'Invitations en attente',
+    'pending_count_label' => '{1} invitation en attente|[2,*] invitations en attente',
+    'decline_button' => 'Refuser',
+    'declined_success' => 'Invitation refusée.',
+    'expires_in' => 'Expire dans :days j',
+    'notif_excerpt' => 'Vous invite à rejoindre en tant que :role',
+    'accepted_notif_excerpt' => 'A accepté l\'invitation et a rejoint :org en tant que :role',
+    'accepted_badge' => 'Acceptée',
+
+    // Accepted email
+    'accepted_email_subject' => ':name a rejoint :org',
+    'accepted_email_heading' => 'Nouveau membre dans votre équipe',
+    'accepted_email_preheader' => ':name a accepté votre invitation et a rejoint :org en tant que :role.',
+    'accepted_email_body' => 'a accepté votre invitation et a rejoint l\'organisation :org en tant que :role.',
+    'accepted_email_member_label' => 'Nouveau membre',
+    'accepted_email_email_label' => 'Adresse e-mail',
+    'accepted_email_cta' => 'Voir l\'équipe',
+
     // Email
-    'email_subject' => 'Invitation à rejoindre :org sur Manexo',
-    'email_heading' => 'Vous êtes invité(e) !',
+    'email_subject' => ':org — Vous êtes invité(e) à rejoindre l\'équipe',
+    'email_heading' => 'Vous êtes invité(e) à collaborer',
+    'email_preheader' => ':inviter vous invite à rejoindre :org en tant que :role sur Manexo.',
     'email_body' => ':inviter vous invite à rejoindre :org en tant que :role.',
+    'email_body_intro' => 'vous invite à rejoindre l\'organisation :org. Acceptez cette invitation pour commencer à collaborer avec votre équipe.',
     'email_body_text' => 'vous invite à rejoindre :org en tant que :role.',
+    'email_org_label' => 'Organisation',
+    'email_role_label' => 'Votre rôle',
     'email_cta' => 'Accepter l\'invitation',
-    'email_expires' => 'Ce lien expire dans 7 jours.',
-    'email_fallback' => 'Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur :',
+    'email_expires' => 'Ce lien est valable 7 jours.',
+    'email_fallback' => 'Le bouton ne fonctionne pas ? Copiez ce lien dans votre navigateur :',
     'email_rights' => 'Tous droits réservés.',
-    'email_auto' => 'Cet e-mail a été envoyé automatiquement, merci de ne pas répondre.',
+    'email_auto' => 'Cet e-mail a été envoyé automatiquement, merci de ne pas y répondre.',
 ];

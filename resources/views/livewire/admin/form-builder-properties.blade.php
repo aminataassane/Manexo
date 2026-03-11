@@ -229,7 +229,7 @@
                         style="background: var(--accent);">
                     {{ __('forms_builder.apply_changes') }}
                 </button>
-                <button type="button" wire:click="deleteFormField({{ (int) $fb_selected_field_id }})" @disabled(! $canManageForms)
+                <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Supprimer') }}', message: '{{ __('Supprimer ce champ du formulaire ?') }}', confirmLabel: '{{ __('Supprimer') }}', variant: 'danger', onConfirm: () => $wire.deleteFormField({{ (int) $fb_selected_field_id }}) })" @disabled(! $canManageForms)
                         class="w-full px-3 py-2 text-[11px] font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-40">
                     {{ __('forms_builder.delete_field') }}
                 </button>
@@ -308,6 +308,22 @@
                             <input type="checkbox" wire:model="fb_selected_form_creates_ticket" class="sr-only peer" @disabled(! $canManageForms)>
                             <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--accent)]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--accent)]"></div>
                         </label>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-semibold text-slate-600">{{ __('forms_builder.due_date') }}</label>
+                        <input type="date" wire:model="fb_selected_form_due_date" @disabled(! $canManageForms)
+                               class="input-builder text-xs">
+                        <p class="text-[10px] text-slate-400">{{ __('forms_builder.form_due_date_help') }}</p>
+                        <x-input-error :messages="$errors->get('fb_selected_form_due_date')" />
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-semibold text-slate-600">{{ __('forms_builder.assign_expires_at') }}</label>
+                        <input type="datetime-local" wire:model="fb_selected_form_expires_at" @disabled(! $canManageForms)
+                               class="input-builder text-xs">
+                        <p class="text-[10px] text-slate-400">{{ __('forms_builder.assign_expires_at_help') }}</p>
+                        <x-input-error :messages="$errors->get('fb_selected_form_expires_at')" />
                     </div>
 
                     <div class="flex items-center justify-between py-3 px-3 rounded-lg bg-slate-50">
@@ -443,14 +459,13 @@
             <div x-show="sections.danger" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
                 <div class="space-y-2 pt-4 pb-5">
                     @if($fb_selected_form_status !== 'archived')
-                        <button type="button" wire:click="archiveForm" @disabled(! $canManageForms)
+                        <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Archiver') }}', message: '{{ __('Archiver ce formulaire ? Il ne sera plus accessible.') }}', confirmLabel: '{{ __('Archiver') }}', variant: 'warning', onConfirm: () => $wire.archiveForm() })" @disabled(! $canManageForms)
                                 class="w-full px-3 py-2.5 text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-all disabled:opacity-50">
                             {{ __('forms_builder.archive') }}
                         </button>
                     @endif
 
-                    <button type="button" wire:click="deleteForm({{ (int) $fb_selected_form_id }})" @disabled(! $canManageForms)
-                            wire:confirm="{{ __('forms_builder.delete_form_confirm') }}"
+                    <button type="button" @click="$dispatch('confirm-action', { title: 'Supprimer', message: '{{ __('forms_builder.delete_form_confirm') }}', confirmLabel: 'Supprimer', variant: 'danger', onConfirm: () => $wire.deleteForm({{ (int) $fb_selected_form_id }}) })" @disabled(! $canManageForms)
                             class="w-full px-3 py-2.5 text-[11px] font-semibold text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50">
                         {{ __('forms_builder.delete_form') }}
                     </button>

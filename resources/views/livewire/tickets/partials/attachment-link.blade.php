@@ -58,28 +58,26 @@
 @endphp
 
 @if($showImagePreview)
-    {{-- Aperçu image : pas de boîte blanche, juste l'image + nom en dessous --}}
     <div class="inline-block max-w-[220px]">
-        <a href="{{ $url }}" target="_blank" rel="noopener" class="block rounded-lg overflow-hidden transition-opacity hover:opacity-95">
+        <a href="{{ $url }}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden border border-slate-200/80 shadow-sm transition-shadow hover:shadow-md">
             <img src="{{ $url }}" alt="{{ $name }}" class="block w-full h-auto max-h-40 object-contain object-center" loading="lazy">
         </a>
-        <a href="{{ $url }}" target="_blank" rel="noopener" class="mt-1 flex items-center gap-1.5 text-[10px] text-[#6B7280] hover:text-[#111827] transition-colors">
+        <a href="{{ $url }}" target="_blank" rel="noopener" class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors">
             <span class="truncate font-medium">{{ $name }}</span>
-            <iconify-icon icon="solar:download-linear" class="shrink-0 opacity-70" width="11"></iconify-icon>
+            <iconify-icon icon="solar:download-linear" class="shrink-0 opacity-70" width="12"></iconify-icon>
         </a>
     </div>
 @else
-    {{-- Fichier non-image : fond très transparent et neutre --}}
-    <a href="{{ $url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 w-full min-w-0 rounded-lg border border-[#E5E7EB]/80 bg-white/30 hover:bg-white/50 p-2 transition-colors max-w-[200px] text-[#374151]">
-        <div class="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-white/50 text-[#6B7280]">
-            <iconify-icon icon="{{ $icon }}" width="14"></iconify-icon>
+    <a href="{{ $url }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2.5 min-w-0 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 p-2.5 transition-colors max-w-[220px] text-slate-700 shadow-sm">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-white text-slate-500 border border-slate-200/60">
+            <iconify-icon icon="{{ $icon }}" width="16"></iconify-icon>
         </div>
         <div class="min-w-0 flex-1 text-left">
-            <p class="text-[11px] font-medium truncate leading-tight">{{ $name }}</p>
+            <p class="text-xs font-medium truncate leading-tight">{{ $name }}</p>
             @if($size)
-                <p class="text-[9px] text-[#6B7280]">{{ $size }}</p>
+                <p class="text-[10px] text-slate-500 mt-0.5">{{ $size }}</p>
             @endif
         </div>
-        <iconify-icon icon="solar:download-linear" class="shrink-0 opacity-70 text-[#6B7280]" width="12"></iconify-icon>
+        <iconify-icon icon="solar:download-linear" class="shrink-0 text-slate-400" width="14"></iconify-icon>
     </a>
 @endif

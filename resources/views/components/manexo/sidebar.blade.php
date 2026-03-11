@@ -43,8 +43,8 @@
             if (\Illuminate\Support\Facades\File::exists(public_path($logoPath))) {
                 $platformLogoUrl = asset($logoPath);
             } else {
-                // Fallback : essayer assets/manexo-logo.png si le fichier configuré est introuvable
-                $fallback = 'assets/manexo-logo.png';
+                // Fallback : essayer assets/Logo(1).png si le fichier configuré est introuvable
+                $fallback = 'assets/Logo(1).png';
                 if (\Illuminate\Support\Facades\File::exists(public_path($fallback))) {
                     $platformLogoUrl = asset($fallback);
                 }
@@ -154,6 +154,13 @@
                     >
                         <div class="h-1.5 w-1.5 rounded-full {{ $isTickets && $currentDisplayMode === 'kanban' ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
                         {{ __('menu.kanban_view') }}
+                    </a>
+                    <a
+                        href="{{ route('tickets.groups') }}"
+                        class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ request()->routeIs('tickets.groups') ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                    >
+                        <div class="h-1.5 w-1.5 rounded-full {{ request()->routeIs('tickets.groups') ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
+                        {{ __('menu.groups_view') }}
                     </a>
                 </div>
             </div>
@@ -272,7 +279,8 @@
                 $isAdminUsers = request()->routeIs('admin.users');
                 $isReportsOverview = request()->routeIs('reports.index');
                 $isReportsTasks = request()->routeIs('reports.tasks');
-                $isReports = $isReportsOverview || $isReportsTasks;
+                $isReportsDaily = request()->routeIs('reports.daily');
+                $isReports = $isReportsOverview || $isReportsTasks || $isReportsDaily;
                 $isAdminForms = request()->routeIs('admin.forms*');
                 $isSettings = request()->routeIs('admin.settings');
             @endphp
@@ -325,6 +333,13 @@
                         >
                             <div class="h-1.5 w-1.5 rounded-full {{ $isReportsTasks ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
                             {{ __('menu.reports_tasks') }}
+                        </a>
+                        <a
+                            href="{{ route('reports.daily') }}"
+                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isReportsDaily ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                        >
+                            <div class="h-1.5 w-1.5 rounded-full {{ $isReportsDaily ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
+                            {{ __('menu.reports_daily') }}
                         </a>
                     </div>
                 </div>

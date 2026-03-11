@@ -28,6 +28,12 @@ return [
         'support_sessions' => 'Sessions support',
     ],
 
+    // Profile
+    'profile' => [
+        'title' => 'Mon profil',
+        'subtitle' => 'Gérez vos informations personnelles et vos paramètres de sécurité.',
+    ],
+
     // Dashboard
     'dashboard' => [
         'title' => 'Tableau de bord',
@@ -76,6 +82,9 @@ return [
     'organizations' => [
         'title' => 'Organisations',
         'subtitle' => 'Gérez toutes les organisations de la plateforme.',
+        'stats_total_members' => 'Total membres',
+        'stats_total_tickets' => 'Total tickets',
+        'stats_created_30d' => 'Créées (30 j)',
         'search_placeholder' => 'Rechercher par nom ou slug...',
         'all_statuses' => 'Tous les statuts',
         'status_active' => 'Active',
@@ -177,6 +186,7 @@ return [
         'action_platform_invitation_sent' => 'Invitation plateforme envoyée',
         'action_platform_invitation_accepted' => 'Invitation plateforme acceptée',
         'action_platform_invitation_cancelled' => 'Invitation plateforme annulée',
+        'action_platform_role_changed' => 'Changement de rôle plateforme',
         'action_platform_role_revoked' => 'Rôle plateforme révoqué',
     ],
 
@@ -267,6 +277,7 @@ return [
         'col_date' => 'Date',
         'empty_orgs' => 'Aucune donnée de stockage.',
         'empty_files' => 'Aucun fichier récent.',
+        'top_extensions' => 'Types de fichiers',
     ],
 
     // Notifications
@@ -319,13 +330,24 @@ return [
     'backups' => [
         'title' => 'Sauvegardes',
         'subtitle' => 'Gestion des sauvegardes de la base de données.',
-        'create' => 'Lancer une sauvegarde',
+        'create' => 'Nouvelle sauvegarde',
+        'list_title' => 'Liste des sauvegardes',
+        'total_backups' => 'Total sauvegardes',
+        'total_size' => 'Taille totale',
+        'encrypted' => 'Chiffrées',
+        'not_encrypted' => 'Non chiffré',
+        'latest' => 'Dernière sauvegarde',
+        'status' => 'Statut',
         'col_filename' => 'Fichier',
         'col_size' => 'Taille',
         'col_date' => 'Date',
         'col_actions' => 'Actions',
         'download' => 'Télécharger',
+        'delete' => 'Supprimer',
+        'confirm_delete' => 'Êtes-vous sûr de vouloir supprimer cette sauvegarde ?',
         'created' => 'La sauvegarde « :filename » a été créée.',
+        'deleted' => 'La sauvegarde « :filename » a été supprimée.',
+        'delete_failed' => 'Impossible de supprimer la sauvegarde.',
         'failed' => 'Erreur lors de la création de la sauvegarde : :error',
         'empty' => 'Aucune sauvegarde disponible.',
     ],

@@ -209,8 +209,7 @@
                             @if($thread->is_group && $canManageParticipants && (int) $p->id !== (int) $thread->created_by)
                                 <button
                                     type="button"
-                                    wire:click="removeParticipant({{ $p->id }})"
-                                    wire:confirm="{{ __('pages.discussions.remove_participant_confirm') }}"
+                                    @click="$dispatch('confirm-action', { title: 'Retirer', message: '{{ __('pages.discussions.remove_participant_confirm') }}', confirmLabel: 'Retirer', variant: 'danger', onConfirm: () => $wire.removeParticipant({{ $p->id }}) })"
                                     class="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
                                     title="{{ __('pages.discussions.remove') }}"
                                 >

@@ -223,14 +223,10 @@
                                     @endphp
                                     <tr class="group hover:bg-slate-50/80 transition-colors cursor-pointer" onclick="window.location='{{ route('tickets.discussion', $t) }}'">
                                         <td class="px-4 sm:px-6 py-3 sm:py-4">
-                                            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
-                                                <div class="h-8 w-8 shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-mono text-xs font-bold">
-                                                    {{ $t->shortReference() }}
-                                                </div>
-                                                <div class="min-w-0">
-                                                    <p class="text-sm font-semibold text-slate-900 group-hover:text-[var(--accent)] transition-colors truncate">{{ $t->subject }}</p>
-                                                    <p class="text-xs text-slate-500 truncate max-w-[180px] sm:max-w-[200px]">{{ $t->description }}</p>
-                                                </div>
+                                            <div class="min-w-0">
+                                                <span class="inline-block text-[11px] font-mono font-medium text-slate-400 tracking-tight">{{ $t->shortReference() }}</span>
+                                                <p class="mt-0.5 text-sm font-semibold text-slate-900 group-hover:text-[var(--accent)] transition-colors truncate">{{ $t->subject }}</p>
+                                                <p class="mt-0.5 text-xs text-slate-500 line-clamp-1 max-w-[200px] sm:max-w-[280px]" title="{{ $t->description }}">{{ $t->description }}</p>
                                             </div>
                                         </td>
                                         <td class="px-4 sm:px-6 py-3 sm:py-4 whitespace-nowrap">

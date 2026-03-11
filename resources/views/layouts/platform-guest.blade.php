@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ __('platform_login.page_title') }} — {{ config('app.name', 'Manexo') }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('assets/Logo(1).png') }}">
 
     <script defer src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">

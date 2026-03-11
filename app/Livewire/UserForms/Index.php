@@ -61,7 +61,7 @@ class Index extends Component
             ->whereNull('target_user_id')
             ->where('status', FormStatus::Published)
             ->orderBy('name')
-            ->get(['id', 'name', 'description', 'slug']);
+            ->get(['id', 'public_id', 'name', 'description', 'slug']);
     }
 
     /** Statistics for assigned forms: pending, overdue, submitted, total. */

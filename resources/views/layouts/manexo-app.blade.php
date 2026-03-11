@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'Manexo' }}</title>
+    <title>{{ $title ? (is_string($title) ? __($title) : $title) : 'Manexo' }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('assets/Logo(1).png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -143,6 +144,10 @@
         </div>
     </main>
 
+    {{-- Global toast & confirm dialog --}}
+    <x-manexo.toast />
+    <x-manexo.confirm-dialog />
+
     {{-- Echo stub: @vite module scripts are deferred and execute AFTER regular
          scripts. Livewire's @livewireScripts is a regular <script> that runs
          first and needs window.Echo for echo-private: listeners. This no-op
@@ -166,6 +171,11 @@
             Livewire.hook('commit', function({ component, commit, respond, succeed, fail }) {
                 succeed(function() { bar.style.transform = 'scaleX(1)'; bar.style.opacity = '0'; });
                 fail(function() { bar.style.opacity = '0'; bar.style.transform = 'scaleX(0)'; });
+            });
+            // Bridge Livewire dispatch('toast') → Alpine window event
+            Livewire.on('toast', function(params) {
+                var p = Array.isArray(params) ? params[0] : params;
+                window.dispatchEvent(new CustomEvent('toast', { detail: p }));
             });
         });
     </script>

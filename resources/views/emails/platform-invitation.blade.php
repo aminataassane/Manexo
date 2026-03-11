@@ -1,104 +1,196 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="x-apple-disable-message-reformatting">
     <title>{{ __('platform_invitations.email_subject') }}</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
-        .font-sans, .font-serif { font-family: "Mona Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-optical-sizing: auto; font-variation-settings: "wdth" 100; }
-        a { color: inherit; }
+        @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap');
+        body { margin:0; padding:0; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+        table { border-collapse:collapse; mso-table-lspace:0; mso-table-rspace:0; }
+        img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+        a { color:inherit; text-decoration:none; }
     </style>
+    <!--[if mso]><style>table,td,div,p,span{font-family:Arial,sans-serif!important;}</style><![endif]-->
 </head>
-<body class="font-sans" style="margin:0; padding:0; background:#f8fafc;">
-    <!-- Preheader (hidden) -->
-    <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
+<body style="margin:0; padding:0; background-color:#f4f7f5; width:100%;">
+
+    {{-- Preheader --}}
+    <div style="display:none; font-size:1px; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;">
         {{ __('platform_invitations.email_preheader', ['inviter' => $inviterName, 'role' => $roleName]) }}
+        &zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;
     </div>
 
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc; padding:24px 0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f4f7f5;">
         <tr>
-            <td align="center">
-                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px; width:100%; margin:0 auto;">
-                    <!-- Brand header -->
+            <td align="center" style="padding:40px 16px;">
+
+                <!--[if mso]><table role="presentation" cellpadding="0" cellspacing="0" width="560" align="center"><tr><td><![endif]-->
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px; margin:0 auto;">
+
+                    {{-- Top accent bar --}}
                     <tr>
-                        <td style="padding:0 16px 16px 16px;">
-                            <div style="display:inline-flex; align-items:center; gap:10px;">
-                                <div style="width:34px; height:34px; border-radius:10px; background:rgba(79,70,229,0.08); border:1px solid rgba(79,70,229,0.12); display:inline-block;">
-                                    <div style="width:34px; height:34px; line-height:34px; text-align:center; color:#4f46e5; font-weight:700;">M</div>
-                                </div>
-                                <div>
-                                    <div class="font-serif" style="font-size:18px; font-weight:600; letter-spacing:-0.2px; color:#312e81;">
-                                        {{ $appName }}
-                                    </div>
-                                    <div style="font-size:12px; color:#64748b; margin-top:2px;">
-                                        {{ __('platform_invitations.email_heading') }}
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
+                        <td style="background-color:#005F02; height:6px; font-size:0; line-height:0; border-radius:16px 16px 0 0;">&nbsp;</td>
                     </tr>
 
-                    <!-- Card -->
+                    {{-- Main card --}}
                     <tr>
-                        <td style="padding:0 16px;">
-                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#ffffff; border-radius:18px; border:1px solid #f1f5f9; box-shadow:0 20px 45px rgba(15,23,42,0.08); overflow:hidden;">
+                        <td style="background-color:#ffffff; border:1px solid #e5e9e6; border-top:none; border-radius:0 0 16px 16px;">
+
+                            {{-- Logo + App name --}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="padding:22px 22px 10px 22px;">
-                                        <div class="font-serif" style="font-size:22px; font-weight:600; color:#312e81; letter-spacing:-0.3px;">
+                                    <td style="padding:28px 32px 0 32px;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="vertical-align:middle; padding-right:14px;">
+                                                    @if(!empty($logoUrl))
+                                                        <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="width:38px; height:38px; border-radius:10px; background-color:#ffffff; border:1px solid rgba(0,95,2,0.12); overflow:hidden;">
+                                                            <img src="{{ $logoUrl }}" alt="{{ $appName }}" width="38" height="38" style="width:38px; height:38px; object-fit:contain; display:block;">
+                                                        </td></tr></table>
+                                                    @else
+                                                        <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="width:38px; height:38px; border-radius:10px; background-color:#f0fdf4; text-align:center; line-height:38px; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                                                            <span style="font-size:18px; font-weight:700; color:#005F02;">M</span>
+                                                        </td></tr></table>
+                                                    @endif
+                                                </td>
+                                                <td style="vertical-align:middle; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                                                    <div style="font-size:19px; font-weight:700; color:#005F02; letter-spacing:-0.3px;">{{ $appName }}</div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {{-- Divider --}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr><td style="padding:20px 32px 0;"><div style="height:1px; background-color:#f0f0f0;"></div></td></tr>
+                            </table>
+
+                            {{-- Content --}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="padding:28px 32px 0 32px; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+
+                                        {{-- Heading --}}
+                                        <div style="font-size:23px; font-weight:700; color:#111827; letter-spacing:-0.4px; line-height:1.3;">
                                             {{ __('platform_invitations.email_heading') }}
                                         </div>
-                                        <div style="margin-top:8px; font-size:13px; line-height:1.6; color:#475569;">
-                                            <span style="font-weight:600; color:#0f172a;">{{ $inviterName }}</span>
+
+                                        {{-- Body text --}}
+                                        <div style="margin-top:16px; font-size:15px; line-height:1.7; color:#4b5563;">
+                                            Bonjour,<br><br>
+                                            <strong style="color:#111827;">{{ $inviterName }}</strong>
                                             {{ __('platform_invitations.email_body_text', ['role' => $roleName]) }}
+                                        </div>
+
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {{-- Role info box --}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="padding:20px 32px 0 32px;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0;">
+                                            <tr>
+                                                <td style="padding:16px 20px; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                                                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                                        <tr>
+                                                            <td style="font-size:13px; color:#6b7280;">{{ __('platform_invitations.email_role_label') }}</td>
+                                                            <td align="right" style="font-size:14px; font-weight:600; color:#005F02;">{{ $roleName }}</td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {{-- Description --}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td style="padding:16px 32px 0 32px; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                                        <div style="font-size:14px; line-height:1.7; color:#6b7280;">
+                                            {{ __('platform_invitations.email_body_desc') }}
                                         </div>
                                     </td>
                                 </tr>
+                            </table>
 
-                                <!-- CTA -->
+                            {{-- CTA Button --}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td align="center" style="padding:14px 22px 6px 22px;">
-                                        <a href="{{ $acceptUrl }}"
-                                           style="display:inline-block; background:#4f46e5; color:#ffffff; text-decoration:none; padding:12px 16px; border-radius:12px; font-size:13px; font-weight:600;">
-                                            {{ __('platform_invitations.email_cta') }}
-                                        </a>
-                                        <div style="margin-top:10px; font-size:12px; color:#64748b;">
+                                    <td align="center" style="padding:28px 32px 8px 32px;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="border-radius:12px; background-color:#005F02;">
+                                                    <a href="{{ $acceptUrl }}" target="_blank" style="display:inline-block; padding:14px 40px; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:12px; mso-padding-alt:0;">
+                                                        <!--[if mso]><i style="mso-font-width:150%; mso-text-raise:22pt;">&nbsp;</i><![endif]-->
+                                                        <span style="mso-text-raise:11pt;">{{ __('platform_invitations.email_cta') }}</span>
+                                                        <!--[if mso]><i style="mso-font-width:150%;">&nbsp;</i><![endif]-->
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        <div style="margin-top:14px; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; font-size:13px; color:#6b7280;">
                                             {{ __('platform_invitations.email_expires') }}
                                         </div>
                                     </td>
                                 </tr>
+                            </table>
 
-                                <!-- Fallback link -->
+                            {{-- Fallback link --}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                                 <tr>
-                                    <td style="padding:14px 22px 22px 22px;">
-                                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:12px 12px;">
-                                            <div style="font-size:12px; line-height:1.55; color:#334155;">
-                                                {{ __('platform_invitations.email_fallback') }}
-                                            </div>
-                                            <div style="margin-top:8px; font-size:12px; line-height:1.5; color:#0f172a; word-break:break-all;">
-                                                {{ $acceptUrl }}
-                                            </div>
-                                        </div>
+                                    <td style="padding:20px 32px 32px 32px;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f9fafb; border-radius:12px; border:1px solid #f3f4f6;">
+                                            <tr>
+                                                <td style="padding:14px 16px; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                                                    <div style="font-size:12px; color:#6b7280; line-height:1.5;">
+                                                        {{ __('platform_invitations.email_fallback') }}
+                                                    </div>
+                                                    <div style="margin-top:8px; font-size:12px; color:#005F02; word-break:break-all; line-height:1.5;">
+                                                        {{ $acceptUrl }}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </td>
+                    </tr>
+
+                    {{-- Footer --}}
+                    <tr>
+                        <td style="padding:28px 16px 0; font-family:'Mona Sans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td align="center" style="font-size:12px; line-height:1.6; color:#9ca3af;">
+                                        &copy; {{ date('Y') }} {{ $appName }} &mdash; {{ __('platform_invitations.email_rights') }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding-top:8px; font-size:11px; color:#d1d5db;">
+                                        {{ __('platform_invitations.email_auto') }}
                                     </td>
                                 </tr>
                             </table>
                         </td>
                     </tr>
 
-                    <!-- Footer -->
-                    <tr>
-                        <td style="padding:18px 16px 0 16px;">
-                            <div style="font-size:11px; line-height:1.6; color:#94a3b8; text-align:center;">
-                                &copy; {{ date('Y') }} {{ $appName }}. {{ __('platform_invitations.email_rights') }}
-                                <br>
-                                <span style="color:#cbd5e1;">{{ __('platform_invitations.email_auto') }}</span>
-                            </div>
-                        </td>
-                    </tr>
                 </table>
+                <!--[if mso]></td></tr></table><![endif]-->
+
             </td>
         </tr>
     </table>
+
 </body>
 </html>

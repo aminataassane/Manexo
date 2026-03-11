@@ -219,4 +219,5 @@ return [
     'expired' => 'Expired',
     'assign_expires_at' => 'Expiration date',
     'assign_expires_at_help' => 'After this date, submission will be blocked.',
+    'form_due_date_help' => 'Global due date for this form.',
 ];

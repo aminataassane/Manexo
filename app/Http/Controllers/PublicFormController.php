@@ -11,6 +11,7 @@ use App\Models\OrganizationMembership;
 use App\Models\Scopes\OrganizationScope;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
+use App\Models\TicketGroup;
 use App\Models\TicketPriority;
 use App\Models\User;
 use App\Events\UserNotificationReceived;
@@ -234,17 +235,51 @@ class PublicFormController extends Controller
         $ticket = null;
 
         if ($shouldCreateTicket) {
+            // Auto-assign ticket to a group named after the form
+            $ticketGroupId = null;
+            $formGroupSlug = Str::slug($form->name);
+            if ($formGroupSlug !== '') {
+                $ticketGroup = TicketGroup::query()
+                    ->where('organization_id', $org->id)
+                    ->where('slug', $formGroupSlug)
+                    ->first();
+
+                if (! $ticketGroup) {
+                    $maxSort = (int) TicketGroup::query()
+                        ->where('organization_id', $org->id)
+                        ->max('sort_order');
+
+                    $ticketGroup = TicketGroup::query()->create([
+                        'organization_id' => $org->id,
+                        'name' => $form->name,
+                        'slug' => $formGroupSlug,
+                        'color' => null,
+                        'is_active' => true,
+                        'sort_order' => $maxSort + 1,
+                    ]);
+
+                    \App\Helpers\CacheHelper::invalidateTicketGroups($org->id);
+                }
+
+                $ticketGroupId = $ticketGroup->id;
+            }
+
             $ticket = Ticket::query()->create([
                 'organization_id' => $org->id,
                 'created_by' => $actor->id,
                 'ticket_category_id' => $categoryId,
                 'ticket_priority_id' => $defaultPriority?->id,
+                'ticket_group_id' => $ticketGroupId,
                 'assigned_to' => null,
                 'status' => TicketStatus::Open,
                 'subject' => trim((string) $validated['subject']),
                 'description' => trim((string) $validated['description']),
                 'custom_fields' => $customFields ?: null,
             ]);
+
+            \App\Helpers\CacheHelper::invalidateDashboard($org->id);
+            \App\Helpers\CacheHelper::invalidateReports($org->id);
+            \App\Helpers\CacheHelper::invalidateTicketCounts($org->id);
         }
 
         // Create FormResponse (need ID for file storage)

@@ -38,6 +38,27 @@ class Backups extends Component
         unset($this->backups);
     }
 
+    public function deleteBackup(string $filename): void
+    {
+        if (! auth()->user()->canPlatformAdminister()) {
+            return;
+        }
+
+        $service = new BackupService;
+        $filepath = $service->getBackupDirectory() . '/' . basename($filename);
+
+        if (file_exists($filepath) && @unlink($filepath)) {
+            SuperAdminAuditService::log('backup.delete', null, null, [
+                'filename' => $filename,
+            ]);
+            session()->flash('success', __('super_admin.backups.deleted', ['filename' => $filename]));
+        } else {
+            session()->flash('error', __('super_admin.backups.delete_failed'));
+        }
+
+        unset($this->backups);
+    }
+
     public function downloadBackup(string $filename): mixed
     {
         if (! auth()->user()->canPlatformAdminister()) {

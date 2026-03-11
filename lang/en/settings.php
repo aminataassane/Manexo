@@ -143,6 +143,21 @@ return [
     'cache_cleared' => 'Organization cache cleared.',
     'view_cache_cleared' => 'View cache cleared.',
 
+    // Ticket groups
+    'groups' => 'Groups',
+    'groups_title' => 'Ticket groups',
+    'groups_subtitle' => 'Organize your tickets by service or team (e.g. IT, QC, Maintenance).',
+    'group_name' => 'Group name',
+    'group_placeholder' => 'e.g. IT, QC, Maintenance',
+    'group_color' => 'Color',
+    'no_groups' => 'No groups. Create one to organize your tickets by service.',
+    'delete_group_confirm' => 'Delete this group? Tickets in this group will not be deleted.',
+
+    // Category defaults
+    'default_group' => 'Default group',
+    'default_form' => 'Default form',
+    'none' => 'None',
+
     // Ticket resolution mode
     'ticket_resolution_mode_label' => 'Resolution mode',
     'ticket_resolution_mode_flexible' => 'Flexible (resolve without completing all subtasks)',

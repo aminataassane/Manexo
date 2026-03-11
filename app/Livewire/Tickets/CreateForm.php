@@ -3,6 +3,7 @@
 namespace App\Livewire\Tickets;
 
 use App\Enums\TicketStatus;
+use App\Helpers\CacheHelper;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
@@ -141,6 +142,10 @@ class CreateForm extends Component
         }
 
         $this->reset(['subject', 'description', 'files', 'links', 'linkUrl']);
+
+        CacheHelper::invalidateDashboard($orgId);
+        CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
 
         $this->dispatch('tickets:created');
         $this->dispatch('tickets:closeCreateDrawer');

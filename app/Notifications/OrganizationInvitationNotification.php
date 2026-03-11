@@ -19,7 +19,22 @@ class OrganizationInvitationNotification extends Notification
 
     public function via(object $notifiable): array
     {
+        if ($notifiable instanceof \App\Models\User) {
+            return ['database', 'mail'];
+        }
+
         return ['mail'];
+    }
+
+    public function toArray(object $notifiable): array
+    {
+        return [
+            'type' => 'organization_invitation',
+            'organization_name' => $this->organization->name,
+            'invitation_token' => $this->invitation->token,
+            'inviter_name' => $this->invitation->inviter?->name,
+            'role' => $this->invitation->role,
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -34,7 +49,7 @@ class OrganizationInvitationNotification extends Notification
             ->subject(__('invitations.email_subject', ['org' => $orgName]))
             ->view('emails.organization-invitation', [
                 'appName' => $appName,
-                'logoUrl' => null,
+                'logoUrl' => asset('assets/Logo(1).png'),
                 'orgName' => $orgName,
                 'roleName' => $roleName,
                 'inviterName' => $inviterName,

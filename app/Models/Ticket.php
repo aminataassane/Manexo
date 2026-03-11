@@ -26,6 +26,7 @@ class Ticket extends Model
         'created_by',
         'ticket_category_id',
         'ticket_priority_id',
+        'ticket_group_id',
         'assigned_to',
         'assigned_by',
         'assigned_at',
@@ -90,6 +91,11 @@ class Ticket extends Model
     public function priority(): BelongsTo
     {
         return $this->belongsTo(TicketPriority::class, 'ticket_priority_id');
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(TicketGroup::class, 'ticket_group_id');
     }
 
     /** @deprecated Use assignees() instead. Kept for backward compatibility. */

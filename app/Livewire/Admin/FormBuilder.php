@@ -48,6 +48,8 @@ class FormBuilder extends Component
     public string $fb_selected_form_public_description = '';
     public string $fb_selected_form_public_thank_you = '';
     public string $fb_selected_form_description = '';
+    public ?string $fb_selected_form_due_date = null;
+    public ?string $fb_selected_form_expires_at = null;
 
     // Field selection
     public ?int $fb_selected_field_id = null;
@@ -68,8 +70,6 @@ class FormBuilder extends Component
     // Assignment form
     public ?int $assign_user_id = null;
     public ?int $assign_function_id = null;
-    public ?string $assign_due_date = null;
-    public ?string $assign_expires_at = null;
 
     private function orgId(): int
     {
@@ -111,6 +111,8 @@ class FormBuilder extends Component
             $this->fb_selected_form_public_description = '';
             $this->fb_selected_form_public_thank_you = '';
             $this->fb_selected_form_description = '';
+            $this->fb_selected_form_due_date = null;
+            $this->fb_selected_form_expires_at = null;
             $this->fb_selected_field_id = null;
             $this->resetSelectedField();
             return;
@@ -135,6 +137,8 @@ class FormBuilder extends Component
         $this->fb_selected_form_public_description = (string) ($form->public_description ?? '');
         $this->fb_selected_form_public_thank_you = (string) ($form->public_thank_you ?? '');
         $this->fb_selected_form_description = (string) ($form->description ?? '');
+        $this->fb_selected_form_due_date = $form->due_date ? $form->due_date->format('Y-m-d') : null;
+        $this->fb_selected_form_expires_at = $form->expires_at ? $form->expires_at->format('Y-m-d\TH:i') : null;
         $this->fb_selected_field_id = null;
         $this->resetSelectedField();
     }
@@ -209,6 +213,8 @@ class FormBuilder extends Component
             'fb_selected_form_public_description' => ['nullable', 'string', 'max:2000'],
             'fb_selected_form_public_thank_you' => ['nullable', 'string', 'max:2000'],
             'fb_selected_form_description' => ['nullable', 'string', 'max:2000'],
+            'fb_selected_form_due_date' => ['nullable', 'date'],
+            'fb_selected_form_expires_at' => ['nullable', 'date'],
         ]);
         if (($validated['fb_selected_form_category_id'] ?? null) !== null) {
             if (! TicketCategory::query()->where('organization_id', $orgId)->whereKey((int) $validated['fb_selected_form_category_id'])->exists()) {
@@ -262,6 +268,8 @@ class FormBuilder extends Component
                 'public_title' => trim((string) ($validated['fb_selected_form_public_title'] ?? '')) ?: null,
                 'public_description' => trim((string) ($validated['fb_selected_form_public_description'] ?? '')) ?: null,
                 'public_thank_you' => trim((string) ($validated['fb_selected_form_public_thank_you'] ?? '')) ?: null,
+                'due_date' => $validated['fb_selected_form_due_date'] ?? null,
+                'expires_at' => $validated['fb_selected_form_expires_at'] ?? null,
             ]);
         CacheHelper::invalidateForms($orgId);
         $this->dispatch('toast', type: 'success', message: 'Formulaire enregistré.');
@@ -495,6 +503,29 @@ class FormBuilder extends Component
             'name' => $validated['fb_form_name'],
             'status' => FormStatus::Draft,
         ]);
+
+        // Default fields: titre + description (mapped to ticket subject/description)
+        FormField::query()->create([
+            'form_id' => $form->id,
+            'key' => 'titre',
+            'label' => 'Titre',
+            'type' => 'text',
+            'required' => true,
+            'configuration' => ['placeholder' => 'Titre du ticket'],
+            'sort_order' => 10,
+            'form_version' => 1,
+        ]);
+        FormField::query()->create([
+            'form_id' => $form->id,
+            'key' => 'description',
+            'label' => 'Description',
+            'type' => 'textarea',
+            'required' => true,
+            'configuration' => ['placeholder' => 'Décrivez votre demande...'],
+            'sort_order' => 20,
+            'form_version' => 1,
+        ]);
+
         $this->fb_selected_form_id = (int) $form->id;
         $this->loadSelectedForm();
         $this->fb_form_name = '';
@@ -647,8 +678,6 @@ class FormBuilder extends Component
         $validated = $this->validate([
             'assign_user_id' => ['nullable', 'integer'],
             'assign_function_id' => ['nullable', 'integer'],
-            'assign_due_date' => ['nullable', 'date', 'after_or_equal:today'],
-            'assign_expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
         if (! $validated['assign_user_id'] && ! $validated['assign_function_id']) {
@@ -679,8 +708,8 @@ class FormBuilder extends Component
             'organization_function_id' => $validated['assign_function_id'] ?: null,
             'assigned_by' => $user->id,
             'status' => FormAssignmentStatus::Pending,
-            'due_date' => $validated['assign_due_date'] ?? null,
-            'expires_at' => $validated['assign_expires_at'] ?? null,
+            'due_date' => $form->due_date,
+            'expires_at' => $form->expires_at,
             'form_version' => $form->current_version,
         ]);
 
@@ -694,7 +723,7 @@ class FormBuilder extends Component
                     assignmentId: $assignment->id,
                     assignedById: $user->id,
                     assignedByName: $user->name,
-                    dueDate: $validated['assign_due_date'],
+                    dueDate: $form->due_date?->toDateString(),
                     assignmentPublicId: $assignment->public_id,
                 ));
                 event(new UserNotificationReceived(userId: $target->id, notificationType: 'form_assignment'));
@@ -717,7 +746,7 @@ class FormBuilder extends Component
                         assignmentId: $assignment->id,
                         assignedById: $user->id,
                         assignedByName: $user->name,
-                        dueDate: $validated['assign_due_date'],
+                        dueDate: $form->due_date?->toDateString(),
                         assignmentPublicId: $assignment->public_id,
                     ));
                     event(new UserNotificationReceived(userId: (int) $memberId, notificationType: 'form_assignment'));
@@ -727,8 +756,6 @@ class FormBuilder extends Component
 
         $this->assign_user_id = null;
         $this->assign_function_id = null;
-        $this->assign_due_date = null;
-        $this->assign_expires_at = null;
         $this->dispatch('toast', type: 'success', message: 'Formulaire assigné.');
     }
 

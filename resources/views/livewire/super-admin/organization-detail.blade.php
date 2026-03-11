@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <!-- Back link -->
-    <a href="{{ route('platform-admin.organizations') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
+    <a href="{{ route('platform-admin.organizations') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-[#005F02] transition-colors">
         <iconify-icon icon="solar:arrow-left-linear" width="16"></iconify-icon>
         {{ __('super_admin.org_detail.back') }}
     </a>
@@ -71,7 +71,7 @@
                     type="text"
                     wire:model.live.debounce.300ms="memberSearch"
                     placeholder="{{ __('super_admin.org_detail.search_members') }}"
-                    class="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                    class="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all"
                 />
             </div>
         </div>
@@ -91,7 +91,7 @@
                         <tr class="hover:bg-slate-50/50 transition-colors">
                             <td class="px-5 py-3.5">
                                 <div class="flex items-center gap-3">
-                                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-600">
+                                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F2E3BB]/30 text-xs font-bold text-[#005F02]">
                                         {{ mb_substr($member->name, 0, 1) }}
                                     </div>
                                     <span class="text-sm font-medium text-slate-800">{{ $member->name }}</span>
@@ -103,7 +103,7 @@
                                     $role = $member->pivot->role ?? 'member';
                                     $roleBadge = match($role) {
                                         'owner' => 'bg-purple-50 text-purple-700 border-purple-200',
-                                        'admin' => 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                                        'admin' => 'bg-[#F2E3BB]/30 text-[#005F02] border-[#005F02]/20',
                                         default => 'bg-slate-50 text-slate-700 border-slate-200',
                                     };
                                 @endphp

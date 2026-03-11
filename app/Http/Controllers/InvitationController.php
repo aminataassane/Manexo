@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\UserNotificationReceived;
 use App\Models\OrganizationInvitation;
 use App\Models\OrganizationMembership;
 use App\Models\Scopes\OrganizationScope;
 use App\Models\User;
+use App\Notifications\InvitationAcceptedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -140,6 +142,22 @@ class InvitationController extends Controller
             'status' => 'accepted',
             'accepted_at' => now(),
         ]);
+
+        // Notify the inviter that the invitation was accepted
+        if ($invitation->invited_by) {
+            $inviter = User::find($invitation->invited_by);
+            if ($inviter) {
+                $orgName = $invitation->organization?->name ?? '';
+                $inviter->notify(new InvitationAcceptedNotification(
+                    acceptedByName: $user->name,
+                    acceptedByEmail: $user->email,
+                    organizationName: $orgName,
+                    organizationId: $invitation->organization_id,
+                    role: $invitation->role,
+                ));
+                event(new UserNotificationReceived(userId: (int) $inviter->id, notificationType: 'invitation_accepted'));
+            }
+        }
 
         session(['current_organization_id' => $invitation->organization_id]);
 

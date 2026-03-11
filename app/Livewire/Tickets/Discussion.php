@@ -16,6 +16,7 @@ use App\Models\Ticket;
 use App\Models\TicketChecklistItem;
 use App\Models\TicketMessage;
 use App\Models\TicketParticipant;
+use App\Models\TicketGroup;
 use App\Models\TicketPriority;
 use App\Models\User;
 use App\Notifications\ChecklistItemAssignedNotification;
@@ -166,7 +167,6 @@ class Discussion extends Component
         $ticket = $this->getTicket();
         Gate::authorize('assign', $ticket);
         $userId = (int) $userId;
-        $ticket = $this->getTicket();
         $this->guardAgainstLock($ticket);
         if ($userId === 0) {
             $current = $ticket->assignees()->first();
@@ -204,6 +204,7 @@ class Discussion extends Component
         event(new UserNotificationReceived($userId, 'ticket_assignee'));
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+        CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
     }
 
     public function addAssignee(int $userId): void
@@ -244,6 +245,7 @@ class Discussion extends Component
         event(new UserNotificationReceived($userId, 'ticket_assignee'));
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+        CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
     }
 
     public function removeAssignee(int $userId): void
@@ -288,6 +290,7 @@ class Discussion extends Component
         }
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+        CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
     }
 
     /** Promouvoir un collaborateur en responsable. */
@@ -316,6 +319,7 @@ class Discussion extends Component
         ]);
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+        CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
     }
 
     /** Guard: abort 403 if ticket is locked and current user cannot bypass lock. */
@@ -455,6 +459,7 @@ class Discussion extends Component
         $orgId = (int) $ticket->organization_id;
         CacheHelper::invalidateDashboard($orgId);
         CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
 
         $this->body = '';
         $this->asInternalNote = false;
@@ -489,6 +494,7 @@ class Discussion extends Component
         $ticket->update(['archived_at' => now()]);
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+        CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
         session()->flash('tickets_status', __('Ticket archivé.'));
     }
 
@@ -516,6 +522,7 @@ class Discussion extends Component
         $ticket->update(['archived_at' => null]);
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+        CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
         session()->flash('tickets_status', __('Ticket restauré.'));
     }
 
@@ -540,6 +547,7 @@ class Discussion extends Component
         $ticket->delete();
         CacheHelper::invalidateDashboard($orgId);
         CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
         session()->flash('tickets_status', __('Ticket supprimé.'));
         $this->redirect(route('tickets.index'));
     }
@@ -609,7 +617,8 @@ class Discussion extends Component
         if (! $this->canEditTicketBase()) {
             abort(403);
         }
-        $this->guardAgainstLock($this->getTicket());
+        $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         $this->validate([
             'editAttachmentFiles.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip'],
         ]);
@@ -617,7 +626,6 @@ class Discussion extends Component
         if (! is_array($files) || count($files) === 0) {
             return;
         }
-        $ticket = $this->getTicket();
         $orgId = (int) $ticket->organization_id;
         $attachments = is_array($ticket->attachments) ? $ticket->attachments : ['files' => [], 'links' => []];
         $filesList = $attachments['files'] ?? [];
@@ -649,12 +657,12 @@ class Discussion extends Component
         if (! $this->canEditTicketBase()) {
             abort(403);
         }
-        $this->guardAgainstLock($this->getTicket());
+        $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         $this->validate([
             'editLinkUrl' => ['required', 'string', 'url', 'max:2000'],
         ], [], ['editLinkUrl' => __('URL')]);
         $url = trim($this->editLinkUrl);
-        $ticket = $this->getTicket();
         $attachments = is_array($ticket->attachments) ? $ticket->attachments : ['files' => [], 'links' => []];
         $linksList = $attachments['links'] ?? [];
         $linksList[] = ['url' => $url];
@@ -670,11 +678,11 @@ class Discussion extends Component
         if (! $this->canEditTicketBase()) {
             abort(403);
         }
-        $this->guardAgainstLock($this->getTicket());
+        $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
         if (! in_array($type, ['files', 'links'], true)) {
             return;
         }
-        $ticket = $this->getTicket();
         $attachments = is_array($ticket->attachments) ? $ticket->attachments : ['files' => [], 'links' => []];
         $list = $attachments[$type] ?? [];
         if (! isset($list[$index])) {
@@ -791,6 +799,7 @@ class Discussion extends Component
         ]);
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+        CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
     }
 
     /** Change la priorité du ticket. Réservé au staff. */
@@ -826,6 +835,27 @@ class Discussion extends Component
         ]);
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
+        CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
+    }
+
+    /** Change le groupe du ticket. Réservé au staff. */
+    public function changeGroup($groupId): void
+    {
+        $user = Auth::user();
+        if (! $user || ! $this->canAssignTicket()) {
+            abort(403);
+        }
+        $ticket = $this->getTicket();
+        $this->guardAgainstLock($ticket);
+        $id = $groupId === '' || $groupId === null ? null : (int) $groupId;
+        if ($id !== null) {
+            TicketGroup::where('organization_id', $ticket->organization_id)
+                ->where('is_active', true)
+                ->whereKey($id)
+                ->firstOrFail();
+        }
+        $ticket->update(['ticket_group_id' => $id]);
+        CacheHelper::invalidateDashboard((int) $ticket->organization_id);
     }
 
     /** Modifie l'échéance du ticket. Staff, créateur, ou assigné. */
@@ -937,6 +967,7 @@ class Discussion extends Component
                 'priority:id,name,level',
                 'organization:id,name',
                 'assignedToFunction:id,name',
+                'group:id,name,color',
                 'checklistItems.assignee:id,name,email',
                 'checklistItems.assignees:id,name,email',
                 'checklistItems.doneByUser:id,name,email',
@@ -955,14 +986,15 @@ class Discussion extends Component
     private function buildUsersData(Ticket $ticket): array
     {
         $orgUsers = cache()->remember(
-            "org:{$ticket->organization_id}:users",
-            now()->addMinutes(5),
+            CacheHelper::membersKey((int) $ticket->organization_id),
+            CacheHelper::TTL,
             fn () => User::query()
                 ->whereHas('organizations', fn ($q) => $q->where('organization_id', $ticket->organization_id))
                 ->orderBy('name')
                 ->get(['id', 'name', 'email', 'mention_tag'])
         );
 
+        // Build mentionableUsers from already-loaded relations (no extra query)
         $discussionParticipantIds = collect([$ticket->created_by])
             ->merge($ticket->assignees->pluck('id'))
             ->merge($ticket->participants->pluck('id'))
@@ -970,12 +1002,9 @@ class Discussion extends Component
             ->unique()
             ->values()
             ->all();
-        $discussionParticipants = User::query()
-            ->whereIn('id', $discussionParticipantIds)
-            ->get(['id', 'name', 'mention_tag']);
-        $order = array_values($discussionParticipantIds);
-        $mentionableUsers = collect($order)
-            ->map(fn ($id) => $discussionParticipants->firstWhere('id', $id))
+
+        $mentionableUsers = collect($discussionParticipantIds)
+            ->map(fn ($id) => $orgUsers->firstWhere('id', $id))
             ->filter()
             ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'tag' => $u->mention_tag])
             ->values()
@@ -1030,27 +1059,53 @@ class Discussion extends Component
      */
     private function buildOrgReferenceData(Ticket $ticket): array
     {
-        $orgPriorities = TicketPriority::where('organization_id', $ticket->organization_id)
-            ->where('is_active', true)
-            ->orderBy('level')
-            ->get(['id', 'name', 'level']);
+        $orgId = (int) $ticket->organization_id;
+
+        $orgPriorities = cache()->remember(
+            CacheHelper::prioritiesKey($orgId, true),
+            CacheHelper::TTL,
+            fn () => TicketPriority::where('organization_id', $orgId)
+                ->where('is_active', true)
+                ->orderBy('level')
+                ->get(['id', 'name', 'level'])
+        );
 
         $formResponse = FormResponse::where('ticket_id', $ticket->id)->first();
 
-        $orgMemberRoles = \Illuminate\Support\Facades\DB::table('organization_memberships')
-            ->where('organization_id', $ticket->organization_id)
-            ->pluck('role', 'user_id')
-            ->all();
+        $orgMemberRoles = cache()->remember(
+            CacheHelper::orgMemberRolesKey($orgId),
+            CacheHelper::TTL,
+            fn () => \Illuminate\Support\Facades\DB::table('organization_memberships')
+                ->where('organization_id', $orgId)
+                ->pluck('role', 'user_id')
+                ->all()
+        );
 
-        $organizationFunctions = $ticket->organization_id
-            ? OrganizationFunction::query()
-                ->where('organization_id', $ticket->organization_id)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(['id', 'name'])
+        $organizationFunctions = $orgId
+            ? cache()->remember(
+                CacheHelper::orgFunctionsKey($orgId),
+                CacheHelper::TTL,
+                fn () => OrganizationFunction::query()
+                    ->where('organization_id', $orgId)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
+            )
             : collect();
 
-        return compact('orgPriorities', 'formResponse', 'orgMemberRoles', 'organizationFunctions');
+        $ticketGroups = $orgId
+            ? cache()->remember(
+                CacheHelper::ticketGroupsKey($orgId, true),
+                CacheHelper::TTL,
+                fn () => TicketGroup::where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'color'])
+            )
+            : collect();
+
+        return compact('orgPriorities', 'formResponse', 'orgMemberRoles', 'organizationFunctions', 'ticketGroups');
     }
 
     /** Build view data for the discussion view. */
@@ -1060,17 +1115,23 @@ class Discussion extends Component
         $permissions = $this->buildPermissionFlags($ticket);
         $orgRef = $this->buildOrgReferenceData($ticket);
 
-        // Get current user's function IDs for "Je prends" button visibility
+        // Use cached orgMemberRoles to get user's function IDs (no extra query)
         $orgId = (int) session('current_organization_id');
         $userFunctionIds = [];
         if ($permissions['authUserId'] && $orgId) {
-            $userFunctionIds = \Illuminate\Support\Facades\DB::table('organization_memberships')
-                ->where('organization_id', $orgId)
-                ->where('user_id', $permissions['authUserId'])
-                ->whereNotNull('organization_function_id')
-                ->pluck('organization_function_id')
-                ->map(fn ($v) => (int) $v)
-                ->all();
+            $memberRoles = $orgRef['orgMemberRoles'];
+            // We need function IDs — get from cached membership data
+            $userFunctionIds = cache()->remember(
+                "org_member_functions:{$orgId}:{$permissions['authUserId']}",
+                CacheHelper::TTL,
+                fn () => \Illuminate\Support\Facades\DB::table('organization_memberships')
+                    ->where('organization_id', $orgId)
+                    ->where('user_id', $permissions['authUserId'])
+                    ->whereNotNull('organization_function_id')
+                    ->pluck('organization_function_id')
+                    ->map(fn ($v) => (int) $v)
+                    ->all()
+            );
         }
 
         /** @var \App\Models\User|null $authUser */
@@ -1090,7 +1151,7 @@ class Discussion extends Component
             'showAddChecklistItem' => $this->showAddChecklistItem,
             'canEditTicket' => $permissions['canEditTicket'],
             'canDeleteTicket' => $permissions['canDeleteTicket'],
-            'canAssignTicket' => $this->canAssignTicket(),
+            'canAssignTicket' => Gate::allows('assign', $ticket),
             'canEditDueDate' => $permissions['canEditDueDate'],
             'canArchive' => $permissions['canArchive'],
             'isStaffOrTicketOwner' => $permissions['isStaffOrTicketOwner'],
@@ -1100,6 +1161,7 @@ class Discussion extends Component
             'formResponse' => $orgRef['formResponse'],
             'orgMemberRoles' => $orgRef['orgMemberRoles'],
             'organizationFunctions' => $orgRef['organizationFunctions'],
+            'ticketGroups' => $orgRef['ticketGroups'],
             'isLocked' => $isLocked,
             'canBypassLock' => $canBypassLock,
         ];

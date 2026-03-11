@@ -135,7 +135,7 @@ return [
 
     'platform_creator' => [
         'name' => env('PLATFORM_CREATOR_NAME', 'Manexo'),
-        'logo' => env('PLATFORM_CREATOR_LOGO', 'assets/logo(1).png'), // chemin dans public/ (ex: assets/logo(1).png)
+        'logo' => env('PLATFORM_CREATOR_LOGO', 'assets/Logo(1).png'), // chemin dans public/ (ex: assets/Logo(1).png)
         'url' => env('PLATFORM_CREATOR_URL', 'https://manexo.io'),
     ],
 

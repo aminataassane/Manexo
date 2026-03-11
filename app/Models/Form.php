@@ -26,6 +26,8 @@ class Form extends Model
         'status',
         'is_public',
         'creates_ticket',
+        'due_date',
+        'expires_at',
         'public_title',
         'public_description',
         'public_thank_you',
@@ -40,6 +42,8 @@ class Form extends Model
             'status' => FormStatus::class,
             'is_public' => 'bool',
             'creates_ticket' => 'bool',
+            'due_date' => 'date',
+            'expires_at' => 'datetime',
             'current_version' => 'int',
         ];
     }

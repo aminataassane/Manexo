@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 
 // All platform roles (super_admin, platform_admin, platform_observer)
-Route::middleware(['auth', 'super-admin'])
+Route::middleware(['auth', 'super-admin', 'throttle:admin-actions'])
     ->prefix('platform-admin')
     ->name('platform-admin.')
     ->group(function () {
@@ -16,10 +16,11 @@ Route::middleware(['auth', 'super-admin'])
         Route::get('/files', App\Livewire\SuperAdmin\FilesStorage::class)->name('files');
         Route::get('/notifications', App\Livewire\SuperAdmin\NotificationsGlobal::class)->name('notifications');
         Route::get('/support-sessions', App\Livewire\SuperAdmin\SupportSessions::class)->name('support-sessions');
+        Route::get('/profile', App\Livewire\SuperAdmin\Profile::class)->name('profile');
     });
 
 // Super admin only (security, monitoring, backups)
-Route::middleware(['auth', 'super-admin:super'])
+Route::middleware(['auth', 'super-admin:super', 'throttle:admin-actions'])
     ->prefix('platform-admin')
     ->name('platform-admin.')
     ->group(function () {

@@ -3,9 +3,12 @@
 namespace App\Livewire\Tickets;
 
 use App\Enums\Permission;
+use App\Enums\TicketMessageType;
 use App\Enums\TicketStatus;
 use App\Helpers\CacheHelper;
 use App\Models\Ticket;
+use App\Models\TicketGroup;
+use App\Models\TicketMessage;
 use App\Services\OrganizationAuditService;
 use App\Models\TicketChecklistItem;
 use App\Models\TicketPriority;
@@ -25,6 +28,15 @@ use Livewire\WithPagination;
 class Index extends Component
 {
     use WithPagination;
+
+    public function mount(): void
+    {
+        $user = Auth::user();
+        abort_if(! $user instanceof \App\Models\User, 403);
+
+        $orgId = (int) session('current_organization_id');
+        abort_if(! $orgId, 403);
+    }
 
     public function getListeners(): array
     {
@@ -59,6 +71,9 @@ class Index extends Component
 
     #[Url(history: true)]
     public string $assignee = '';
+
+    #[Url(history: true)]
+    public string $group = ''; // '' = all, 'none' = no group, or group id
 
     #[Url(history: true)]
     public string $source = 'all'; // all | from_form | from_platform
@@ -105,6 +120,11 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatedGroup(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatedSource(): void
     {
         $this->resetPage();
@@ -141,7 +161,7 @@ class Index extends Component
 
     public function resetFilters(): void
     {
-        $this->reset(['search', 'status', 'priority', 'assignee', 'source']);
+        $this->reset(['search', 'status', 'priority', 'assignee', 'source', 'group']);
         $this->resetPage();
     }
 
@@ -182,7 +202,30 @@ class Index extends Component
         }
 
         $oldStatus = $ticket->status?->value ?? $ticket->status;
-        $ticket->update(['status' => $status]);
+        if ($oldStatus === $status) {
+            return;
+        }
+
+        $newStatusEnum = TicketStatus::from($status);
+        $isClosed = in_array($newStatusEnum, [TicketStatus::Resolved, TicketStatus::Closed], true);
+
+        $ticket->update([
+            'status' => $status,
+            'closed_by' => $isClosed ? $user->id : null,
+            'closed_at' => $isClosed ? now() : null,
+        ]);
+
+        TicketMessage::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => null,
+            'type' => TicketMessageType::System,
+            'body' => __('tickets.status_changed', [
+                'actor' => $user->name,
+                'old' => __('tickets.status.' . $oldStatus),
+                'new' => __('tickets.status.' . $status),
+            ]),
+            'meta' => ['action' => 'status_changed', 'old' => $oldStatus, 'new' => $status],
+        ]);
 
         OrganizationAuditService::log(
             'ticket.status_changed',
@@ -193,6 +236,7 @@ class Index extends Component
 
         CacheHelper::invalidateDashboard($orgId);
         CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
     }
 
     public function setView(string $key): void
@@ -256,6 +300,41 @@ class Index extends Component
         session()->flash('tickets_status', __('Ticket restauré.'));
     }
 
+    /** Suppression définitive d'un ticket (forceDelete). Staff avec permission uniquement. */
+    public function forceDeleteTicket(int $ticketId): void
+    {
+        $user = Auth::user();
+        if (! $user instanceof \App\Models\User) {
+            abort(403);
+        }
+        $orgId = (int) session('current_organization_id');
+        if (! $orgId) {
+            abort(403);
+        }
+        if (! $user->hasPermission(Permission::TicketsDelete)) {
+            abort(403);
+        }
+        $ticket = Ticket::query()
+            ->onlyTrashed()
+            ->where('organization_id', $orgId)
+            ->whereKey($ticketId)
+            ->firstOrFail();
+
+        $ticket->forceDelete();
+
+        OrganizationAuditService::log(
+            'ticket.force_deleted',
+            'ticket',
+            $ticketId,
+        );
+
+        CacheHelper::invalidateDashboard($orgId);
+        CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
+
+        session()->flash('tickets_status', __('pages.tickets.force_deleted'));
+    }
+
     /** @return \Illuminate\Contracts\View\View */
     public function render()
     {
@@ -272,7 +351,7 @@ class Index extends Component
         $isStaff = $user ? $user->hasPermission(Permission::TicketsViewAll) : false;
 
         $query = Ticket::query()
-            ->with(['category', 'priority', 'creator', 'assignees', 'formResponse'])
+            ->with(['category', 'priority', 'group', 'creator', 'assignees', 'formResponse'])
             ->where('tickets.organization_id', $orgId);
 
         // Box: Corbeille (soft-deleted) ou Actifs / Archivés
@@ -327,6 +406,13 @@ class Index extends Component
                 $query->whereHas('formResponse');
             } elseif ($this->source === 'from_platform') {
                 $query->whereDoesntHave('formResponse');
+            }
+
+            // Filtre par groupe
+            if ($this->group === 'none') {
+                $query->whereNull('tickets.ticket_group_id');
+            } elseif ($this->group !== '') {
+                $query->where('tickets.ticket_group_id', (int) $this->group);
             }
         }
 
@@ -404,81 +490,113 @@ class Index extends Component
             })
             : collect();
 
-        $assignees = $org
-            ? $org->users()->orderBy('name')->get(['users.id', 'users.name'])
+        $assignees = ($org && $orgId)
+            ? Cache::remember(CacheHelper::membersKey($orgId), CacheHelper::TTL, function () use ($org) {
+                return $org->users()->orderBy('name')->get(['users.id', 'users.name']);
+            })
             : collect();
 
-        $statsRow = ($user && $orgId)
-            ? Ticket::query()
-            ->where('tickets.organization_id', $orgId)
-            ->whereNull('tickets.archived_at')
-            ->when(! $isStaff, fn($q) => $q->where(function ($sub) use ($user) {
-                $sub->where('tickets.created_by', $user->id)
-                    ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$user->id])
-                    ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$user->id]);
-            }))
-            ->selectRaw("count(*) filter (where status = 'open') as open_count")
-            ->selectRaw("count(*) filter (where status = 'in_progress') as in_progress_count")
-            ->selectRaw("count(*) filter (where status = 'pending') as pending_count")
-            ->selectRaw("count(*) filter (where status in ('resolved','closed') and updated_at >= ?) as resolved_7d_count", [Carbon::now()->subDays(7)])
-            ->first()
-            : null;
+        $ticketGroups = $orgId
+            ? Cache::remember(CacheHelper::ticketGroupsKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketGroup::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'slug', 'color']);
+            })
+            : collect();
+
+        // ── Single combined query: stats + view counts + source counts (cached) ──
+        $canViewTrash = $user && $user->hasPermission(Permission::TicketsViewTrash) && $orgId;
+
+        $countsRow = null;
+        if ($user && $orgId) {
+            $countsCacheKey = CacheHelper::ticketCountsKey($orgId, (int) $user->id, $this->group);
+
+            $countsRow = Cache::remember($countsCacheKey, CacheHelper::TTL, function () use ($orgId, $user, $isStaff, $canViewTrash) {
+                $memberFilter = $isStaff
+                    ? ''
+                    : " and (t2.created_by = ? or exists (select 1 from ticket_assignees ta2 where ta2.ticket_id = t2.id and ta2.user_id = ?) or exists (select 1 from ticket_participants tp2 where tp2.ticket_id = t2.id and tp2.user_id = ?))";
+                $archivedBindings = $isStaff ? [$orgId] : [$orgId, $user->id, $user->id, $user->id];
+
+                $q = Ticket::query()
+                    ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
+                    ->where('tickets.organization_id', $orgId)
+                    ->whereNull('tickets.archived_at')
+                    ->when(! $isStaff, fn($q) => $q->where(function ($sub) use ($user) {
+                        $sub->where('tickets.created_by', $user->id)
+                            ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$user->id])
+                            ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$user->id]);
+                    }))
+                    ->when($this->group !== '' && $this->group !== 'none', fn($q) => $q->where('tickets.ticket_group_id', (int) $this->group))
+                    ->when($this->group === 'none', fn($q) => $q->whereNull('tickets.ticket_group_id'))
+                    // Stats cards
+                    ->selectRaw("count(*) filter (where tickets.status = 'open') as open_count")
+                    ->selectRaw("count(*) filter (where tickets.status = 'in_progress') as in_progress_count")
+                    ->selectRaw("count(*) filter (where tickets.status = 'pending') as pending_count")
+                    ->selectRaw("count(*) filter (where tickets.status in ('resolved','closed') and tickets.updated_at >= ?) as resolved_7d_count", [Carbon::now()->subDays(7)])
+                    // View counts
+                    ->selectRaw('count(*) as all_count')
+                    ->selectRaw("count(*) filter (where tickets.created_by = ?) as created_by_me_count", [$user->id])
+                    ->selectRaw("count(*) filter (where exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?) or exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)) as assigned_to_me_count", [$user->id, $user->id])
+                    ->selectRaw("count(*) filter (where tickets.status in ('open','in_progress','pending') and tickets.updated_at < ?) as past_due_count", [Carbon::now()->subDays(7)])
+                    ->selectRaw("count(*) filter (where tp.level >= 3) as high_priority_count")
+                    ->selectRaw("count(*) filter (where not exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id)) as unassigned_count")
+                    // Source counts
+                    ->selectRaw("count(*) filter (where exists (select 1 from form_responses fr where fr.ticket_id = tickets.id)) as from_form_count")
+                    ->selectRaw("count(*) filter (where not exists (select 1 from form_responses fr where fr.ticket_id = tickets.id)) as from_platform_count")
+                    // Archived + trash as subqueries
+                    ->selectRaw("(select count(*) from tickets t2 where t2.organization_id = ? and t2.archived_at is not null{$memberFilter}) as archived_count", $archivedBindings);
+
+                if ($canViewTrash) {
+                    $q->selectRaw("(select count(*) from tickets t3 where t3.organization_id = ? and t3.deleted_at is not null) as trash_count", [$orgId]);
+                }
+
+                return $q->first();
+            });
+        }
 
         $stats = [
-            'open' => (int) ($statsRow?->open_count ?? 0),
-            'in_progress' => (int) ($statsRow?->in_progress_count ?? 0),
-            'pending' => (int) ($statsRow?->pending_count ?? 0),
-            'resolved_7d' => (int) ($statsRow?->resolved_7d_count ?? 0),
+            'open' => (int) ($countsRow?->open_count ?? 0),
+            'in_progress' => (int) ($countsRow?->in_progress_count ?? 0),
+            'pending' => (int) ($countsRow?->pending_count ?? 0),
+            'resolved_7d' => (int) ($countsRow?->resolved_7d_count ?? 0),
         ];
-
-        $memberFilter = $isStaff
-            ? ''
-            : " and (t2.created_by = ? or exists (select 1 from ticket_assignees ta2 where ta2.ticket_id = t2.id and ta2.user_id = ?) or exists (select 1 from ticket_participants tp2 where tp2.ticket_id = t2.id and tp2.user_id = ?))";
-        $archivedBindings = $isStaff ? [$orgId] : [$orgId, $user->id, $user->id, $user->id];
-        $viewsRow = ($user && $orgId)
-            ? Ticket::query()
-            ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
-            ->where('tickets.organization_id', $orgId)
-            ->whereNull('tickets.archived_at')
-            ->when(! $isStaff, fn($q) => $q->where(function ($sub) use ($user) {
-                $sub->where('tickets.created_by', $user->id)
-                    ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$user->id])
-                    ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$user->id]);
-            }))
-            ->selectRaw('count(*) as all_count')
-            ->selectRaw("count(*) filter (where tickets.created_by = ?) as created_by_me_count", [$user->id])
-            ->selectRaw("count(*) filter (where exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?) or exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)) as assigned_to_me_count", [$user->id, $user->id])
-            ->selectRaw("count(*) filter (where tickets.status in ('open','in_progress','pending') and tickets.updated_at < ?) as past_due_count", [Carbon::now()->subDays(7)])
-            ->selectRaw("count(*) filter (where tp.level >= 3) as high_priority_count")
-            ->selectRaw("count(*) filter (where not exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id)) as unassigned_count")
-            ->selectRaw("(select count(*) from tickets t2 where t2.organization_id = ? and t2.archived_at is not null{$memberFilter}) as archived_count", $archivedBindings)
-            ->first()
-            : null;
 
         $viewCounts = [
-            'created_by_me' => (int) ($viewsRow?->created_by_me_count ?? 0),
-            'assigned_to_me' => (int) ($viewsRow?->assigned_to_me_count ?? 0),
-            'past_due' => (int) ($viewsRow?->past_due_count ?? 0),
-            'high_priority' => (int) ($viewsRow?->high_priority_count ?? 0),
-            'unassigned' => (int) ($viewsRow?->unassigned_count ?? 0),
-            'all' => (int) ($viewsRow?->all_count ?? 0),
-            'archived' => (int) ($viewsRow?->archived_count ?? 0),
-            'trash' => ($user && $user->hasPermission(Permission::TicketsViewTrash) && $orgId) ? (int) Ticket::onlyTrashed()->where('organization_id', $orgId)->count() : 0,
-            'from_form' => 0,
-            'from_platform' => 0,
+            'created_by_me' => (int) ($countsRow?->created_by_me_count ?? 0),
+            'assigned_to_me' => (int) ($countsRow?->assigned_to_me_count ?? 0),
+            'past_due' => (int) ($countsRow?->past_due_count ?? 0),
+            'high_priority' => (int) ($countsRow?->high_priority_count ?? 0),
+            'unassigned' => (int) ($countsRow?->unassigned_count ?? 0),
+            'all' => (int) ($countsRow?->all_count ?? 0),
+            'archived' => (int) ($countsRow?->archived_count ?? 0),
+            'trash' => (int) ($countsRow?->trash_count ?? 0),
+            'from_form' => (int) ($countsRow?->from_form_count ?? 0),
+            'from_platform' => (int) ($countsRow?->from_platform_count ?? 0),
         ];
 
-        if ($user && $orgId && $this->box !== 'trash') {
-            $baseQuery = Ticket::query()
+        // Per-group sidebar counts (single lightweight GROUP BY)
+        $groupCounts = ($user && $orgId && $ticketGroups->isNotEmpty())
+            ? Ticket::query()
                 ->where('tickets.organization_id', $orgId)
                 ->whereNull('tickets.archived_at')
+                ->whereNotNull('tickets.ticket_group_id')
                 ->when(! $isStaff, fn($q) => $q->where(function ($sub) use ($user) {
                     $sub->where('tickets.created_by', $user->id)
                         ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$user->id])
                         ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$user->id]);
-                }));
-            $viewCounts['from_form'] = (int) (clone $baseQuery)->whereHas('formResponse')->count();
-            $viewCounts['from_platform'] = (int) (clone $baseQuery)->whereDoesntHave('formResponse')->count();
+                }))
+                ->selectRaw('ticket_group_id, count(*) as cnt')
+                ->groupBy('ticket_group_id')
+                ->pluck('cnt', 'ticket_group_id')
+            : collect();
+
+        // Active group model for header display
+        $activeGroup = null;
+        if ($this->group !== '' && $this->group !== 'none' && $ticketGroups->isNotEmpty()) {
+            $activeGroup = $ticketGroups->firstWhere('id', (int) $this->group);
         }
 
         $ticketIds = $tickets->pluck('id')->values()->all();
@@ -511,6 +629,9 @@ class Index extends Component
             'kanbanTickets' => $kanbanTickets,
             'box' => $this->box,
             'source' => $this->source,
+            'ticketGroups' => $ticketGroups,
+            'groupCounts' => $groupCounts,
+            'activeGroup' => $activeGroup,
             'checklistProgress' => $checklistProgress,
         ]);
     }

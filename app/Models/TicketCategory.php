@@ -15,6 +15,8 @@ class TicketCategory extends Model
         'name',
         'slug',
         'is_active',
+        'default_ticket_group_id',
+        'default_form_id',
     ];
 
     protected function casts(): array
@@ -32,5 +34,15 @@ class TicketCategory extends Model
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class, 'ticket_category_id');
+    }
+
+    public function defaultGroup(): BelongsTo
+    {
+        return $this->belongsTo(TicketGroup::class, 'default_ticket_group_id');
+    }
+
+    public function defaultForm(): BelongsTo
+    {
+        return $this->belongsTo(Form::class, 'default_form_id');
     }
 }

@@ -98,15 +98,18 @@ new class extends Component
             @endif
         </div>
 
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4 pt-1">
             <button
                 type="submit"
-                class="h-10 px-4 rounded-lg bg-[color:var(--accent)] text-white text-sm font-medium shadow-sm hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)] transition-all duration-200 active:scale-[0.98]"
+                wire:loading.attr="disabled"
+                class="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-white text-sm font-semibold shadow-sm transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005F02] active:scale-[0.98] disabled:opacity-70"
+                style="background-color: var(--accent, #005F02);"
             >
-                {{ __('Enregistrer') }}
+                <span wire:loading.remove wire:target="updateProfileInformation">{{ __('Enregistrer') }}</span>
+                <span wire:loading wire:target="updateProfileInformation" class="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
             </button>
 
-            <x-action-message class="me-3" on="profile-updated">
+            <x-action-message class="text-sm text-emerald-600 font-medium" on="profile-updated">
                 {{ __('Saved.') }}
             </x-action-message>
         </div>

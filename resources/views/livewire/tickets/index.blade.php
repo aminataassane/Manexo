@@ -72,6 +72,54 @@
         </div>
     </div>
 
+    <!-- GROUP CONTEXT BAR -->
+    @if(($activeGroup ?? null) || ($group ?? '') === 'none')
+        <div class="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border border-slate-100 bg-white shadow-sm">
+            @if($activeGroup ?? null)
+                <span class="h-3 w-3 rounded-full shrink-0" style="background-color: {{ $activeGroup->color ?? 'var(--accent)' }};"></span>
+                <span class="text-sm font-bold text-slate-900">{{ $activeGroup->name }}</span>
+            @else
+                <iconify-icon icon="solar:minus-circle-bold-duotone" width="16" class="text-slate-400 shrink-0"></iconify-icon>
+                <span class="text-sm font-bold text-slate-900">{{ __('pages.groups.ungrouped') }}</span>
+            @endif
+
+            <span class="text-slate-300">|</span>
+
+            <!-- Dropdown to switch groups -->
+            <div x-data="{ open: false }" class="relative">
+                <button @click="open = !open" type="button" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors">
+                    {{ __('pages.groups.switch_group') }}
+                    <iconify-icon icon="solar:alt-arrow-down-linear" width="12"></iconify-icon>
+                </button>
+                <div x-show="open" @click.away="open = false" x-transition
+                     class="absolute left-0 top-full mt-1 w-48 rounded-xl border border-slate-100 bg-white shadow-lg z-50 py-1">
+                    <button type="button" wire:click="$set('group', '')" @click="open = false"
+                            class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                        <iconify-icon icon="solar:layers-bold-duotone" width="14"></iconify-icon>
+                        {{ __('pages.tickets.all_groups') }}
+                    </button>
+                    @foreach($ticketGroups ?? [] as $tg)
+                        <button type="button" wire:click="$set('group', '{{ $tg->id }}')" @click="open = false"
+                                class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                            <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: {{ $tg->color ?? 'var(--accent)' }};"></span>
+                            {{ $tg->name }}
+                        </button>
+                    @endforeach
+                    <button type="button" wire:click="$set('group', 'none')" @click="open = false"
+                            class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                        <iconify-icon icon="solar:minus-circle-bold-duotone" width="14" class="text-slate-400"></iconify-icon>
+                        {{ __('pages.tickets.no_group') }}
+                    </button>
+                </div>
+            </div>
+
+            <a href="{{ route('tickets.index') }}" wire:navigate class="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[var(--accent)] transition-colors">
+                <iconify-icon icon="solar:close-circle-linear" width="14"></iconify-icon>
+                {{ __('pages.groups.all_tickets') }}
+            </a>
+        </div>
+    @endif
+
     <!-- STATS CARDS (2 cols mobile, 4 cols lg, responsive gap) -->
     <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8 lg:grid-cols-4 min-[1920px]:gap-6">
         <!-- Open -->
@@ -247,6 +295,41 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Groupes -->
+                @if(($ticketGroups ?? collect())->isNotEmpty())
+                <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-50 bg-slate-50/50">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('pages.tickets.groups') }}</h3>
+                    </div>
+                    <div class="p-2 space-y-1">
+                        <button type="button" wire:click="$set('group', '')"
+                            class="{{ $itemBase }} {{ ($group ?? '') === '' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:layers-bold-duotone" width="18"></iconify-icon>
+                                {{ __('pages.tickets.all_groups') }}
+                            </span>
+                        </button>
+                        @foreach($ticketGroups as $tg)
+                            <button type="button" wire:click="$set('group', '{{ $tg->id }}')"
+                                class="{{ $itemBase }} {{ ($group ?? '') === (string) $tg->id ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                                <span class="flex items-center gap-2.5">
+                                    <span class="h-3 w-3 rounded-full shrink-0" style="background-color: {{ $tg->color ?? 'var(--accent)' }};"></span>
+                                    {{ $tg->name }}
+                                </span>
+                                <span class="{{ $badgeBase }} {{ ($group ?? '') === (string) $tg->id ? 'bg-white/50 text-[var(--accent)]' : 'bg-slate-100 text-slate-500' }}">{{ $groupCounts[$tg->id] ?? 0 }}</span>
+                            </button>
+                        @endforeach
+                        <button type="button" wire:click="$set('group', 'none')"
+                            class="{{ $itemBase }} {{ ($group ?? '') === 'none' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                            <span class="flex items-center gap-2.5">
+                                <iconify-icon icon="solar:minus-circle-bold-duotone" width="18" class="text-slate-400"></iconify-icon>
+                                {{ __('pages.tickets.no_group') }}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
 
@@ -314,6 +397,12 @@
                                                 </div>
                                                 <h4 class="text-sm font-bold text-slate-900 mb-1 line-clamp-2 group-hover:text-[var(--accent)] transition-colors">{{ $t->subject }}</h4>
                                                 <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                                    @if ($t->group)
+                                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border" style="background-color: {{ $t->group->color ?? 'var(--accent)' }}15; color: {{ $t->group->color ?? 'var(--accent)' }}; border-color: {{ $t->group->color ?? 'var(--accent)' }}30;">
+                                                            <span class="h-1.5 w-1.5 rounded-full" style="background-color: {{ $t->group->color ?? 'var(--accent)' }};"></span>
+                                                            {{ $t->group->name }}
+                                                        </span>
+                                                    @endif
                                                     @if ($t->formResponse)
                                                         <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-50 text-violet-700 border border-violet-100">
                                                             <iconify-icon icon="solar:document-text-bold-duotone" width="10"></iconify-icon>
@@ -399,11 +488,14 @@
 
                     <!-- Table (horizontal scroll on small screens) -->
                     <div class="responsive-table-wrap scroll-touch -mx-2 sm:mx-0 px-2 sm:px-0">
-                        <table class="w-full text-left min-w-[640px]">
+                        <table class="w-full text-left min-w-[680px] sm:min-w-[760px]">
                             <thead class="bg-slate-50 text-[10px] sm:text-xs uppercase font-bold text-slate-500 tracking-wider">
                                 <tr>
-                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.dashboard.subject') }}</th>
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4 min-w-[200px] sm:min-w-[260px] lg:min-w-[300px]">{{ __('pages.dashboard.subject') }}</th>
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('Catégorie') }}</th>
+                                    @if(($ticketGroups ?? collect())->isNotEmpty())
+                                    <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.tickets.groups') }}</th>
+                                    @endif
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.dashboard.priority') }}</th>
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.dashboard.status') }}</th>
                                     <th class="px-3 sm:px-6 py-2.5 sm:py-4">{{ __('pages.tickets.source') }}</th>
@@ -421,25 +513,25 @@
                                         $prio = $priorityMeta($t->priority?->level);
                                     @endphp
                                     <tr class="group hover:bg-slate-50/80 transition-colors {{ ($box ?? 'active') !== 'trash' ? 'cursor-pointer' : '' }}" @if(($box ?? 'active') !== 'trash' && $t->public_id) onclick="window.location='{{ url('/tickets/' . e($t->public_id)) }}'" @endif>
-                                        <td class="px-3 sm:px-6 py-2.5 sm:py-4">
-                                            <div class="flex items-center gap-2 sm:gap-4 min-w-0">
-                                                <span class="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500 font-mono">
+                                        <td class="px-3 sm:px-6 py-3 sm:py-4 min-w-[200px] sm:min-w-[260px] lg:min-w-[300px]">
+                                            <div class="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0">
+                                                <span class="shrink-0 inline-flex items-center justify-center rounded-lg px-2.5 py-1.5 sm:px-3 sm:py-2 min-w-[6rem] sm:min-w-[7.5rem] text-[11px] sm:text-xs font-semibold font-mono tracking-tight bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)]">
                                                     {{ $t->shortReference() }}
                                                 </span>
-                                                <div class="min-w-0">
-                                                    <div class="flex items-center gap-2 flex-wrap">
-                                                        <span class="text-sm font-bold text-slate-900 group-hover:text-[var(--accent)] transition-colors break-words">{{ $t->subject }}</span>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex flex-wrap items-baseline gap-2 gap-y-1">
+                                                        <span class="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[var(--accent)] transition-colors break-words line-clamp-2 leading-snug">{{ $t->subject }}</span>
                                                         @php $prog = $checklistProgress[$t->id] ?? null; @endphp
                                                         @if ($prog && (int) $prog->total > 0)
                                                             @php $pct = (int) round(100 * (int) $prog->done / (int) $prog->total); @endphp
-                                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold {{ $pct >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
+                                                            <span class="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold {{ $pct >= 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">
                                                                 <iconify-icon icon="solar:checklist-minimalistic-linear" width="12"></iconify-icon>
                                                                 {{ $pct }}%
                                                             </span>
                                                         @endif
                                                     </div>
-                                                    <div class="text-xs text-slate-500 mt-0.5 flex items-center gap-1 flex-wrap">
-                                                        <span>{{ $t->creator?->name ?? __('pages.tickets.unknown_user') }}</span>
+                                                    <div class="text-xs text-slate-500 mt-1.5 flex items-center gap-1 flex-wrap">
+                                                        <span class="truncate">{{ $t->creator?->name ?? __('pages.tickets.unknown_user') }}</span>
                                                         @if($t->assignees->isNotEmpty())
                                                             <span class="text-slate-300">|</span>
                                                             <span class="flex items-center gap-1">
@@ -460,6 +552,18 @@
                                         <td class="px-3 sm:px-6 py-2.5 sm:py-4 text-sm text-slate-600 whitespace-nowrap">
                                             {{ $t->category?->name ?? '—' }}
                                         </td>
+                                        @if(($ticketGroups ?? collect())->isNotEmpty())
+                                        <td class="px-3 sm:px-6 py-2.5 sm:py-4 whitespace-nowrap">
+                                            @if($t->group)
+                                                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-medium border" style="background-color: {{ $t->group->color ?? 'var(--accent)' }}15; color: {{ $t->group->color ?? 'var(--accent)' }}; border-color: {{ $t->group->color ?? 'var(--accent)' }}30;">
+                                                    <span class="h-1.5 w-1.5 rounded-full" style="background-color: {{ $t->group->color ?? 'var(--accent)' }};"></span>
+                                                    {{ $t->group->name }}
+                                                </span>
+                                            @else
+                                                <span class="text-xs text-slate-400">—</span>
+                                            @endif
+                                        </td>
+                                        @endif
                                         <td class="px-3 sm:px-6 py-2.5 sm:py-4">
                                             <div class="flex items-center gap-2">
                                                 <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $prio['dot'] }}"></span>
@@ -490,16 +594,22 @@
                                         </td>
                                         @if(($box ?? 'active') === 'trash')
                                             <td class="px-3 sm:px-6 py-2.5 sm:py-4 text-right whitespace-nowrap">
-                                                <button type="button" wire:click="restoreFromTrash({{ $t->id }})" data-restore class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors touch-manipulation">
-                                                    <iconify-icon icon="solar:restart-bold-duotone" width="14"></iconify-icon>
-                                                    {{ __('pages.tickets.restore') }}
-                                                </button>
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <button type="button" wire:click="restoreFromTrash({{ $t->id }})" data-restore class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors touch-manipulation">
+                                                        <iconify-icon icon="solar:restart-bold-duotone" width="14"></iconify-icon>
+                                                        {{ __('pages.tickets.restore') }}
+                                                    </button>
+                                                    <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('pages.tickets.force_delete') }}', message: '{{ __('pages.tickets.force_delete_confirm') }}', confirmLabel: '{{ __('pages.tickets.force_delete') }}', variant: 'danger', onConfirm: () => $wire.forceDeleteTicket({{ $t->id }}) })" class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors touch-manipulation">
+                                                        <iconify-icon icon="solar:trash-bin-trash-bold" width="14"></iconify-icon>
+                                                        {{ __('pages.tickets.force_delete') }}
+                                                    </button>
+                                                </div>
                                             </td>
                                         @endif
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="{{ ($box ?? 'active') === 'trash' ? 7 : 6 }}" class="px-4 sm:px-6 py-8 sm:py-12 text-center text-slate-500">
+                                        <td colspan="{{ (($box ?? 'active') === 'trash' ? 7 : 6) + (($ticketGroups ?? collect())->isNotEmpty() ? 1 : 0) }}" class="px-4 sm:px-6 py-8 sm:py-12 text-center text-slate-500">
                                             <div class="flex flex-col items-center justify-center">
                                                 <div class="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
                                                     <iconify-icon icon="solar:ticket-linear" width="32" class="text-slate-400"></iconify-icon>

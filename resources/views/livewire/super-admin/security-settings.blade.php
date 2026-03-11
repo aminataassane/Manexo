@@ -39,8 +39,8 @@
         {{-- ═══════════════════════ Section 1 : Mots de passe ═══════════════════════ --}}
         <section class="rounded-2xl border border-slate-200/60 bg-white shadow-sm overflow-hidden">
             <div class="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex items-center gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100">
-                    <iconify-icon icon="solar:lock-password-bold-duotone" width="20" class="text-indigo-600"></iconify-icon>
+                <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#F2E3BB]/30">
+                    <iconify-icon icon="solar:lock-password-bold-duotone" width="20" class="text-[#005F02]"></iconify-icon>
                 </div>
                 <div>
                     <h2 class="text-sm font-bold text-slate-800">{{ __('super_admin.security.section_passwords') }}</h2>
@@ -61,7 +61,7 @@
                             inputmode="numeric"
                             id="minPasswordLength"
                             wire:model="minPasswordLength"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-center @error('minPasswordLength') border-red-300 ring-red-100 @enderror"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all text-center @error('minPasswordLength') border-red-300 ring-red-100 @enderror"
                         />
                         @error('minPasswordLength') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                     </div>
@@ -72,10 +72,10 @@
                 {{-- Complexity toggles --}}
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {{-- Uppercase --}}
-                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-indigo-200 has-[:checked]:bg-indigo-50/30">
+                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-[#005F02]/20 has-[:checked]:bg-[#F2E3BB]/20">
                         <div class="relative mt-0.5">
                             <input type="checkbox" wire:model="requireUppercase" class="sr-only peer" />
-                            <div class="w-9 h-5 bg-slate-200 rounded-full peer-checked:bg-indigo-500 transition-colors"></div>
+                            <div class="w-9 h-5 bg-slate-200 rounded-full peer-checked:bg-[#005F02] transition-colors"></div>
                             <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
                         </div>
                         <div>
@@ -85,10 +85,10 @@
                     </label>
 
                     {{-- Numbers --}}
-                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-indigo-200 has-[:checked]:bg-indigo-50/30">
+                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-[#005F02]/20 has-[:checked]:bg-[#F2E3BB]/20">
                         <div class="relative mt-0.5">
                             <input type="checkbox" wire:model="requireNumbers" class="sr-only peer" />
-                            <div class="w-9 h-5 bg-slate-200 rounded-full peer-checked:bg-indigo-500 transition-colors"></div>
+                            <div class="w-9 h-5 bg-slate-200 rounded-full peer-checked:bg-[#005F02] transition-colors"></div>
                             <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
                         </div>
                         <div>
@@ -98,10 +98,10 @@
                     </label>
 
                     {{-- Special chars --}}
-                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-indigo-200 has-[:checked]:bg-indigo-50/30">
+                    <label class="flex items-start gap-3 rounded-xl border border-slate-200 p-4 cursor-pointer hover:bg-slate-50 transition-colors has-[:checked]:border-[#005F02]/20 has-[:checked]:bg-[#F2E3BB]/20">
                         <div class="relative mt-0.5">
                             <input type="checkbox" wire:model="requireSpecialChars" class="sr-only peer" />
-                            <div class="w-9 h-5 bg-slate-200 rounded-full peer-checked:bg-indigo-500 transition-colors"></div>
+                            <div class="w-9 h-5 bg-slate-200 rounded-full peer-checked:bg-[#005F02] transition-colors"></div>
                             <div class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
                         </div>
                         <div>
@@ -125,7 +125,7 @@
                             inputmode="numeric"
                             id="passwordExpirationDays"
                             wire:model="passwordExpirationDays"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-center @error('passwordExpirationDays') border-red-300 ring-red-100 @enderror"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all text-center @error('passwordExpirationDays') border-red-300 ring-red-100 @enderror"
                         />
                         @error('passwordExpirationDays') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                     </div>
@@ -158,7 +158,7 @@
                             inputmode="numeric"
                             id="sessionLifetimeDays"
                             wire:model="sessionLifetimeDays"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-center @error('sessionLifetimeDays') border-red-300 ring-red-100 @enderror"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all text-center @error('sessionLifetimeDays') border-red-300 ring-red-100 @enderror"
                         />
                         <p class="text-xs text-slate-400">{{ __('super_admin.security.session_lifetime_help') }}</p>
                         @error('sessionLifetimeDays') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
@@ -175,7 +175,7 @@
                             inputmode="numeric"
                             id="maxLoginAttempts"
                             wire:model="maxLoginAttempts"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-center @error('maxLoginAttempts') border-red-300 ring-red-100 @enderror"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all text-center @error('maxLoginAttempts') border-red-300 ring-red-100 @enderror"
                         />
                         <p class="text-xs text-slate-400">{{ __('super_admin.security.max_login_attempts_help') }}</p>
                         @error('maxLoginAttempts') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
@@ -192,7 +192,7 @@
                             inputmode="numeric"
                             id="lockoutDurationMinutes"
                             wire:model="lockoutDurationMinutes"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-center @error('lockoutDurationMinutes') border-red-300 ring-red-100 @enderror"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all text-center @error('lockoutDurationMinutes') border-red-300 ring-red-100 @enderror"
                         />
                         <p class="text-xs text-slate-400">{{ __('super_admin.security.lockout_duration_help') }}</p>
                         @error('lockoutDurationMinutes') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
@@ -209,7 +209,7 @@
                             inputmode="numeric"
                             id="maxConcurrentSessions"
                             wire:model="maxConcurrentSessions"
-                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-center @error('maxConcurrentSessions') border-red-300 ring-red-100 @enderror"
+                            class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all text-center @error('maxConcurrentSessions') border-red-300 ring-red-100 @enderror"
                         />
                         <p class="text-xs text-slate-400">{{ __('super_admin.security.max_concurrent_sessions_help') }}</p>
                         @error('maxConcurrentSessions') <p class="text-xs text-red-500">{{ $message }}</p> @enderror
@@ -276,7 +276,7 @@
                         wire:model="allowedAdminIps"
                         rows="4"
                         placeholder="{{ __('super_admin.security.allowed_admin_ips_placeholder') }}"
-                        class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none transition-all font-mono @error('allowedAdminIps') border-red-300 ring-red-100 @enderror"
+                        class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all font-mono @error('allowedAdminIps') border-red-300 ring-red-100 @enderror"
                     ></textarea>
                     <p class="mt-1 text-xs text-slate-400">{{ __('super_admin.security.allowed_admin_ips_help') }}</p>
                     @error('allowedAdminIps') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror

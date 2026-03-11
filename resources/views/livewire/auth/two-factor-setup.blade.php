@@ -11,7 +11,7 @@
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
             <p class="text-green-800 font-medium">{{ __('L\'authentification à deux facteurs est activée.') }}</p>
         </div>
-        <button wire:click="disable" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        <button @click="$dispatch('confirm-action', { title: 'D\u00e9sactiver 2FA', message: 'D\u00e9sactiver l\u0027authentification \u00e0 deux facteurs ? Votre compte sera moins s\u00e9curis\u00e9.', confirmLabel: 'D\u00e9sactiver', variant: 'danger', onConfirm: () => $wire.disable() })" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
             {{ __('Désactiver 2FA') }}
         </button>
     @elseif ($showRecoveryCodes)

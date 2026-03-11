@@ -1,7 +1,7 @@
 @php
     $form = isset($assignment) && $assignment ? $assignment->form : ($form ?? null);
     abort_if(! $form, 404);
-    $fields = $form->fields;
+    $fields = $form->fields ?? collect();
 
     // Grouper les champs en étapes : chaque section = une étape, les champs avant la 1ère section = étape 1
     $steps = [];
@@ -114,13 +114,13 @@
                      x-transition:enter="transition ease-out duration-200"
                      x-transition:enter-start="opacity-0"
                      x-transition:enter-end="opacity-100"
-                     class="space-y-5"
                      @if($hasStepper && $stepIndex > 0) x-cloak @endif>
                     @if($hasStepper)
                         <h2 class="text-base font-bold text-slate-900 pb-3">
                             {{ $stepData['title'] }}
                         </h2>
                     @endif
+                    <div class="grid grid-cols-6 gap-x-4 gap-y-5">
                     @foreach($stepData['fields'] as $field)
                         @php
                             $type = (string) $field->type;
@@ -129,8 +129,15 @@
                             $placeholder = $config['placeholder'] ?? '';
                             $helpText = $config['help_text'] ?? '';
                             $options = $config['options'] ?? [];
+                            $displayMode = $config['display_mode'] ?? 'list';
+                            $fieldLayout = $config['layout'] ?? 'full';
+                            $colSpan = match($fieldLayout) {
+                                'half' => 'col-span-6 sm:col-span-3',
+                                'third' => 'col-span-6 sm:col-span-2',
+                                default => 'col-span-6',
+                            };
                         @endphp
-                        <div class="min-w-0">
+                        <div class="{{ $colSpan }} min-w-0">
                             <label class="block text-sm font-semibold text-slate-700 mb-1.5">
                                 {{ $field->label }}
                                 @if($field->required) <span class="text-red-500">*</span> @endif
@@ -149,9 +156,12 @@
                                     @endforeach
                                 </select>
                             @elseif($type === 'radio')
-                                <div class="space-y-2">
+                                <div class="{{ $displayMode === 'inline' ? 'flex flex-wrap gap-2.5' : ($displayMode === 'grid' ? 'grid grid-cols-2 gap-2.5' : ($displayMode === 'card' ? 'space-y-2.5' : 'space-y-2')) }}">
                                     @foreach((array) $options as $opt)
-                                        <label class="flex items-center gap-3 px-3 py-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors cursor-pointer has-[:checked]:border-[var(--accent)] has-[:checked]:bg-[var(--accent-soft)]/30">
+                                        <label class="flex items-center gap-3 px-3 py-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors cursor-pointer has-[:checked]:border-[var(--accent)] has-[:checked]:bg-[var(--accent-soft)]/30
+                                            {{ $displayMode === 'card' ? 'rounded-xl px-4 py-3.5' : '' }}
+                                            {{ $displayMode === 'inline' ? 'inline-flex px-3.5 py-2.5 rounded-xl' : '' }}
+                                            {{ $displayMode === 'grid' ? 'rounded-xl' : '' }}">
                                             <input type="radio" wire:model="answers.{{ $key }}" value="{{ $opt }}"
                                                    class="text-[var(--accent)] focus:ring-[var(--accent)] focus:ring-2 size-4">
                                             <span class="text-sm font-medium text-slate-700">{{ $opt }}</span>
@@ -159,11 +169,14 @@
                                     @endforeach
                                 </div>
                             @elseif($type === 'checkbox')
-                                @php $options = $field->options ?? []; @endphp
-                                @if(count((array) $options) > 0)
-                                    <div class="space-y-2">
-                                        @foreach((array) $options as $opt)
-                                            <label class="flex items-center gap-3 px-3 py-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors cursor-pointer has-[:checked]:border-[var(--accent)] has-[:checked]:bg-[var(--accent-soft)]/30">
+                                @php $cbOptions = $config['options'] ?? $field->options ?? []; @endphp
+                                @if(count((array) $cbOptions) > 0)
+                                    <div class="{{ $displayMode === 'inline' ? 'flex flex-wrap gap-2.5' : ($displayMode === 'grid' ? 'grid grid-cols-2 gap-2.5' : ($displayMode === 'card' ? 'space-y-2.5' : 'space-y-2')) }}">
+                                        @foreach((array) $cbOptions as $opt)
+                                            <label class="flex items-center gap-3 px-3 py-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors cursor-pointer has-[:checked]:border-[var(--accent)] has-[:checked]:bg-[var(--accent-soft)]/30
+                                                {{ $displayMode === 'card' ? 'rounded-xl px-4 py-3.5' : '' }}
+                                                {{ $displayMode === 'inline' ? 'inline-flex px-3.5 py-2.5 rounded-xl' : '' }}
+                                                {{ $displayMode === 'grid' ? 'rounded-xl' : '' }}">
                                                 <input type="checkbox" wire:model="answers.{{ $key }}" value="{{ $opt }}"
                                                        class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)] focus:ring-2 size-4">
                                                 <span class="text-sm font-medium text-slate-700">{{ $opt }}</span>
@@ -203,6 +216,7 @@
                             <x-input-error :messages="$errors->get('answers.' . $key)" class="mt-1" />
                         </div>
                     @endforeach
+                    </div>
                 </div>
             @endforeach
             </div>

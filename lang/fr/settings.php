@@ -143,6 +143,21 @@ return [
     'cache_cleared' => 'Cache de l\'organisation vidé.',
     'view_cache_cleared' => 'Cache des vues vidé.',
 
+    // Ticket groups
+    'groups' => 'Groupes',
+    'groups_title' => 'Groupes de tickets',
+    'groups_subtitle' => 'Organisez vos tickets par service ou équipe (ex : Informatique, QC, Travaux).',
+    'group_name' => 'Nom du groupe',
+    'group_placeholder' => 'Ex : Informatique, QC, Travaux',
+    'group_color' => 'Couleur',
+    'no_groups' => 'Aucun groupe. Créez-en un pour organiser vos tickets par service.',
+    'delete_group_confirm' => 'Supprimer ce groupe ? Les tickets de ce groupe ne seront pas supprimés.',
+
+    // Category defaults
+    'default_group' => 'Groupe par défaut',
+    'default_form' => 'Formulaire par défaut',
+    'none' => 'Aucun',
+
     // Ticket resolution mode
     'ticket_resolution_mode_label' => 'Mode de résolution',
     'ticket_resolution_mode_flexible' => 'Souple (résolution sans obligation de terminer toutes les sous-tâches)',

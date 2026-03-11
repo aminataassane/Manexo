@@ -11,6 +11,7 @@
     /** @var \Illuminate\Support\Collection<int, \App\Models\TicketPriority>|array $orgPriorities */
     /** @var \Illuminate\Support\Collection<int, \App\Models\User>|array $orgUsers */
     /** @var \Illuminate\Support\Collection<int, \App\Models\OrganizationFunction>|array $organizationFunctions */
+    /** @var \Illuminate\Support\Collection<int, \App\Models\TicketGroup>|array $ticketGroups */
 @endphp
 <div class="flex flex-col h-full gap-4 min-w-0">
     {{-- Lock banner --}}
@@ -28,17 +29,16 @@
         </div>
     @endif
 
-    <!-- Aperçu -->
+    <!-- Aperçu (aligné détail ticket) -->
     <div class="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm min-w-0">
-        <div class="flex flex-col min-[260px]:flex-row min-[260px]:items-start min-[260px]:justify-between gap-2 sm:gap-3">
-            <div class="min-w-0 flex-1">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Ticket') }}</div>
-                <div class="mt-1 flex items-center gap-2 min-w-0 flex-wrap">
-                    <span class="text-xs font-mono font-bold text-slate-400 shrink-0">{{ $ticket->shortReference() }}</span>
-                    <span class="text-sm font-bold text-slate-900 truncate min-w-0">{{ $ticket->subject }}</span>
-                </div>
+        <div class="flex flex-col gap-3 min-w-0">
+            <div class="flex items-start gap-2 min-w-0">
+                <span class="shrink-0 inline-flex items-center justify-center rounded-lg px-2.5 py-1.5 min-w-[6rem] text-[11px] font-semibold font-mono tracking-tight bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)]">
+                    {{ $ticket->shortReference() }}
+                </span>
+                <span class="text-sm font-bold text-slate-900 line-clamp-2 min-w-0 leading-snug">{{ $ticket->subject }}</span>
             </div>
-            <a href="{{ route('tickets.discussion', $ticket) }}" class="shrink-0 self-start min-[260px]:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+            <a href="{{ route('tickets.discussion', $ticket) }}" class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors w-full sm:w-auto">
                 <iconify-icon icon="solar:arrow-right-linear" width="14"></iconify-icon>
                 {{ __('Ouvrir') }}
             </a>
@@ -77,6 +77,23 @@
                 <iconify-icon icon="solar:tag-bold-duotone" width="14"></iconify-icon>
                 {{ optional($ticket->category)->name ?? '—' }}
             </span>
+
+            {{-- Groupe : dropdown pour staff, badge pour les autres --}}
+            @if(($ticketGroups ?? collect())->isNotEmpty())
+                @if($canAssignTicket ?? false)
+                    <select wire:change="changeGroup($event.target.value)" class="rounded-full border-slate-200 py-1 pl-2.5 pr-7 text-xs font-bold shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer max-w-full min-w-0 disabled:opacity-50 disabled:cursor-not-allowed" style="background-color: {{ optional($ticket->group)->color ? optional($ticket->group)->color . '15' : '#f1f5f9' }}; color: {{ optional($ticket->group)->color ?? '#334155' }};" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
+                        <option value="" @selected(!$ticket->ticket_group_id)>{{ __('— Aucun groupe') }}</option>
+                        @foreach($ticketGroups as $tg)
+                            <option value="{{ $tg->id }}" @selected($ticket->ticket_group_id === $tg->id)>{{ $tg->name }}</option>
+                        @endforeach
+                    </select>
+                @elseif($ticket->group)
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background-color: {{ $ticket->group->color ?? 'var(--accent)' }}15; color: {{ $ticket->group->color ?? 'var(--accent)' }};">
+                        <iconify-icon icon="solar:widget-5-bold-duotone" width="14"></iconify-icon>
+                        {{ $ticket->group->name }}
+                    </span>
+                @endif
+            @endif
         </div>
 
         {{-- Assignés, Fonction, Échéance : 1 colonne pour lisibilité (panneau étroit), 2 colonnes sur viewport large --}}
@@ -99,7 +116,7 @@
                                 <span class="text-sm font-semibold text-slate-900 truncate flex-1 min-w-0">{{ $responsible->name }}</span>
                                 <span class="text-[10px] font-bold text-white bg-[var(--accent)] px-1.5 py-0.5 rounded-full shrink-0">{{ __('Responsable') }}</span>
                                 @if(($canAssignTicket ?? false) && !($isLocked ?? false))
-                                    <button type="button" wire:click="removeAssignee({{ $responsible->id }})" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Retirer') }}">
+                                    <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Retirer') }}', message: '{{ __('Retirer cet assigné du ticket ?') }}', confirmLabel: '{{ __('Retirer') }}', variant: 'danger', onConfirm: () => $wire.removeAssignee({{ $responsible->id }}) })" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Retirer') }}">
                                         <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
                                     </button>
                                 @endif
@@ -116,7 +133,7 @@
                                     <button type="button" wire:click="promoteToResponsible({{ $asg->id }})" class="shrink-0 text-[10px] font-bold text-[var(--accent)] hover:underline" title="{{ __('Promouvoir en responsable') }}">
                                         <iconify-icon icon="solar:star-bold" width="14"></iconify-icon>
                                     </button>
-                                    <button type="button" wire:click="removeAssignee({{ $asg->id }})" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Retirer') }}">
+                                    <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Retirer') }}', message: '{{ __('Retirer cet assigné du ticket ?') }}', confirmLabel: '{{ __('Retirer') }}', variant: 'danger', onConfirm: () => $wire.removeAssignee({{ $asg->id }}) })" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Retirer') }}">
                                         <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
                                     </button>
                                 @endif
@@ -284,7 +301,7 @@
                                             <span class="h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-semibold shrink-0 {{ ($itemAsg->pivot->role ?? '') === 'responsible' ? 'ring-1 ring-[var(--accent)]' : 'ring-1 ring-slate-200' }}" style="background: var(--accent-soft); color: var(--accent);">{{ strtoupper(mb_substr($itemAsg->name ?? '?', 0, 1)) }}</span>
                                             {{ $itemAsg->name }}
                                             @if(($canEditChecklist ?? false) && !($isLocked ?? false))
-                                                <button type="button" wire:click="removeChecklistItemAssignee({{ $item->id }}, {{ $itemAsg->id }})" class="text-slate-400 hover:text-red-500" title="{{ __('Retirer') }}">
+                                                <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Retirer') }}', message: '{{ __('Retirer cet assigné de la tâche ?') }}', confirmLabel: '{{ __('Retirer') }}', variant: 'danger', onConfirm: () => $wire.removeChecklistItemAssignee({{ $item->id }}, {{ $itemAsg->id }}) })" class="text-slate-400 hover:text-red-500" title="{{ __('Retirer') }}">
                                                     <iconify-icon icon="solar:close-circle-linear" width="12"></iconify-icon>
                                                 </button>
                                             @endif
@@ -332,7 +349,7 @@
                             @endif
                         </div>
                         @if(($canEditChecklist ?? false) && !(($isLocked ?? false) && !($canBypassLock ?? false)))
-                            <button type="button" wire:click="deleteChecklistItem({{ $item->id }})" wire:confirm="{{ __('Supprimer cet élément ?') }}" class="shrink-0 mt-0.5 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Supprimer') }}">
+                            <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Supprimer') }}', message: '{{ __('Supprimer cet élément ?') }}', confirmLabel: '{{ __('Supprimer') }}', variant: 'danger', onConfirm: () => $wire.deleteChecklistItem({{ $item->id }}) })" class="shrink-0 mt-0.5 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Supprimer') }}">
                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="14"></iconify-icon>
                             </button>
                         @endif
@@ -433,7 +450,7 @@
                     {{-- Remove button: staff can remove anyone except creator; participants can remove themselves --}}
                     @if($u->id !== $creator?->id && !$ticket->assignees->contains('id', $u->id))
                         @if(($canAssignTicket ?? false) || (auth()->id() && (int)$u->id === (int)auth()->id()))
-                            <button type="button" wire:click="removeParticipant({{ $u->id }})" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Retirer') }}">
+                            <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Retirer') }}', message: '{{ __('Retirer ce participant de la discussion ?') }}', confirmLabel: '{{ __('Retirer') }}', variant: 'danger', onConfirm: () => $wire.removeParticipant({{ $u->id }}) })" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Retirer') }}">
                                 <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
                             </button>
                         @endif
@@ -478,7 +495,7 @@
             </button>
         @else
             <p class="text-sm text-slate-500 mb-3">{{ __('Archivez ce ticket pour le sortir des listes actives.') }}</p>
-            <button type="button" wire:click="archiveTicket" class="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-slate-900 text-sm font-bold text-white hover:bg-slate-800 transition-colors">
+            <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Archiver') }}', message: '{{ __('Archiver ce ticket ? Il sera retiré des listes actives.') }}', confirmLabel: '{{ __('Archiver') }}', variant: 'warning', onConfirm: () => $wire.archiveTicket() })" class="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-slate-900 text-sm font-bold text-white hover:bg-slate-800 transition-colors">
                 <iconify-icon icon="solar:archive-bold-duotone" width="18"></iconify-icon>
                 {{ __('Archiver') }}
             </button>

@@ -60,6 +60,11 @@
                     {{ __('settings.categories') }}
                 </button>
 
+                <button type="button" class="{{ $navItemClass }}" :class="tab === 'groups' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'groups'">
+                    <iconify-icon icon="solar:widget-5-bold-duotone" width="20" :class="tab === 'groups' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
+                    {{ __('settings.groups') }}
+                </button>
+
                 <button type="button" class="{{ $navItemClass }}" :class="tab === 'priorities' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'priorities'">
                     <iconify-icon icon="solar:flag-bold-duotone" width="20" :class="tab === 'priorities' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
                     {{ __('settings.priorities') }}
@@ -136,7 +141,7 @@
                                     @endif
                                 </div>
                                 @if ($currentLogoUrl || $logo)
-                                    <button type="button" wire:click="removeLogo" class="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition-colors shadow-sm" title="{{ __('settings.remove') }}">
+                                    <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Supprimer') }}', message: '{{ __('Supprimer le logo de l\u0027organisation ?') }}', confirmLabel: '{{ __('Supprimer') }}', variant: 'danger', onConfirm: () => $wire.removeLogo() })" class="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center hover:bg-red-200 transition-colors shadow-sm" title="{{ __('settings.remove') }}">
                                         <iconify-icon icon="solar:trash-bin-trash-bold" width="14"></iconify-icon>
                                     </button>
                                 @endif
@@ -329,22 +334,44 @@
                 <div class="p-6 space-y-6">
                     {{-- Create form --}}
                     @if ($canManage)
-                        <form wire:submit.prevent="createCategory" class="flex items-end gap-3">
-                            <div class="flex-1">
-                                <x-input-label for="new_cat_name" :value="__('settings.category_name')" />
-                                <input
-                                    id="new_cat_name"
-                                    type="text"
-                                    wire:model="newCategoryName"
-                                    placeholder="{{ __('settings.category_placeholder') }}"
-                                    class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
-                                />
-                                <x-input-error :messages="$errors->get('newCategoryName')" class="mt-1" />
+                        <form wire:submit.prevent="createCategory" class="space-y-3">
+                            <div class="flex items-end gap-3">
+                                <div class="flex-1">
+                                    <x-input-label for="new_cat_name" :value="__('settings.category_name')" />
+                                    <input
+                                        id="new_cat_name"
+                                        type="text"
+                                        wire:model="newCategoryName"
+                                        placeholder="{{ __('settings.category_placeholder') }}"
+                                        class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
+                                    />
+                                    <x-input-error :messages="$errors->get('newCategoryName')" class="mt-1" />
+                                </div>
+                                <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                                    <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
+                                    {{ __('settings.add') }}
+                                </button>
                             </div>
-                            <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
-                                <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
-                                {{ __('settings.add') }}
-                            </button>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <x-input-label :value="__('settings.default_group')" />
+                                    <x-select-input wire:model="newCategoryDefaultGroupId" class="mt-1">
+                                        <option value="">{{ __('settings.none') }}</option>
+                                        @foreach ($ticketGroups as $tg)
+                                            <option value="{{ $tg->id }}">{{ $tg->name }}</option>
+                                        @endforeach
+                                    </x-select-input>
+                                </div>
+                                <div>
+                                    <x-input-label :value="__('settings.default_form')" />
+                                    <x-select-input wire:model="newCategoryDefaultFormId" class="mt-1">
+                                        <option value="">{{ __('settings.none') }}</option>
+                                        @foreach ($forms as $f)
+                                            <option value="{{ $f->id }}">{{ $f->name }}</option>
+                                        @endforeach
+                                    </x-select-input>
+                                </div>
+                            </div>
                         </form>
                         <hr class="border-slate-100">
                     @endif
@@ -364,26 +391,62 @@
                                      wire:key="cat-{{ $cat->id }}">
                                     @if ($editingCategoryId === $cat->id)
                                         {{-- Inline edit --}}
-                                        <form wire:submit.prevent="updateCategory" class="flex-1 flex items-center gap-3">
-                                            <input
-                                                type="text"
-                                                wire:model="editingCategoryName"
-                                                class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
-                                                autofocus
-                                            />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
-                                                <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
-                                            </button>
-                                            <button type="button" wire:click="cancelEditCategory" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
-                                                <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
-                                            </button>
+                                        <form wire:submit.prevent="updateCategory" class="flex-1 space-y-2">
+                                            <div class="flex items-center gap-3">
+                                                <input
+                                                    type="text"
+                                                    wire:model="editingCategoryName"
+                                                    class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                    autofocus
+                                                />
+                                                <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
+                                                    <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
+                                                </button>
+                                                <button type="button" wire:click="cancelEditCategory" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
+                                                    <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
+                                                </button>
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <x-select-input wire:model="editingCategoryDefaultGroupId" class="text-xs">
+                                                    <option value="">{{ __('settings.default_group') }}: {{ __('settings.none') }}</option>
+                                                    @foreach ($ticketGroups as $tg)
+                                                        <option value="{{ $tg->id }}">{{ $tg->name }}</option>
+                                                    @endforeach
+                                                </x-select-input>
+                                                <x-select-input wire:model="editingCategoryDefaultFormId" class="text-xs">
+                                                    <option value="">{{ __('settings.default_form') }}: {{ __('settings.none') }}</option>
+                                                    @foreach ($forms as $f)
+                                                        <option value="{{ $f->id }}">{{ $f->name }}</option>
+                                                    @endforeach
+                                                </x-select-input>
+                                            </div>
                                         </form>
                                         <x-input-error :messages="$errors->get('editingCategoryName')" class="mt-1" />
                                     @else
                                         {{-- Display --}}
                                         <div class="flex-1 min-w-0">
-                                            <span class="text-sm font-medium text-slate-900">{{ $cat->name }}</span>
-                                            <span class="ml-2 text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">{{ $cat->slug }}</span>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <span class="text-sm font-medium text-slate-900">{{ $cat->name }}</span>
+                                                <span class="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">{{ $cat->slug }}</span>
+                                                @if ($cat->default_ticket_group_id)
+                                                    @php $linkedGroup = $ticketGroups->firstWhere('id', $cat->default_ticket_group_id); @endphp
+                                                    @if ($linkedGroup)
+                                                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-50 text-blue-700">
+                                                            <iconify-icon icon="solar:widget-5-linear" width="10"></iconify-icon>
+                                                            {{ $linkedGroup->name }}
+                                                        </span>
+                                                    @endif
+                                                @endif
+                                                @if ($cat->default_form_id)
+                                                    @php $linkedForm = $forms->firstWhere('id', $cat->default_form_id); @endphp
+                                                    @if ($linkedForm)
+                                                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-violet-50 text-violet-700">
+                                                            <iconify-icon icon="solar:clipboard-list-linear" width="10"></iconify-icon>
+                                                            {{ $linkedForm->name }}
+                                                        </span>
+                                                    @endif
+                                                @endif
+                                            </div>
                                         </div>
 
                                         {{-- Active toggle --}}
@@ -403,7 +466,117 @@
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
                                             {{-- Delete --}}
-                                            <button type="button" wire:click="deleteCategory({{ $cat->id }})" wire:confirm="{{ __('settings.delete_category_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
+                                            <button type="button" @click="$dispatch('confirm-action', { title: 'Supprimer', message: '{{ __('settings.delete_category_confirm') }}', confirmLabel: 'Supprimer', variant: 'danger', onConfirm: () => $wire.deleteCategory({{ $cat->id }}) })" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
+                                                <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                                            </button>
+                                        @endif
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- GROUPS TAB -->
+            <div x-show="tab === 'groups'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                    <h2 class="text-lg font-bold text-slate-900">{{ __('settings.groups_title') }}</h2>
+                    <p class="text-sm text-slate-500">{{ __('settings.groups_subtitle') }}</p>
+                </div>
+
+                <div class="p-6 space-y-6">
+                    {{-- Create form --}}
+                    @if ($canManage)
+                        <form wire:submit.prevent="createGroup" class="flex items-end gap-3">
+                            <div class="flex-1">
+                                <x-input-label for="new_group_name" :value="__('settings.group_name')" />
+                                <input
+                                    id="new_group_name"
+                                    type="text"
+                                    wire:model="newGroupName"
+                                    placeholder="{{ __('settings.group_placeholder') }}"
+                                    class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
+                                />
+                                <x-input-error :messages="$errors->get('newGroupName')" class="mt-1" />
+                            </div>
+                            <div class="w-24">
+                                <x-input-label for="new_group_color" :value="__('settings.group_color')" />
+                                <div class="mt-1 relative">
+                                    <input type="color" id="new_group_color" wire:model="newGroupColor" class="h-[42px] w-full rounded-xl border border-slate-200 cursor-pointer" />
+                                </div>
+                            </div>
+                            <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                                <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
+                                {{ __('settings.add') }}
+                            </button>
+                        </form>
+                        <hr class="border-slate-100">
+                    @endif
+
+                    {{-- List --}}
+                    @if ($ticketGroups->isEmpty())
+                        <div class="py-8 text-center">
+                            <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-50 mb-3">
+                                <iconify-icon icon="solar:widget-5-linear" width="28" class="text-slate-400"></iconify-icon>
+                            </div>
+                            <p class="text-sm text-slate-500">{{ __('settings.no_groups') }}</p>
+                        </div>
+                    @else
+                        <div class="space-y-2">
+                            @foreach ($ticketGroups as $grp)
+                                <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors group"
+                                     wire:key="grp-{{ $grp->id }}">
+                                    @if ($editingGroupId === $grp->id)
+                                        {{-- Inline edit --}}
+                                        <form wire:submit.prevent="updateGroup" class="flex-1 flex items-center gap-3">
+                                            <input
+                                                type="text"
+                                                wire:model="editingGroupName"
+                                                class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                autofocus
+                                            />
+                                            <input
+                                                type="color"
+                                                wire:model="editingGroupColor"
+                                                class="h-8 w-10 rounded border border-slate-200 cursor-pointer"
+                                            />
+                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
+                                                <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
+                                            </button>
+                                            <button type="button" wire:click="cancelEditGroup" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
+                                                <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
+                                            </button>
+                                        </form>
+                                        <x-input-error :messages="$errors->get('editingGroupName')" class="mt-1" />
+                                    @else
+                                        {{-- Color dot --}}
+                                        <span class="h-3 w-3 rounded-full shrink-0" style="background-color: {{ $grp->color ?? 'var(--accent)' }};"></span>
+
+                                        {{-- Display --}}
+                                        <div class="flex-1 min-w-0">
+                                            <span class="text-sm font-medium text-slate-900">{{ $grp->name }}</span>
+                                            <span class="ml-2 text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded">{{ $grp->slug }}</span>
+                                        </div>
+
+                                        {{-- Active toggle --}}
+                                        <button
+                                            type="button"
+                                            wire:click="toggleGroup({{ $grp->id }})"
+                                            class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors {{ $grp->is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200' }}"
+                                            @disabled(! $canManage)
+                                        >
+                                            <span class="h-1.5 w-1.5 rounded-full {{ $grp->is_active ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
+                                            {{ $grp->is_active ? __('settings.active') : __('settings.inactive') }}
+                                        </button>
+
+                                        @if ($canManage)
+                                            {{-- Edit --}}
+                                            <button type="button" wire:click="startEditGroup({{ $grp->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="{{ __('settings.edit') }}">
+                                                <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
+                                            </button>
+                                            {{-- Delete --}}
+                                            <button type="button" @click="$dispatch('confirm-action', { title: 'Supprimer', message: '{{ __('settings.delete_group_confirm') }}', confirmLabel: 'Supprimer', variant: 'danger', onConfirm: () => $wire.deleteGroup({{ $grp->id }}) })" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -518,7 +691,7 @@
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
                                             {{-- Delete --}}
-                                            <button type="button" wire:click="deletePriority({{ $prio->id }})" wire:confirm="{{ __('settings.delete_priority_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
+                                            <button type="button" @click="$dispatch('confirm-action', { title: 'Supprimer', message: '{{ __('settings.delete_priority_confirm') }}', confirmLabel: 'Supprimer', variant: 'danger', onConfirm: () => $wire.deletePriority({{ $prio->id }}) })" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -579,7 +752,7 @@
                                             <button type="button" wire:click="startEditFunction({{ $fn->id }})" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-[var(--accent)] transition-all" title="{{ __('settings.edit') }}">
                                                 <iconify-icon icon="solar:pen-2-linear" width="16"></iconify-icon>
                                             </button>
-                                            <button type="button" wire:click="deleteFunction({{ $fn->id }})" wire:confirm="{{ __('settings.delete_function_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
+                                            <button type="button" @click="$dispatch('confirm-action', { title: 'Supprimer', message: '{{ __('settings.delete_function_confirm') }}', confirmLabel: 'Supprimer', variant: 'danger', onConfirm: () => $wire.deleteFunction({{ $fn->id }}) })" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>
                                         @endif
@@ -730,7 +903,7 @@
                                                 </button>
                                                 {{-- Delete (custom roles only) --}}
                                                 @if (! $r->is_default)
-                                                    <button type="button" wire:click.stop="deleteRole({{ $r->id }})" wire:confirm="{{ __('settings.delete_role_confirm') }}" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
+                                                    <button type="button" @click.stop="$dispatch('confirm-action', { title: 'Supprimer', message: '{{ __('settings.delete_role_confirm') }}', confirmLabel: 'Supprimer', variant: 'danger', onConfirm: () => $wire.deleteRole({{ $r->id }}) })" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-600 transition-all" title="{{ __('settings.delete') }}">
                                                         <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                                     </button>
                                                 @endif
@@ -932,8 +1105,7 @@
                             </div>
                             <button
                                 type="button"
-                                wire:click="clearOrganizationCache"
-                                wire:confirm="{{ __('settings.clear_org_cache') }} ?"
+                                @click="$dispatch('confirm-action', { title: 'Vider le cache', message: 'Vider le cache de l\u0027organisation ?', confirmLabel: 'Confirmer', variant: 'warning', onConfirm: () => $wire.clearOrganizationCache() })"
                                 class="shrink-0 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 transition-all"
                                 @disabled(! $canManage)
                             >
@@ -958,8 +1130,7 @@
                             </div>
                             <button
                                 type="button"
-                                wire:click="clearViewCache"
-                                wire:confirm="{{ __('settings.clear_view_cache') }} ?"
+                                @click="$dispatch('confirm-action', { title: 'Vider le cache', message: 'Vider le cache des vues ?', confirmLabel: 'Confirmer', variant: 'warning', onConfirm: () => $wire.clearViewCache() })"
                                 class="shrink-0 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-all"
                                 @disabled(! $canManage)
                             >
@@ -994,7 +1165,7 @@
                             </div>
                             <button
                                 type="button"
-                                wire:click="deleteOrganization"
+                                @click="$dispatch('confirm-action', { title: '{{ __('Supprimer d\u00e9finitivement') }}', message: '{{ __('Cette action est irr\u00e9versible. Toutes les donn\u00e9es seront supprim\u00e9es.') }}', confirmLabel: '{{ __('Supprimer') }}', variant: 'danger', onConfirm: () => $wire.deleteOrganization() })"
                                 class="h-[42px] px-4 rounded-xl bg-red-600 text-white text-sm font-bold shadow-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 @disabled(! $isOwner || $dangerConfirmName !== $org?->name)
                             >

@@ -333,6 +333,61 @@ class Dashboard extends Component
         });
     }
 
+    // ─── Member-specific data ─────────────────────────────────────
+
+    /** KPIs for the current member's own tickets. */
+    #[Computed]
+    public function myKpis(): array
+    {
+        $orgId = $this->orgId;
+        $userId = Auth::id();
+        if (! $orgId || ! $userId) {
+            return ['my_open' => 0, 'my_in_progress' => 0, 'my_total' => 0, 'my_resolved' => 0];
+        }
+
+        return Cache::remember("dashboard:my_kpis:{$orgId}:{$userId}", CacheHelper::TTL, function () use ($orgId, $userId) {
+            $row = DB::table('tickets')
+                ->where('organization_id', $orgId)
+                ->where('created_by', $userId)
+                ->select([
+                    DB::raw("COUNT(*) FILTER (WHERE status = 'open') as my_open"),
+                    DB::raw("COUNT(*) FILTER (WHERE status = 'in_progress') as my_in_progress"),
+                    DB::raw("COUNT(*) as my_total"),
+                    DB::raw("COUNT(*) FILTER (WHERE status IN ('resolved','closed')) as my_resolved"),
+                ])
+                ->first();
+
+            return [
+                'my_open' => (int) ($row->my_open ?? 0),
+                'my_in_progress' => (int) ($row->my_in_progress ?? 0),
+                'my_total' => (int) ($row->my_total ?? 0),
+                'my_resolved' => (int) ($row->my_resolved ?? 0),
+            ];
+        });
+    }
+
+    /** Recent tickets created by or assigned to the current member. */
+    #[Computed]
+    public function myRecentTickets(): \Illuminate\Support\Collection
+    {
+        $orgId = $this->orgId;
+        $userId = Auth::id();
+        if (! $orgId || ! $userId) {
+            return collect();
+        }
+
+        return Cache::remember("dashboard:my_tickets:{$orgId}:{$userId}", CacheHelper::TTL, function () use ($orgId, $userId) {
+            return Ticket::query()
+                ->where('tickets.organization_id', $orgId)
+                ->where(fn ($q) => $q->where('tickets.created_by', $userId)->orWhere('tickets.assigned_to', $userId))
+                ->leftJoin('ticket_priorities', 'tickets.ticket_priority_id', '=', 'ticket_priorities.id')
+                ->select('tickets.*', 'ticket_priorities.name as priority_name', 'ticket_priorities.level as priority_level')
+                ->orderByDesc('tickets.updated_at')
+                ->limit(7)
+                ->get();
+        });
+    }
+
     public function render()
     {
         return view('livewire.dashboard', [

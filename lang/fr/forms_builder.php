@@ -219,4 +219,5 @@ return [
     'expired' => 'Expiré',
     'assign_expires_at' => 'Date d\'expiration',
     'assign_expires_at_help' => 'Après cette date, la soumission sera impossible.',
+    'form_due_date_help' => 'Date limite globale pour ce formulaire.',
 ];

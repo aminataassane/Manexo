@@ -7,7 +7,9 @@ use App\Models\OrganizationMembership;
 use App\Models\Scopes\OrganizationScope;
 use App\Models\User;
 use App\Services\SuperAdminAuditService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -57,6 +59,38 @@ class Organizations extends Component
     public function updatingStatusFilter(): void
     {
         $this->resetPage();
+    }
+
+    #[Computed]
+    public function stats(): array
+    {
+        $orgCounts = DB::table('organizations')
+            ->select([
+                DB::raw('COUNT(*) as total'),
+                DB::raw("COUNT(*) FILTER (WHERE status = 'active' OR status IS NULL) as active"),
+                DB::raw("COUNT(*) FILTER (WHERE status = 'suspended') as suspended"),
+                DB::raw("COUNT(*) FILTER (WHERE status = 'disabled') as disabled"),
+                DB::raw("COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as created_30d"),
+            ])
+            ->first();
+
+        $totalMembers = (int) DB::table('organization_memberships')->count();
+
+        $totalTickets = 0;
+        try {
+            $totalTickets = (int) DB::table('tickets')->count();
+        } catch (\Throwable) {
+        }
+
+        return [
+            'total_orgs' => (int) $orgCounts->total,
+            'active_orgs' => (int) $orgCounts->active,
+            'suspended_orgs' => (int) $orgCounts->suspended,
+            'disabled_orgs' => (int) $orgCounts->disabled,
+            'created_30d' => (int) $orgCounts->created_30d,
+            'total_members' => $totalMembers,
+            'total_tickets' => $totalTickets,
+        ];
     }
 
     public function updatedCreateName(): void

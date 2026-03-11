@@ -11,6 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'Manexo' }}</title>
+    <link rel="icon" type="image/png" href="{{ asset('assets/Logo(1).png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 

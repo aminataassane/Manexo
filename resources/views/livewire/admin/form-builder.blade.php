@@ -303,69 +303,62 @@
             <div class="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
                 <div class="w-full max-w-full min-w-0 mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
                     @if($canManageForms)
-                    {{-- New assignment card --}}
+                    {{-- New assignment --}}
                     <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-                        <div class="px-4 sm:px-6 py-4 border-b border-slate-50 bg-slate-50/50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0" style="background: var(--accent);">
-                                    <iconify-icon icon="solar:user-plus-bold" width="20"></iconify-icon>
+                        <div class="px-4 sm:px-6 py-4 sm:py-5">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0" style="background: var(--accent);">
+                                    <iconify-icon icon="solar:user-plus-bold" width="18"></iconify-icon>
                                 </div>
-                                <div class="min-w-0">
-                                    <h3 class="text-base font-bold text-slate-900">{{ __('forms_builder.new_assignment') }}</h3>
-                                    <p class="text-xs text-slate-500 mt-0.5">{{ __('forms_builder.assign') }} ce formulaire à une personne ou une fonction</p>
-                                </div>
+                                <h3 class="text-sm font-bold text-slate-900">{{ __('forms_builder.new_assignment') }}</h3>
                             </div>
-                        </div>
-                        <div class="p-4 sm:p-6">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6">
-                                <div class="sm:col-span-2 space-y-4">
-                                    <div>
-                                        <label class="text-[11px] font-semibold text-slate-600 mb-2 block">{{ __('forms_builder.user') }}</label>
-                                        <select wire:model="assign_user_id" class="input-builder w-full text-xs py-2.5 rounded-lg border-slate-200 focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all">
-                                            <option value="">{{ __('forms_builder.choose') }}</option>
-                                            @foreach($members as $m)
-                                                <option value="{{ $m->user_id }}">{{ $m->user?->name ?? '—' }}</option>
-                                            @endforeach
-                                        </select>
-                                        <x-input-error :messages="$errors->get('assign_user_id')" />
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <span class="flex-1 h-px bg-slate-200"></span>
-                                        <span class="text-[11px] font-medium text-slate-400">ou</span>
-                                        <span class="flex-1 h-px bg-slate-200"></span>
-                                    </div>
-                                    <div>
-                                        <label class="text-[11px] font-semibold text-slate-600 mb-2 block">{{ __('forms_builder.or_function') }}</label>
-                                        <select wire:model="assign_function_id" class="input-builder w-full text-xs py-2.5 rounded-lg border-slate-200 focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all">
-                                            <option value="">{{ __('forms_builder.choose') }}</option>
-                                            @foreach($organizationFunctions as $fn)
-                                                <option value="{{ $fn->id }}">{{ $fn->name }}</option>
-                                            @endforeach
-                                        </select>
-                                        <x-input-error :messages="$errors->get('assign_function_id')" />
-                                    </div>
+
+                            <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                                {{-- User --}}
+                                <div class="flex-1 min-w-0">
+                                    <label class="text-[11px] font-semibold text-slate-500 mb-1.5 block">{{ __('forms_builder.user') }}</label>
+                                    <select wire:model="assign_user_id"
+                                            class="input-builder w-full text-xs py-2.5 rounded-lg border-slate-200 focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all">
+                                        <option value="">{{ __('forms_builder.choose') }}</option>
+                                        @foreach($members as $m)
+                                            <option value="{{ $m->user_id }}">{{ $m->user?->name ?? '—' }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('assign_user_id')" />
                                 </div>
-                                <div class="space-y-4">
-                                    <div>
-                                        <label class="text-[11px] font-semibold text-slate-600 mb-2 block">{{ __('forms_builder.due_date') }}</label>
-                                        <input type="date" wire:model="assign_due_date" class="input-builder w-full text-xs py-2.5 rounded-lg border-slate-200 focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all min-h-[38px]">
-                                    </div>
-                                    <div>
-                                        <label class="text-[11px] font-semibold text-slate-600 mb-2 block">{{ __('forms_builder.assign_expires_at') }}</label>
-                                        <input type="datetime-local" wire:model="assign_expires_at" class="input-builder w-full text-xs py-2.5 rounded-lg border-slate-200 focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all min-h-[38px]">
-                                        <p class="text-[10px] text-slate-400 mt-1">{{ __('forms_builder.assign_expires_at_help') }}</p>
-                                        <x-input-error :messages="$errors->get('assign_expires_at')" />
-                                    </div>
+
+                                {{-- Separator --}}
+                                <div class="hidden sm:flex items-center justify-center pb-1">
+                                    <span class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider">ou</span>
                                 </div>
-                            </div>
-                            <div class="mt-6 pt-5 border-t border-slate-100 flex flex-wrap items-center gap-3">
-                                <button type="button" wire:click="assignForm"
-                                        class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95 transition-all"
-                                        style="background: var(--accent);">
-                                    <iconify-icon icon="solar:user-plus-bold" width="16"></iconify-icon>
-                                    {{ __('forms_builder.assign') }}
-                                </button>
-                                <span class="text-[11px] text-slate-400">Uniquement utilisateur <strong>ou</strong> fonction</span>
+                                <div class="flex items-center gap-3 sm:hidden">
+                                    <span class="flex-1 h-px bg-slate-100"></span>
+                                    <span class="text-[10px] font-semibold text-slate-300 uppercase tracking-wider">ou</span>
+                                    <span class="flex-1 h-px bg-slate-100"></span>
+                                </div>
+
+                                {{-- Function --}}
+                                <div class="flex-1 min-w-0">
+                                    <label class="text-[11px] font-semibold text-slate-500 mb-1.5 block">{{ __('forms_builder.or_function') }}</label>
+                                    <select wire:model="assign_function_id"
+                                            class="input-builder w-full text-xs py-2.5 rounded-lg border-slate-200 focus:ring-2 focus:ring-[var(--accent)]/20 focus:border-[var(--accent)] transition-all">
+                                        <option value="">{{ __('forms_builder.choose') }}</option>
+                                        @foreach($organizationFunctions as $fn)
+                                            <option value="{{ $fn->id }}">{{ $fn->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('assign_function_id')" />
+                                </div>
+
+                                {{-- Button --}}
+                                <div class="shrink-0 sm:pb-0">
+                                    <button type="button" wire:click="assignForm"
+                                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all"
+                                            style="background: var(--accent);">
+                                        <iconify-icon icon="solar:user-plus-bold" width="16"></iconify-icon>
+                                        {{ __('forms_builder.assign') }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -422,7 +415,7 @@
                                             {{ $aBadge['label'] }}
                                         </span>
                                         @if($canManageForms && $aStatus === 'pending')
-                                            <button type="button" wire:click="deleteAssignment({{ $a->id }})" wire:confirm="{{ __('forms_builder.delete_assignment_confirm') }}"
+                                            <button type="button" @click="$dispatch('confirm-action', { title: 'Supprimer', message: '{{ __('forms_builder.delete_assignment_confirm') }}', confirmLabel: 'Supprimer', variant: 'danger', onConfirm: () => $wire.deleteAssignment({{ $a->id }}) })"
                                                     class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 sm:opacity-100">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
                                             </button>

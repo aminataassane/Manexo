@@ -42,9 +42,18 @@
             </div>
 
             <div class="max-h-[65vh] overflow-y-auto custom-scrollbar">
-                @forelse($this->notifications as $notification)
+                @if($this->notifications->isEmpty())
+                    <div class="flex flex-col items-center justify-center py-12 text-center">
+                        <div class="flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 mb-3">
+                            <iconify-icon icon="solar:bell-off-linear" width="32"></iconify-icon>
+                        </div>
+                        <p class="text-sm font-medium text-slate-900">{{ __('Aucune notification') }}</p>
+                        <p class="text-xs text-slate-500 mt-1 max-w-[200px]">{{ __('Vous êtes à jour ! Profitez de votre journée.') }}</p>
+                    </div>
+                @endif
+                @foreach($this->notifications as $notification)
                     @php
-                        $data = $notification->data;
+                        $data = is_array($notification->data) ? $notification->data : [];
                         $nType = $data['type'] ?? 'ticket_new_message';
                         $ticketId = $data['ticket_id'] ?? null;
                         $ticketPublicId = $data['ticket_public_id'] ?? null;
@@ -61,6 +70,8 @@
                         $isFormAssignment = false;
                         $isFormResponse = false;
                         $isFormOverdue = false;
+                        $isOrgInvitation = false;
+                        $isInvitationAccepted = false;
                         $messageId = null;
                         $excerpt = '';
                         $senderName = '—';
@@ -144,6 +155,21 @@
                             $threadId = $data['thread_id'] ?? null;
                             $messageId = $data['message_id'] ?? null;
                             $notifUrl = $threadId ? route('discussions.index', ['ticket' => 'd-' . $threadId]) : '#';
+                        } elseif ($nType === 'organization_invitation') {
+                            $senderName = $data['inviter_name'] ?? '—';
+                            $subject = $data['organization_name'] ?? __('Organisation');
+                            $role = $data['role'] ?? 'member';
+                            $excerpt = __('invitations.notif_excerpt', ['role' => $role]);
+                            $isOrgInvitation = true;
+                            $token = $data['invitation_token'] ?? null;
+                            $notifUrl = $token ? route('invitations.accept', ['token' => $token]) : '#';
+                        } elseif ($nType === 'invitation_accepted') {
+                            $senderName = $data['accepted_by_name'] ?? '—';
+                            $subject = $data['organization_name'] ?? __('Organisation');
+                            $role = $data['role'] ?? 'member';
+                            $excerpt = __('invitations.accepted_notif_excerpt', ['role' => $role, 'org' => $subject]);
+                            $isInvitationAccepted = true;
+                            $notifUrl = route('admin.users');
                         } else {
                             $senderName = $data['sender_name'] ?? '—';
                             $excerpt = $data['body_excerpt'] ?? '';
@@ -156,6 +182,7 @@
                         }
                     @endphp
                     <a
+                        wire:key="notif-{{ $notification->id }}"
                         href="{{ $notifUrl }}"
                         wire:click="markAsRead('{{ $notification->id }}')"
                         @click="open = false"
@@ -199,6 +226,14 @@
                                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-sky-50 text-sky-600 ring-1 ring-sky-100">
                                         <iconify-icon icon="solar:chat-round-dots-bold-duotone" width="18"></iconify-icon>
                                     </div>
+                                @elseif($isOrgInvitation)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-50 text-cyan-600 ring-1 ring-cyan-100">
+                                        <iconify-icon icon="solar:letter-bold-duotone" width="18"></iconify-icon>
+                                    </div>
+                                @elseif($isInvitationAccepted)
+                                    <div class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                                        <iconify-icon icon="solar:user-plus-bold-duotone" width="18"></iconify-icon>
+                                    </div>
                                 @else
                                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)] ring-1 ring-[var(--accent-soft)]">
                                         <iconify-icon icon="solar:chat-round-dots-bold-duotone" width="18"></iconify-icon>
@@ -236,6 +271,10 @@
                                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">{{ __('Discussion') }}</span>
                                     @elseif($isDiscussionMessage)
                                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-sky-50 text-sky-700 border border-sky-100">{{ __('Message') }}</span>
+                                    @elseif($isOrgInvitation)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-cyan-50 text-cyan-700 border border-cyan-100">{{ __('Invitation') }}</span>
+                                    @elseif($isInvitationAccepted)
+                                        <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">{{ __('invitations.accepted_badge') }}</span>
                                     @else
                                         <span class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">{{ $ticketReference ?? 'Ticket #' . $ticketId }}</span>
                                     @endif
@@ -250,15 +289,7 @@
                             </div>
                         </div>
                     </a>
-                @empty
-                    <div class="flex flex-col items-center justify-center py-12 text-center">
-                        <div class="flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 mb-3">
-                            <iconify-icon icon="solar:bell-off-linear" width="32"></iconify-icon>
-                        </div>
-                        <p class="text-sm font-medium text-slate-900">{{ __('Aucune notification') }}</p>
-                        <p class="text-xs text-slate-500 mt-1 max-w-[200px]">{{ __('Vous êtes à jour ! Profitez de votre journée.') }}</p>
-                    </div>
-                @endforelse
+                @endforeach
             </div>
             
             @if($this->notifications->count() > 0)

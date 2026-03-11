@@ -79,6 +79,34 @@ class CacheHelper
         return "org_functions:{$orgId}";
     }
 
+    public static function orgMemberRolesKey(int $orgId): string
+    {
+        return "org_member_roles:{$orgId}";
+    }
+
+    public static function ticketGroupsKey(int $orgId, bool $activeOnly): string
+    {
+        $variant = $activeOnly ? 'active' : 'all';
+
+        return "ticket_groups:{$orgId}:{$variant}";
+    }
+
+    public static function groupsOverviewKey(int $orgId): string
+    {
+        return "groups_overview:{$orgId}";
+    }
+
+    /**
+     * Ticket counts key (stats + view counts) — versioned so we can invalidate
+     * all per-user / per-group variants at once by bumping the version counter.
+     */
+    public static function ticketCountsKey(int $orgId, int $userId, string $group): string
+    {
+        $ver = (int) Cache::get("tickets:counts_ver:{$orgId}", 0);
+
+        return "tickets:counts:{$orgId}:{$userId}:{$ver}:" . ($group !== '' ? $group : 'all');
+    }
+
     public static function formsListKey(int $orgId): string
     {
         return "forms_list:{$orgId}";
@@ -87,6 +115,11 @@ class CacheHelper
     public static function reportsKey(int $orgId, string $period): string
     {
         return "reports:{$orgId}:{$period}";
+    }
+
+    public static function dailyReportKey(int $orgId, string $date): string
+    {
+        return "daily_report:{$orgId}:{$date}";
     }
 
     /** Notifications: unread count (topbar bell). */
@@ -116,6 +149,7 @@ class CacheHelper
         Cache::forget(self::dashboardChartKey($orgId, 30));
         Cache::forget(self::dashboardPriorityTicketsKey($orgId));
         Cache::forget(self::dashboardRecentActivityKey($orgId));
+        Cache::forget(self::groupsOverviewKey($orgId));
     }
 
     public static function invalidateDashboardDiscussions(int $orgId): void
@@ -145,11 +179,29 @@ class CacheHelper
     public static function invalidateMembers(int $orgId): void
     {
         Cache::forget(self::membersKey($orgId));
+        Cache::forget(self::orgMemberRolesKey($orgId));
     }
 
     public static function invalidateOrgFunctions(int $orgId): void
     {
         Cache::forget(self::orgFunctionsKey($orgId));
+    }
+
+    /**
+     * Bump the version counter so all per-user ticket-count caches become stale.
+     * Old entries expire naturally via TTL — no need to enumerate user keys.
+     */
+    public static function invalidateTicketCounts(int $orgId): void
+    {
+        Cache::increment("tickets:counts_ver:{$orgId}");
+        Cache::forget(self::groupsOverviewKey($orgId));
+    }
+
+    public static function invalidateTicketGroups(int $orgId): void
+    {
+        Cache::forget(self::ticketGroupsKey($orgId, true));
+        Cache::forget(self::ticketGroupsKey($orgId, false));
+        Cache::forget(self::groupsOverviewKey($orgId));
     }
 
     public static function invalidateForms(int $orgId): void
@@ -162,6 +214,13 @@ class CacheHelper
         Cache::forget(self::reportsKey($orgId, 'default'));
         Cache::forget(self::reportsKey($orgId, 'monthly'));
         Cache::forget(self::reportsKey($orgId, 'yearly'));
+        self::invalidateDailyReport($orgId);
+    }
+
+    public static function invalidateDailyReport(int $orgId): void
+    {
+        $today = now()->toDateString();
+        Cache::forget(self::dailyReportKey($orgId, $today));
     }
 
     public static function invalidateNotificationsCount(int $userId): void
@@ -195,6 +254,8 @@ class CacheHelper
         self::invalidatePriorities($orgId);
         self::invalidateMembers($orgId);
         self::invalidateOrgFunctions($orgId);
+        self::invalidateTicketGroups($orgId);
+        self::invalidateTicketCounts($orgId);
         self::invalidateForms($orgId);
         self::invalidateReports($orgId);
         self::invalidateRolePermissions($orgId);

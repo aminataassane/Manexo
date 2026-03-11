@@ -68,7 +68,7 @@ Route::get('/locale/{locale}', function (Request $request, string $locale) {
 
     return redirect()
         ->to($target)
-        ->withCookie(cookie('locale', $locale, 60 * 24 * 365))
+        ->withCookie(cookie('locale', $locale, 60 * 24 * 365, '/', null, null, true))
         ->with('profile_status', $locale === 'en' ? __('Language switched to English.') : __('Langue changée en français.'));
 })->where('locale', 'fr|en')->name('locale.switch');
 
@@ -128,6 +128,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/discussions/{ticket?}', \App\Livewire\Discussions\Index::class)->name('discussions.index');
 
         Route::get('/tickets', TicketsIndex::class)->name('tickets.index');
+        Route::get('/tickets/groups', \App\Livewire\Tickets\Groups::class)->name('tickets.groups');
         Route::get('/tickets/create', CreateTicket::class)->name('tickets.create');
         Route::get('/tickets/{ticket}/files/{filename}', function (Ticket $ticket, string $filename) {
             $user = Auth::user();
@@ -169,6 +170,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/forms/responses/{response}/file/{fieldKey}', [PublicFormController::class, 'serveFile'])->where('fieldKey', '[a-zA-Z0-9_]+')->name('admin.forms.responses.file');
         Route::get('/reports', ReportsIndex::class)->name('reports.index');
         Route::get('/reports/tasks', \App\Livewire\Reports\TaskReport::class)->name('reports.tasks');
+        Route::get('/reports/daily', \App\Livewire\Reports\DailyReport::class)->name('reports.daily');
         Route::get('/reports/tasks/export/{format}', [\App\Http\Controllers\TaskReportExportController::class, '__invoke'])
             ->where('format', 'csv|pdf')
             ->name('reports.tasks.export');

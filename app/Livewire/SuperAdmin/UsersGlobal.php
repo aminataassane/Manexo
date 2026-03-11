@@ -190,6 +190,51 @@ class UsersGlobal extends Component
         session()->flash('success', __('platform_invitations.cancelled'));
     }
 
+    public function changePlatformRole(int $userId, string $newRole): void
+    {
+        if (! auth()->user()->canPlatformAdminister()) {
+            return;
+        }
+
+        if ($userId === auth()->id()) {
+            return;
+        }
+
+        $user = User::findOrFail($userId);
+
+        if (! $user->hasPlatformAccess()) {
+            return;
+        }
+
+        $role = PlatformRole::tryFrom($newRole);
+        if (! $role) {
+            return;
+        }
+
+        $oldRole = $user->platform_role?->value ?? ($user->is_super_admin ? 'super_admin' : null);
+
+        if ($oldRole === $role->value) {
+            return;
+        }
+
+        $user->update([
+            'platform_role' => $role,
+            'is_super_admin' => $role === PlatformRole::SuperAdmin,
+        ]);
+
+        SuperAdminAuditService::log('platform_role.changed', 'User', $userId, [
+            'name' => $user->name,
+            'email' => $user->email,
+            'old_role' => $oldRole,
+            'new_role' => $role->value,
+        ]);
+
+        session()->flash('success', __('platform_invitations.role_changed', [
+            'name' => $user->name,
+            'role' => $role->label(),
+        ]));
+    }
+
     public function revokePlatformRole(int $userId): void
     {
         if (! auth()->user()->canPlatformAdminister()) {

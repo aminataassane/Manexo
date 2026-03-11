@@ -11,6 +11,7 @@ use App\Models\OrganizationMembership;
 use App\Models\RoleDefinition;
 use App\Models\User;
 use App\Notifications\OrganizationInvitationNotification;
+use App\Events\UserNotificationReceived;
 use App\Services\OrganizationAuditService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -163,9 +164,15 @@ class Users extends Component
             'role' => $role,
         ]);
 
+        $notification = new OrganizationInvitationNotification($invitation, $org);
+
         try {
-            Notification::route('mail', $email)
-                ->notify(new OrganizationInvitationNotification($invitation, $org));
+            if ($existingUser) {
+                $existingUser->notify($notification);
+                event(new UserNotificationReceived(userId: (int) $existingUser->id, notificationType: 'organization_invitation'));
+            } else {
+                Notification::route('mail', $email)->notify($notification);
+            }
             $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_sent'));
         } catch (Throwable $e) {
             Log::warning('Organization invitation email could not be sent.', [
@@ -204,10 +211,16 @@ class Users extends Component
         ]);
 
         $org = Organization::find($orgId);
+        $notification = new OrganizationInvitationNotification($invitation, $org);
+        $existingUser = User::query()->where('email', $invitation->email)->first();
 
         try {
-            Notification::route('mail', $invitation->email)
-                ->notify(new OrganizationInvitationNotification($invitation, $org));
+            if ($existingUser) {
+                $existingUser->notify($notification);
+                event(new UserNotificationReceived(userId: (int) $existingUser->id, notificationType: 'organization_invitation'));
+            } else {
+                Notification::route('mail', $invitation->email)->notify($notification);
+            }
             $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_resent'));
         } catch (Throwable $e) {
             Log::warning('Organization invitation resend email could not be sent.', [

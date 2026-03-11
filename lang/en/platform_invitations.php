@@ -25,10 +25,12 @@ return [
     'invited_by' => 'Invited by :name',
     'expires_in' => 'Expires :time',
 
-    // Revoke
+    // Revoke & Role change
     'revoke' => 'Revoke',
     'confirm_revoke' => 'Are you sure you want to revoke platform access for this user?',
     'role_revoked' => 'Platform access for ":name" has been revoked.',
+    'change_role' => 'Change role',
+    'role_changed' => 'Role for ":name" has been changed to :role.',
 
     // Accept page
     'accept_title' => 'Platform Invitation',
@@ -44,13 +46,15 @@ return [
     'register_banner' => 'You have been invited as :role on the Manexo platform. Create your account to accept.',
 
     // Email
-    'email_subject' => 'Invitation to Manexo Administration',
-    'email_heading' => 'Platform Invitation',
+    'email_subject' => 'Manexo — Access the platform administration',
+    'email_heading' => 'Access Manexo administration',
     'email_preheader' => ':inviter invites you to join the Manexo administration as :role.',
     'email_body_text' => 'invites you to join the Manexo platform administration as :role.',
-    'email_cta' => 'Accept invitation',
-    'email_expires' => 'This link expires in 48 hours.',
-    'email_fallback' => 'If the button does not work, copy and paste the link below into your browser:',
+    'email_body_desc' => 'By accepting this invitation, you will have access to the administration dashboard, management tools, and platform settings.',
+    'email_role_label' => 'Assigned role',
+    'email_cta' => 'Accept the invitation',
+    'email_expires' => 'This link is valid for 48 hours.',
+    'email_fallback' => 'Button not working? Copy this link into your browser:',
     'email_rights' => 'All rights reserved.',
     'email_auto' => 'This email was sent automatically, please do not reply.',
 ];

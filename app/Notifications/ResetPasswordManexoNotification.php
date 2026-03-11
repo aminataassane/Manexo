@@ -27,7 +27,7 @@ class ResetPasswordManexoNotification extends BaseResetPassword
             ->subject('Réinitialisation de votre mot de passe Manexo')
             ->view('emails.auth.password-reset', [
                 'appName' => config('app.name', 'Manexo'),
-                'logoUrl' => null, // Logo entreprise si contexte org disponible, sinon Manexo par défaut
+                'logoUrl' => asset('assets/Logo(1).png'),
                 'toEmail' => $email,
                 'resetUrl' => $resetUrl,
                 'expiresMinutes' => $expiresMinutes,

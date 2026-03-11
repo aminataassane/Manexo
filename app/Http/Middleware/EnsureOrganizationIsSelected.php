@@ -26,8 +26,8 @@ class EnsureOrganizationIsSelected
             return $next($request);
         }
 
-        // Prevent redirect loops.
-        if ($request->routeIs('organizations.*')) {
+        // Prevent redirect loops & allow profile without an org.
+        if ($request->routeIs('organizations.*', 'profile', 'profile.*')) {
             return $next($request);
         }
 

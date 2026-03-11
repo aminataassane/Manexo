@@ -25,10 +25,12 @@ return [
     'invited_by' => 'Invité par :name',
     'expires_in' => 'Expire :time',
 
-    // Revoke
+    // Revoke & Role change
     'revoke' => 'Révoquer',
     'confirm_revoke' => 'Êtes-vous sûr de vouloir révoquer l\'accès plateforme de cet utilisateur ?',
     'role_revoked' => 'L\'accès plateforme de « :name » a été révoqué.',
+    'change_role' => 'Changer le rôle',
+    'role_changed' => 'Le rôle de « :name » a été changé en :role.',
 
     // Accept page
     'accept_title' => 'Invitation plateforme',
@@ -44,13 +46,15 @@ return [
     'register_banner' => 'Vous avez été invité en tant que :role sur la plateforme Manexo. Créez votre compte pour accepter.',
 
     // Email
-    'email_subject' => 'Invitation à l\'administration Manexo',
-    'email_heading' => 'Invitation plateforme',
+    'email_subject' => 'Manexo — Accédez à l\'administration de la plateforme',
+    'email_heading' => 'Accédez à l\'administration Manexo',
     'email_preheader' => ':inviter vous invite à rejoindre l\'administration Manexo en tant que :role.',
     'email_body_text' => 'vous invite à rejoindre l\'administration de la plateforme Manexo en tant que :role.',
+    'email_body_desc' => 'En acceptant cette invitation, vous aurez accès au tableau de bord d\'administration, aux outils de gestion et aux paramètres de la plateforme.',
+    'email_role_label' => 'Rôle attribué',
     'email_cta' => 'Accepter l\'invitation',
-    'email_expires' => 'Ce lien expire dans 48 heures.',
-    'email_fallback' => 'Si le bouton ne fonctionne pas, copiez et collez le lien ci-dessous dans votre navigateur :',
+    'email_expires' => 'Ce lien est valable 48 heures.',
+    'email_fallback' => 'Le bouton ne fonctionne pas ? Copiez ce lien dans votre navigateur :',
     'email_rights' => 'Tous droits réservés.',
-    'email_auto' => 'Cet email a été envoyé automatiquement, merci de ne pas y répondre.',
+    'email_auto' => 'Cet e-mail a été envoyé automatiquement, merci de ne pas y répondre.',
 ];

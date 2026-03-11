@@ -13,6 +13,53 @@
                     <p class="text-sm text-slate-500">Sélectionnez l'entreprise avec laquelle vous souhaitez travailler.</p>
                 </div>
 
+                @if($pendingInvitations->isNotEmpty())
+                    <div class="mb-6 w-full">
+                        <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-600"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                            {{ __('invitations.pending_title') }}
+                        </h3>
+                        <div class="space-y-3">
+                            @foreach($pendingInvitations as $inv)
+                                @php
+                                    $roleLabel = match ($inv->role) {
+                                        'owner' => 'Propriétaire',
+                                        'admin' => 'Admin',
+                                        'agent' => 'Agent',
+                                        default => 'Membre',
+                                    };
+                                    $invInitial = mb_strtoupper(mb_substr((string) ($inv->organization?->name ?? '?'), 0, 1));
+                                    $daysLeft = (int) now()->diffInDays($inv->expires_at, false);
+                                @endphp
+                                <div class="flex items-center gap-4 rounded-2xl border border-cyan-200 bg-cyan-50/30 p-4">
+                                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-100 font-serif font-bold text-cyan-700 text-sm">
+                                        {{ $invInitial }}
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="font-semibold text-slate-900 truncate">{{ $inv->organization?->name ?? '—' }}</div>
+                                        <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                            <span class="inline-flex items-center rounded-full bg-cyan-100 px-2 py-0.5 text-[10px] font-medium text-cyan-700">{{ $roleLabel }}</span>
+                                            @if($inv->inviter)
+                                                <span>{{ __('invitations.invited_by', ['name' => $inv->inviter->name]) }}</span>
+                                            @endif
+                                            <span class="text-slate-400">·</span>
+                                            <span>{{ __('invitations.expires_in', ['days' => $daysLeft]) }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <button type="button" wire:click="declineInvitation({{ $inv->id }})" class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors">
+                                            {{ __('invitations.decline_button') }}
+                                        </button>
+                                        <button type="button" wire:click="acceptInvitation({{ $inv->id }})" class="rounded-lg px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm">
+                                            {{ __('invitations.accept_button') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div class="grid gap-4 sm:grid-cols-2">
                     @forelse ($organizations as $org)
                         @php
@@ -183,6 +230,53 @@
 
                 <!-- 2. Select / Join Block (Secondary Action) -->
                 <div class="fade-in fade-in-delay-2 flex flex-col rounded-2xl border border-slate-200 bg-slate-50/50 backdrop-blur-sm p-6 hover:bg-white transition-colors duration-300 h-full">
+
+                    @if($pendingInvitations->isNotEmpty())
+                        <div class="mb-5">
+                            <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-cyan-600"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                                {{ __('invitations.pending_title') }}
+                            </h3>
+                            <div class="space-y-2">
+                                @foreach($pendingInvitations as $inv)
+                                    @php
+                                        $invRoleLabel = match ($inv->role) {
+                                            'owner' => 'Propriétaire',
+                                            'admin' => 'Admin',
+                                            'agent' => 'Agent',
+                                            default => 'Membre',
+                                        };
+                                        $invInitial = mb_strtoupper(mb_substr((string) ($inv->organization?->name ?? '?'), 0, 1));
+                                        $daysLeft = (int) now()->diffInDays($inv->expires_at, false);
+                                    @endphp
+                                    <div class="rounded-xl border border-cyan-200 bg-cyan-50/40 p-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-100 font-serif font-medium text-sm text-cyan-700">
+                                                {{ $invInitial }}
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="text-sm font-medium text-slate-900 truncate">{{ $inv->organization?->name ?? '—' }}</div>
+                                                <div class="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                                    <span class="inline-flex items-center rounded-full bg-cyan-100 px-1.5 py-0.5 text-[9px] font-medium text-cyan-700">{{ $invRoleLabel }}</span>
+                                                    <span>{{ __('invitations.expires_in', ['days' => $daysLeft]) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2 mt-2.5">
+                                            <button type="button" wire:click="declineInvitation({{ $inv->id }})" class="flex-1 rounded-lg py-1.5 text-[11px] font-medium text-slate-600 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors text-center">
+                                                {{ __('invitations.decline_button') }}
+                                            </button>
+                                            <button type="button" wire:click="acceptInvitation({{ $inv->id }})" class="flex-1 rounded-lg py-1.5 text-[11px] font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm text-center">
+                                                {{ __('invitations.accept_button') }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-200/60 mb-5"></div>
+                    @endif
+
                     <div class="mb-5 flex items-start justify-between">
                         <div>
                             <h2 class="text-base font-medium text-slate-800 flex items-center gap-2">
@@ -266,49 +360,58 @@
         @endif
 
     </div>
-</div>
 
-<!-- Invite Modal -->
-@if ($showInviteModal)
-    <div class="fixed inset-0 z-50">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" wire:click="closeInviteModal"></div>
+    <!-- Invite Modal -->
+    <div x-data="{ open: $wire.$entangle('showInviteModal') }" x-show="open" x-cloak @keydown.escape.window="open && (open = false)" class="fixed inset-0 z-50" style="display:none;">
+    <div
+        x-show="open"
+        x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="$wire.closeInviteModal()"
+    ></div>
 
-        <div class="relative mx-auto flex min-h-full max-w-lg items-center justify-center px-6">
-            <div class="w-full rounded-2xl border border-white/30 bg-white/95 p-6 shadow-2xl ring-1 ring-black/5">
-                <div class="flex items-start justify-between gap-4">
-                    <div>
-                        <h3 class="text-base font-semibold text-slate-900">Rejoindre une entreprise</h3>
-                        <p class="mt-1 text-[11px] text-slate-500">Entrez le code d’invitation fourni par l’administrateur.</p>
-                    </div>
-                    <button type="button" wire:click="closeInviteModal" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" aria-label="Fermer">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-                    </button>
+    <div class="relative mx-auto flex min-h-full max-w-lg items-center justify-center px-6">
+        <div
+            x-show="open"
+            x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+            class="w-full rounded-2xl border border-white/30 bg-white/95 p-6 shadow-2xl ring-1 ring-black/5"
+            @click.stop
+        >
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-semibold text-slate-900">Rejoindre une entreprise</h3>
+                    <p class="mt-1 text-[11px] text-slate-500">Entrez le code d'invitation fourni par l'administrateur.</p>
+                </div>
+                <button type="button" @click="$wire.closeInviteModal()" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                </button>
+            </div>
+
+            <form wire:submit.prevent="joinWithInviteCode" class="mt-5 space-y-3">
+                <div class="space-y-1">
+                    <label for="invite_code" class="block text-[11px] font-medium text-slate-700">Code d'invitation</label>
+                    <input
+                        id="invite_code"
+                        type="text"
+                        wire:model.defer="invite_code"
+                        placeholder="Ex: MANEXO-8F3K2"
+                        class="block w-full rounded-lg border-0 bg-slate-50 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset text-sm transition-all"
+                        style="--tw-ring-color: var(--accent);"
+                    >
+                    <x-input-error :messages="$errors->get('invite_code')" />
                 </div>
 
-                <form wire:submit.prevent="joinWithInviteCode" class="mt-5 space-y-3">
-                    <div class="space-y-1">
-                        <label for="invite_code" class="block text-[11px] font-medium text-slate-700">Code d’invitation</label>
-                        <input
-                            id="invite_code"
-                            type="text"
-                            wire:model.defer="invite_code"
-                            placeholder="Ex: MANEXO-8F3K2"
-                            class="block w-full rounded-lg border-0 bg-slate-50 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset text-sm transition-all"
-                            style="--tw-ring-color: var(--accent);"
-                        >
-                        <x-input-error :messages="$errors->get('invite_code')" />
-                    </div>
-
-                    <div class="flex items-center justify-end gap-2 pt-2">
-                        <button type="button" wire:click="closeInviteModal" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
-                            Annuler
-                        </button>
-                        <button type="submit" class="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors" style="background-color: var(--accent);">
-                            Rejoindre
-                        </button>
-                    </div>
-                </form>
-            </div>
+                <div class="flex items-center justify-end gap-2 pt-2">
+                    <button type="button" @click="$wire.closeInviteModal()" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                        Annuler
+                    </button>
+                    <button type="submit" class="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors" style="background-color: var(--accent);">
+                        Rejoindre
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
-@endif
+</div>
+</div>

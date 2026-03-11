@@ -149,8 +149,7 @@
                             </button>
                             <button
                                 type="button"
-                                wire:click="cancelInvitation({{ $inv->id }})"
-                                wire:confirm="{{ __('pages.team.cancel_invitation') }}?"
+                                @click="$dispatch('confirm-action', { title: 'Annuler', message: 'Annuler cette invitation ?', confirmLabel: 'Annuler', variant: 'danger', onConfirm: () => $wire.cancelInvitation({{ $inv->id }}) })"
                                 class="h-8 px-3 rounded-lg border border-red-200 bg-white text-xs font-semibold text-red-600 hover:bg-red-50 transition inline-flex items-center gap-1.5"
                                 title="{{ __('pages.team.cancel_invitation') }}"
                             >
@@ -255,7 +254,7 @@
                                     <button
                                         type="button"
                                         class="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                        wire:click="removeMember({{ (int) $m->id }})"
+                                        @click="$dispatch('confirm-action', { title: 'Retirer', message: 'Retirer ce membre de l\u0027\u00e9quipe ?', confirmLabel: 'Retirer', variant: 'danger', onConfirm: () => $wire.removeMember({{ (int) $m->id }}) })"
                                         title="{{ __('pages.team.remove_from_team') }}"
                                     >
                                         <iconify-icon icon="solar:trash-bin-trash-bold" width="16"></iconify-icon>
@@ -285,57 +284,66 @@
         </div>
     </div>
 
-    @if($showInviteModal)
-        <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-            <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" wire:click="closeInviteModal"></div>
+    <div x-data="{ open: $wire.$entangle('showInviteModal') }" x-show="open" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style="display:none;">
+        <div
+            x-show="open"
+            x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="$wire.closeInviteModal()"
+        ></div>
 
-            <div class="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
-                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <div class="min-w-0">
-                        <div class="text-sm font-extrabold text-slate-900">{{ __('pages.team.invite_member') }}</div>
-                        <div class="text-xs text-slate-500">{{ __('pages.team.invite_modal_subtitle') }}</div>
-                    </div>
-                    <button type="button" wire:click="closeInviteModal" class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition flex items-center justify-center" aria-label="{{ __('pages.team.close') }}">
-                        <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
-                    </button>
+        <div
+            x-show="open"
+            x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0 scale-95 translate-y-4" x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+            x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100 scale-100 translate-y-0" x-transition:leave-end="opacity-0 scale-95 translate-y-4"
+            class="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
+            @click.stop
+        >
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div class="min-w-0">
+                    <div class="text-sm font-extrabold text-slate-900">{{ __('pages.team.invite_member') }}</div>
+                    <div class="text-xs text-slate-500">{{ __('pages.team.invite_modal_subtitle') }}</div>
+                </div>
+                <button type="button" wire:click="closeInviteModal" class="h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition flex items-center justify-center" aria-label="{{ __('pages.team.close') }}">
+                    <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
+                </button>
+            </div>
+
+            <form wire:submit.prevent="sendInvite" class="p-5 space-y-4">
+                <div class="space-y-1.5">
+                    <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.email') }}</label>
+                    <input
+                        type="email"
+                        wire:model.live.debounce.200ms="inviteEmail"
+                        class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                        placeholder="{{ __('pages.team.email_placeholder') }}"
+                        required
+                    >
+                    <x-input-error :messages="$errors->get('inviteEmail')" />
                 </div>
 
-                <form wire:submit.prevent="sendInvite" class="p-5 space-y-4">
-                    <div class="space-y-1.5">
-                        <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.email') }}</label>
-                        <input
-                            type="email"
-                            wire:model.live.debounce.200ms="inviteEmail"
-                            class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
-                            placeholder="{{ __('pages.team.email_placeholder') }}"
-                            required
-                        >
-                        <x-input-error :messages="$errors->get('inviteEmail')" />
-                    </div>
+                <div class="space-y-1.5">
+                    <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.role') }}</label>
+                    <x-select-input wire:model.live="inviteRole">
+                        @foreach ($roles as $r)
+                            @if ($r->slug !== 'owner')
+                                <option value="{{ $r->slug }}">{{ $r->name }}</option>
+                            @endif
+                        @endforeach
+                    </x-select-input>
+                    <x-input-error :messages="$errors->get('inviteRole')" />
+                </div>
 
-                    <div class="space-y-1.5">
-                        <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.role') }}</label>
-                        <x-select-input wire:model.live="inviteRole">
-                            @foreach ($roles as $r)
-                                @if ($r->slug !== 'owner')
-                                    <option value="{{ $r->slug }}">{{ $r->name }}</option>
-                                @endif
-                            @endforeach
-                        </x-select-input>
-                        <x-input-error :messages="$errors->get('inviteRole')" />
-                    </div>
-
-                    <div class="pt-2 flex items-center justify-end gap-3">
-                        <button type="button" wire:click="closeInviteModal" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-                            {{ __('pages.team.cancel') }}
-                        </button>
-                        <button type="submit" class="h-10 px-4 rounded-xl bg-[var(--accent)] text-white text-sm font-extrabold shadow-sm hover:opacity-90 transition inline-flex items-center gap-2">
-                            <span wire:loading.remove wire:target="sendInvite">{{ __('pages.team.send') }}</span>
-                            <span wire:loading wire:target="sendInvite">{{ __('pages.team.sending') }}</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
+                <div class="pt-2 flex items-center justify-end gap-3">
+                    <button type="button" wire:click="closeInviteModal" class="h-10 px-4 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                        {{ __('pages.team.cancel') }}
+                    </button>
+                    <button type="submit" class="h-10 px-4 rounded-xl bg-[var(--accent)] text-white text-sm font-extrabold shadow-sm hover:opacity-90 transition inline-flex items-center gap-2">
+                        <span wire:loading.remove wire:target="sendInvite">{{ __('pages.team.send') }}</span>
+                        <span wire:loading wire:target="sendInvite">{{ __('pages.team.sending') }}</span>
+                    </button>
+                </div>
+            </form>
         </div>
-    @endif
+    </div>
 </div>

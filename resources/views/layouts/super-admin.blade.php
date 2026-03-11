@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ __($title ?? 'super_admin.title') }} — Platform Admin</title>
+    <link rel="icon" type="image/png" href="{{ asset('assets/Logo(1).png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -29,7 +30,7 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #CBD5E1; }
         @keyframes subtleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .animate-enter { animation: subtleFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        ::selection { background: #e0e7ff; color: #4f46e5; }
+        ::selection { background: #F2E3BB; color: #005F02; }
 
         /* Boutons platform admin — contraste élevé, lisibilité */
         .sa-btn-primary {
@@ -41,15 +42,15 @@
             font-size: 0.875rem;
             font-weight: 600;
             color: #fff !important;
-            background: #4f46e5 !important;
+            background: #005F02 !important;
             border: none;
             border-radius: 0.75rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.12);
             transition: background 0.2s, box-shadow 0.2s;
         }
         .sa-btn-primary:hover:not(:disabled) {
-            background: #4338ca !important;
-            box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+            background: #004d02 !important;
+            box-shadow: 0 2px 6px rgba(0, 95, 2, 0.35);
         }
         .sa-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -102,9 +103,9 @@
         .page-content-safe tbody tr { border-bottom: 1px solid #e2e8f0; }
         .page-content-safe table td .rounded-full.bg-indigo-50,
         .page-content-safe table td .rounded-full.border-indigo-200 {
-            background: #4f46e5 !important;
+            background: #005F02 !important;
             color: #fff !important;
-            border-color: #4338ca !important;
+            border-color: #004d02 !important;
         }
     </style>
 </head>
@@ -134,7 +135,7 @@
     @endphp
     <aside
         class="fixed left-0 top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/5 text-white/60 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-[85vw] md:max-w-none backdrop-blur-xl"
-        style="background: linear-gradient(180deg, #312e81 0%, #1e1b4b 100%);"
+        style="background: linear-gradient(180deg, #002e01 0%, #001a01 100%);"
         :class="{
             'w-[240px] xl:w-[260px]': sidebarOpen,
             'w-[72px] xl:w-[80px]': !sidebarOpen,
@@ -142,15 +143,24 @@
             'translate-x-0': mobileOpen
         }"
     >
-        <!-- Logo -->
+        <!-- Logo + nom de la plateforme -->
+        @php
+            $platformName = config('app.platform_creator.name', 'Manexo');
+            $platformLogoPath = 'assets/Logo(1).png';
+            $platformLogoUrl = \Illuminate\Support\Facades\File::exists(public_path($platformLogoPath)) ? asset($platformLogoPath) : null;
+        @endphp
         <div class="flex h-16 shrink-0 items-center px-4 xl:px-5" :class="sidebarOpen ? 'justify-start' : 'justify-center'">
             <a href="{{ route('platform-admin.dashboard') }}" class="flex items-center gap-3 group transition-all duration-300">
-                <span class="relative h-9 w-9 shrink-0 rounded-xl overflow-hidden ring-1 ring-white/10 shadow-lg flex items-center justify-center bg-indigo-500">
-                    <iconify-icon icon="solar:shield-star-bold-duotone" width="20" class="text-white"></iconify-icon>
+                <span class="relative h-9 w-9 shrink-0 rounded-lg overflow-hidden ring-1 ring-white/10 shadow-lg flex items-center justify-center bg-white p-1">
+                    @if($platformLogoUrl)
+                        <img src="{{ $platformLogoUrl }}" alt="{{ $platformName }}" class="h-full w-full object-contain" />
+                    @else
+                        <iconify-icon icon="solar:shield-star-bold-duotone" width="20" class="text-[#005F02]"></iconify-icon>
+                    @endif
                 </span>
                 <div class="flex flex-col min-w-0" x-show="sidebarOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-x-2" x-transition:enter-end="opacity-100 translate-x-0">
                     <span class="text-sm font-bold text-white tracking-wide">PLATFORM ADMIN</span>
-                    <span class="text-[10px] font-medium text-white/40 uppercase tracking-widest">Manexo</span>
+                    <span class="text-[10px] font-medium text-white/40 uppercase tracking-widest">{{ $platformName }}</span>
                 </div>
             </a>
         </div>
@@ -168,9 +178,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaDashboard)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:widget-5-bold-duotone" width="20" class="{{ $isSaDashboard ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:widget-5-bold-duotone" width="20" class="{{ $isSaDashboard ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.dashboard') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.dashboard') }}
@@ -184,9 +194,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaOrgs)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:buildings-bold-duotone" width="20" class="{{ $isSaOrgs ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:buildings-bold-duotone" width="20" class="{{ $isSaOrgs ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.organizations') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.organizations') }}
@@ -200,9 +210,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaAudit)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:document-text-bold-duotone" width="20" class="{{ $isSaAudit ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:document-text-bold-duotone" width="20" class="{{ $isSaAudit ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.audit_log') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.audit_log') }}
@@ -221,9 +231,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaUsers)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" class="{{ $isSaUsers ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" class="{{ $isSaUsers ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.users') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.users') }}
@@ -238,9 +248,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaSecurity)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:shield-keyhole-bold-duotone" width="20" class="{{ $isSaSecurity ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:shield-keyhole-bold-duotone" width="20" class="{{ $isSaSecurity ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.security') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.security') }}
@@ -260,9 +270,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaFiles)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:folder-with-files-bold-duotone" width="20" class="{{ $isSaFiles ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:folder-with-files-bold-duotone" width="20" class="{{ $isSaFiles ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.files') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.files') }}
@@ -276,9 +286,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaNotifications)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:bell-bold-duotone" width="20" class="{{ $isSaNotifications ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:bell-bold-duotone" width="20" class="{{ $isSaNotifications ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.notifications') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.notifications') }}
@@ -293,9 +303,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaMonitoring)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:monitor-bold-duotone" width="20" class="{{ $isSaMonitoring ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:monitor-bold-duotone" width="20" class="{{ $isSaMonitoring ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.monitoring') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.monitoring') }}
@@ -309,9 +319,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaBackups)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:database-bold-duotone" width="20" class="{{ $isSaBackups ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:database-bold-duotone" width="20" class="{{ $isSaBackups ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.backups') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.backups') }}
@@ -331,9 +341,9 @@
                 :class="sidebarOpen ? '' : 'justify-center'"
             >
                 @if($isSaSupport)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-indigo-400 shadow-[0_0_10px_rgb(129,140,248)]" x-show="sidebarOpen"></div>
+                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[#F2E3BB] shadow-[0_0_10px_rgba(242,227,187,0.6)]" x-show="sidebarOpen"></div>
                 @endif
-                <iconify-icon icon="solar:headphones-round-bold-duotone" width="20" class="{{ $isSaSupport ? 'text-indigo-300' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:headphones-round-bold-duotone" width="20" class="{{ $isSaSupport ? 'text-[#F2E3BB]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('super_admin.nav.support_sessions') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('super_admin.nav.support_sessions') }}
@@ -345,7 +355,7 @@
         <!-- Collapse Button -->
         <button
             type="button"
-            class="absolute -right-3 top-20 hidden md:flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-md ring-1 ring-slate-100 hover:text-indigo-600 transition-colors z-50"
+            class="absolute -right-3 top-20 hidden md:flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-md ring-1 ring-slate-100 hover:text-[#005F02] transition-colors z-50"
             @click="sidebarOpen = !sidebarOpen"
         >
             <iconify-icon :icon="sidebarOpen ? 'solar:alt-arrow-left-linear' : 'solar:alt-arrow-right-linear'" width="14"></iconify-icon>
@@ -369,8 +379,8 @@
             <!-- User dropdown -->
             <div x-data="{ open: false }" class="relative">
                 <button @click="open = !open" class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 hover:bg-slate-100 transition-colors">
-                    <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <span class="text-xs font-bold text-indigo-600">{{ mb_substr(auth()->user()->name, 0, 1) }}</span>
+                    <div class="h-8 w-8 rounded-full bg-[#F2E3BB]/30 flex items-center justify-center">
+                        <span class="text-xs font-bold text-[#005F02]">{{ mb_substr(auth()->user()->name, 0, 1) }}</span>
                     </div>
                     <span class="hidden sm:block text-sm font-medium text-slate-700">{{ auth()->user()->name }}</span>
                     <iconify-icon icon="solar:alt-arrow-down-linear" width="12" class="text-slate-400"></iconify-icon>
@@ -378,7 +388,7 @@
 
                 <div x-show="open" @click.away="open = false" x-transition
                      class="absolute right-0 mt-2 w-48 rounded-xl bg-white shadow-xl ring-1 ring-slate-200/60 py-1 z-50">
-                    <a href="{{ route('profile') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <a href="{{ route('platform-admin.profile') }}" class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:user-bold-duotone" width="16" class="text-slate-400"></iconify-icon>
                         {{ __('super_admin.nav.profile') }}
                     </a>
@@ -424,7 +434,7 @@
     </script>
     @livewireScripts
     {{-- Loading bar --}}
-    <div id="livewire-loading-bar" class="fixed top-0 left-0 right-0 h-0.5 z-[100] opacity-0 transition-opacity duration-150 pointer-events-none" style="background: #4f46e5; transform: scaleX(0); transform-origin: left;"></div>
+    <div id="livewire-loading-bar" class="fixed top-0 left-0 right-0 h-0.5 z-[100] opacity-0 transition-opacity duration-150 pointer-events-none" style="background: #005F02; transform: scaleX(0); transform-origin: left;"></div>
     <script>
         document.addEventListener('livewire:init', function() {
             var bar = document.getElementById('livewire-loading-bar');

@@ -14,6 +14,7 @@ use App\Models\RoleDefinition;
 use App\Models\Form;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
+use App\Models\TicketGroup;
 use App\Models\TicketPriority;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -52,8 +53,12 @@ class Settings extends Component
 
     // --- Category CRUD
     public string $newCategoryName = '';
+    public ?int $newCategoryDefaultGroupId = null;
+    public ?int $newCategoryDefaultFormId = null;
     public ?int $editingCategoryId = null;
     public string $editingCategoryName = '';
+    public ?int $editingCategoryDefaultGroupId = null;
+    public ?int $editingCategoryDefaultFormId = null;
 
     // --- Priority CRUD
     public string $newPriorityName = '';
@@ -66,6 +71,13 @@ class Settings extends Component
     public string $newFunctionName = '';
     public ?int $editingFunctionId = null;
     public string $editingFunctionName = '';
+
+    // --- Group CRUD
+    public string $newGroupName = '';
+    public ?string $newGroupColor = null;
+    public ?int $editingGroupId = null;
+    public string $editingGroupName = '';
+    public ?string $editingGroupColor = null;
 
     public string $dangerConfirmName = '';
 
@@ -321,6 +333,14 @@ class Settings extends Component
         }
 
         CacheHelper::invalidateRolePermissions($orgId);
+
+        OrganizationAuditService::log(
+            'settings.all_role_permissions_updated',
+            'role',
+            null,
+            ['roles_count' => count($this->rolePermissions)],
+        );
+
         $this->dispatch('toast', type: 'success', message: __('settings.permissions_saved'));
     }
 
@@ -554,6 +574,14 @@ class Settings extends Component
         $this->forms_default_expiry_days = $validated['forms_default_expiry_days'] ?? null;
 
         CacheHelper::invalidateAll($this->orgId());
+
+        OrganizationAuditService::log(
+            'settings.forms_updated',
+            'organization',
+            (int) $org->id,
+            ['fields' => array_keys($validated)],
+        );
+
         $this->dispatch('toast', type: 'success', message: __('settings.forms_settings_saved'));
     }
 
@@ -631,15 +659,27 @@ class Settings extends Component
             $suffix++;
         }
 
-        TicketCategory::query()->create([
+        $category = TicketCategory::query()->create([
             'organization_id' => $orgId,
             'name' => trim($this->newCategoryName),
             'slug' => $slug,
             'is_active' => true,
+            'default_ticket_group_id' => $this->newCategoryDefaultGroupId ?: null,
+            'default_form_id' => $this->newCategoryDefaultFormId ?: null,
         ]);
 
         $this->newCategoryName = '';
+        $this->newCategoryDefaultGroupId = null;
+        $this->newCategoryDefaultFormId = null;
         CacheHelper::invalidateCategories($orgId);
+
+        OrganizationAuditService::log(
+            'settings.category_created',
+            'ticket_category',
+            (int) $category->id,
+            ['name' => $category->name],
+        );
+
         $this->dispatch('toast', type: 'success', message: 'Catégorie créée.');
     }
 
@@ -653,12 +693,16 @@ class Settings extends Component
 
         $this->editingCategoryId = (int) $cat->id;
         $this->editingCategoryName = (string) $cat->name;
+        $this->editingCategoryDefaultGroupId = $cat->default_ticket_group_id;
+        $this->editingCategoryDefaultFormId = $cat->default_form_id;
     }
 
     public function cancelEditCategory(): void
     {
         $this->editingCategoryId = null;
         $this->editingCategoryName = '';
+        $this->editingCategoryDefaultGroupId = null;
+        $this->editingCategoryDefaultFormId = null;
     }
 
     public function updateCategory(): void
@@ -700,10 +744,14 @@ class Settings extends Component
         $cat->update([
             'name' => trim($this->editingCategoryName),
             'slug' => $slug,
+            'default_ticket_group_id' => $this->editingCategoryDefaultGroupId ?: null,
+            'default_form_id' => $this->editingCategoryDefaultFormId ?: null,
         ]);
 
         $this->editingCategoryId = null;
         $this->editingCategoryName = '';
+        $this->editingCategoryDefaultGroupId = null;
+        $this->editingCategoryDefaultFormId = null;
         CacheHelper::invalidateCategories($orgId);
         $this->dispatch('toast', type: 'success', message: 'Catégorie mise à jour.');
     }
@@ -743,6 +791,7 @@ class Settings extends Component
         }
 
         $deletedId = (int) $cat->id;
+        $deletedName = (string) $cat->name;
         $cat->delete();
 
         if ($this->default_category_id === $deletedId) {
@@ -754,6 +803,14 @@ class Settings extends Component
         }
 
         CacheHelper::invalidateCategories($orgId);
+
+        OrganizationAuditService::log(
+            'settings.category_deleted',
+            'ticket_category',
+            $deletedId,
+            ['name' => $deletedName],
+        );
+
         $this->dispatch('toast', type: 'success', message: 'Catégorie supprimée.');
     }
 
@@ -778,7 +835,7 @@ class Settings extends Component
             return;
         }
 
-        TicketPriority::query()->create([
+        $priority = TicketPriority::query()->create([
             'organization_id' => $orgId,
             'name' => trim($this->newPriorityName),
             'level' => (int) $this->newPriorityLevel,
@@ -788,6 +845,14 @@ class Settings extends Component
         $this->newPriorityName = '';
         $this->newPriorityLevel = null;
         CacheHelper::invalidatePriorities($orgId);
+
+        OrganizationAuditService::log(
+            'settings.priority_created',
+            'ticket_priority',
+            (int) $priority->id,
+            ['name' => $priority->name, 'level' => $priority->level],
+        );
+
         $this->dispatch('toast', type: 'success', message: 'Priorité créée.');
     }
 
@@ -888,6 +953,7 @@ class Settings extends Component
         }
 
         $deletedId = (int) $prio->id;
+        $deletedName = (string) $prio->name;
         $prio->delete();
 
         if ($this->default_priority_id === $deletedId) {
@@ -899,6 +965,14 @@ class Settings extends Component
         }
 
         CacheHelper::invalidatePriorities($orgId);
+
+        OrganizationAuditService::log(
+            'settings.priority_deleted',
+            'ticket_priority',
+            $deletedId,
+            ['name' => $deletedName],
+        );
+
         $this->dispatch('toast', type: 'success', message: 'Priorité supprimée.');
     }
 
@@ -957,10 +1031,19 @@ class Settings extends Component
             }
         }
 
+        $createdRoleName = trim($this->newRoleName);
         $this->newRoleName = '';
         $this->newRoleBaseSlug = '';
         $this->loadRolePermissions();
         CacheHelper::invalidateRolePermissions($orgId);
+
+        OrganizationAuditService::log(
+            'settings.role_created',
+            'role_definition',
+            null,
+            ['name' => $createdRoleName, 'slug' => $slug],
+        );
+
         $this->dispatch('toast', type: 'success', message: __('settings.role_created'));
     }
 
@@ -1078,6 +1161,7 @@ class Settings extends Component
         }
 
         $deletedSlug = $role->slug;
+        $deletedName = (string) $role->name;
 
         OrganizationRolePermission::query()
             ->where('organization_id', $orgId)
@@ -1092,6 +1176,14 @@ class Settings extends Component
 
         $this->loadRolePermissions();
         CacheHelper::invalidateRolePermissions($orgId);
+
+        OrganizationAuditService::log(
+            'settings.role_deleted',
+            'role_definition',
+            $id,
+            ['name' => $deletedName, 'slug' => $deletedSlug],
+        );
+
         $this->dispatch('toast', type: 'success', message: __('settings.role_deleted'));
     }
 
@@ -1106,7 +1198,7 @@ class Settings extends Component
                 return TicketCategory::query()
                     ->where('organization_id', $orgId)
                     ->orderBy('name')
-                    ->get(['id', 'name', 'is_active']);
+                    ->get(['id', 'name', 'slug', 'is_active', 'default_ticket_group_id', 'default_form_id']);
             })
             : collect();
 
@@ -1137,6 +1229,16 @@ class Settings extends Component
             })
             : collect();
 
+        $ticketGroups = $orgId
+            ? Cache::remember(CacheHelper::ticketGroupsKey($orgId, false), CacheHelper::TTL, function () use ($orgId) {
+                return TicketGroup::query()
+                    ->where('organization_id', $orgId)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'slug', 'color', 'is_active', 'sort_order']);
+            })
+            : collect();
+
         $roles = $orgId
             ? RoleDefinition::query()
                 ->where('organization_id', $orgId)
@@ -1156,6 +1258,14 @@ class Settings extends Component
             }
         }
 
+        $forms = $orgId
+            ? Form::query()
+                ->where('organization_id', $orgId)
+                ->where('status', \App\Enums\FormStatus::Published)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+
         $maintenanceStats = $orgId ? [
             'members' => $members->count(),
             'tickets' => Ticket::query()->where('organization_id', $orgId)->count(),
@@ -1170,6 +1280,8 @@ class Settings extends Component
             'categories' => $categories,
             'priorities' => $priorities,
             'organizationFunctions' => $organizationFunctions,
+            'ticketGroups' => $ticketGroups,
+            'forms' => $forms,
             'members' => $members,
             'roles' => $roles,
             'roleMemberCounts' => $roleMemberCounts,
@@ -1220,6 +1332,179 @@ class Settings extends Component
 
         \Illuminate\Support\Facades\Artisan::call('view:clear');
         $this->dispatch('toast', type: 'success', message: __('settings.view_cache_cleared'));
+    }
+
+    // ─── Group CRUD ────────────────────────────────────────────────────
+
+    public function createGroup(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $this->validate([
+            'newGroupName' => ['required', 'string', 'max:120'],
+            'newGroupColor' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $slug = \Illuminate\Support\Str::slug($this->newGroupName);
+        if ($slug === '') {
+            $slug = 'grp-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6));
+        }
+
+        $baseSlug = $slug;
+        $suffix = 2;
+        while (TicketGroup::query()->where('organization_id', $orgId)->where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $suffix;
+            $suffix++;
+        }
+
+        $sortOrder = (int) TicketGroup::query()->where('organization_id', $orgId)->max('sort_order') + 1;
+
+        $group = TicketGroup::query()->create([
+            'organization_id' => $orgId,
+            'name' => trim($this->newGroupName),
+            'slug' => $slug,
+            'color' => $this->newGroupColor ?: null,
+            'is_active' => true,
+            'sort_order' => $sortOrder,
+        ]);
+
+        $this->newGroupName = '';
+        $this->newGroupColor = null;
+        CacheHelper::invalidateTicketGroups($orgId);
+
+        OrganizationAuditService::log(
+            'settings.group_created',
+            'ticket_group',
+            (int) $group->id,
+            ['name' => $group->name],
+        );
+
+        $this->dispatch('toast', type: 'success', message: __('Groupe créé.'));
+    }
+
+    public function startEditGroup(int $id): void
+    {
+        $orgId = $this->orgId();
+        $group = TicketGroup::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $this->editingGroupId = (int) $group->id;
+        $this->editingGroupName = (string) $group->name;
+        $this->editingGroupColor = $group->color;
+    }
+
+    public function cancelEditGroup(): void
+    {
+        $this->editingGroupId = null;
+        $this->editingGroupName = '';
+        $this->editingGroupColor = null;
+    }
+
+    public function updateGroup(): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $this->validate([
+            'editingGroupName' => ['required', 'string', 'max:120'],
+            'editingGroupColor' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId || ! $this->editingGroupId, 403);
+
+        $group = TicketGroup::query()
+            ->where('organization_id', $orgId)
+            ->whereKey((int) $this->editingGroupId)
+            ->firstOrFail();
+
+        $slug = \Illuminate\Support\Str::slug($this->editingGroupName);
+        if ($slug === '') {
+            $slug = 'grp-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6));
+        }
+
+        $baseSlug = $slug;
+        $suffix = 2;
+        while (
+            TicketGroup::query()
+                ->where('organization_id', $orgId)
+                ->where('slug', $slug)
+                ->where('id', '!=', $group->id)
+                ->exists()
+        ) {
+            $slug = $baseSlug . '-' . $suffix;
+            $suffix++;
+        }
+
+        $group->update([
+            'name' => trim($this->editingGroupName),
+            'slug' => $slug,
+            'color' => $this->editingGroupColor ?: null,
+        ]);
+
+        $this->editingGroupId = null;
+        $this->editingGroupName = '';
+        $this->editingGroupColor = null;
+        CacheHelper::invalidateTicketGroups($orgId);
+        $this->dispatch('toast', type: 'success', message: __('Groupe mis à jour.'));
+    }
+
+    public function toggleGroup(int $id): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        $group = TicketGroup::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $group->update(['is_active' => ! $group->is_active]);
+        CacheHelper::invalidateTicketGroups($orgId);
+        $this->dispatch('toast', type: 'success', message: $group->is_active ? __('Groupe activé.') : __('Groupe désactivé.'));
+    }
+
+    public function deleteGroup(int $id): void
+    {
+        if (! $this->canManage) {
+            abort(403);
+        }
+
+        $orgId = $this->orgId();
+        $group = TicketGroup::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        // Unlink tickets from this group (don't delete them)
+        Ticket::query()
+            ->where('organization_id', $orgId)
+            ->where('ticket_group_id', $group->id)
+            ->update(['ticket_group_id' => null]);
+
+        $deletedId = (int) $group->id;
+        $deletedName = (string) $group->name;
+        $group->delete();
+        CacheHelper::invalidateTicketGroups($orgId);
+
+        OrganizationAuditService::log(
+            'settings.group_deleted',
+            'ticket_group',
+            $deletedId,
+            ['name' => $deletedName],
+        );
+
+        $this->dispatch('toast', type: 'success', message: __('Groupe supprimé.'));
     }
 
     // ─── Function (fonction métier) CRUD ───────────────────────────────────

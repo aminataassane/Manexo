@@ -26,11 +26,14 @@ class PlatformInvitationNotification extends Notification
         $roleName = $this->invitation->platform_role->label();
         $acceptUrl = route('platform-invitations.accept', ['token' => $this->invitation->token]);
         $appName = config('app.name', 'Manexo');
+        $logoPath = config('app.platform_creator.logo', 'assets/Logo(1).png');
+        $logoUrl = $logoPath ? asset($logoPath) : null;
 
         return (new MailMessage())
             ->subject(__('platform_invitations.email_subject'))
             ->view('emails.platform-invitation', [
                 'appName' => $appName,
+                'logoUrl' => $logoUrl,
                 'roleName' => $roleName,
                 'inviterName' => $inviterName,
                 'acceptUrl' => $acceptUrl,

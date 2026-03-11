@@ -48,7 +48,7 @@
                         <div>
                             <x-input-label for="category" :value="__('Catégorie *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                             <div class="mt-1">
-                                <x-select-input id="category" wire:model="ticket_category_id">
+                                <x-select-input id="category" wire:model.live="ticket_category_id">
                                     @foreach ($categories as $c)
                                         <option value="{{ (int) $c->id }}">{{ $c->name }}</option>
                                     @endforeach
@@ -69,6 +69,21 @@
                             <x-input-error :messages="$errors->get('ticket_priority_id')" class="mt-2" />
                         </div>
                     </div>
+
+                    @if(($ticketGroups ?? collect())->isNotEmpty())
+                    <div>
+                        <x-input-label for="ticket_group" :value="__('Groupe')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
+                        <div class="mt-1">
+                            <x-select-input id="ticket_group" wire:model="ticket_group_id">
+                                <option value="">{{ __('— Aucun groupe') }}</option>
+                                @foreach ($ticketGroups as $tg)
+                                    <option value="{{ (int) $tg->id }}">{{ $tg->name }}</option>
+                                @endforeach
+                            </x-select-input>
+                        </div>
+                        <x-input-error :messages="$errors->get('ticket_group_id')" class="mt-2" />
+                    </div>
+                    @endif
 
                     <div>
                         <x-input-label for="subject" :value="__('Sujet *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
@@ -113,7 +128,7 @@
                                 </div>
                             </div>
 
-                            <div class="mt-4 space-y-4">
+                            <div class="mt-4 grid grid-cols-6 gap-4">
                                 @foreach ($allFields->sortBy('sort_order') as $f)
                                     @php
                                         $key = (string) $f->key;
@@ -124,17 +139,23 @@
                                         $placeholder = $config['placeholder'] ?? $f->placeholder ?? '';
                                         $helpText = $config['help_text'] ?? $f->help_text ?? '';
                                         $options = $config['options'] ?? $f->options ?? [];
+                                        $layout = $config['layout'] ?? 'full';
+                                        $colSpan = match($layout) {
+                                            'half' => 'col-span-6 sm:col-span-3',
+                                            'third' => 'col-span-6 sm:col-span-2',
+                                            default => 'col-span-6',
+                                        };
                                     @endphp
 
                                     @if ($type === 'section')
-                                        <div class="pt-3 pb-1 border-t border-slate-100 first:border-t-0 first:pt-0">
+                                        <div class="col-span-6 pt-3 pb-1 border-t border-slate-100 first:border-t-0 first:pt-0">
                                             <div class="text-[13px] font-bold text-[#111827]">{{ $label }}</div>
                                             @if($helpText)
                                                 <p class="mt-0.5 text-[12px] text-[#6B7280]">{{ $helpText }}</p>
                                             @endif
                                         </div>
                                     @elseif ($type === 'textarea')
-                                        <div>
+                                        <div class="{{ $colSpan }}">
                                             <label class="block text-[11px] font-medium text-slate-700">
                                                 {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
                                             </label>
@@ -150,14 +171,27 @@
                                             <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
                                         </div>
                                     @elseif ($type === 'checkbox')
-                                        <div>
+                                        @php
+                                            $displayMode = $config['display_mode'] ?? 'list';
+                                            $optionsWrapClass = match($displayMode) {
+                                                'inline' => 'mt-1 flex flex-wrap gap-2',
+                                                'grid' => 'mt-1 grid grid-cols-2 gap-2',
+                                                'card' => 'mt-1 space-y-2',
+                                                default => 'mt-1 space-y-2',
+                                            };
+                                            $optionItemClass = match($displayMode) {
+                                                'card' => 'flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3.5 hover:border-[var(--accent)] cursor-pointer transition-colors shadow-sm',
+                                                default => 'flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 hover:border-[var(--accent)] cursor-pointer transition-colors',
+                                            };
+                                        @endphp
+                                        <div class="{{ $colSpan }}">
                                             <label class="block text-[11px] font-medium text-slate-700">
                                                 {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
                                             </label>
                                             @if(count((array) $options) > 0)
-                                                <div class="mt-1 space-y-2">
+                                                <div class="{{ $optionsWrapClass }}">
                                                     @foreach((array) $options as $opt)
-                                                        <label class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 hover:border-[var(--accent)] cursor-pointer transition-colors">
+                                                        <label class="{{ $optionItemClass }}">
                                                             <input type="checkbox" wire:model="custom.{{ $key }}" value="{{ $opt }}"
                                                                    class="text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]">
                                                             <span class="text-sm text-slate-700">{{ $opt }}</span>
@@ -178,14 +212,27 @@
                                             <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
                                         </div>
                                     @elseif (in_array($type, ['select', 'radio'], true))
-                                        <div>
+                                        @php
+                                            $displayMode = $config['display_mode'] ?? 'list';
+                                            $radioWrapClass = match($displayMode) {
+                                                'inline' => 'mt-1 flex flex-wrap gap-2',
+                                                'grid' => 'mt-1 grid grid-cols-2 gap-2',
+                                                'card' => 'mt-1 space-y-2',
+                                                default => 'mt-1 space-y-2',
+                                            };
+                                            $radioItemClass = match($displayMode) {
+                                                'card' => 'flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3.5 hover:border-[var(--accent)] cursor-pointer transition-colors shadow-sm',
+                                                default => 'flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 hover:border-[var(--accent)] cursor-pointer transition-colors',
+                                            };
+                                        @endphp
+                                        <div class="{{ $colSpan }}">
                                             <label class="block text-[11px] font-medium text-slate-700">
                                                 {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
                                             </label>
                                             @if($type === 'radio')
-                                                <div class="mt-1 space-y-2">
+                                                <div class="{{ $radioWrapClass }}">
                                                     @foreach((array) $options as $opt)
-                                                        <label class="flex items-center gap-3 rounded-xl border border-[#E5E7EB] bg-white px-3 py-2.5 hover:border-[var(--accent)] cursor-pointer transition-colors">
+                                                        <label class="{{ $radioItemClass }}">
                                                             <input type="radio" wire:model="custom.{{ $key }}" value="{{ $opt }}"
                                                                    class="text-[color:var(--accent)] focus:ring-[color:var(--accent-ring)]">
                                                             <span class="text-sm text-slate-700">{{ $opt }}</span>
@@ -208,20 +255,68 @@
                                             <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
                                         </div>
                                     @elseif ($type === 'file')
-                                        <div>
+                                        <div class="{{ $colSpan }}" x-data="{ dragging: false }">
                                             <label class="block text-[11px] font-medium text-slate-700">
                                                 {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
                                             </label>
-                                            <input type="file" wire:model="custom.{{ $key }}"
-                                                   class="mt-1 w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
-                                                   @if(!empty($config['accept'])) accept="{{ $config['accept'] }}" @endif>
-                                            @if($helpText)
-                                                <p class="mt-1 text-[11px] text-[#6B7280]">{{ $helpText }}</p>
+                                            <label
+                                                for="custom_file_{{ $key }}"
+                                                class="mt-1 flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-5 cursor-pointer transition-colors"
+                                                :class="dragging ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_6%,white)]' : 'border-[#D1D5DB] bg-[#F9FAFB] hover:border-[var(--accent)] hover:bg-white'"
+                                                x-on:dragover.prevent="dragging = true"
+                                                x-on:dragleave.prevent="dragging = false"
+                                                x-on:drop.prevent="dragging = false; $refs.fileInput_{{ $key }}.files = $event.dataTransfer.files; $refs.fileInput_{{ $key }}.dispatchEvent(new Event('change', { bubbles: true }))"
+                                            >
+                                                <div class="h-9 w-9 rounded-full flex items-center justify-center transition-colors"
+                                                     :class="dragging ? 'bg-[color-mix(in_srgb,var(--accent)_15%,white)] text-[var(--accent)]' : 'bg-[#E5E7EB]/60 text-[#6B7280]'">
+                                                    <iconify-icon icon="solar:upload-linear" width="20"></iconify-icon>
+                                                </div>
+                                                <span class="text-[12px] font-medium text-[#111827]">{{ __('Cliquer ou glisser un fichier') }}</span>
+                                                @if($helpText)
+                                                    <span class="text-[11px] text-[#6B7280]">{{ $helpText }}</span>
+                                                @elseif(!empty($config['accept']))
+                                                    <span class="text-[11px] text-[#6B7280]">{{ $config['accept'] }}</span>
+                                                @endif
+                                            </label>
+                                            <input
+                                                id="custom_file_{{ $key }}"
+                                                x-ref="fileInput_{{ $key }}"
+                                                type="file"
+                                                wire:model="custom.{{ $key }}"
+                                                class="hidden"
+                                                @if(!empty($config['accept'])) accept="{{ $config['accept'] }}" @endif
+                                            />
+
+                                            @if(!empty($this->custom[$key]))
+                                                @php $uploadedFile = $this->custom[$key]; @endphp
+                                                <div class="mt-2 flex items-center justify-between gap-3 rounded-lg border border-[#E5E7EB] bg-white px-3 py-2">
+                                                    <div class="min-w-0 flex items-center gap-2">
+                                                        <div class="h-7 w-7 rounded-md border border-[#E5E7EB] bg-[#F9FAFB] flex items-center justify-center text-[#6B7280] shrink-0">
+                                                            <iconify-icon icon="solar:file-linear" width="14"></iconify-icon>
+                                                        </div>
+                                                        <div class="min-w-0">
+                                                            <div class="text-[12px] font-semibold text-[#111827] truncate">
+                                                                {{ method_exists($uploadedFile, 'getClientOriginalName') ? $uploadedFile->getClientOriginalName() : __('Fichier') }}
+                                                            </div>
+                                                            <div class="text-[11px] text-[#6B7280]">
+                                                                @if(method_exists($uploadedFile, 'getSize') && $uploadedFile->getSize())
+                                                                    {{ number_format($uploadedFile->getSize() / 1024, 0) }} KB
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button"
+                                                            class="h-7 w-7 rounded-md border border-[#E5E7EB] bg-white hover:bg-red-50 hover:border-red-200 text-[#6B7280] hover:text-red-700 transition flex items-center justify-center"
+                                                            wire:click="$set('custom.{{ $key }}', null)">
+                                                        <iconify-icon icon="solar:trash-bin-minimalistic-linear" width="14"></iconify-icon>
+                                                    </button>
+                                                </div>
                                             @endif
+
                                             <x-input-error :messages="$errors->get('custom.'.$key)" class="mt-2" />
                                         </div>
                                     @else
-                                        <div>
+                                        <div class="{{ $colSpan }}">
                                             <label class="block text-[11px] font-medium text-slate-700">
                                                 {{ $label }}@if($required) <span class="text-red-600">*</span>@endif
                                             </label>

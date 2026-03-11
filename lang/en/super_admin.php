@@ -28,6 +28,12 @@ return [
         'support_sessions' => 'Support Sessions',
     ],
 
+    // Profile
+    'profile' => [
+        'title' => 'My Profile',
+        'subtitle' => 'Manage your personal information and security settings.',
+    ],
+
     // Dashboard
     'dashboard' => [
         'title' => 'Dashboard',
@@ -76,6 +82,9 @@ return [
     'organizations' => [
         'title' => 'Organizations',
         'subtitle' => 'Manage all platform organizations.',
+        'stats_total_members' => 'Total members',
+        'stats_total_tickets' => 'Total tickets',
+        'stats_created_30d' => 'Created (30d)',
         'search_placeholder' => 'Search by name or slug...',
         'all_statuses' => 'All statuses',
         'status_active' => 'Active',
@@ -177,6 +186,7 @@ return [
         'action_platform_invitation_sent' => 'Platform invitation sent',
         'action_platform_invitation_accepted' => 'Platform invitation accepted',
         'action_platform_invitation_cancelled' => 'Platform invitation cancelled',
+        'action_platform_role_changed' => 'Platform role changed',
         'action_platform_role_revoked' => 'Platform role revoked',
     ],
 
@@ -267,6 +277,7 @@ return [
         'col_date' => 'Date',
         'empty_orgs' => 'No storage data.',
         'empty_files' => 'No recent files.',
+        'top_extensions' => 'File types',
     ],
 
     // Notifications
@@ -319,13 +330,24 @@ return [
     'backups' => [
         'title' => 'Backups',
         'subtitle' => 'Database backup management.',
-        'create' => 'Create backup',
+        'create' => 'New backup',
+        'list_title' => 'Backup list',
+        'total_backups' => 'Total backups',
+        'total_size' => 'Total size',
+        'encrypted' => 'Encrypted',
+        'not_encrypted' => 'Not encrypted',
+        'latest' => 'Latest backup',
+        'status' => 'Status',
         'col_filename' => 'Filename',
         'col_size' => 'Size',
         'col_date' => 'Date',
         'col_actions' => 'Actions',
         'download' => 'Download',
+        'delete' => 'Delete',
+        'confirm_delete' => 'Are you sure you want to delete this backup?',
         'created' => 'Backup ":filename" has been created.',
+        'deleted' => 'Backup ":filename" has been deleted.',
+        'delete_failed' => 'Unable to delete the backup.',
         'failed' => 'Backup creation failed: :error',
         'empty' => 'No backups available.',
     ],
