@@ -4,6 +4,7 @@ namespace App\Livewire\UserForms;
 
 use App\Enums\FormAssignmentStatus;
 use App\Events\UserNotificationReceived;
+use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\FormAssignment;
 use App\Models\FormResponse;
@@ -23,6 +24,10 @@ class Fill extends Component
     use WithFileUploads;
 
     public FormAssignment $assignment;
+
+    /** Champs chargés côté client (wire:init) pour un premier rendu rapide. */
+    public bool $formReady = false;
+
     public array $answers = [];
     public array $fileUploads = [];
 
@@ -35,7 +40,7 @@ class Fill extends Component
         $hasAccess = FormAssignment::query()
             ->whereKey($assignment->id)
             ->forUser($userId, $orgId)
-            ->whereHas('form', fn($q) => $q->where('organization_id', $orgId))
+            ->where('organization_id', $orgId)
             ->exists();
 
         abort_if(! $hasAccess, 403);
@@ -43,9 +48,16 @@ class Fill extends Component
         abort_if($assignment->isExpired(), 403, __('pages.forms.form_expired'));
 
         $this->assignment = $assignment;
+    }
+
+    public function loadFormFields(): void
+    {
+        if ($this->formReady) {
+            return;
+        }
+
         $this->assignment->loadMissing('form.fields');
 
-        // Pre-populate answers
         foreach ($this->assignment->form->fields as $field) {
             if ($field->type === 'section') {
                 continue;
@@ -54,12 +66,18 @@ class Fill extends Component
                 ? (is_array($field->options) && count($field->options) > 0 ? [] : false)
                 : '';
         }
+
+        $this->formReady = true;
     }
 
     public function submit(): void
     {
         $user = Auth::user();
         abort_if(! $user, 403);
+
+        if (! $this->formReady) {
+            $this->loadFormFields();
+        }
 
         $this->assignment->refresh();
         abort_if($this->assignment->isExpired(), 403, __('pages.forms.form_expired'));
@@ -195,6 +213,8 @@ class Fill extends Component
             ));
             event(new UserNotificationReceived(userId: $creator->id, notificationType: 'form_response'));
         }
+
+        CacheHelper::invalidateUserFormsCache($orgId, (int) $user->id);
 
         session()->flash('form_success', __('pages.forms.response_saved'));
         $this->redirectRoute('forms.index');

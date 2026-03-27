@@ -145,7 +145,7 @@
                                 : __('A démarré une conversation');
                             $isDiscussionInvite = true;
                             $threadId = $data['thread_id'] ?? null;
-                            $notifUrl = $threadId ? route('discussions.index', ['ticket' => 'd-' . $threadId]) : '#';
+                            $notifUrl = $threadId ? route('discussions.index', ['discussionParam' => 'd-' . $threadId]) : '#';
                         } elseif ($nType === 'discussion_new_message') {
                             $senderName = $data['sender_name'] ?? '—';
                             $threadName = $data['thread_name'] ?? __('Discussion');
@@ -154,7 +154,7 @@
                             $isDiscussionMessage = true;
                             $threadId = $data['thread_id'] ?? null;
                             $messageId = $data['message_id'] ?? null;
-                            $notifUrl = $threadId ? route('discussions.index', ['ticket' => 'd-' . $threadId]) : '#';
+                            $notifUrl = $threadId ? route('discussions.index', ['discussionParam' => 'd-' . $threadId]) : '#';
                         } elseif ($nType === 'organization_invitation') {
                             $senderName = $data['inviter_name'] ?? '—';
                             $subject = $data['organization_name'] ?? __('Organisation');

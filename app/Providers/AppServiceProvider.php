@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Enums\Permission;
 use App\Http\Middleware\EnsureOrganizationIsSelected;
 use App\Models\DiscussionThread;
 use App\Models\Form;
@@ -15,11 +16,11 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Broadcast;
-use App\Enums\Permission;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
@@ -44,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
         Password::defaults(fn () => Password::min(8)->letters()->mixedCase()->numbers());
 
         Broadcast::routes(['middleware' => ['web', 'auth']]);
+
+        // Disable Vite preload tags to avoid "preloaded but not used" browser warnings
+        Vite::usePreloadTagAttributes(false);
 
         Paginator::defaultView('vendor.pagination.manexo');
 
@@ -73,32 +77,31 @@ class AppServiceProvider extends ServiceProvider
                 Permission::FormsManage,
                 Permission::FormsAssign,
                 Permission::FormsViewResponses,
+                Permission::SettingsManageApi,
+                Permission::SettingsManageWebhooks,
             ]);
         });
 
         // Rate limiters
-        RateLimiter::for('password-reset', fn (Request $request) =>
-            Limit::perMinute(3)->by($request->ip())
+        RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinute(3)->by($request->ip())
         );
 
-        RateLimiter::for('ticket-create', fn (Request $request) =>
-            Limit::perMinute(10)->by($request->user()?->id ?: $request->ip())
+        RateLimiter::for('ticket-create', fn (Request $request) => Limit::perMinute(10)->by($request->user()?->id ?: $request->ip())
         );
 
-        RateLimiter::for('message-send', fn (Request $request) =>
-            Limit::perMinute(30)->by($request->user()?->id ?: $request->ip())
+        RateLimiter::for('message-send', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->id ?: $request->ip())
         );
 
-        RateLimiter::for('file-upload', fn (Request $request) =>
-            Limit::perMinute(20)->by($request->user()?->id ?: $request->ip())
+        RateLimiter::for('file-upload', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->id ?: $request->ip())
         );
 
-        RateLimiter::for('platform-login', fn (Request $request) =>
-            Limit::perMinute(5)->by($request->ip())
+        RateLimiter::for('platform-login', fn (Request $request) => Limit::perMinute(5)->by($request->ip())
         );
 
-        RateLimiter::for('admin-actions', fn (Request $request) =>
-            Limit::perMinute(30)->by($request->user()?->id ?: $request->ip())
+        RateLimiter::for('admin-actions', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->id ?: $request->ip())
+        );
+
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip())
         );
     }
 }

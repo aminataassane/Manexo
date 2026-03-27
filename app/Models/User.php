@@ -12,16 +12,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, MustVerifyEmailTrait, HasOrganizationPermissions;
+    use HasApiTokens, HasFactory, HasOrganizationPermissions, MustVerifyEmailTrait, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -167,7 +168,8 @@ class User extends Authenticatable implements MustVerifyEmail
         $name = $this->attributes['name'] ?? '';
         $first = Str::before($name, ' ');
         $slug = Str::slug($first);
-        return $slug !== '' ? $slug : 'user' . ($this->attributes['id'] ?? 0);
+
+        return $slug !== '' ? $slug : 'user'.($this->attributes['id'] ?? 0);
     }
 
     public function isSuperAdmin(): bool

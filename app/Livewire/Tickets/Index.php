@@ -7,19 +7,21 @@ use App\Enums\TicketMessageType;
 use App\Enums\TicketStatus;
 use App\Helpers\CacheHelper;
 use App\Models\Ticket;
+use App\Models\TicketChecklistItem;
 use App\Models\TicketGroup;
 use App\Models\TicketMessage;
-use App\Services\OrganizationAuditService;
-use App\Models\TicketChecklistItem;
 use App\Models\TicketPriority;
+use App\Services\AutomationService;
+use App\Services\OrganizationAuditService;
+use App\Services\SlaService;
+use App\Notifications\TicketReopenedNotification;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Livewire\Attributes\Url;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -29,6 +31,22 @@ class Index extends Component
 {
     use WithPagination;
 
+    /** Fast path: render list directly without extra init request. */
+    public int $loadStage = 2;
+
+    public function loadPage(): void
+    {
+        $this->loadTickets();
+    }
+
+    public function loadTickets(): void
+    {
+        if ($this->loadStage >= 2) {
+            return;
+        }
+        $this->loadStage = 2;
+    }
+
     public function mount(): void
     {
         $user = Auth::user();
@@ -36,6 +54,9 @@ class Index extends Component
 
         $orgId = (int) session('current_organization_id');
         abort_if(! $orgId, 403);
+
+        // Keep stage loaded to avoid wire:init round-trip latency.
+        $this->loadStage = 2;
     }
 
     public function getListeners(): array
@@ -82,6 +103,7 @@ class Index extends Component
     public int $perPage = 10;
 
     public array $selected = [];
+
     public bool $selectAll = false;
 
     public function updatedSearch(): void
@@ -139,6 +161,7 @@ class Index extends Component
     {
         if (! $value) {
             $this->selected = [];
+
             return;
         }
 
@@ -147,6 +170,7 @@ class Index extends Component
 
         if (! $user || ! $orgId) {
             $this->selected = [];
+
             return;
         }
 
@@ -155,7 +179,7 @@ class Index extends Component
             ->orderByDesc('updated_at')
             ->limit(50)
             ->pluck('id')
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->all();
     }
 
@@ -173,6 +197,16 @@ class Index extends Component
 
     public function moveTicket(int $ticketId, string $status): void
     {
+        $this->handleMoveTicket($ticketId, $status);
+    }
+
+    private function handleMoveTicket(int $ticketId, string $status): void
+    {
+        $this->processMoveTicket($ticketId, $status);
+    }
+
+    private function processMoveTicket(int $ticketId, string $status): void
+    {
         $user = Auth::user();
         if (! $user instanceof \App\Models\User) {
             abort(403);
@@ -183,7 +217,7 @@ class Index extends Component
             abort(403);
         }
 
-        $allowed = array_map(fn(TicketStatus $s) => $s->value, TicketStatus::cases());
+        $allowed = array_map(fn (TicketStatus $s) => $s->value, TicketStatus::cases());
         if (! in_array($status, $allowed, true)) {
             return;
         }
@@ -221,8 +255,8 @@ class Index extends Component
             'type' => TicketMessageType::System,
             'body' => __('tickets.status_changed', [
                 'actor' => $user->name,
-                'old' => __('tickets.status.' . $oldStatus),
-                'new' => __('tickets.status.' . $status),
+                'old' => __('tickets.status.'.$oldStatus),
+                'new' => __('tickets.status.'.$status),
             ]),
             'meta' => ['action' => 'status_changed', 'old' => $oldStatus, 'new' => $status],
         ]);
@@ -234,9 +268,50 @@ class Index extends Component
             ['from' => $oldStatus, 'to' => $status],
         );
 
+        // SLA tracking
+        $oldStatusEnum = TicketStatus::tryFrom($oldStatus);
+        if ($newStatusEnum === TicketStatus::Pending) {
+            SlaService::pause($ticket);
+        } elseif ($oldStatusEnum === TicketStatus::Pending && $newStatusEnum !== TicketStatus::Pending) {
+            SlaService::resume($ticket);
+        }
+        if (in_array($newStatusEnum, [TicketStatus::Resolved, TicketStatus::Closed], true)) {
+            SlaService::recordResolution($ticket);
+        }
+        if ($oldStatusEnum && in_array($oldStatusEnum, [TicketStatus::Resolved, TicketStatus::Closed], true)
+            && ! in_array($newStatusEnum, [TicketStatus::Resolved, TicketStatus::Closed], true)) {
+            SlaService::onReopened($ticket);
+            $this->notifyTicketReopened($ticket, (int) $user->id, $user->name);
+        }
+
         CacheHelper::invalidateDashboard($orgId);
         CacheHelper::invalidateReports($orgId);
         CacheHelper::invalidateTicketCounts($orgId);
+
+        AutomationService::evaluate($ticket, 'status_changed');
+    }
+
+    private function notifyTicketReopened(Ticket $ticket, int $actorId, string $actorName): void
+    {
+        $notifyUserIds = collect([(int) $ticket->created_by])
+            ->merge($ticket->assignees()->pluck('users.id'))
+            ->merge($ticket->participants()->pluck('users.id'))
+            ->filter()
+            ->unique()
+            ->diff([$actorId])
+            ->values();
+        if ($notifyUserIds->isEmpty()) {
+            return;
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $recipients */
+        $recipients = \App\Models\User::query()->whereIn('id', $notifyUserIds)->get();
+        foreach ($recipients as $recipient) {
+            if ($ticket->hasDiscussionAccess((int) $recipient->id)) {
+                $recipient->notify(new TicketReopenedNotification($ticket, $actorId, $actorName));
+                event(new \App\Events\UserNotificationReceived((int) $recipient->id, 'ticket_reopened'));
+            }
+        }
     }
 
     public function setView(string $key): void
@@ -338,6 +413,17 @@ class Index extends Component
     /** @return \Illuminate\Contracts\View\View */
     public function render()
     {
+        return $this->renderTicketsIndex();
+    }
+
+    /** @return \Illuminate\Contracts\View\View */
+    private function renderTicketsIndex()
+    {
+        return $this->buildTicketsIndexView();
+    }
+
+    private function buildTicketsIndexView()
+    {
         $user = Auth::user();
         if (! $user instanceof \App\Models\User) {
             $user = null;
@@ -350,135 +436,14 @@ class Index extends Component
 
         $isStaff = $user ? $user->hasPermission(Permission::TicketsViewAll) : false;
 
-        $query = Ticket::query()
-            ->with(['category', 'priority', 'group', 'creator', 'assignees', 'formResponse'])
-            ->where('tickets.organization_id', $orgId);
-
-        // Box: Corbeille (soft-deleted) ou Actifs / Archivés
-        if ($this->box === 'trash') {
-            if (! $isStaff || ! $orgId) {
-                $query->whereRaw('1 = 0');
-            } else {
-                $query->onlyTrashed();
-            }
-        } else {
-            if ($this->box === 'archived') {
-                $query->whereNotNull('tickets.archived_at');
-            } else {
-                $query->whereNull('tickets.archived_at');
-            }
-            if (! $isStaff && $user) {
-                $query->where(function ($q) use ($user) {
-                    $q->where('tickets.created_by', $user->id)
-                        ->orWhereHas('assignees', fn($a) => $a->where('users.id', $user->id))
-                        ->orWhereHas('participants', fn($p) => $p->where('users.id', $user->id));
-                });
-            }
-        }
-
-        // Left menu "views" (ignored in trash box)
         $viewKey = $this->viewKey === 'my' ? 'assigned_to_me' : $this->viewKey;
 
-        if ($this->box !== 'trash') {
-            if ($viewKey === 'created_by_me') {
-                if ($user) {
-                    $query->where('tickets.created_by', $user->id);
-                }
-            } elseif ($viewKey === 'assigned_to_me') {
-                if ($user) {
-                    $query->where(function ($q) use ($user) {
-                        $q->whereHas('assignees', fn($a) => $a->where('users.id', $user->id))
-                            ->orWhereHas('participants', fn($p) => $p->where('users.id', $user->id));
-                    });
-                }
-            } elseif ($viewKey === 'past_due') {
-                $query
-                    ->whereIn('tickets.status', ['open', 'in_progress', 'pending'])
-                    ->where('tickets.updated_at', '<', Carbon::now()->subDays(7));
-            } elseif ($viewKey === 'high_priority') {
-                $query->whereHas('priority', fn($p) => $p->where('level', '>=', 3));
-            } elseif ($viewKey === 'unassigned') {
-                $query->whereDoesntHave('assignees');
-            }
+        $stageData = $this->buildStageTicketData($user, (int) $orgId, $isStaff, (string) $viewKey);
+        $tickets = $stageData['tickets'];
+        $kanbanTickets = $stageData['kanbanTickets'];
+        $statusColumns = $stageData['statusColumns'];
 
-            // Filtre par source : formulaire ou plateforme
-            if ($this->source === 'from_form') {
-                $query->whereHas('formResponse');
-            } elseif ($this->source === 'from_platform') {
-                $query->whereDoesntHave('formResponse');
-            }
-
-            // Filtre par groupe
-            if ($this->group === 'none') {
-                $query->whereNull('tickets.ticket_group_id');
-            } elseif ($this->group !== '') {
-                $query->where('tickets.ticket_group_id', (int) $this->group);
-            }
-        }
-
-        $search = trim($this->search);
-        if ($search !== '') {
-            $searchId = preg_replace('/[^0-9]/', '', $search);
-
-            $query->where(function ($q) use ($search, $searchId) {
-                if ($searchId !== '') {
-                    $q->orWhere('tickets.id', (int) $searchId);
-                }
-
-                $q->orWhere('tickets.subject', 'ilike', "%{$search}%")
-                    ->orWhere('tickets.public_id', 'ilike', "%{$search}%")
-                    ->orWhereHas('creator', fn($u) => $u->where('name', 'ilike', "%{$search}%"))
-                    ->orWhereHas('assignees', fn($u) => $u->where('name', 'ilike', "%{$search}%"));
-            });
-        }
-
-        if ($this->status !== '') {
-            $query->where('tickets.status', $this->status);
-        }
-
-        if ($this->priority !== '') {
-            $query->where('tickets.ticket_priority_id', (int) $this->priority);
-        }
-
-        if ($this->assignee !== '') {
-            if ($this->assignee === 'unassigned') {
-                $query->whereDoesntHave('assignees');
-            } else {
-                $query->whereHas('assignees', fn($a) => $a->where('users.id', (int) $this->assignee));
-            }
-        }
-
-        $tickets = ($user && $orgId)
-            ? $query->orderByDesc($this->box === 'trash' ? 'tickets.deleted_at' : 'tickets.updated_at')->paginate($this->perPage)
-            : new LengthAwarePaginator([], 0, $this->perPage);
-
-        $statusColumns = [
-            TicketStatus::Open->value,
-            TicketStatus::InProgress->value,
-            TicketStatus::Pending->value,
-            TicketStatus::Resolved->value,
-            TicketStatus::Closed->value,
-        ];
-
-        $kanbanTickets = [];
-        if ($this->displayMode === 'kanban' && $user && $orgId) {
-            $rows = (clone $query)
-                ->orderByDesc('tickets.updated_at')
-                ->limit(300)
-                ->get();
-
-            foreach ($statusColumns as $s) {
-                $kanbanTickets[$s] = [];
-            }
-
-            foreach ($rows as $t) {
-                $key = $t->status?->value ?? 'open';
-                if (! isset($kanbanTickets[$key])) {
-                    $kanbanTickets[$key] = [];
-                }
-                $kanbanTickets[$key][] = $t;
-            }
-        }
+        // ── Sidebar data (always loaded, even at stage 1) ──
 
         $priorities = $orgId
             ? Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
@@ -517,20 +482,20 @@ class Index extends Component
             $countsRow = Cache::remember($countsCacheKey, CacheHelper::TTL, function () use ($orgId, $user, $isStaff, $canViewTrash) {
                 $memberFilter = $isStaff
                     ? ''
-                    : " and (t2.created_by = ? or exists (select 1 from ticket_assignees ta2 where ta2.ticket_id = t2.id and ta2.user_id = ?) or exists (select 1 from ticket_participants tp2 where tp2.ticket_id = t2.id and tp2.user_id = ?))";
+                    : ' and (t2.created_by = ? or exists (select 1 from ticket_assignees ta2 where ta2.ticket_id = t2.id and ta2.user_id = ?) or exists (select 1 from ticket_participants tp2 where tp2.ticket_id = t2.id and tp2.user_id = ?))';
                 $archivedBindings = $isStaff ? [$orgId] : [$orgId, $user->id, $user->id, $user->id];
 
                 $q = Ticket::query()
                     ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
                     ->where('tickets.organization_id', $orgId)
                     ->whereNull('tickets.archived_at')
-                    ->when(! $isStaff, fn($q) => $q->where(function ($sub) use ($user) {
+                    ->when(! $isStaff, fn ($q) => $q->where(function ($sub) use ($user) {
                         $sub->where('tickets.created_by', $user->id)
                             ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$user->id])
                             ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$user->id]);
                     }))
-                    ->when($this->group !== '' && $this->group !== 'none', fn($q) => $q->where('tickets.ticket_group_id', (int) $this->group))
-                    ->when($this->group === 'none', fn($q) => $q->whereNull('tickets.ticket_group_id'))
+                    ->when($this->group !== '' && $this->group !== 'none', fn ($q) => $q->where('tickets.ticket_group_id', (int) $this->group))
+                    ->when($this->group === 'none', fn ($q) => $q->whereNull('tickets.ticket_group_id'))
                     // Stats cards
                     ->selectRaw("count(*) filter (where tickets.status = 'open') as open_count")
                     ->selectRaw("count(*) filter (where tickets.status = 'in_progress') as in_progress_count")
@@ -538,19 +503,19 @@ class Index extends Component
                     ->selectRaw("count(*) filter (where tickets.status in ('resolved','closed') and tickets.updated_at >= ?) as resolved_7d_count", [Carbon::now()->subDays(7)])
                     // View counts
                     ->selectRaw('count(*) as all_count')
-                    ->selectRaw("count(*) filter (where tickets.created_by = ?) as created_by_me_count", [$user->id])
-                    ->selectRaw("count(*) filter (where exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?) or exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)) as assigned_to_me_count", [$user->id, $user->id])
+                    ->selectRaw('count(*) filter (where tickets.created_by = ?) as created_by_me_count', [$user->id])
+                    ->selectRaw('count(*) filter (where exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?) or exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)) as assigned_to_me_count', [$user->id, $user->id])
                     ->selectRaw("count(*) filter (where tickets.status in ('open','in_progress','pending') and tickets.updated_at < ?) as past_due_count", [Carbon::now()->subDays(7)])
-                    ->selectRaw("count(*) filter (where tp.level >= 3) as high_priority_count")
-                    ->selectRaw("count(*) filter (where not exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id)) as unassigned_count")
+                    ->selectRaw('count(*) filter (where tp.level >= 3) as high_priority_count')
+                    ->selectRaw('count(*) filter (where not exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id)) as unassigned_count')
                     // Source counts
-                    ->selectRaw("count(*) filter (where exists (select 1 from form_responses fr where fr.ticket_id = tickets.id)) as from_form_count")
-                    ->selectRaw("count(*) filter (where not exists (select 1 from form_responses fr where fr.ticket_id = tickets.id)) as from_platform_count")
+                    ->selectRaw('count(*) filter (where exists (select 1 from form_responses fr where fr.ticket_id = tickets.id)) as from_form_count')
+                    ->selectRaw('count(*) filter (where not exists (select 1 from form_responses fr where fr.ticket_id = tickets.id)) as from_platform_count')
                     // Archived + trash as subqueries
                     ->selectRaw("(select count(*) from tickets t2 where t2.organization_id = ? and t2.archived_at is not null{$memberFilter}) as archived_count", $archivedBindings);
 
                 if ($canViewTrash) {
-                    $q->selectRaw("(select count(*) from tickets t3 where t3.organization_id = ? and t3.deleted_at is not null) as trash_count", [$orgId]);
+                    $q->selectRaw('(select count(*) from tickets t3 where t3.organization_id = ? and t3.deleted_at is not null) as trash_count', [$orgId]);
                 }
 
                 return $q->first();
@@ -577,21 +542,25 @@ class Index extends Component
             'from_platform' => (int) ($countsRow?->from_platform_count ?? 0),
         ];
 
-        // Per-group sidebar counts (single lightweight GROUP BY)
-        $groupCounts = ($user && $orgId && $ticketGroups->isNotEmpty())
-            ? Ticket::query()
-                ->where('tickets.organization_id', $orgId)
-                ->whereNull('tickets.archived_at')
-                ->whereNotNull('tickets.ticket_group_id')
-                ->when(! $isStaff, fn($q) => $q->where(function ($sub) use ($user) {
-                    $sub->where('tickets.created_by', $user->id)
-                        ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$user->id])
-                        ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$user->id]);
-                }))
-                ->selectRaw('ticket_group_id, count(*) as cnt')
-                ->groupBy('ticket_group_id')
-                ->pluck('cnt', 'ticket_group_id')
-            : collect();
+        // Per-group sidebar counts (single lightweight GROUP BY, cached)
+        $groupCounts = collect();
+        if ($user && $orgId && $ticketGroups->isNotEmpty()) {
+            $groupCountsCacheKey = "ticket_group_counts:{$orgId}:".($isStaff ? 'staff' : $user->id);
+            $groupCounts = Cache::remember($groupCountsCacheKey, 300, function () use ($orgId, $isStaff, $user) {
+                return Ticket::query()
+                    ->where('tickets.organization_id', $orgId)
+                    ->whereNull('tickets.archived_at')
+                    ->whereNotNull('tickets.ticket_group_id')
+                    ->when(! $isStaff, fn ($q) => $q->where(function ($sub) use ($user) {
+                        $sub->where('tickets.created_by', $user->id)
+                            ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$user->id])
+                            ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$user->id]);
+                    }))
+                    ->selectRaw('ticket_group_id, count(*) as cnt')
+                    ->groupBy('ticket_group_id')
+                    ->pluck('cnt', 'ticket_group_id');
+            });
+        }
 
         // Active group model for header display
         $activeGroup = null;
@@ -615,6 +584,7 @@ class Index extends Component
         }
 
         return view('livewire.tickets.index', [
+            'loadStage' => $this->loadStage,
             'org' => $org,
             'role' => $role,
             'isStaff' => $isStaff,
@@ -634,5 +604,173 @@ class Index extends Component
             'activeGroup' => $activeGroup,
             'checklistProgress' => $checklistProgress,
         ]);
+    }
+
+    private function buildStageTicketData(?\App\Models\User $user, int $orgId, bool $isStaff, string $viewKey): array
+    {
+        if ($this->loadStage < 2) {
+            return [
+                'tickets' => new LengthAwarePaginator([], 0, $this->perPage),
+                'kanbanTickets' => [],
+                'statusColumns' => [],
+            ];
+        }
+
+        $query = Ticket::query()
+            ->select([
+                'tickets.id',
+                'tickets.public_id',
+                'tickets.organization_id',
+                'tickets.created_by',
+                'tickets.ticket_category_id',
+                'tickets.ticket_priority_id',
+                'tickets.ticket_group_id',
+                'tickets.assigned_to',
+                'tickets.status',
+                'tickets.subject',
+                'tickets.description',
+                'tickets.start_date',
+                'tickets.due_date',
+                'tickets.created_at',
+                'tickets.updated_at',
+                'tickets.archived_at',
+                'tickets.deleted_at',
+            ])
+            ->with([
+                'category:id,name',
+                'priority:id,name,level',
+                'group:id,name,color',
+                'creator:id,name',
+                'assignees:id,name',
+            ])
+            ->where('tickets.organization_id', $orgId);
+        $query = $this->applyTicketScopeFilters($query, $user, $isStaff, $viewKey);
+        $query = $this->applyTicketSearchAndAttributeFilters($query);
+
+        $tickets = ($user && $orgId)
+            ? $query->orderByDesc($this->box === 'trash' ? 'tickets.deleted_at' : 'tickets.updated_at')->paginate($this->perPage)
+            : new LengthAwarePaginator([], 0, $this->perPage);
+
+        $statusColumns = [
+            TicketStatus::Open->value,
+            TicketStatus::InProgress->value,
+            TicketStatus::Pending->value,
+            TicketStatus::Resolved->value,
+            TicketStatus::Closed->value,
+        ];
+
+        $kanbanTickets = $this->buildKanbanTickets($query, $statusColumns, (bool) $user, $orgId);
+
+        return compact('tickets', 'kanbanTickets', 'statusColumns');
+    }
+
+    private function applyTicketScopeFilters($query, ?\App\Models\User $user, bool $isStaff, string $viewKey)
+    {
+        if ($this->box === 'trash') {
+            if (! $isStaff) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $query->onlyTrashed();
+        }
+
+        if ($this->box === 'archived') {
+            $query->whereNotNull('tickets.archived_at');
+        } else {
+            $query->whereNull('tickets.archived_at');
+        }
+        if (! $isStaff && $user) {
+            $query->where(function ($q) use ($user) {
+                $q->where('tickets.created_by', $user->id)
+                    ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $user->id))
+                    ->orWhereHas('participants', fn ($p) => $p->where('users.id', $user->id));
+            });
+        }
+        if ($viewKey === 'created_by_me' && $user) {
+            $query->where('tickets.created_by', $user->id);
+        } elseif ($viewKey === 'assigned_to_me' && $user) {
+            $query->where(function ($q) use ($user) {
+                $q->whereHas('assignees', fn ($a) => $a->where('users.id', $user->id))
+                    ->orWhereHas('participants', fn ($p) => $p->where('users.id', $user->id));
+            });
+        } elseif ($viewKey === 'past_due') {
+            $query->whereIn('tickets.status', ['open', 'in_progress', 'pending'])
+                ->where('tickets.updated_at', '<', Carbon::now()->subDays(7));
+        } elseif ($viewKey === 'high_priority') {
+            $query->whereHas('priority', fn ($p) => $p->where('level', '>=', 3));
+        } elseif ($viewKey === 'unassigned') {
+            $query->whereDoesntHave('assignees');
+        }
+
+        if ($this->source === 'from_form') {
+            $query->whereHas('formResponse');
+        } elseif ($this->source === 'from_platform') {
+            $query->whereDoesntHave('formResponse');
+        }
+        if ($this->group === 'none') {
+            $query->whereNull('tickets.ticket_group_id');
+        } elseif ($this->group !== '') {
+            $query->where('tickets.ticket_group_id', (int) $this->group);
+        }
+
+        return $query;
+    }
+
+    private function applyTicketSearchAndAttributeFilters($query)
+    {
+        $search = trim($this->search);
+        if ($search !== '') {
+            $searchId = preg_replace('/[^0-9]/', '', $search);
+            $query->where(function ($q) use ($search, $searchId) {
+                if ($searchId !== '') {
+                    $q->orWhere('tickets.id', (int) $searchId);
+                }
+                $q->orWhere('tickets.subject', 'ilike', "%{$search}%")
+                    ->orWhere('tickets.public_id', 'ilike', "%{$search}%")
+                    ->orWhereHas('creator', fn ($u) => $u->where('name', 'ilike', "%{$search}%"))
+                    ->orWhereHas('assignees', fn ($u) => $u->where('name', 'ilike', "%{$search}%"));
+            });
+        }
+
+        if ($this->status !== '') {
+            $query->where('tickets.status', $this->status);
+        }
+        if ($this->priority !== '') {
+            $query->where('tickets.ticket_priority_id', (int) $this->priority);
+        }
+        if ($this->assignee !== '') {
+            if ($this->assignee === 'unassigned') {
+                $query->whereDoesntHave('assignees');
+            } else {
+                $query->whereHas('assignees', fn ($a) => $a->where('users.id', (int) $this->assignee));
+            }
+        }
+
+        return $query;
+    }
+
+    private function buildKanbanTickets($query, array $statusColumns, bool $hasUser, int $orgId): array
+    {
+        $kanbanTickets = [];
+        if ($this->displayMode !== 'kanban' || ! $hasUser || ! $orgId) {
+            return $kanbanTickets;
+        }
+
+        foreach ($statusColumns as $s) {
+            $kanbanTickets[$s] = [];
+        }
+        $allKanban = (clone $query)
+            ->whereIn('tickets.status', $statusColumns)
+            ->orderByDesc('tickets.updated_at')
+            ->limit(250)
+            ->get();
+        foreach ($allKanban as $t) {
+            $s = $t->status instanceof TicketStatus ? $t->status->value : (string) $t->status;
+            if (isset($kanbanTickets[$s]) && count($kanbanTickets[$s]) < 50) {
+                $kanbanTickets[$s][] = $t;
+            }
+        }
+
+        return $kanbanTickets;
     }
 }

@@ -1,19 +1,19 @@
 <?php
 
-use App\Livewire\Admin\FormBuilder as AdminFormBuilder;
-use App\Livewire\Admin\Users as AdminUsers;
-use App\Livewire\Admin\Settings as AdminSettings;
-use App\Livewire\Admin\FormResponses as AdminFormResponses;
-use App\Livewire\Reports\Index as ReportsIndex;
-use App\Livewire\UserForms\Index as UserFormsIndex;
-use App\Livewire\UserForms\Fill as UserFormsFill;
-use App\Livewire\UserForms\FillTeam as UserFormsFillTeam;
-use App\Livewire\UserForms\FillTeamBySlug as UserFormsFillTeamBySlug;
-use App\Livewire\Tickets\Create as CreateTicket;
-use App\Livewire\Tickets\Index as TicketsIndex;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\PlatformInvitationController;
 use App\Http\Controllers\PublicFormController;
+use App\Livewire\Admin\FormBuilder as AdminFormBuilder;
+use App\Livewire\Admin\FormResponses as AdminFormResponses;
+use App\Livewire\Admin\Settings as AdminSettings;
+use App\Livewire\Admin\Users as AdminUsers;
+use App\Livewire\Reports\Index as ReportsIndex;
+use App\Livewire\Tickets\Create as CreateTicket;
+use App\Livewire\Tickets\Index as TicketsIndex;
+use App\Livewire\UserForms\Fill as UserFormsFill;
+use App\Livewire\UserForms\FillTeam as UserFormsFillTeam;
+use App\Livewire\UserForms\FillTeamBySlug as UserFormsFillTeamBySlug;
+use App\Livewire\UserForms\Index as UserFormsIndex;
 use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +40,7 @@ Route::view('/', 'home')->name('home');
 // Public Form Builder (published forms)
 Route::middleware(['throttle:20,1'])->group(function () {
     // Redirect GET /f/slug/ → /f/slug so link with trailing slash works
-    Route::get('/f/{slug}/', fn (string $slug) => redirect()->to('/f/' . trim($slug, '/'), 301))->where('slug', '.+');
+    Route::get('/f/{slug}/', fn (string $slug) => redirect()->to('/f/'.trim($slug, '/'), 301))->where('slug', '.+');
     Route::get('/f/{slug}', [PublicFormController::class, 'show'])->name('forms.public.show')->where('slug', '[^/]+');
     Route::post('/f/{slug}', [PublicFormController::class, 'submit'])->name('forms.public.submit')->where('slug', '[^/]+');
 });
@@ -132,9 +132,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/forms/l/{slug}', UserFormsFillTeamBySlug::class)->name('forms.fill-team-by-slug');
         Route::get('/forms/{assignment}', UserFormsFill::class)->name('forms.fill');
 
+        Route::get('/knowledge-base', \App\Livewire\KnowledgeBase\Index::class)->name('knowledge-base.index');
+
         Route::get('/notifications', \App\Livewire\Notifications\Index::class)->name('notifications.index');
 
-        Route::get('/discussions/{ticket?}', \App\Livewire\Discussions\Index::class)->name('discussions.index');
+        Route::get('/discussions/{discussionParam?}', \App\Livewire\Discussions\Index::class)->name('discussions.index');
         Route::get('/discussions/thread/{thread}/files/{filename}', function (int $thread, string $filename) {
             $user = Auth::user();
             if (! $user) {
@@ -146,14 +148,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             }
             /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
             $storage = Storage::disk('local');
-            $path = 'discussion-messages/' . $thread . '/' . basename($filename);
+            $path = 'discussion-messages/'.$thread.'/'.basename($filename);
             if (! $storage->exists($path)) {
                 abort(404);
             }
+
             return $storage->response($path, $filename, [
                 'Content-Type' => $storage->mimeType($path),
             ]);
         })->where('filename', '[^/]+')->name('discussions.file');
+
+        // Même écran que /tickets/{id} — URL neutre pour les liens dans les emails
+        Route::get('/conversation/{ticket}', \App\Livewire\Tickets\Discussion::class)->name('conversation.show');
 
         Route::get('/tickets', TicketsIndex::class)->name('tickets.index');
         Route::get('/tickets/groups', \App\Livewire\Tickets\Groups::class)->name('tickets.groups');
@@ -165,10 +171,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             }
             /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
             $storage = Storage::disk('local');
-            $path = 'ticket-messages/' . $ticket->id . '/' . basename($filename);
+            $path = 'ticket-messages/'.$ticket->id.'/'.basename($filename);
             if (! $storage->exists($path)) {
                 abort(404);
             }
+
             return $storage->response($path, $filename, [
                 'Content-Type' => $storage->mimeType($path),
             ]);
@@ -181,10 +188,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             }
             /** @var \Illuminate\Filesystem\FilesystemAdapter $storage */
             $storage = Storage::disk('local');
-            $path = 'ticket-attachments/org-' . $ticket->organization_id . '/ticket-' . $ticket->id . '/' . basename($filename);
+            $path = 'ticket-attachments/org-'.$ticket->organization_id.'/ticket-'.$ticket->id.'/'.basename($filename);
             if (! $storage->exists($path)) {
                 abort(404);
             }
+
             return $storage->response($path, $filename, [
                 'Content-Type' => $storage->mimeType($path),
             ]);
@@ -217,4 +225,4 @@ Route::get('/reports/tasks/shared', \App\Http\Controllers\SharedTaskReportContro
 /**
  * Auth routes (login/register/logout/forgot password/verify email)
  */
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

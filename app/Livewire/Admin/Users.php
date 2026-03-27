@@ -4,6 +4,7 @@ namespace App\Livewire\Admin;
 
 use App\Enums\OrganizationRole;
 use App\Enums\Permission;
+use App\Events\UserNotificationReceived;
 use App\Models\Organization;
 use App\Models\OrganizationFunction;
 use App\Models\OrganizationInvitation;
@@ -11,30 +12,39 @@ use App\Models\OrganizationMembership;
 use App\Models\RoleDefinition;
 use App\Models\User;
 use App\Notifications\OrganizationInvitationNotification;
-use App\Events\UserNotificationReceived;
+use App\Notifications\TeamRoleChangedNotification;
 use App\Services\OrganizationAuditService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
-use Throwable;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Throwable;
 
 #[Layout('layouts.manexo-app')]
-#[Title("Équipe")]
+#[Title('Équipe')]
 class Users extends Component
 {
     use WithPagination;
 
+    public bool $ready = true;
+
+    public function loadPage(): void {}
+
     public string $search = '';
+
     public string $role = '';
+
     public int $perPage = 10;
 
     public bool $showInviteModal = false;
+
     public string $inviteEmail = '';
+
     public string $inviteRole = '';
 
     public function updatedSearch(): void
@@ -62,7 +72,7 @@ class Users extends Component
         $user = Auth::user();
         $orgId = $this->orgId();
 
-        if (! $user instanceof \App\Models\User || ! $orgId) {
+        if (! $user instanceof User || ! $orgId) {
             return OrganizationRole::Member->value;
         }
 
@@ -107,7 +117,7 @@ class Users extends Component
 
         $validated = $this->validate([
             'inviteEmail' => ['required', 'email', 'max:255'],
-            'inviteRole' => ['required', 'string', 'in:' . implode(',', $allowedRoles)],
+            'inviteRole' => ['required', 'string', 'in:'.implode(',', $allowedRoles)],
         ]);
 
         $email = Str::lower(trim((string) $validated['inviteEmail']));
@@ -123,6 +133,7 @@ class Users extends Component
 
             if ($alreadyMember) {
                 $this->addError('inviteEmail', __('pages.team.already_member'));
+
                 return;
             }
         }
@@ -137,6 +148,7 @@ class Users extends Component
 
         if ($existingInvitation) {
             $this->addError('inviteEmail', __('pages.team.invitation_already_pending'));
+
             return;
         }
 
@@ -295,19 +307,32 @@ class Users extends Component
                 ->count();
 
             if ($ownersCount <= 1) {
-                $this->dispatch('toast', type: 'error', message: "Impossible: il faut au moins un propriétaire.");
+                $this->dispatch('toast', type: 'error', message: 'Impossible: il faut au moins un propriétaire.');
+
                 return;
             }
         }
 
         $oldRole = $membership->role;
         $membership->update(['role' => $newRole]);
+        $targetUser = User::find((int) $membership->user_id);
+        $orgName = (string) (Organization::query()->whereKey($orgId)->value('name') ?? '');
+        if ($targetUser && (int) $targetUser->id !== (int) $user->id) {
+            $targetUser->notify(new TeamRoleChangedNotification(
+                organizationId: $orgId,
+                organizationName: $orgName,
+                oldRole: (string) $oldRole,
+                newRole: $newRole,
+                changedByName: (string) $user->name,
+            ));
+            event(new UserNotificationReceived(userId: (int) $targetUser->id, notificationType: 'team_role_changed'));
+        }
         OrganizationAuditService::log('team.role_changed', 'User', $membership->user_id, [
             'old_role' => $oldRole,
             'new_role' => $newRole,
             'user_name' => $membership->user?->name,
         ]);
-        $this->dispatch('toast', type: 'success', message: "Rôle mis à jour.");
+        $this->dispatch('toast', type: 'success', message: 'Rôle mis à jour.');
     }
 
     public function removeMember(int $membershipId): void
@@ -341,7 +366,8 @@ class Users extends Component
                 ->count();
 
             if ($ownersCount <= 1) {
-                $this->dispatch('toast', type: 'error', message: "Impossible: il faut au moins un propriétaire.");
+                $this->dispatch('toast', type: 'error', message: 'Impossible: il faut au moins un propriétaire.');
+
                 return;
             }
         }
@@ -351,79 +377,30 @@ class Users extends Component
             'role' => $membership->role,
         ]);
         $membership->delete();
-        $this->dispatch('toast', type: 'success', message: "Membre retiré.");
+        $this->dispatch('toast', type: 'success', message: 'Membre retiré.');
         $this->resetPage();
     }
 
     public function render()
     {
+        return $this->renderUsersPage();
+    }
+
+    private function renderUsersPage()
+    {
         $user = Auth::user();
         $orgId = $this->orgId();
 
-        if (! $user || ! $orgId) {
+        if (! $this->canRenderTeamPage($user, $orgId)) {
             return redirect()->route('organizations.select');
         }
 
         $currentRole = $this->currentRole();
-
-        // Restrict access to users with team permissions
-        if (! $user->hasAnyPermission([Permission::TeamInvite, Permission::TeamEditRole, Permission::TeamRemove])) {
-            abort(403);
-        }
-
-        $search = trim($this->search);
-
-        $membershipsQuery = OrganizationMembership::query()
-            ->with(['user', 'organizationFunction'])
-            ->where('organization_id', $orgId)
-            ->when($this->role !== '', fn($q) => $q->where('role', $this->role))
-            ->when($search !== '', function ($q) use ($search) {
-                $q->whereHas('user', function ($u) use ($search) {
-                    $u->where('name', 'ilike', "%{$search}%")
-                        ->orWhere('email', 'ilike', "%{$search}%");
-                });
-            })
-            ->orderByRaw("case role when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 else 3 end")
-            ->orderByDesc('created_at');
-
-        $memberships = $membershipsQuery->paginate($this->perPage);
-
-        $statsRow = OrganizationMembership::query()
-            ->where('organization_id', $orgId)
-            ->selectRaw('count(*) as total')
-            ->selectRaw("count(*) filter (where role = 'owner') as owners")
-            ->selectRaw("count(*) filter (where role = 'admin') as admins")
-            ->selectRaw("count(*) filter (where role = 'agent') as agents")
-            ->selectRaw("count(*) filter (where role = 'member') as members")
-            ->first();
-
-        $stats = [
-            'total' => (int) ($statsRow?->total ?? 0),
-            'owners' => (int) ($statsRow?->owners ?? 0),
-            'admins' => (int) ($statsRow?->admins ?? 0),
-            'agents' => (int) ($statsRow?->agents ?? 0),
-            'members' => (int) ($statsRow?->members ?? 0),
-        ];
-
-        // Load pending invitations
-        $pendingInvitations = OrganizationInvitation::query()
-            ->with('inviter')
-            ->where('organization_id', $orgId)
-            ->where('status', 'pending')
-            ->where('expires_at', '>', now())
-            ->orderByDesc('created_at')
-            ->get();
-
-        $organizationFunctions = OrganizationFunction::query()
-            ->where('organization_id', $orgId)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        $roles = RoleDefinition::query()
-            ->where('organization_id', $orgId)
-            ->orderByRaw("case slug when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 when 'member' then 3 else 4 end")
-            ->get();
+        $memberships = $this->membershipsPaginator($orgId);
+        $stats = $this->teamStats($orgId);
+        $pendingInvitations = $this->pendingInvitations($orgId);
+        $organizationFunctions = $this->organizationFunctions($orgId);
+        $roles = $this->organizationRoles($orgId);
 
         return view('livewire.admin.users', [
             'memberships' => $memberships,
@@ -433,6 +410,89 @@ class Users extends Component
             'roles' => $roles,
             'pendingInvitations' => $pendingInvitations,
         ]);
+    }
+
+    private function canRenderTeamPage(mixed $user, int $orgId): bool
+    {
+        if (! $user || ! $orgId) {
+            return false;
+        }
+        if (! ($user instanceof User) || ! $user->hasAnyPermission([Permission::TeamInvite, Permission::TeamEditRole, Permission::TeamRemove])) {
+            abort(403);
+        }
+
+        return true;
+    }
+
+    private function membershipsPaginator(int $orgId)
+    {
+        $search = trim($this->search);
+
+        return OrganizationMembership::query()
+            ->with(['user', 'organizationFunction'])
+            ->where('organization_id', $orgId)
+            ->when($this->role !== '', fn ($q) => $q->where('role', $this->role))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->whereHas('user', function ($u) use ($search) {
+                    $u->where('name', 'ilike', "%{$search}%")
+                        ->orWhere('email', 'ilike', "%{$search}%");
+                });
+            })
+            ->orderByRaw("case role when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 else 3 end")
+            ->orderByDesc('created_at')
+            ->paginate($this->perPage);
+    }
+
+    private function teamStats(int $orgId): array
+    {
+        return Cache::remember("admin_users_stats:{$orgId}", 120, function () use ($orgId) {
+            $statsRow = OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->selectRaw('count(*) as total')
+                ->selectRaw("count(*) filter (where role = 'owner') as owners")
+                ->selectRaw("count(*) filter (where role = 'admin') as admins")
+                ->selectRaw("count(*) filter (where role = 'agent') as agents")
+                ->selectRaw("count(*) filter (where role = 'member') as members")
+                ->first();
+
+            return [
+                'total' => (int) ($statsRow?->total ?? 0),
+                'owners' => (int) ($statsRow?->owners ?? 0),
+                'admins' => (int) ($statsRow?->admins ?? 0),
+                'agents' => (int) ($statsRow?->agents ?? 0),
+                'members' => (int) ($statsRow?->members ?? 0),
+            ];
+        });
+    }
+
+    private function pendingInvitations(int $orgId)
+    {
+        return OrganizationInvitation::query()
+            ->with('inviter')
+            ->where('organization_id', $orgId)
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->orderByDesc('created_at')
+            ->get();
+    }
+
+    private function organizationFunctions(int $orgId)
+    {
+        return Cache::remember("org_functions:{$orgId}", 300, fn () => OrganizationFunction::query()
+            ->where('organization_id', $orgId)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+        );
+    }
+
+    private function organizationRoles(int $orgId)
+    {
+        return Cache::remember("org_roles:{$orgId}", 300, fn () => RoleDefinition::query()
+            ->where('organization_id', $orgId)
+            ->orderByRaw("case slug when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 when 'member' then 3 else 4 end")
+            ->get()
+        );
     }
 
     public function updateFunction(int $membershipId, ?string $functionId): void

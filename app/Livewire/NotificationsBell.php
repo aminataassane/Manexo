@@ -27,7 +27,12 @@ class NotificationsBell extends Component
         ];
     }
 
-    public function invalidateNotificationsCache(): void
+    /**
+     * Refresh counters when a realtime notification is received, and show a toast preview.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function invalidateNotificationsCache(array $payload = []): void
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
@@ -36,6 +41,32 @@ class NotificationsBell extends Component
             CacheHelper::invalidateNotificationsCount((int) $user->id);
             CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
         }
+
+        $notificationType = (string) ($payload['type'] ?? 'general');
+        $message = $this->notificationPreviewMessage($notificationType);
+        if ($message !== '') {
+            $this->dispatch('toast', type: 'info', message: $message);
+        }
+    }
+
+    private function notificationPreviewMessage(string $type): string
+    {
+        return match ($type) {
+            'ticket_new_message' => __('Nouveau message sur un ticket'),
+            'ticket_mention' => __('Vous avez ete mentionne dans un ticket'),
+            'ticket_assignee' => __('Mise a jour de votre assignation ticket'),
+            'discussion_invite' => __('Nouvelle invitation de discussion'),
+            'discussion_new_message' => __('Nouveau message dans une discussion'),
+            'discussion_removed' => __('Vous avez ete retire d une discussion'),
+            'form_assignment' => __('Nouveau formulaire assigne'),
+            'form_response' => __('Nouvelle reponse de formulaire'),
+            'form_overdue' => __('Un formulaire est en retard'),
+            'checklist_item_assigned' => __('Nouvel element de checklist assigne'),
+            'invitation_accepted' => __('Invitation d equipe acceptee'),
+            'team_role_changed' => __('Votre role d equipe a ete modifie'),
+            'ticket_reopened' => __('Un ticket a ete rouvert'),
+            default => __('Nouvelle notification'),
+        };
     }
 
     public function getUnreadCountProperty(): int

@@ -12,6 +12,7 @@ enum Permission: string
     case TicketsChangeStatus = 'tickets.change_status';
     case TicketsAssign = 'tickets.assign';
     case TicketsArchive = 'tickets.archive';
+    case TicketsApprove = 'tickets.approve';
     case TicketsViewTrash = 'tickets.view_trash';
 
     // ─── Equipe ──────────────────────────────────────────────────────
@@ -31,6 +32,13 @@ enum Permission: string
     case SettingsManageFunctions = 'settings.manage_functions';
     case SettingsManageForms = 'settings.manage_forms';
     case SettingsManageRoles = 'settings.manage_roles';
+    case SettingsManageEmail = 'settings.manage_email';
+    case SettingsManageSla = 'settings.manage_sla';
+    case SettingsManageAutomations = 'settings.manage_automations';
+    case SettingsManageApprovals = 'settings.manage_approvals';
+    case SettingsManageApi = 'settings.manage_api';
+    case SettingsManageWebhooks = 'settings.manage_webhooks';
+    case SettingsManageKnowledgeBase = 'settings.manage_knowledge_base';
     case SettingsDeleteOrg = 'settings.delete_org';
 
     // ─── Rapports ────────────────────────────────────────────────────
@@ -58,6 +66,7 @@ enum Permission: string
                 self::TicketsChangeStatus,
                 self::TicketsAssign,
                 self::TicketsArchive,
+                self::TicketsApprove,
                 self::TicketsViewTrash,
             ],
             'team' => [
@@ -77,6 +86,13 @@ enum Permission: string
                 self::SettingsManageFunctions,
                 self::SettingsManageForms,
                 self::SettingsManageRoles,
+                self::SettingsManageEmail,
+                self::SettingsManageSla,
+                self::SettingsManageAutomations,
+                self::SettingsManageApprovals,
+                self::SettingsManageApi,
+                self::SettingsManageWebhooks,
+                self::SettingsManageKnowledgeBase,
                 self::SettingsDeleteOrg,
             ],
             'reports' => [
@@ -114,8 +130,10 @@ enum Permission: string
                 self::TicketsChangeStatus,
                 self::TicketsAssign,
                 self::TicketsArchive,
+                self::TicketsApprove,
                 self::TicketsViewTrash,
                 self::FormsViewResponses,
+                self::SettingsManageKnowledgeBase,
                 self::ReportsView,
                 self::ReportsViewTasks,
                 self::ReportsShareTasks,

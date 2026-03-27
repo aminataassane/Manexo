@@ -1,0 +1,336 @@
+<div
+    wire:init="loadFormFields"
+    class="flex flex-col w-full max-w-3xl mx-auto min-w-0 px-0 sm:px-2 pb-6 sm:pb-8"
+    style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0));"
+>
+<?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(! $formReady): ?>
+    
+    <div class="animate-pulse space-y-4">
+        <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-lg bg-slate-200"></div>
+            <div class="flex-1 space-y-2">
+                <div class="h-6 bg-slate-200 rounded-lg w-2/3"></div>
+                <div class="h-4 bg-slate-100 rounded w-1/2"></div>
+            </div>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-6 space-y-4 shadow-sm">
+            <div class="h-4 bg-slate-100 rounded w-1/4"></div>
+            <div class="h-10 bg-slate-100 rounded w-full"></div>
+            <div class="h-4 bg-slate-100 rounded w-1/3"></div>
+            <div class="h-24 bg-slate-50 rounded-lg w-full"></div>
+            <div class="h-10 bg-slate-100 rounded w-full"></div>
+        </div>
+    </div>
+<?php else: ?>
+<?php
+    $form = isset($assignment) && $assignment ? $assignment->form : ($form ?? null);
+    abort_if(! $form, 404);
+    $fields = $form->fields ?? collect();
+
+    // Grouper les champs en étapes : chaque section = une étape, les champs avant la 1ère section = étape 1
+    $steps = [];
+    $currentTitle = $form->name;
+    $currentFields = [];
+    foreach ($fields as $field) {
+        $type = (string) $field->type;
+        if ($type === 'section') {
+            if (count($currentFields) > 0) {
+                $steps[] = ['title' => $currentTitle, 'fields' => $currentFields];
+            }
+            $currentTitle = $field->label;
+            $currentFields = [];
+        } else {
+            $currentFields[] = $field;
+        }
+    }
+    if (count($currentFields) > 0) {
+        $steps[] = ['title' => $currentTitle, 'fields' => $currentFields];
+    }
+    $hasStepper = count($steps) > 1;
+    $stepsCount = count($steps);
+    $stepperCompact = $stepsCount > 4; // Beaucoup d'étapes : stepper compact (numéros seuls ou scroll)
+?>
+
+<div
+    x-data="{
+        step: 0,
+        totalSteps: <?php echo e($stepsCount); ?>,
+        get canPrev() { return this.step > 0; },
+        get canNext() { return this.step < this.totalSteps - 1; },
+        get isLastStep() { return this.step === this.totalSteps - 1; },
+        next() { if (this.canNext) this.step++; },
+        prev() { if (this.canPrev) this.step--; }
+    }"
+>
+    
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(isset($assignment) && $assignment && $assignment->isOverdue() && !$assignment->isExpired()): ?>
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3 shadow-sm mb-4 sm:mb-6 shrink-0">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                <iconify-icon icon="solar:danger-triangle-bold" width="18"></iconify-icon>
+            </div>
+            <span><?php echo e(__('pages.forms.form_overdue_warning')); ?></span>
+        </div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+    
+    <div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6 shrink-0">
+        <a href="<?php echo e(route('forms.index')); ?>"
+           class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors touch-manipulation">
+            <iconify-icon icon="solar:arrow-left-linear" width="20"></iconify-icon>
+        </a>
+        <div class="min-w-0 flex-1">
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl truncate"><?php echo e($form->name); ?></h1>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($form->description || (isset($assignment) && $assignment && $assignment->due_date)): ?>
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-slate-500">
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($form->description): ?>
+                        <span class="line-clamp-2"><?php echo e($form->description); ?></span>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                    <?php if(isset($assignment) && $assignment && $assignment->due_date): ?>
+                        <span class="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-600 shrink-0">
+                            <iconify-icon icon="solar:calendar-linear" width="12"></iconify-icon>
+                            <?php echo e(__('pages.forms.due_date')); ?>: <?php echo e($assignment->due_date->format('d/m/Y')); ?>
+
+                        </span>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                </div>
+            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+        </div>
+    </div>
+
+    
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($hasStepper): ?>
+        <div class="mb-4 sm:mb-5 shrink-0 overflow-x-auto overflow-y-hidden -mx-1 px-1">
+            <div class="flex items-center <?php echo e($stepperCompact ? 'gap-1 min-w-max' : 'w-full'); ?> <?php echo e($stepperCompact ? '' : 'gap-0'); ?>">
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $steps; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i => $s): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                    <button type="button"
+                            @click="if (step >= <?php echo e($i); ?>) step = <?php echo e($i); ?>"
+                            class="flex <?php echo e($stepperCompact ? 'shrink-0' : 'flex-1'); ?> items-center justify-center gap-1.5 sm:gap-2 min-w-0 group touch-manipulation py-1">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all"
+                              :class="step >= <?php echo e($i); ?>
+
+                                ? 'bg-[var(--accent)] text-white shadow-sm'
+                                : 'bg-slate-200 text-slate-500 group-hover:bg-slate-300'">
+                            <?php echo e($i + 1); ?>
+
+                        </span>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$stepperCompact): ?>
+                            <span class="text-xs font-semibold truncate max-w-[70px] sm:max-w-[90px]"
+                                  :class="step >= <?php echo e($i); ?> ? 'text-slate-900' : 'text-slate-400'">
+                                <?php echo e(\Illuminate\Support\Str::limit($s['title'], 12)); ?>
+
+                            </span>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                    </button>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($i < count($steps) - 1): ?>
+                        <div class="flex-shrink-0 w-4 sm:w-6 h-0.5 rounded-full bg-slate-200 mx-0.5"
+                             :class="step > <?php echo e($i); ?> ? '!bg-[var(--accent)]' : ''"></div>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+    
+    <form wire:submit="submit" class="flex flex-col bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-visible">
+        <div class="p-5 sm:p-6 lg:p-8 space-y-6">
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $steps; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $stepIndex => $stepData): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                <div x-show="<?php echo e($hasStepper ? 'step === ' . $stepIndex : 'true'); ?>"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     <?php if($hasStepper && $stepIndex > 0): ?> x-cloak <?php endif; ?>>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($hasStepper): ?>
+                        <h2 class="text-base font-bold text-slate-900 pb-3">
+                            <?php echo e($stepData['title']); ?>
+
+                        </h2>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                    <div class="grid grid-cols-6 gap-x-4 gap-y-5">
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $stepData['fields']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $field): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                        <?php
+                            $type = (string) $field->type;
+                            $key = (string) $field->key;
+                            $config = is_array($field->configuration) ? $field->configuration : [];
+                            $placeholder = $config['placeholder'] ?? '';
+                            $helpText = $config['help_text'] ?? '';
+                            $options = $config['options'] ?? [];
+                            $displayMode = $config['display_mode'] ?? 'list';
+                            $fieldLayout = $config['layout'] ?? 'full';
+                            $colSpan = match($fieldLayout) {
+                                'half' => 'col-span-6 sm:col-span-3',
+                                'third' => 'col-span-6 sm:col-span-2',
+                                default => 'col-span-6',
+                            };
+                        ?>
+                        <div class="<?php echo e($colSpan); ?> min-w-0">
+                            <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+                                <?php echo e($field->label); ?>
+
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($field->required): ?> <span class="text-red-500">*</span> <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                            </label>
+
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($type === 'textarea'): ?>
+                                <textarea wire:model="answers.<?php echo e($key); ?>" rows="4"
+                                          placeholder="<?php echo e($placeholder ?: $field->label); ?>"
+                                          class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] resize-y min-h-[100px]"></textarea>
+                            <?php elseif($type === 'select'): ?>
+                                <select wire:model="answers.<?php echo e($key); ?>"
+                                        class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
+                                    <option value=""><?php echo e($placeholder ?: __('Sélectionnez...')); ?></option>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = (array) $options; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $opt): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                        <option value="<?php echo e($opt); ?>"><?php echo e($opt); ?></option>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                                </select>
+                            <?php elseif($type === 'radio'): ?>
+                                <div class="<?php echo e($displayMode === 'inline' ? 'flex flex-wrap gap-2.5' : ($displayMode === 'grid' ? 'grid grid-cols-2 gap-2.5' : ($displayMode === 'card' ? 'space-y-2.5' : 'space-y-2'))); ?>">
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = (array) $options; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $opt): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                        <label class="flex items-center gap-3 px-3 py-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors cursor-pointer has-[:checked]:border-[var(--accent)] has-[:checked]:bg-[var(--accent-soft)]/30
+                                            <?php echo e($displayMode === 'card' ? 'rounded-xl px-4 py-3.5' : ''); ?>
+
+                                            <?php echo e($displayMode === 'inline' ? 'inline-flex px-3.5 py-2.5 rounded-xl' : ''); ?>
+
+                                            <?php echo e($displayMode === 'grid' ? 'rounded-xl' : ''); ?>">
+                                            <input type="radio" wire:model="answers.<?php echo e($key); ?>" value="<?php echo e($opt); ?>"
+                                                   class="text-[var(--accent)] focus:ring-[var(--accent)] focus:ring-2 size-4">
+                                            <span class="text-sm font-medium text-slate-700"><?php echo e($opt); ?></span>
+                                        </label>
+                                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                                </div>
+                            <?php elseif($type === 'checkbox'): ?>
+                                <?php $cbOptions = $config['options'] ?? $field->options ?? []; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count((array) $cbOptions) > 0): ?>
+                                    <div class="<?php echo e($displayMode === 'inline' ? 'flex flex-wrap gap-2.5' : ($displayMode === 'grid' ? 'grid grid-cols-2 gap-2.5' : ($displayMode === 'card' ? 'space-y-2.5' : 'space-y-2'))); ?>">
+                                        <?php $__currentLoopData = (array) $cbOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $opt): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <label class="flex items-center gap-3 px-3 py-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 transition-colors cursor-pointer has-[:checked]:border-[var(--accent)] has-[:checked]:bg-[var(--accent-soft)]/30
+                                                <?php echo e($displayMode === 'card' ? 'rounded-xl px-4 py-3.5' : ''); ?>
+
+                                                <?php echo e($displayMode === 'inline' ? 'inline-flex px-3.5 py-2.5 rounded-xl' : ''); ?>
+
+                                                <?php echo e($displayMode === 'grid' ? 'rounded-xl' : ''); ?>">
+                                                <input type="checkbox" wire:model="answers.<?php echo e($key); ?>" value="<?php echo e($opt); ?>"
+                                                       class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)] focus:ring-2 size-4">
+                                                <span class="text-sm font-medium text-slate-700"><?php echo e($opt); ?></span>
+                                            </label>
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <label class="flex items-center gap-3 px-3 py-3 rounded-lg border border-slate-200 bg-white hover:border-slate-300 cursor-pointer has-[:checked]:border-[var(--accent)] has-[:checked]:bg-[var(--accent-soft)]/30 transition-colors">
+                                        <input type="checkbox" wire:model="answers.<?php echo e($key); ?>"
+                                               class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)] focus:ring-2 size-4">
+                                        <span class="text-sm font-medium text-slate-700"><?php echo e($field->label); ?></span>
+                                    </label>
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                            <?php elseif($type === 'date'): ?>
+                                <input type="date" wire:model="answers.<?php echo e($key); ?>"
+                                       class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
+                            <?php elseif($type === 'datetime'): ?>
+                                <input type="datetime-local" wire:model="answers.<?php echo e($key); ?>"
+                                       class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
+                            <?php elseif($type === 'number'): ?>
+                                <input type="number" wire:model="answers.<?php echo e($key); ?>" placeholder="<?php echo e($placeholder ?: $field->label); ?>"
+                                       class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
+                            <?php elseif($type === 'email'): ?>
+                                <input type="email" wire:model="answers.<?php echo e($key); ?>" placeholder="<?php echo e($placeholder ?: $field->label); ?>"
+                                       class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
+                            <?php elseif($type === 'file'): ?>
+                                <input type="file" wire:model="fileUploads.<?php echo e($key); ?>"
+                                       class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--accent-soft)] file:text-[var(--accent)] hover:file:opacity-90 transition-opacity">
+                            <?php else: ?>
+                                <input type="text" wire:model="answers.<?php echo e($key); ?>" placeholder="<?php echo e($placeholder ?: $field->label); ?>"
+                                       class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
+                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($helpText): ?>
+                                <p class="mt-1.5 text-xs text-slate-500"><?php echo e($helpText); ?></p>
+                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                            <?php if (isset($component)) { $__componentOriginalf94ed9c5393ef72725d159fe01139746 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalf94ed9c5393ef72725d159fe01139746 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.input-error','data' => ['messages' => $errors->get('answers.' . $key),'class' => 'mt-1']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('input-error'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['messages' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($errors->get('answers.' . $key)),'class' => 'mt-1']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalf94ed9c5393ef72725d159fe01139746)): ?>
+<?php $attributes = $__attributesOriginalf94ed9c5393ef72725d159fe01139746; ?>
+<?php unset($__attributesOriginalf94ed9c5393ef72725d159fe01139746); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalf94ed9c5393ef72725d159fe01139746)): ?>
+<?php $component = $__componentOriginalf94ed9c5393ef72725d159fe01139746; ?>
+<?php unset($__componentOriginalf94ed9c5393ef72725d159fe01139746); ?>
+<?php endif; ?>
+                        </div>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                    </div>
+                </div>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+        </div>
+
+        
+        <div class="sticky bottom-0 z-20 shrink-0 px-5 sm:px-6 lg:px-8 py-4 border-t border-slate-200 bg-white/90 backdrop-blur flex flex-wrap items-center justify-between gap-3">
+            <a href="<?php echo e(route('forms.index')); ?>"
+               class="order-2 sm:order-1 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors touch-manipulation">
+                <iconify-icon icon="solar:close-circle-bold" width="18" class="text-red-500"></iconify-icon>
+                <?php echo e(__('Annuler')); ?>
+
+            </a>
+            <div class="order-1 sm:order-2 flex items-center gap-2 w-full sm:w-auto justify-end">
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($hasStepper): ?>
+                    <template x-if="canPrev">
+                        <button type="button" @click="prev()"
+                                class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors touch-manipulation">
+                            <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
+                            <?php echo e(__('Précédent')); ?>
+
+                        </button>
+                    </template>
+                    <template x-if="canNext">
+                        <button type="button" @click="next()"
+                                class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-lg shadow-sm hover:opacity-90 transition-all touch-manipulation"
+                                style="background-color: var(--accent);">
+                            <?php echo e(__('Suivant')); ?>
+
+                            <iconify-icon icon="solar:arrow-right-linear" width="18"></iconify-icon>
+                        </button>
+                    </template>
+                    <template x-if="isLastStep">
+                        <button type="submit"
+                                class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-lg shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70"
+                                style="background-color: var(--accent);"
+                                wire:loading.attr="disabled">
+                            <span wire:loading.remove wire:target="submit"><?php echo e(__('Soumettre')); ?></span>
+                            <span wire:loading wire:target="submit" class="inline-flex items-center gap-2">
+                                <span class="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                                <?php echo e(__('Envoi...')); ?>
+
+                            </span>
+                            <iconify-icon icon="solar:plain-bold" width="16" wire:loading.remove wire:target="submit"></iconify-icon>
+                        </button>
+                    </template>
+                <?php else: ?>
+                    <button type="submit"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-lg shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70"
+                            style="background-color: var(--accent);"
+                            wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="submit"><?php echo e(__('Soumettre')); ?></span>
+                        <span wire:loading wire:target="submit" class="inline-flex items-center gap-2">
+                            <span class="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                            <?php echo e(__('Envoi...')); ?>
+
+                        </span>
+                        <iconify-icon icon="solar:plain-bold" width="16" wire:loading.remove wire:target="submit"></iconify-icon>
+                    </button>
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            </div>
+        </div>
+    </form>
+</div>
+<?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+</div>
+<?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\resources\views/livewire/user-forms/fill.blade.php ENDPATH**/ ?>

@@ -12,18 +12,18 @@
     $perfCount = count($performanceSeries);
 @endphp
 
-<div class="w-full max-w-full min-w-0 mx-auto">
-    <!-- HEADER : titre à gauche, période + filtres à droite (convention Tickets / Task report) -->
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadReportBody">
+    {{-- ═══ HEADER ═══ --}}
+    <div class="page-header">
         <div class="min-w-0">
-            <h1 class="text-xl font-bold text-slate-900 tracking-tight sm:text-2xl lg:text-3xl min-[1920px]:text-4xl">{{ __('reports.title') }}</h1>
-            <p class="mt-1 text-xs sm:text-sm text-slate-500">{{ __('reports.subtitle') }}</p>
+            <h1 class="page-title">{{ __('reports.title') }}</h1>
+            <p class="page-subtitle">{{ __('reports.subtitle') }}</p>
         </div>
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
-            <div class="inline-flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm flex-shrink-0">
-                <button wire:click="$set('period', 'default')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ ($period ?? 'default') === 'default' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('reports.view_default') }}</button>
-                <button wire:click="$set('period', 'monthly')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ ($period ?? '') === 'monthly' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('reports.monthly') }}</button>
-                <button wire:click="$set('period', 'yearly')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ ($period ?? '') === 'yearly' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('reports.yearly') }}</button>
+        <div class="page-actions">
+            <div class="view-toggle flex-shrink-0">
+                <button wire:click="$set('period', 'default')" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? 'default') === 'default' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.view_default') }}</button>
+                <button wire:click="$set('period', 'monthly')" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? '') === 'monthly' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.monthly') }}</button>
+                <button wire:click="$set('period', 'yearly')" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? '') === 'yearly' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.yearly') }}</button>
             </div>
             <x-dropdown align="right" width="56" contentClasses="py-1 bg-white rounded-xl shadow-xl border border-slate-200">
                 <x-slot name="trigger">
@@ -48,10 +48,11 @@
         </div>
     </div>
 
+    @if($loadStage >= 2)
     <!-- TOP KPI CARDS -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <!-- Card 1: Total Users (Blue Highlight) -->
-        <div class="relative overflow-hidden rounded-2xl bg-[var(--accent)] p-6 text-white shadow-lg shadow-[var(--accent-ring)] group">
+        <div class="relative overflow-hidden rounded-xl sm:rounded-2xl bg-[var(--accent)] p-6 text-white shadow-lg shadow-[var(--accent-ring)] group">
             <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <iconify-icon icon="solar:users-group-rounded-bold" width="80"></iconify-icon>
             </div>
@@ -105,7 +106,7 @@
             $newCount = ($period ?? 'default') === 'default' ? array_sum(array_column($createdLast30d ?? [], 'count')) : ($createdInPeriod ?? 0);
             $newTrend = ($period ?? 'default') === 'default' ? ($trendNew30d ?? ['dir' => 'up', 'val' => 0]) : ($trendNewInPeriod ?? ['dir' => 'up', 'val' => 0]);
         @endphp
-        <div class="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-all">
+        <div class="stat-card !p-6 !rounded-2xl">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <p class="text-sm font-medium text-slate-500">{{ $periodLabel }}</p>
@@ -131,7 +132,7 @@
         </div>
 
         <!-- Card 3: Avg Time -->
-        <div class="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-all">
+        <div class="stat-card !p-6 !rounded-2xl">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <p class="text-sm font-medium text-slate-500">{{ __('reports.response_time') }}</p>
@@ -147,7 +148,7 @@
         </div>
 
         <!-- Card 4: Active Now -->
-        <div class="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-all">
+        <div class="stat-card !p-6 !rounded-2xl">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <p class="text-sm font-medium text-slate-500">{{ __('reports.in_progress') }}</p>
@@ -168,7 +169,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 
         <!-- Large Bar Chart (Statistics) -->
-        <div class="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="lg:col-span-2 content-card p-6">
             <div class="flex items-center justify-between mb-8">
                 <h3 class="text-lg font-bold text-slate-900">{{ __('reports.ticket_volume') }}</h3>
                 <div class="flex items-center gap-2">
@@ -231,7 +232,7 @@
         </div>
 
         <!-- Secondary Chart (Performance/Financial style) -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col">
+        <div class="content-card p-6 flex flex-col">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-lg font-bold text-slate-900">{{ __('reports.performance') }}</h3>
                 <x-dropdown align="right" width="48" contentClasses="py-1 bg-white rounded-lg shadow-xl border border-slate-200">
@@ -306,7 +307,7 @@
     <!-- BOTTOM DETAILED TABLE -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Top Agents -->
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="content-card">
             <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
                 <h3 class="text-base font-bold text-slate-900">{{ __('reports.agent_performance') }}</h3>
                 <x-dropdown align="right" width="48" contentClasses="py-1 bg-white rounded-lg shadow-xl border border-slate-200">
@@ -367,7 +368,7 @@
         </div>
 
         <!-- Categories Breakdown -->
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div class="content-card">
             <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
                 <h3 class="text-base font-bold text-slate-900">{{ __('reports.category_breakdown') }}</h3>
                 <x-dropdown align="right" width="48" contentClasses="py-1 bg-white rounded-lg shadow-xl border border-slate-200">
@@ -409,4 +410,96 @@
             </div>
         </div>
     </div>
+
+    {{-- SLA Conformity Section --}}
+    @if($slaKpis ?? null)
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-8">
+            <!-- SLA First Response Rate -->
+            <div class="stat-card !p-6 !rounded-2xl">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">{{ __('SLA Première réponse') }}</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1">{{ $slaKpis['fr_met_pct'] }}<span class="text-sm text-slate-400 font-normal ml-1">%</span></h3>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                        <iconify-icon icon="solar:check-circle-bold-duotone" width="24"></iconify-icon>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2">
+                    <div class="h-2 rounded-full {{ $slaKpis['fr_met_pct'] >= 80 ? 'bg-emerald-500' : ($slaKpis['fr_met_pct'] >= 50 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ min(100, $slaKpis['fr_met_pct']) }}%"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2">{{ __('Taux de respect') }} · {{ $slaKpis['fr_breached_pct'] }}% {{ __('en breach') }}</p>
+            </div>
+
+            <!-- SLA Resolution Rate -->
+            <div class="stat-card !p-6 !rounded-2xl">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">{{ __('SLA Résolution') }}</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1">{{ $slaKpis['res_met_pct'] }}<span class="text-sm text-slate-400 font-normal ml-1">%</span></h3>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <iconify-icon icon="solar:clock-circle-bold-duotone" width="24"></iconify-icon>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2">
+                    <div class="h-2 rounded-full {{ $slaKpis['res_met_pct'] >= 80 ? 'bg-emerald-500' : ($slaKpis['res_met_pct'] >= 50 ? 'bg-amber-500' : 'bg-red-500') }}" style="width: {{ min(100, $slaKpis['res_met_pct']) }}%"></div>
+                </div>
+                <p class="text-xs text-slate-400 mt-2">{{ __('Taux de respect') }} · {{ $slaKpis['res_breached_pct'] }}% {{ __('en breach') }}</p>
+            </div>
+
+            <!-- SLA Total Tracked -->
+            <div class="stat-card !p-6 !rounded-2xl">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500">{{ __('Tickets suivis SLA') }}</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1">{{ $slaKpis['total'] }}</h3>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                        <iconify-icon icon="solar:alarm-bold-duotone" width="24"></iconify-icon>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- SLA by Priority Table --}}
+        @if(!empty($slaKpis['by_priority']))
+            <div class="content-card mt-6">
+                <div class="px-6 py-5 border-b border-slate-100">
+                    <h3 class="text-base font-bold text-slate-900">{{ __('Conformité SLA par priorité') }}</h3>
+                </div>
+                <div class="p-0">
+                    <table class="w-full">
+                        <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
+                            <tr>
+                                <th class="px-6 py-3 text-left">{{ __('Priorité') }}</th>
+                                <th class="px-6 py-3 text-left">{{ __('Tickets') }}</th>
+                                <th class="px-6 py-3 text-right">{{ __('PR respecté') }}</th>
+                                <th class="px-6 py-3 text-right">{{ __('RES respecté') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach($slaKpis['by_priority'] as $sp)
+                                <tr class="hover:bg-slate-50/50 transition-colors">
+                                    <td class="px-6 py-4 text-sm font-medium text-slate-900">{{ $sp['name'] }}</td>
+                                    <td class="px-6 py-4 text-sm text-slate-700">{{ $sp['total'] }}</td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span class="text-sm font-semibold {{ $sp['fr_met_pct'] >= 80 ? 'text-emerald-600' : ($sp['fr_met_pct'] >= 50 ? 'text-amber-600' : 'text-red-600') }}">{{ $sp['fr_met_pct'] }}%</span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span class="text-sm font-semibold {{ $sp['res_met_pct'] >= 80 ? 'text-emerald-600' : ($sp['res_met_pct'] >= 50 ? 'text-amber-600' : 'text-red-600') }}">{{ $sp['res_met_pct'] }}%</span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+    @endif
+
+    @else
+        <x-page-skeleton variant="list" />
+    @endif
+
 </div>

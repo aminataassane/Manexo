@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Services\PlatformSettingsService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -22,6 +23,12 @@ class EnforceSessionLimits
         $maxSessions = (int) $settings->get('max_concurrent_sessions', 0);
 
         if ($maxSessions <= 0) {
+            return $next($request);
+        }
+
+        // Only check every 2 minutes per user to avoid a DB query on every request
+        $cacheKey = "session_limit_checked:{$user->id}";
+        if (Cache::has($cacheKey)) {
             return $next($request);
         }
 
@@ -47,6 +54,8 @@ class EnforceSessionLimits
                 ->whereNotIn('id', $sessionsToKeep->all())
                 ->delete();
         }
+
+        Cache::put($cacheKey, true, 600); // 10 min TTL
 
         return $next($request);
     }

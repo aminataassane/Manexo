@@ -5,14 +5,15 @@ namespace App\Models;
 use App\Helpers\PermissionSeeder;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Organization extends Model
 {
-    use HasPublicId, HasFactory;
+    use HasFactory, HasPublicId;
 
     public static string $publicIdPrefix = 'ORG';
 
@@ -104,8 +105,18 @@ class Organization extends Model
         return $this->hasMany(TicketPriority::class);
     }
 
+    public function slaPolicies(): HasMany
+    {
+        return $this->hasMany(SlaPolicy::class);
+    }
+
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function mailbox(): HasOne
+    {
+        return $this->hasOne(OrganizationMailbox::class);
     }
 }

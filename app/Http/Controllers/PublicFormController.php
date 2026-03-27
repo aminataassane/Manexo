@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Enums\FormStatus;
 use App\Enums\OrganizationRole;
+use App\Enums\TicketSource;
 use App\Enums\TicketStatus;
+use App\Events\UserNotificationReceived;
 use App\Models\Form;
 use App\Models\FormResponse;
 use App\Models\OrganizationMembership;
@@ -14,7 +16,6 @@ use App\Models\TicketCategory;
 use App\Models\TicketGroup;
 use App\Models\TicketPriority;
 use App\Models\User;
-use App\Events\UserNotificationReceived;
 use App\Notifications\FormResponseNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -191,7 +192,7 @@ class PublicFormController extends Controller
                     // but do not attribute the submission to their account
                     $actor = User::query()->create([
                         'name' => $guestName,
-                        'email' => $guestEmail . '.guest.' . Str::random(8) . '@unverified',
+                        'email' => $guestEmail.'.guest.'.Str::random(8).'@unverified',
                         'password' => Str::random(32),
                     ]);
                     $actor->forceFill(['status' => 'guest'])->save();
@@ -231,6 +232,7 @@ class PublicFormController extends Controller
                 if ($val instanceof \Illuminate\Http\UploadedFile) {
                     $fileFields[$key] = $val;
                 }
+
                 continue;
             }
 
@@ -294,14 +296,25 @@ class PublicFormController extends Controller
                 'ticket_group_id' => $ticketGroupId,
                 'assigned_to' => null,
                 'status' => TicketStatus::Open,
+                'source' => TicketSource::Form,
                 'subject' => trim((string) $validated['subject']),
                 'description' => trim((string) $validated['description']),
                 'custom_fields' => $customFields ?: null,
             ]);
 
+            \App\Services\SlaService::applyPolicy($ticket);
+            \App\Services\ApprovalService::applyPolicy($ticket);
+
             \App\Helpers\CacheHelper::invalidateDashboard($org->id);
             \App\Helpers\CacheHelper::invalidateReports($org->id);
             \App\Helpers\CacheHelper::invalidateTicketCounts($org->id);
+
+            \App\Services\AutomationService::evaluate($ticket, 'ticket_created');
+
+            $ticket->load(['category', 'priority', 'group', 'creator', 'assignees']);
+            \App\Services\WebhookService::dispatch($org->id, 'ticket.created', [
+                'ticket' => (new \App\Http\Resources\Api\V1\TicketResource($ticket))->resolve(),
+            ]);
         }
 
         // Create FormResponse (need ID for file storage)

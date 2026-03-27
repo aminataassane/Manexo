@@ -258,7 +258,7 @@
                           @input="clearFieldError($event)"
                           @change="clearFieldError($event)">
                         @csrf
-                        <input type="text" name="website" value="" class="hidden" tabindex="-1" autocomplete="off" />
+                        <input type="text" name="website" id="website_honeypot" value="" class="hidden" tabindex="-1" autocomplete="off" />
 
                         <div class="mnx-form-body {{ $embedMode ? 'px-5 py-5' : 'px-6 py-7 sm:px-10 sm:py-9' }}">
                             @if($hasSections)

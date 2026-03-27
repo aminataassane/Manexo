@@ -26,8 +26,43 @@ class EnsureOrganizationIsSelected
             return $next($request);
         }
 
-        // Prevent redirect loops & allow profile without an org.
-        if ($request->routeIs('organizations.*', 'profile', 'profile.*')) {
+        // Prevent redirect loops on organization selection routes.
+        if ($request->routeIs('organizations.*')) {
+            return $next($request);
+        }
+
+        // Profile pages are accessible without forcing organization selection,
+        // but if an organization is currently selected we still hydrate it so
+        // branding (accent color, org context) stays consistent.
+        if ($request->routeIs('profile', 'profile.*')) {
+            $currentId = (int) $request->session()->get('current_organization_id');
+            if ($currentId > 0) {
+                $org = null;
+
+                if ($user->canPlatformManage()) {
+                    $org = Cache::remember("sa_org:{$currentId}", 300, fn () =>
+                        \App\Models\Organization::find($currentId)
+                    );
+                    if ($org && ! $org->isActive()) {
+                        $org = null;
+                    }
+                } else {
+                    $cacheKey = "user_org:{$user->id}:{$currentId}";
+                    $org = Cache::remember($cacheKey, 300, function () use ($user, $currentId) {
+                        return $user->organizations()->whereKey($currentId)->first();
+                    });
+                    if ($org && ! $org->isActive()) {
+                        Cache::forget($cacheKey);
+                        $org = null;
+                    }
+                }
+
+                if ($org) {
+                    $request->attributes->set('currentOrganization', $org);
+                    view()->share('currentOrganization', $org);
+                }
+            }
+
             return $next($request);
         }
 

@@ -7,9 +7,10 @@ use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
+        api: __DIR__.'/../routes/api.php',
         channels: __DIR__.'/../routes/channels.php',
-        web: __DIR__ . '/../routes/web.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
             Route::middleware('web')
@@ -25,13 +26,21 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnforcePasswordExpiry::class,
         ]);
 
+        // DecodeApiToken must run before auth:sanctum (which has priority sorting).
+        // Prepending it to the api group ensures it runs before route-level middleware.
+        $middleware->api(prepend: [
+            \App\Http\Middleware\DecodeApiToken::class,
+        ]);
+
         $middleware->alias([
             'ensure.organization' => \App\Http\Middleware\EnsureOrganizationIsSelected::class,
             'super-admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'api.org' => \App\Http\Middleware\ApiAuthenticate::class,
+            'api.scope' => \App\Http\Middleware\ApiCheckScope::class,
         ]);
     })
     ->withEvents(discover: [
-        __DIR__ . '/../app/Listeners',
+        __DIR__.'/../app/Listeners',
     ])
     ->withExceptions(function (Exceptions $exceptions): void {
         //

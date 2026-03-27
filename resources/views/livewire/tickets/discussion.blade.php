@@ -1,9 +1,13 @@
 @php
-    use App\Enums\TicketMessageType;
-    use App\Enums\TicketStatus;
-    $notesCount = $ticket->messages->where('type', TicketMessageType::InternalNote)->count();
-    $lastActivity = $ticket->messages->last()?->created_at ?? $ticket->updated_at;
-    $allAttachments = $ticket->messages->flatMap(fn ($m) => is_array($m->attachments) ? $m->attachments : [])->filter()->values();
+    if (($loadStage ?? 0) >= 2) {
+        $notesCount = $ticket->messages->where('type', \App\Enums\TicketMessageType::InternalNote)->count();
+        $lastActivity = $ticket->messages->last()?->created_at ?? $ticket->updated_at;
+        $allAttachments = $ticket->messages->flatMap(fn ($m) => is_array($m->attachments) ? $m->attachments : [])->filter()->values();
+    } else {
+        $notesCount = 0;
+        $lastActivity = $ticket->updated_at;
+        $allAttachments = collect();
+    }
     $creator = $ticket->creator;
     $discussionUsers = collect([$creator])->merge($ticket->assignees)->merge($ticket->participants)->filter()->unique('id');
     $ticketAttachments = [];
@@ -37,8 +41,8 @@
 @endphp
 
 <div
-    class="flex flex-col min-h-0 rounded-none sm:rounded-xl lg:rounded-2xl overflow-hidden bg-white border-0 sm:border border-slate-200 shadow-sm"
-    style="height: calc(100dvh - 5rem); min-height: 14rem; padding-bottom: env(safe-area-inset-bottom, 0);"
+    class="discussion-shell flex flex-col min-h-0 rounded-none sm:rounded-xl lg:rounded-2xl overflow-hidden bg-white border-0 sm:border border-slate-200 shadow-sm"
+    style="height: calc(100dvh - 4.25rem); min-height: 12rem; padding-bottom: env(safe-area-inset-bottom, 0);"
     x-data="discussionWebSocket('{{ $ticketPublicId }}', {{ auth()->id() ?? 'null' }}, {{ $canSeeInternalNotes ? 'true' : 'false' }})"
     @keydown.enter.window="if (document.activeElement?.closest('[data-composer]') && !$event.shiftKey) { $event.preventDefault(); $refs.submitBtn?.click() }"
     @keydown.escape.window="addParticipantOpen = false"
@@ -68,8 +72,8 @@
     >
         {{-- SECTION DÉTAILS : uniquement infos ticket (sidebar). Récupération discussion n'affecte pas cette section. --}}
         <section id="ticket-details-section" aria-label="{{ __('Détails du ticket') }}" class="hidden lg:block shrink-0">
-            <aside class="flex shrink-0 flex-col bg-white border-r border-slate-200 overflow-hidden transition-[width] duration-300 ease-in-out h-full" :class="sidebarOpen ? 'w-[300px] xl:w-[320px]' : 'w-0 border-r-0'">
-                <div class="flex flex-col flex-1 min-w-0 min-h-0 w-[300px] xl:w-[320px]">
+            <aside class="flex shrink-0 flex-col bg-white border-r border-slate-200 overflow-hidden transition-[width] duration-300 ease-in-out h-full" :class="sidebarOpen ? 'w-[290px] xl:w-[310px]' : 'w-0 border-r-0'">
+                <div class="flex flex-col flex-1 min-w-0 min-h-0 w-[290px] xl:w-[310px]">
                     <div class="flex h-[60px] shrink-0 items-center justify-between border-b border-slate-100 px-5">
                         <span class="text-sm font-bold text-slate-900">{{ __('Infos') }}</span>
                         <button type="button" @click="toggleSidebar()" class="text-slate-400 hover:text-slate-900 transition-colors" :title="sidebarOpen ? '{{ __('Fermer le panneau') }}' : '{{ __('Ouvrir le panneau') }}'">
@@ -84,15 +88,22 @@
         </section>
 
         {{-- SECTION DISCUSSION : uniquement fil de discussion + composer. Cible pour récupération discussion. --}}
-        <section id="ticket-discussion-section" aria-label="{{ __('Discussion') }}" class="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-slate-50/50">
+        <section id="ticket-discussion-section" aria-label="{{ __('Discussion') }}" class="discussion-chat-panel flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-white">
             <!-- Header (sticky pour rester visible sous le header de l'app) -->
-            <header class="sticky top-0 z-20 shrink-0 bg-white border-b border-slate-100 px-3 py-2.5 sm:px-6 sm:py-3 shadow-sm safe-area-inset-top" style="padding-top: max(0.625rem, env(safe-area-inset-top));">
+            <header class="sticky top-0 z-20 shrink-0 bg-white/95 border-b border-slate-200 px-3 py-1.5 sm:px-5 sm:py-2 backdrop-blur safe-area-inset-top" style="padding-top: max(0.5rem, env(safe-area-inset-top));">
                 <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
                     <nav class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-xs sm:text-sm" style="min-width: 0;">
-                        <a href="{{ route('tickets.index') }}" onclick="if(history.length>1){event.preventDefault();history.back()}" class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
-                            <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
-                            <span class="hidden sm:inline font-medium">{{ __('Retour') }}</span>
-                        </a>
+                        @if($embedded ?? false)
+                            <a href="{{ route('discussions.index', ['discussionParam' => $ticket->public_id]) }}" wire:navigate class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
+                                <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
+                                <span class="hidden sm:inline font-medium">{{ __('Retour') }}</span>
+                            </a>
+                        @else
+                            <a href="{{ route('tickets.index') }}" onclick="if(history.length>1){event.preventDefault();history.back()}" class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
+                                <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
+                                <span class="hidden sm:inline font-medium">{{ __('Retour') }}</span>
+                            </a>
+                        @endif
                         <span class="text-slate-300 shrink-0">/</span>
                         <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
                             <span class="font-mono text-xs font-bold text-slate-400 shrink-0">{{ $ticket->shortReference() }}</span>
@@ -106,6 +117,16 @@
                         </div>
                     </nav>
                     <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                        @if($embedded ?? false)
+                            <a
+                                href="{{ route('tickets.discussion', $ticket) }}"
+                                class="inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs sm:text-sm font-medium hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                                title="{{ __('pages.discussions.open_full_ticket') }}"
+                            >
+                                <iconify-icon icon="solar:maximize-square-linear" width="18" class="shrink-0"></iconify-icon>
+                                <span class="hidden sm:inline">{{ __('pages.discussions.open_full_ticket') }}</span>
+                            </a>
+                        @endif
                         <button type="button" @click="togglePanel()" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors lg:hidden" title="{{ __('Infos ticket') }}">
                             <iconify-icon icon="solar:sidebar-minimalistic-linear" width="20"></iconify-icon>
                         </button>
@@ -126,11 +147,16 @@
             </header>
 
             <!-- Messages Scroll Area (flex-1 + min-h-0 so this div gets bounded height and scrolls) -->
-            <div id="discussion-messages" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-contain" x-data="{ tab: 'discussion' }">
-                <div class="mx-auto w-full max-w-4xl px-3 py-4 sm:px-6 sm:py-8" style="padding-left: max(0.75rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right));">
+            <div id="discussion-messages"
+                 class="discussion-chat-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-contain"
+                 x-data="{ tab: 'discussion' }"
+                 x-on:new-message-received.window="$nextTick(() => { $el.scrollTop = $el.scrollHeight })"
+            >
+                <div class="discussion-chat-stream mx-auto w-full max-w-4xl px-3 py-3 sm:px-5 sm:py-5" style="padding-left: max(0.75rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right));">
 
                     <!-- Tabs -->
-                    <div class="flex flex-wrap items-center justify-center gap-1 rounded-xl bg-slate-100 p-1 mb-4 sm:mb-8 w-full max-w-full mx-auto">
+                    <div class="mb-4 w-full max-w-full">
+                        <div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
                         <button type="button" @click="tab = 'discussion'" class="rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all touch-manipulation min-h-[36px]" :class="tab === 'discussion' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
                             {{ __('Discussion') }}
                         </button>
@@ -143,86 +169,32 @@
                                 @endif
                             </button>
                         @endif
+                        </div>
                     </div>
 
                     {{-- Discussion Tab --}}
-                    <div id="discussion-tab-content" x-show="tab === 'discussion'" x-cloak class="space-y-6 sm:space-y-8">
-                        <!-- Détails ticket (refonte : en-tête aéré, grille lisible, responsive) -->
-                        <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-white shadow-sm min-w-0 overflow-hidden">
-                            {{-- En-tête : ID + Titre + Créateur | Assignés --}}
-                            <div class="p-4 sm:p-6">
-                                <div class="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-5 min-w-0">
-                                    <span class="shrink-0 inline-flex items-center justify-center rounded-lg px-3 py-2 min-w-[7rem] sm:min-w-[7.5rem] text-xs font-semibold font-mono tracking-tight bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)]">
-                                        {{ $ticket->shortReference() }}
-                                    </span>
-                                    <div class="min-w-0 flex-1">
-                                        <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 tracking-tight break-words leading-snug">{{ $ticket->subject }}</h1>
-                                        <div class="mt-2 sm:mt-3 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-slate-500">
-                                            <span>{{ $creator?->name ?? __('Inconnu') }}</span>
-                                            @if($ticket->assignees->isNotEmpty())
-                                                <span class="text-slate-300" aria-hidden="true">|</span>
-                                                <span>{{ __('Assigné à') }} <span class="font-medium text-slate-700">{{ $ticket->assignees->first()->name }}</span>@if($ticket->assignees->count() > 1)<span class="text-slate-400"> +{{ $ticket->assignees->count() - 1 }}</span>@endif</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
+                    <div id="discussion-tab-content" x-show="tab === 'discussion'" x-cloak class="space-y-4 sm:space-y-6">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 sm:px-5 sm:py-4">
+                            <div class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                                <span class="inline-flex items-center rounded-lg bg-white px-2.5 py-1 font-mono font-bold text-slate-700 border border-slate-200">{{ $ticket->shortReference() }}</span>
+                                <span class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 border border-slate-200"><span class="h-2 w-2 rounded-full {{ $priorityDot }}"></span>{{ $ticket->priority?->name ?? '—' }}</span>
+                                <span class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 border border-slate-200">{{ $statusLabels[$ticket->status->value] ?? $ticket->status->value }}</span>
+                                <span class="inline-flex items-center rounded-lg bg-white px-2.5 py-1 border border-slate-200">{{ $ticket->category?->name ?? '—' }}</span>
                             </div>
-
-                            {{-- Grille : Catégorie, Priorité, Statut, Activité --}}
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-px bg-slate-100 sm:bg-slate-200">
-                                <div class="bg-white p-3 sm:p-4 min-w-0">
-                                    <div class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('Catégorie') }}</div>
-                                    <div class="mt-1 sm:mt-1.5 text-sm font-medium text-slate-800 truncate" title="{{ $ticket->category?->name }}">{{ $ticket->category?->name ?? '—' }}</div>
-                                </div>
-                                <div class="bg-white p-3 sm:p-4 min-w-0">
-                                    <div class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('Priorité') }}</div>
-                                    <div class="mt-1 sm:mt-1.5 flex items-center gap-2 min-w-0">
-                                        <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $priorityDot }}"></span>
-                                        <span class="text-sm font-medium text-slate-800 truncate">{{ $ticket->priority?->name ?? '—' }}</span>
-                                    </div>
-                                </div>
-                                <div class="bg-white p-3 sm:p-4 min-w-0">
-                                    <div class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('Statut') }}</div>
-                                    <div class="mt-1 sm:mt-1.5">
-                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent)]">
-                                            <iconify-icon icon="solar:bolt-circle-bold-duotone" width="12" class="shrink-0"></iconify-icon>
-                                            <span class="truncate">{{ $statusLabels[$ticket->status->value] ?? $ticket->status->value }}</span>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="bg-white p-3 sm:p-4 min-w-0">
-                                    <div class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">{{ __('Activité') }}</div>
-                                    <div class="mt-1 sm:mt-1.5 text-sm text-slate-600 truncate" title="{{ $ticket->updated_at?->diffForHumans() }}">{{ $ticket->updated_at?->diffForHumans() }}</div>
-                                </div>
-                            </div>
-
-                            {{-- Description --}}
-                            <div class="p-4 sm:p-6 pt-4 sm:pt-6 border-t border-slate-100 text-sm sm:text-base leading-relaxed text-slate-700 max-w-none break-words">
-                                {!! nl2br(e($ticket->description ?? '')) !!}
-                            </div>
-
-                            @if(!empty($ticketAttachments))
-                                <div class="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-wrap gap-2 min-w-0 border-t border-slate-100 pt-4">
-                                    @foreach($ticketAttachments as $att)
-                                        @include('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'theirs'])
-                                    @endforeach
-                                </div>
-                            @endif
+                            <p class="mt-2 text-sm text-slate-700 break-words line-clamp-2">{{ $ticket->description }}</p>
                         </div>
 
                         <!-- Timeline (messages de la discussion) -->
+                        @if (($loadStage ?? 0) >= 2)
                         @php
                             $messagesByDate = $ticket->messages->groupBy(fn ($m) => $m->created_at->format('Y-m-d'));
                             $discussionMessagesByDate = $messagesByDate
-                                ->map(function ($msgs) use ($canSeeInternalNotes) {
-                                    if (! $canSeeInternalNotes) {
-                                        return $msgs->where('type', '!=', TicketMessageType::InternalNote);
-                                    }
-                                    return $msgs;
-                                })
+                                ->map(fn ($msgs) => $canSeeInternalNotes
+                                    ? $msgs
+                                    : $msgs->where('type', '!=', \App\Enums\TicketMessageType::InternalNote))
                                 ->filter(fn ($msgs) => $msgs->isNotEmpty());
                         @endphp
-                        <div class="relative min-w-0 overflow-hidden space-y-6" data-timeline="discussion">
+                        <div class="discussion-thread relative min-w-0 overflow-hidden space-y-6" data-timeline="discussion">
                             @forelse($discussionMessagesByDate as $date => $msgs)
                                 <div class="flex flex-col gap-4">
                                     <div class="flex items-center gap-3 my-2 first:mt-0">
@@ -246,13 +218,51 @@
                                 </div>
                             @endforelse
                         </div>
+                        @else
+                        {{-- Messages skeleton (stage 1 — header+sidebar visible, messages loading) --}}
+                        <div class="space-y-4 animate-pulse" data-timeline="discussion">
+                            <div class="flex gap-3 py-3 max-w-[70%]">
+                                <div class="w-9 h-9 shrink-0 rounded-full bg-slate-200"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 bg-slate-200 rounded w-24"></div>
+                                    <div class="rounded-2xl bg-slate-100 p-4 space-y-2">
+                                        <div class="h-3 bg-slate-200 rounded w-full"></div>
+                                        <div class="h-3 bg-slate-200 rounded w-3/4"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-end py-3">
+                                <div class="flex items-end gap-3 max-w-[70%] flex-row-reverse">
+                                    <div class="w-9 h-9 shrink-0 rounded-full bg-slate-200"></div>
+                                    <div class="flex-1 space-y-2">
+                                        <div class="h-3 bg-slate-200 rounded w-20 ml-auto"></div>
+                                        <div class="rounded-2xl bg-slate-100 p-4 space-y-2">
+                                            <div class="h-3 bg-slate-200 rounded w-full"></div>
+                                            <div class="h-3 bg-slate-200 rounded w-2/3"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-3 py-3 max-w-[60%]">
+                                <div class="w-9 h-9 shrink-0 rounded-full bg-slate-200"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 bg-slate-200 rounded w-28"></div>
+                                    <div class="rounded-2xl bg-slate-100 p-4 space-y-2">
+                                        <div class="h-3 bg-slate-200 rounded w-full"></div>
+                                        <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                     </div>
 
                     {{-- Notes Tab --}}
                     @if($canSeeInternalNotes)
                     <div id="notes-tab-content" x-show="tab === 'notes'" x-cloak class="space-y-6">
-                        @php $notesByDate = $ticket->messages->where('type', TicketMessageType::InternalNote)->groupBy(fn ($m) => $m->created_at->format('Y-m-d')); @endphp
-                        <div class="relative min-w-0 overflow-hidden space-y-6" data-timeline="notes">
+                        @if (($loadStage ?? 0) >= 2)
+                        @php $notesByDate = $ticket->messages->where('type', \App\Enums\TicketMessageType::InternalNote)->groupBy(fn ($m) => $m->created_at->format('Y-m-d')); @endphp
+                        <div class="discussion-thread relative min-w-0 overflow-hidden space-y-6" data-timeline="notes">
                             @forelse($notesByDate as $date => $msgs)
                                 <div class="flex flex-col gap-4">
                                     <div class="flex items-center gap-3 my-2">
@@ -275,14 +285,35 @@
                                 </div>
                             @endforelse
                         </div>
+                        @else
+                        <div class="space-y-4 animate-pulse py-4">
+                            <div class="flex gap-3 max-w-[85%]">
+                                <div class="w-8 h-8 shrink-0 rounded-full bg-amber-100"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 bg-amber-100 rounded w-32"></div>
+                                    <div class="rounded-xl bg-amber-50 border border-amber-100 p-4 space-y-2">
+                                        <div class="h-3 bg-amber-100/80 rounded w-full"></div>
+                                        <div class="h-3 bg-amber-100/80 rounded w-4/5"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex gap-3 max-w-[85%]">
+                                <div class="w-8 h-8 shrink-0 rounded-full bg-amber-100"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 bg-amber-100 rounded w-28"></div>
+                                    <div class="rounded-xl bg-amber-50 border border-amber-100 p-4 h-16"></div>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                     </div>
                     @endif
                 </div>
             </div>
 
             <!-- Composer (compact) -->
-            <div class="shrink-0 bg-white border-t border-slate-200 p-2 sm:p-3 z-10 safe-area-pb min-w-0 overflow-hidden" data-composer>
-                <div class="mx-auto max-w-2xl min-w-0">
+            <div class="discussion-composer shrink-0 border-t border-slate-200 bg-white/95 p-2 sm:p-2.5 z-10 safe-area-pb min-w-0 overflow-hidden backdrop-blur" data-composer>
+                <div class="mx-auto max-w-3xl min-w-0">
                     <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
                         <button type="button" wire:click="setAsInternalNote(false)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 {{ !$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
                             {{ __('Répondre') }}
@@ -295,7 +326,7 @@
                         @endif
                     </div>
 
-                    <form wire:submit="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-{{ $ticketPublicId }}')" class="relative rounded-lg sm:rounded-xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all min-w-0"
+                    <form wire:submit="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-{{ $ticketPublicId }}')" class="discussion-composer-box relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)]/25 focus-within:border-[var(--accent)] transition-all min-w-0"
                     x-data="{
                         users: {{ \Illuminate\Support\Js::from($mentionableUsers ?? []) }},
                         mentionOpen: false,
@@ -355,14 +386,14 @@
                         }
                     }"
                     @keydown.escape="mentionOpen = false">
-                        <div class="p-1 sm:p-1.5 relative">
+                        <div class="p-1.5 sm:p-2 relative">
                             <textarea
                                 x-ref="mentionInput"
                                 wire:model="body"
                                 rows="2"
                                 @input="onInput($event)"
                                 @keydown.arrow-down.prevent="mentionOpen && filteredMentions.length && (mentionOpen = true)"
-                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-xs p-1 sm:p-1.5 min-h-[2.5rem] sm:min-h-[2.75rem]"
+                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm p-1 min-h-[2.5rem] sm:min-h-[2.75rem] max-h-28"
                                 placeholder="{{ $asInternalNote ? __('Ajouter une note visible uniquement par l\'équipe...') : __('Écrivez votre réponse ici...') }}"
                             ></textarea>
                             <div x-show="mentionOpen" x-cloak @click.outside="mentionOpen = false"
@@ -379,7 +410,7 @@
                             </div>
                         </div>
 
-                        <div class="flex flex-wrap items-center justify-between gap-1.5 px-2 py-1.5 border-t border-slate-200/50 bg-white/50 rounded-b-lg sm:rounded-b-xl">
+                        <div class="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 border-t border-slate-100 rounded-b-xl bg-slate-50/50">
                             <div class="flex items-center gap-0.5 min-w-0 flex-1 sm:flex-initial">
                                 <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="discussion-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
                                 <button type="button" onclick="document.getElementById('discussion-file-input').click()" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Joindre un fichier') }}">
@@ -403,7 +434,7 @@
                             <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                 <p class="text-[10px] text-slate-400 hidden sm:inline">{{ __('Markdown') }}</p>
                                 <p class="text-[10px] text-slate-400">{{ __('Tapez') }} <kbd class="px-0.5 py-px rounded bg-slate-100 text-slate-600 font-mono text-[9px]">@</kbd> {{ __('pour mentionner') }}</p>
-                                <button type="submit" x-ref="submitBtn" wire:loading.attr="disabled" wire:target="sendMessage" class="inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 min-h-[32px] sm:min-h-0 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70 disabled:cursor-not-allowed" style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};">
+                                <button type="submit" x-ref="submitBtn" wire:loading.attr="disabled" wire:target="sendMessage" class="inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 min-h-[34px] sm:min-h-0 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70 disabled:cursor-not-allowed" style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};">
                                     <span wire:loading.remove wire:target="sendMessage">{{ __('Envoyer') }}</span>
                                     <span wire:loading wire:target="sendMessage" class="inline-block h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
                                     <iconify-icon icon="solar:plain-bold" width="12" wire:loading.remove wire:target="sendMessage"></iconify-icon>
@@ -589,6 +620,63 @@
         </x-modal>
         @endif
     </div>
+
+    {{-- Approval Modal --}}
+    @if($ticket->requires_approval && $ticket->isPendingApproval() && ($canApproveTicket ?? false))
+        <div
+            x-data="{ open: @entangle('showApprovalModal') }"
+            x-show="open"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+        >
+            <div class="fixed inset-0 bg-black/40" @click="$wire.cancelApproval()"></div>
+            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10" @click.stop>
+                <h3 class="text-lg font-bold text-slate-900 mb-1">
+                    @{{ $wire.approvalAction === 'approve' ? 'Approuver le ticket' : 'Rejeter le ticket' }}
+                </h3>
+                <p class="text-sm text-slate-500 mb-4">
+                    Un commentaire est obligatoire pour justifier votre décision.
+                </p>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Commentaire</label>
+                    <textarea
+                        wire:model="approvalComment"
+                        rows="4"
+                        class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
+                        placeholder="Justifiez votre décision..."
+                    ></textarea>
+                    @error('approvalComment')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="flex items-center gap-3 justify-end">
+                    <button
+                        type="button"
+                        wire:click="cancelApproval"
+                        class="px-4 py-2 rounded-xl text-sm font-medium text-slate-700 border border-slate-200 hover:bg-slate-50 transition-colors"
+                    >
+                        Annuler
+                    </button>
+                    <button
+                        type="button"
+                        wire:click="submitApproval"
+                        class="px-4 py-2 rounded-xl text-sm font-bold text-white shadow-sm transition-colors"
+                        :class="$wire.approvalAction === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'"
+                    >
+                        <span x-text="$wire.approvalAction === 'approve' ? 'Confirmer l\'approbation' : 'Confirmer le rejet'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
 
 @script
@@ -664,11 +752,17 @@
         fileUrl(att) {
             if (!att || !att.path) return '#';
             const origin = window.location.origin;
-            if (String(att.path).startsWith('ticket-messages/')) {
-                const filename = att.path.split('/').pop();
+            const path = String(att.path);
+            if (path.startsWith('ticket-messages/')) {
+                const filename = path.split('/').pop();
                 return origin + '/tickets/' + this.ticketPublicId + '/files/' + encodeURIComponent(filename);
             }
-            return origin + '/storage/' + att.path;
+            if (path.startsWith('ticket-attachments/')) {
+                const filename = path.split('/').pop();
+                return origin + '/tickets/' + this.ticketPublicId + '/attachment/' + encodeURIComponent(filename);
+            }
+            if (att.url) return att.url;
+            return origin + '/storage/' + path;
         },
         attachmentsHtml(attachments, variant) {
             if (!Array.isArray(attachments) || attachments.length === 0) return '';
@@ -697,17 +791,17 @@
             const attachmentsBlock = this.attachmentsHtml(e.attachments || [], (isOwn && hasAttachments) ? 'theirs' : (isOwn ? 'mine' : 'theirs'));
 
             if (isSystem) {
-                return `<div class="flex justify-center py-3"><div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs"><iconify-icon icon="solar:info-circle-linear" width="14" class="shrink-0 text-slate-500"></iconify-icon><span class="break-words max-w-[min(100%,28rem)]">${body}</span><span class="text-slate-400 shrink-0">· ${timeAgo}</span></div></div>`;
+                return `<div class="message-row message-system flex justify-center py-3"><div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs"><iconify-icon icon="solar:info-circle-linear" width="14" class="shrink-0 text-slate-500"></iconify-icon><span class="break-words max-w-[min(100%,28rem)]">${body}</span><span class="text-slate-400 shrink-0">· ${timeAgo}</span></div></div>`;
             }
             if (isNote) {
-                return `<div class="flex gap-3 py-3 max-w-[85%]"><div class="w-8 h-8 shrink-0 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><iconify-icon icon="solar:lock-keyhole-linear" width="14"></iconify-icon></div><div class="flex-1 min-w-0 rounded-2xl rounded-tl-md bg-amber-50/90 border border-amber-200/80 shadow-sm overflow-hidden"><div class="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/60 bg-amber-50/50"><div class="flex items-center gap-2"><span class="text-[11px] font-bold text-amber-800 uppercase tracking-wide">Note interne</span><span class="text-[10px] text-amber-600">${name}</span></div><span class="text-[10px] text-amber-600/90">${timeAgo}</span></div><div class="px-4 py-3 text-sm leading-relaxed text-amber-900 break-words">${body}</div>${attachmentsBlock}</div></div>`;
+                return `<div class="message-row message-note flex gap-3 py-3 max-w-[85%]"><div class="w-8 h-8 shrink-0 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><iconify-icon icon="solar:lock-keyhole-linear" width="14"></iconify-icon></div><div class="message-bubble flex-1 min-w-0 rounded-2xl rounded-tl-md bg-amber-50/90 border border-amber-200/80 shadow-sm overflow-hidden"><div class="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/60 bg-amber-50/50"><div class="flex items-center gap-2"><span class="text-[11px] font-bold text-amber-800 uppercase tracking-wide">Note interne</span><span class="text-[10px] text-amber-600">${name}</span></div><span class="text-[10px] text-amber-600/90">${timeAgo}</span></div><div class="px-4 py-3 text-sm leading-relaxed text-amber-900 break-words">${body}</div>${attachmentsBlock}</div></div>`;
             }
             if (isOwn) {
                 const bubbleWrap = hasAttachments ? 'rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed shadow-md w-full max-w-full bg-white border border-slate-200 text-slate-700' : 'rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed shadow-md w-full max-w-full text-white';
                 const bubbleStyle = hasAttachments ? '' : ' style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%);"';
-                return `<div class="flex justify-end py-3"><div class="flex items-end gap-3 max-w-[85%] min-w-0 flex-row-reverse"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="flex flex-col items-end min-w-0 max-w-full"><div class="flex items-center gap-2 mb-1.5 flex-row-reverse"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400">${timeAgo}</span></div><div class="${bubbleWrap}"${bubbleStyle}><div class="text-left break-words ${!hasAttachments?'text-white':''}">${body}</div>${attachmentsBlock}</div></div></div></div>`;
+                return `<div class="message-row message-own flex justify-end py-3"><div class="flex items-end gap-3 max-w-[85%] min-w-0 flex-row-reverse"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="flex flex-col items-end min-w-0 max-w-full"><div class="flex items-center gap-2 mb-1.5 flex-row-reverse"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400">${timeAgo}</span></div><div class="message-bubble ${bubbleWrap}"${bubbleStyle}><div class="text-left break-words ${!hasAttachments?'text-white':''}">${body}</div>${attachmentsBlock}</div></div></div></div>`;
             }
-            return `<div class="flex gap-3 py-3 min-w-0 max-w-[85%]"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="min-w-0 max-w-full w-fit"><div class="flex flex-wrap items-center gap-2 mb-1.5"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400 ml-auto">${timeAgo}</span></div><div class="rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0">${body}${attachmentsBlock}</div></div></div>`;
+            return `<div class="message-row message-incoming flex gap-3 py-3 min-w-0 max-w-[85%]"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="min-w-0 max-w-full w-fit"><div class="flex flex-wrap items-center gap-2 mb-1.5"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400 ml-auto">${timeAgo}</span></div><div class="message-bubble rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0">${body}${attachmentsBlock}</div></div></div>`;
         },
         escapeHtml(text) {
             const div = document.createElement('div');

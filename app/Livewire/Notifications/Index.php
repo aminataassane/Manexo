@@ -18,10 +18,28 @@ class Index extends Component
 {
     use WithPagination;
 
+    public bool $ready = true;
+
+    public function loadPage(): void {}
+
     #[Url]
     public string $filter = 'all';
 
+    #[Url]
+    public string $category = 'all';
+
     public int $perPage = 20;
+
+    /**
+     * @var array<string, array<int, string>>
+     */
+    private const CATEGORY_TYPES = [
+        'tickets' => ['ticket_new_message', 'ticket_assignee', 'ticket_mention', 'ticket_reopened'],
+        'discussions' => ['discussion_new_message', 'discussion_invite', 'discussion_removed'],
+        'forms' => ['form_assignment', 'form_response', 'form_overdue'],
+        'reports' => ['task_report_shared'],
+        'team' => ['organization_invitation', 'invitation_accepted', 'team_role_changed'],
+    ];
 
     public function getListeners(): array
     {
@@ -50,6 +68,19 @@ class Index extends Component
             $query->whereNull('read_at');
         }
 
+        if ($this->category !== 'all') {
+            $types = self::CATEGORY_TYPES[$this->category] ?? [];
+            if ($types === []) {
+                $this->category = 'all';
+            } else {
+                $query->where(function ($q) use ($types) {
+                    foreach ($types as $type) {
+                        $q->orWhereRaw("(data::jsonb->>'type') = ?", [$type]);
+                    }
+                });
+            }
+        }
+
         return $query->latest()->paginate($this->perPage);
     }
 
@@ -67,6 +98,13 @@ class Index extends Component
     public function setFilter(string $filter): void
     {
         $this->filter = in_array($filter, ['all', 'unread']) ? $filter : 'all';
+        $this->resetPage();
+    }
+
+    public function setCategory(string $category): void
+    {
+        $allowed = array_merge(['all'], array_keys(self::CATEGORY_TYPES));
+        $this->category = in_array($category, $allowed, true) ? $category : 'all';
         $this->resetPage();
     }
 

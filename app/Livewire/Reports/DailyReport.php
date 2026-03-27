@@ -25,6 +25,16 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 #[Title('Rapport journalier')]
 class DailyReport extends Component
 {
+    /** 1 = shell instantané, 2 = KPI + listes (progressif). */
+    public int $loadStage = 1;
+
+    public function loadReportBody(): void
+    {
+        if ($this->loadStage < 2) {
+            $this->loadStage = 2;
+        }
+    }
+
     public string $date = '';
 
     public string $filterGroup = '';
@@ -126,15 +136,16 @@ class DailyReport extends Component
             ->selectRaw("count(*) filter (where status = 'pending') as pending_count")
             ->first();
 
-        // Average first response time (first message from non-creator)
+        // Average first response time — tickets whose first agent response fell on this day
         $avgFirstResponse = (clone $base)
-            ->whereBetween('tickets.created_at', [$start, $end])
-            ->whereExists(function ($sub) {
+            ->whereExists(function ($sub) use ($start, $end) {
                 $sub->select(DB::raw(1))
                     ->from('ticket_messages as tm')
                     ->whereColumn('tm.ticket_id', 'tickets.id')
                     ->whereColumn('tm.user_id', '!=', 'tickets.created_by')
-                    ->where('tm.type', 'message');
+                    ->where('tm.type', 'message')
+                    ->whereRaw('tm.created_at = (select min(tm2.created_at) from ticket_messages tm2 where tm2.ticket_id = tickets.id and tm2.user_id != tickets.created_by and tm2.type = \'message\')')
+                    ->whereBetween('tm.created_at', [$start, $end]);
             })
             ->selectRaw("avg(extract(epoch from (
                 (select min(tm.created_at) from ticket_messages tm
@@ -145,10 +156,16 @@ class DailyReport extends Component
             ))) as avg_seconds")
             ->value('avg_seconds');
 
-        // Average resolution time
+        // Average resolution time — tickets resolved/closed on this day
         $avgResolution = (clone $base)
-            ->whereBetween('tickets.created_at', [$start, $end])
             ->whereIn('tickets.status', [TicketStatus::Resolved, TicketStatus::Closed])
+            ->where(function ($q) use ($start, $end) {
+                $q->whereBetween('tickets.closed_at', [$start, $end])
+                    ->orWhere(function ($q2) use ($start, $end) {
+                        $q2->whereNull('tickets.closed_at')
+                            ->whereBetween('tickets.updated_at', [$start, $end]);
+                    });
+            })
             ->selectRaw('avg(extract(epoch from (coalesce(tickets.closed_at, tickets.updated_at) - tickets.created_at))) as avg_seconds')
             ->value('avg_seconds');
 
@@ -280,14 +297,36 @@ class DailyReport extends Component
             ->all();
     }
 
+    private function getLogoBase64(?object $org): ?string
+    {
+        if ($org && $org->logo_path) {
+            $path = storage_path('app/public/' . ltrim($org->logo_path, '/'));
+            if (file_exists($path)) {
+                $mime = mime_content_type($path) ?: 'image/png';
+
+                return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            }
+        }
+
+        return null;
+    }
+
     public function exportCsv(): StreamedResponse
     {
         [$start, $end] = $this->dateRange();
         $summary = $this->computeSummary($start, $end);
+        $org = request()->attributes->get('currentOrganization');
+        $orgName = $org?->name ?? '';
 
-        return response()->streamDownload(function () use ($summary) {
+        return response()->streamDownload(function () use ($summary, $orgName) {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM
+
+            // Manexo branding header
+            fputcsv($handle, ['Manexo — ' . $orgName], ';');
+            fputcsv($handle, [__('daily_report.title') . ' — ' . $this->date], ';');
+            fputcsv($handle, [__('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')])], ';');
+            fputcsv($handle, [], ';');
 
             // Section 1: Summary
             fputcsv($handle, [__('daily_report.export_section_summary')], ';');
@@ -385,6 +424,7 @@ class DailyReport extends Component
 
         $org = request()->attributes->get('currentOrganization');
         $orgName = $org?->name ?? '';
+        $logoBase64 = $this->getLogoBase64($org);
 
         $pdf = Pdf::loadView('pdf.daily-report', [
             'summary' => $summary,
@@ -393,6 +433,7 @@ class DailyReport extends Component
             'agentPerf' => $agentPerf,
             'date' => $this->date,
             'orgName' => $orgName,
+            'logoBase64' => $logoBase64,
             'formatDuration' => fn (?float $s) => $this->formatDuration($s),
         ])->setPaper('a4', 'landscape');
 
@@ -427,22 +468,39 @@ class DailyReport extends Component
             return redirect()->route('organizations.select');
         }
 
-        if (! $user->hasPermission(Permission::ReportsView)) {
+        if (! ($user instanceof User) || ! $user->hasPermission(Permission::ReportsView)) {
             abort(403);
         }
 
         [$start, $end] = $this->dateRange();
 
-        // Cache summary only if date = today AND no filters active
-        $isToday = $this->date === now()->toDateString();
-        if ($isToday && ! $this->hasActiveFilters()) {
-            $summary = Cache::remember(
-                CacheHelper::dailyReportKey($orgId, $this->date),
-                CacheHelper::TTL,
-                fn () => $this->computeSummary($start, $end),
-            );
+        if ($this->loadStage < 2) {
+            $summary = [
+                'created_total' => 0,
+                'created_open' => 0,
+                'created_in_progress' => 0,
+                'created_pending' => 0,
+                'created_resolved' => 0,
+                'created_closed' => 0,
+                'resolved_today' => 0,
+                'backlog_open' => 0,
+                'backlog_in_progress' => 0,
+                'backlog_pending' => 0,
+                'avg_first_response_seconds' => null,
+                'avg_resolution_seconds' => null,
+            ];
         } else {
-            $summary = $this->computeSummary($start, $end);
+            // Cache summary only if date = today AND no filters active
+            $isToday = $this->date === now()->toDateString();
+            if ($isToday && ! $this->hasActiveFilters()) {
+                $summary = Cache::remember(
+                    CacheHelper::dailyReportKey($orgId, $this->date),
+                    CacheHelper::TTL,
+                    fn () => $this->computeSummary($start, $end),
+                );
+            } else {
+                $summary = $this->computeSummary($start, $end);
+            }
         }
 
         // Load filter options from cache

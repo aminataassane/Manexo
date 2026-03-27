@@ -17,9 +17,8 @@
 
 <!-- TOPBAR: White background for a clean look -->
 <header
-    class="fixed top-0 left-0 right-0 z-40 flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white shadow-sm backdrop-blur-md px-3 transition-[left] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:px-6 md:left-[72px] xl:left-[80px] min-[1920px]:pl-4"
+    class="manexo-shell-transition fixed top-0 left-0 right-0 z-40 flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white shadow-sm backdrop-blur-md px-3 transition-[left] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:px-6 md:left-[var(--manexo-shell-offset)] min-[1920px]:pl-4"
     style="padding-left: max(0.75rem, env(safe-area-inset-left)); padding-top: env(safe-area-inset-top, 0);"
-    :class="sidebarOpen ? 'md:!left-[240px] xl:!left-[260px]' : ''"
 >
     <!-- Left: Mobile Menu + Search -->
     <div class="flex flex-1 items-center gap-4">
@@ -34,11 +33,14 @@
         <!-- Search Bar -->
         <div class="hidden max-w-md flex-1 md:block">
             <div class="relative group">
+                <label for="topbar_search" class="sr-only">Rechercher</label>
                 <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                     <iconify-icon icon="solar:magnifer-linear" class="text-slate-400 group-focus-within:text-[var(--accent)] transition-colors" width="18"></iconify-icon>
                 </div>
                 <input
                     type="text"
+                    id="topbar_search"
+                    name="topbar_search"
                     placeholder="Rechercher un ticket, un client..."
                     class="block w-full rounded-xl border-0 bg-slate-50 py-2.5 pl-10 pr-3 text-sm text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-[var(--accent)] transition-all hover:bg-slate-100 focus:bg-white"
                 >
@@ -97,7 +99,7 @@
                 </div>
 
                 <div class="py-1">
-                    <a href="{{ route('profile') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <a href="{{ route('profile') }}" wire:navigate class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:user-linear" width="16"></iconify-icon>
                         Mon Profil
                     </a>

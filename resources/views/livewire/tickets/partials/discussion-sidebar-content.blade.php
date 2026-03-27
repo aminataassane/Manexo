@@ -44,63 +44,82 @@
             </a>
         </div>
 
-        <div class="mt-3 flex flex-wrap gap-2">
-            {{-- Statut : dropdown pour staff, badge pour les autres --}}
-            @if($canAssignTicket ?? false)
-                <select wire:change="changeStatus($event.target.value)" class="rounded-full border-slate-200 bg-[var(--accent-soft)] text-[var(--accent)] py-1 pl-2.5 pr-7 text-xs font-bold shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer max-w-full min-w-0 disabled:opacity-50 disabled:cursor-not-allowed" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
-                    @foreach(TicketStatus::cases() as $s)
-                        <option value="{{ $s->value }}" @selected($ticket->status === $s)>{{ __('tickets.status.' . $s->value) }}</option>
-                    @endforeach
-                </select>
-            @else
-                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent)]">
-                    <iconify-icon icon="solar:bolt-circle-bold-duotone" width="14"></iconify-icon>
-                    {{ __('tickets.status.' . $ticket->status->value) }}
-                </span>
-            @endif
-
-            {{-- Priorité : dropdown pour staff, badge pour les autres --}}
-            @if($canAssignTicket ?? false)
-                <select x-on:change="$wire.changePriority(Number($event.target.value))" class="rounded-full border-slate-200 bg-slate-100 text-slate-700 py-1 pl-2.5 pr-7 text-xs font-bold shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer max-w-full min-w-0 disabled:opacity-50 disabled:cursor-not-allowed" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
-                    @foreach($orgPriorities ?? [] as $p)
-                        <option value="{{ $p->id }}" @selected($ticket->ticket_priority_id === $p->id)>{{ $p->name }}</option>
-                    @endforeach
-                </select>
-            @else
-                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold bg-slate-100 text-slate-700">
-                    <span class="h-1.5 w-1.5 rounded-full {{ $priorityDot }}"></span>
-                    {{ optional($ticket->priority)->name ?? '—' }}
-                </span>
-            @endif
-
-            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold bg-slate-100 text-slate-700">
-                <iconify-icon icon="solar:tag-bold-duotone" width="14"></iconify-icon>
-                {{ optional($ticket->category)->name ?? '—' }}
-            </span>
-
-            {{-- Groupe : dropdown pour staff, badge pour les autres --}}
-            @if(($ticketGroups ?? collect())->isNotEmpty())
+        {{-- Une seule colonne : la sidebar (~300–380px) ne peut pas supporter 2 colonnes sans tronquer les libellés --}}
+        <div class="mt-3 space-y-2.5">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    {{ __('Statut') }}
+                    <span wire:loading wire:target="changeStatus" class="inline-block h-3 w-3 rounded-full border-2 border-slate-300 border-t-transparent animate-spin align-middle ml-1"></span>
+                </div>
                 @if($canAssignTicket ?? false)
-                    <select wire:change="changeGroup($event.target.value)" class="rounded-full border-slate-200 py-1 pl-2.5 pr-7 text-xs font-bold shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer max-w-full min-w-0 disabled:opacity-50 disabled:cursor-not-allowed" style="background-color: {{ optional($ticket->group)->color ? optional($ticket->group)->color . '15' : '#f1f5f9' }}; color: {{ optional($ticket->group)->color ?? '#334155' }};" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
-                        <option value="" @selected(!$ticket->ticket_group_id)>{{ __('— Aucun groupe') }}</option>
-                        @foreach($ticketGroups as $tg)
-                            <option value="{{ $tg->id }}" @selected($ticket->ticket_group_id === $tg->id)>{{ $tg->name }}</option>
+                    <select wire:change="changeStatus($event.target.value)" wire:loading.class="opacity-50" wire:target="changeStatus" class="w-full min-w-0 rounded-lg border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-800 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
+                        @foreach(TicketStatus::cases() as $s)
+                            <option value="{{ $s->value }}" @selected($ticket->status === $s)>{{ __('tickets.status.' . $s->value) }}</option>
                         @endforeach
                     </select>
-                @elseif($ticket->group)
-                    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold" style="background-color: {{ $ticket->group->color ?? 'var(--accent)' }}15; color: {{ $ticket->group->color ?? 'var(--accent)' }};">
-                        <iconify-icon icon="solar:widget-5-bold-duotone" width="14"></iconify-icon>
-                        {{ $ticket->group->name }}
-                    </span>
+                @else
+                    <div class="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-[var(--accent-soft)] px-3 py-2.5 text-sm font-bold text-[var(--accent)]">
+                        <iconify-icon icon="solar:bolt-circle-bold-duotone" width="14"></iconify-icon>
+                        <span class="truncate">{{ __('tickets.status.' . $ticket->status->value) }}</span>
+                    </div>
                 @endif
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    {{ __('Priorité') }}
+                    <span wire:loading wire:target="changePriority" class="inline-block h-3 w-3 rounded-full border-2 border-slate-300 border-t-transparent animate-spin align-middle ml-1"></span>
+                </div>
+                @if($canAssignTicket ?? false)
+                    <select x-on:change="$wire.changePriority(Number($event.target.value))" wire:loading.class="opacity-50" wire:target="changePriority" class="w-full min-w-0 rounded-lg border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-800 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
+                        @foreach($orgPriorities ?? [] as $p)
+                            <option value="{{ $p->id }}" @selected($ticket->ticket_priority_id === $p->id)>{{ $p->name }}</option>
+                        @endforeach
+                    </select>
+                @else
+                    <div class="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-white px-2.5 py-2 text-xs font-bold text-slate-700 border border-slate-200">
+                        <span class="h-1.5 w-1.5 rounded-full {{ $priorityDot }}"></span>
+                        <span class="truncate">{{ optional($ticket->priority)->name ?? '—' }}</span>
+                    </div>
+                @endif
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{{ __('Catégorie') }}</div>
+                <div class="flex min-w-0 items-center gap-2 rounded-lg bg-white px-3 py-2.5 text-sm font-medium text-slate-700 border border-slate-200">
+                    <iconify-icon icon="solar:tag-bold-duotone" width="14"></iconify-icon>
+                    <span class="truncate">{{ optional($ticket->category)->name ?? '—' }}</span>
+                </div>
+            </div>
+
+            @if(($ticketGroups ?? collect())->isNotEmpty())
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                        {{ __('Groupe') }}
+                        <span wire:loading wire:target="changeGroup" class="inline-block h-3 w-3 rounded-full border-2 border-slate-300 border-t-transparent animate-spin align-middle ml-1"></span>
+                    </div>
+                    @if($canAssignTicket ?? false)
+                        <select wire:change="changeGroup($event.target.value)" wire:loading.class="opacity-50" wire:target="changeGroup" class="w-full min-w-0 rounded-lg border-slate-200 py-2.5 pl-3 pr-8 text-sm font-medium shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" style="background-color: {{ optional($ticket->group)->color ? optional($ticket->group)->color . '15' : '#ffffff' }}; color: {{ optional($ticket->group)->color ?? '#334155' }};" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
+                            <option value="" @selected(!$ticket->ticket_group_id) style="color:#334155">{{ __('— Aucun groupe') }}</option>
+                            @foreach($ticketGroups as $tg)
+                                <option value="{{ $tg->id }}" @selected($ticket->ticket_group_id === $tg->id) style="color:#334155">{{ $tg->name }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        <div class="inline-flex max-w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold border" style="background-color: {{ $ticket->group?->color ?? '#f8fafc' }}15; color: {{ $ticket->group?->color ?? '#334155' }}; border-color: {{ $ticket->group?->color ?? '#e2e8f0' }}33;">
+                            <iconify-icon icon="solar:widget-5-bold-duotone" width="14"></iconify-icon>
+                            <span class="min-w-0 break-words leading-snug">{{ $ticket->group?->name ?? __('— Aucun groupe') }}</span>
+                        </div>
+                    @endif
+                </div>
             @endif
         </div>
 
-        {{-- Assignés, Fonction, Échéance : 1 colonne pour lisibilité (panneau étroit), 2 colonnes sur viewport large --}}
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        {{-- Assignés, Fonction, Échéance : toujours 1 colonne (sidebar étroite) --}}
+        <div class="mt-4 space-y-3 text-sm">
             {{-- Assignés (multi-assignee avec distinction responsable/collaborateur) --}}
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Assignés') }}</div>
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">{{ __('Assignés') }}</div>
                 <div class="mt-1 flex flex-col gap-2 min-w-0">
                     @if($ticket->assignees->isNotEmpty())
                         @php
@@ -143,27 +162,33 @@
                         <span class="text-sm text-slate-400 italic">—</span>
                     @endif
                     @if(($canAssignTicket ?? false) && !($isLocked ?? false))
-                        <div class="flex flex-wrap gap-1.5">
+                        <div class="space-y-2.5 pt-1">
                             @if($ticket->assignees->isEmpty() || (auth()->id() && !$ticket->assignees->contains('id', auth()->id())))
-                                <button type="button" wire:click="assignToMe" class="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2.5 py-1.5 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all shrink-0">
-                                    <iconify-icon icon="solar:user-check-bold" width="14"></iconify-icon>
+                                <button type="button" wire:click="assignToMe" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all">
+                                    <iconify-icon icon="solar:user-check-bold" width="16"></iconify-icon>
                                     {{ __("M'assigner") }}
                                 </button>
                             @endif
-                            <select class="rounded-lg border-slate-200 bg-white py-1.5 pl-2 pr-7 text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] min-w-0 w-full max-w-full" x-on:change="if ($event.target.value > 0) $wire.addAssignee(Number($event.target.value)); $event.target.selectedIndex = 0">
-                                <option value="0">{{ __('Assigner à…') }}</option>
-                                @foreach($orgUsers ?? [] as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                @endforeach
-                            </select>
+                            <div class="space-y-2" x-data="{ selectedAssignee: 0 }">
+                                <label for="sidebar-add-assignee" class="sr-only">{{ __('Assigner à…') }}</label>
+                                <select id="sidebar-add-assignee" name="sidebar_add_assignee" class="w-full min-w-0 rounded-lg border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-800 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" x-model.number="selectedAssignee">
+                                    <option value="0">{{ __('Assigner à…') }}</option>
+                                    @foreach($orgUsers ?? [] as $u)
+                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :disabled="selectedAssignee <= 0" @click="$wire.addAssignee(Number(selectedAssignee)); selectedAssignee = 0;">
+                                    {{ __('Ajouter') }}
+                                </button>
+                            </div>
                         </div>
                     @endif
                 </div>
             </div>
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Fonction') }}</div>
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{{ __('Fonction') }}</div>
                 @if($canSeeInternalNotes ?? false)
-                    <select class="mt-1 w-full min-w-0 rounded-lg border-slate-200 bg-white py-1.5 px-2 text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" wire:change="setAssignedToFunction($event.target.value)" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
+                    <select id="ticket_assigned_function" name="ticket_assigned_function" class="mt-0 w-full min-w-0 rounded-lg border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-800 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" wire:change="setAssignedToFunction($event.target.value)" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
                         <option value="">{{ __('— Aucune —') }}</option>
                         @foreach($organizationFunctions ?? [] as $fn)
                             <option value="{{ $fn->id }}" @selected($ticket->assigned_to_function_id === $fn->id)>{{ $fn->name }}</option>
@@ -179,8 +204,8 @@
                     </div>
                 @endif
             </div>
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0 sm:col-span-2">
-                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('Échéance') }}</div>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{{ __('Échéance') }}</div>
                 <div class="mt-1 flex items-center gap-2 min-w-0">
                     <iconify-icon icon="solar:calendar-add-linear" width="16" class="text-slate-400 shrink-0"></iconify-icon>
                     @php
@@ -189,10 +214,12 @@
                     @endphp
                     @if($canEditDueDate ?? false)
                         <input
+                            id="ticket_due_date"
+                            name="ticket_due_date"
                             type="date"
                             value="{{ $ticketDueDate?->format('Y-m-d') ?? '' }}"
                             wire:change="updateDueDate($event.target.value)"
-                            class="min-w-0 flex-1 rounded-lg border-slate-200 bg-white py-1 px-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] max-w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="min-w-0 w-full rounded-lg border-slate-200 bg-white py-2 pl-3 pr-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] max-w-full disabled:opacity-50 disabled:cursor-not-allowed"
                             @disabled(($isLocked ?? false) && !($canBypassLock ?? false))
                         />
                     @else
@@ -202,8 +229,125 @@
                     @endif
                 </div>
             </div>
+
+            {{-- SLA --}}
+            @if($ticket->sla_policy_id)
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0"
+                     x-data="{
+                         frSecs: {{ $ticket->slaFirstResponseRemainingSeconds() ?? 'null' }},
+                         resSecs: {{ $ticket->slaResolutionRemainingSeconds() ?? 'null' }},
+                         interval: null,
+                         init() {
+                             this.interval = setInterval(() => {
+                                 if (this.frSecs !== null && this.frSecs > 0) this.frSecs--;
+                                 if (this.resSecs !== null && this.resSecs > 0) this.resSecs--;
+                             }, 1000);
+                         },
+                         destroy() { clearInterval(this.interval); },
+                         format(s) {
+                             if (s === null) return '—';
+                             if (s <= 0) return 'Expiré';
+                             let h = Math.floor(s / 3600);
+                             let m = Math.floor((s % 3600) / 60);
+                             return h > 0 ? h + 'h ' + m + 'min' : m + 'min';
+                         }
+                     }">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">{{ __('SLA') }}</div>
+                    <div class="mt-2 space-y-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs text-slate-600">{{ __('Première réponse') }}</span>
+                            <div class="flex items-center gap-1.5">
+                                <x-sla-badge :status="$ticket->slaFirstResponseStatus()" type="fr" />
+                                <span class="text-[11px] font-mono text-slate-500" x-text="format(frSecs)"></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs text-slate-600">{{ __('Résolution') }}</span>
+                            <div class="flex items-center gap-1.5">
+                                <x-sla-badge :status="$ticket->slaResolutionStatus()" type="res" />
+                                <span class="text-[11px] font-mono text-slate-500" x-text="format(resSecs)"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
+
+    {{-- Approbation --}}
+    @if($ticket->requires_approval)
+        <div class="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm min-w-0">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3">{{ __('Approbation') }}</div>
+
+            {{-- Status badge --}}
+            <div class="mb-3">
+                @if($ticket->approval_status === 'pending')
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        <iconify-icon icon="solar:hourglass-bold-duotone" width="14"></iconify-icon>
+                        En attente de validation
+                    </span>
+                @elseif($ticket->approval_status === 'approved')
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <iconify-icon icon="solar:check-circle-bold-duotone" width="14"></iconify-icon>
+                        Approuvé
+                    </span>
+                @elseif($ticket->approval_status === 'rejected')
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                        <iconify-icon icon="solar:close-circle-bold-duotone" width="14"></iconify-icon>
+                        Rejeté
+                    </span>
+                @endif
+            </div>
+
+            {{-- Approval history --}}
+            @if($ticket->approvals->isNotEmpty())
+                <div class="space-y-2 max-h-48 overflow-y-auto">
+                    @foreach($ticket->approvals as $approval)
+                        <div class="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-xs">
+                            @if($approval->status === 'pending')
+                                <div class="flex items-center gap-1.5 text-amber-700">
+                                    <iconify-icon icon="solar:hourglass-linear" width="12"></iconify-icon>
+                                    <span>Demandé par {{ $approval->requester?->name ?? 'Utilisateur' }}</span>
+                                </div>
+                                <div class="text-[10px] text-slate-400 mt-1">{{ $approval->created_at->diffForHumans() }}</div>
+                            @else
+                                <div class="flex items-center gap-1.5 {{ $approval->status === 'approved' ? 'text-emerald-700' : 'text-red-700' }}">
+                                    <iconify-icon icon="{{ $approval->status === 'approved' ? 'solar:check-circle-linear' : 'solar:close-circle-linear' }}" width="12"></iconify-icon>
+                                    <span>{{ $approval->status === 'approved' ? 'Approuvé' : 'Rejeté' }} par {{ $approval->approver?->name ?? '—' }}</span>
+                                </div>
+                                @if($approval->comment)
+                                    <div class="mt-1.5 rounded-lg bg-white border border-slate-200 p-2 text-slate-700 italic">
+                                        "{{ $approval->comment }}"
+                                    </div>
+                                @endif
+                                <div class="text-[10px] text-slate-400 mt-1">{{ $approval->decided_at?->diffForHumans() ?? $approval->updated_at->diffForHumans() }}</div>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            {{-- Action buttons --}}
+            @if($canApproveTicket ?? false)
+                <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+                    <button
+                        wire:click="openApprovalModal('approve')"
+                        class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700 transition-colors"
+                    >
+                        <iconify-icon icon="solar:check-circle-linear" width="14"></iconify-icon>
+                        Approuver
+                    </button>
+                    <button
+                        wire:click="openApprovalModal('reject')"
+                        class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-red-700 transition-colors"
+                    >
+                        <iconify-icon icon="solar:close-circle-linear" width="14"></iconify-icon>
+                        Rejeter
+                    </button>
+                </div>
+            @endif
+        </div>
+    @endif
 
     {{-- Champs personnalisés (formulaire) --}}
     @if($formResponse && !empty($formResponse->field_snapshot) && !empty($formResponse->responses))
@@ -520,6 +664,6 @@
     @endif
 
     <div class="mt-auto rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4 text-xs text-slate-500 text-center min-w-0">
-        {{ __('Créé') }} {{ $ticket->created_at->translatedFormat('d M H:i') }} · {{ __('Mis à jour') }} {{ $lastActivity->diffForHumans() }}
+        {{ __('Créé') }} {{ $ticket->created_at?->translatedFormat('d M H:i') ?? '—' }} · {{ __('Mis à jour') }} {{ $lastActivity?->diffForHumans() ?? '—' }}
     </div>
 </div>

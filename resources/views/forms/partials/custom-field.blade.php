@@ -9,11 +9,13 @@
     $fieldLayout = $config['layout'] ?? 'full';
     $name        = "custom[{$f->key}]";
     $oldVal      = old("custom.{$f->key}");
-    $fieldId     = 'field-' . $f->key;
+    $fieldId     = 'field-' . ((string) ($f->id ?? $f->key)) . '-' . $f->key;
+    $hasChoiceOptions = in_array($type, ['radio', 'checkbox'], true) && is_array($options) && count($options) > 0;
+    $labelForId = $hasChoiceOptions ? $fieldId . '-opt-0' : $fieldId;
 @endphp
 
 <div class="space-y-2 {{ $fieldLayout === 'half' ? 'col-span-6 sm:col-span-3' : ($fieldLayout === 'third' ? 'col-span-6 sm:col-span-2' : 'col-span-6') }}">
-    <label for="{{ $fieldId }}" class="text-[13px] font-semibold text-slate-700 block">
+    <label for="{{ $labelForId }}" class="text-[13px] font-semibold text-slate-700 block">
         {{ $f->label }}
         @if($f->required)<span class="text-red-400 ml-0.5">*</span>@endif
     </label>
@@ -48,10 +50,11 @@
             {{ $displayMode === 'list' ? 'space-y-2' : '' }}
         ">
             @foreach($radioOpts as $opt)
+                @php $optionId = $fieldId . '-opt-' . $loop->index; @endphp
                 @if($displayMode === 'card')
                     <label class="mnx-option-card flex items-center gap-4 px-4 py-3.5 rounded-xl border border-slate-200 bg-white cursor-pointer group"
                            :class="{ 'selected': false }">
-                        <input type="radio" name="{{ $name }}" value="{{ $opt }}"
+                        <input type="radio" name="{{ $name }}" id="{{ $optionId }}" value="{{ $opt }}"
                                class="mnx-radio"
                                @checked((string) $oldVal === (string) $opt)
                                @required($f->required)>
@@ -59,7 +62,7 @@
                     </label>
                 @elseif($displayMode === 'inline')
                     <label class="mnx-option-card inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer group">
-                        <input type="radio" name="{{ $name }}" value="{{ $opt }}"
+                        <input type="radio" name="{{ $name }}" id="{{ $optionId }}" value="{{ $opt }}"
                                class="mnx-radio" style="width:16px;height:16px;"
                                @checked((string) $oldVal === (string) $opt)
                                @required($f->required)>
@@ -67,7 +70,7 @@
                     </label>
                 @elseif($displayMode === 'grid')
                     <label class="mnx-option-card flex items-center gap-3.5 px-4 py-3 rounded-xl border border-slate-200 bg-white cursor-pointer group">
-                        <input type="radio" name="{{ $name }}" value="{{ $opt }}"
+                        <input type="radio" name="{{ $name }}" id="{{ $optionId }}" value="{{ $opt }}"
                                class="mnx-radio" style="width:18px;height:18px;"
                                @checked((string) $oldVal === (string) $opt)
                                @required($f->required)>
@@ -76,7 +79,7 @@
                 @else
                     {{-- List (default) --}}
                     <label class="mnx-option-card flex items-center gap-3.5 px-4 py-3 rounded-xl border border-slate-200 bg-white cursor-pointer group">
-                        <input type="radio" name="{{ $name }}" value="{{ $opt }}"
+                        <input type="radio" name="{{ $name }}" id="{{ $optionId }}" value="{{ $opt }}"
                                class="mnx-radio"
                                @checked((string) $oldVal === (string) $opt)
                                @required($f->required)>
@@ -96,9 +99,10 @@
                 {{ $displayMode === 'list' ? 'space-y-2' : '' }}
             ">
                 @foreach((array) $options as $opt)
+                    @php $optionId = $fieldId . '-opt-' . $loop->index; @endphp
                     @if($displayMode === 'card')
                         <label class="mnx-option-card flex items-center gap-4 px-4 py-3.5 rounded-xl border border-slate-200 bg-white cursor-pointer group">
-                            <input type="checkbox" name="{{ $name }}[]" value="{{ $opt }}"
+                            <input type="checkbox" name="{{ $name }}[]" id="{{ $optionId }}" value="{{ $opt }}"
                                    class="mnx-checkbox"
                                    @checked(is_array($oldVal) && in_array($opt, $oldVal))
                                    @if($f->required && $loop->first) required @endif>
@@ -106,7 +110,7 @@
                         </label>
                     @elseif($displayMode === 'inline')
                         <label class="mnx-option-card inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-slate-200 bg-white cursor-pointer group">
-                            <input type="checkbox" name="{{ $name }}[]" value="{{ $opt }}"
+                            <input type="checkbox" name="{{ $name }}[]" id="{{ $optionId }}" value="{{ $opt }}"
                                    class="mnx-checkbox" style="width:16px;height:16px;border-radius:4px;"
                                    @checked(is_array($oldVal) && in_array($opt, $oldVal))
                                    @if($f->required && $loop->first) required @endif>
@@ -114,7 +118,7 @@
                         </label>
                     @elseif($displayMode === 'grid')
                         <label class="mnx-option-card flex items-center gap-3.5 px-4 py-3 rounded-xl border border-slate-200 bg-white cursor-pointer group">
-                            <input type="checkbox" name="{{ $name }}[]" value="{{ $opt }}"
+                            <input type="checkbox" name="{{ $name }}[]" id="{{ $optionId }}" value="{{ $opt }}"
                                    class="mnx-checkbox" style="width:18px;height:18px;"
                                    @checked(is_array($oldVal) && in_array($opt, $oldVal))
                                    @if($f->required && $loop->first) required @endif>
@@ -123,7 +127,7 @@
                     @else
                         {{-- List (default) --}}
                         <label class="mnx-option-card flex items-center gap-3.5 px-4 py-3 rounded-xl border border-slate-200 bg-white cursor-pointer group">
-                            <input type="checkbox" name="{{ $name }}[]" value="{{ $opt }}"
+                            <input type="checkbox" name="{{ $name }}[]" id="{{ $optionId }}" value="{{ $opt }}"
                                    class="mnx-checkbox"
                                    @checked(is_array($oldVal) && in_array($opt, $oldVal))
                                    @if($f->required && $loop->first) required @endif>
@@ -135,8 +139,8 @@
         @else
             {{-- Single checkbox toggle --}}
             <label class="mnx-option-card flex items-center gap-3.5 px-4 py-3 rounded-xl border border-slate-200 bg-white cursor-pointer group">
-                <input type="hidden" name="{{ $name }}" value="0">
-                <input type="checkbox" name="{{ $name }}" value="1"
+                <input type="hidden" name="{{ $name }}" id="{{ $fieldId }}-hidden" value="0">
+                <input type="checkbox" name="{{ $name }}" id="{{ $fieldId }}" value="1"
                        class="mnx-checkbox"
                        @checked((bool) $oldVal)>
                 <span class="text-sm font-medium text-slate-700 group-hover:text-slate-900 transition">{{ __('Oui') }}</span>

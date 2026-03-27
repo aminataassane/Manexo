@@ -31,6 +31,8 @@
         @keyframes subtleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .animate-enter { animation: subtleFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         ::selection { background: #F2E3BB; color: #005F02; }
+        /* En sidebar repliée, on neutralise les mini-tooltips (évite texte qui déborde) */
+        aside .group > .absolute.left-full { display: none !important; }
 
         /* Boutons platform admin — contraste élevé, lisibilité */
         .sa-btn-primary {
@@ -110,10 +112,11 @@
     </style>
 </head>
 <body
-    class="flex h-screen w-full min-h-0 overflow-hidden bg-slate-50 text-slate-900 text-[14px] sm:text-[14px] lg:text-[15px]"
+    class="manexo-fluid-root flex h-screen w-full min-h-0 overflow-hidden bg-slate-50 text-slate-900"
+    data-echo-enabled="1"
     x-data="{ sidebarOpen: true, mobileOpen: false }"
-    x-init="sidebarOpen = (localStorage.getItem('sa_sidebar') !== 'false')"
-    x-effect="localStorage.setItem('sa_sidebar', sidebarOpen)"
+    x-init="sidebarOpen = (localStorage.getItem('sa_sidebar') !== 'false'); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)')"
+    x-effect="localStorage.setItem('sa_sidebar', sidebarOpen); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)')"
 >
     <div class="pointer-events-none fixed inset-0 -z-10 bg-slate-50"></div>
 
@@ -134,11 +137,11 @@
         $isSaSupport = request()->routeIs('platform-admin.support-sessions');
     @endphp
     <aside
-        class="fixed left-0 top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/5 text-white/60 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-[85vw] md:max-w-none backdrop-blur-xl"
+        class="manexo-shell-transition fixed left-0 top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/5 text-white/60 transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-[85vw] md:max-w-none backdrop-blur-xl"
         style="background: linear-gradient(180deg, #002e01 0%, #001a01 100%);"
         :class="{
-            'w-[240px] xl:w-[260px]': sidebarOpen,
-            'w-[72px] xl:w-[80px]': !sidebarOpen,
+            'w-[min(85vw,var(--manexo-sidebar-expanded))]': sidebarOpen,
+            'w-[var(--manexo-sidebar-collapsed)]': !sidebarOpen,
             '-translate-x-full md:translate-x-0': !mobileOpen,
             'translate-x-0': mobileOpen
         }"
@@ -356,7 +359,12 @@
         <button
             type="button"
             class="absolute -right-3 top-20 hidden md:flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-md ring-1 ring-slate-100 hover:text-[#005F02] transition-colors z-50"
-            @click="sidebarOpen = !sidebarOpen"
+            @click="
+                sidebarOpen = !sidebarOpen;
+                const offset = sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)';
+                document.body.style.setProperty('--manexo-shell-offset', offset);
+                localStorage.setItem('sa_sidebar', sidebarOpen ? 'true' : 'false');
+            "
         >
             <iconify-icon :icon="sidebarOpen ? 'solar:alt-arrow-left-linear' : 'solar:alt-arrow-right-linear'" width="14"></iconify-icon>
         </button>
@@ -364,8 +372,7 @@
 
     <!-- TOPBAR -->
     <header
-        class="fixed top-0 right-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/60 bg-white/80 backdrop-blur-lg px-4 sm:px-6 transition-[left] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] md:left-[72px] xl:left-[80px] left-0"
-        :class="sidebarOpen ? 'md:!left-[240px] xl:!left-[260px]' : ''"
+        class="manexo-shell-transition fixed top-0 right-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/60 bg-white/80 backdrop-blur-lg px-4 sm:px-6 transition-[left] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] md:left-[var(--manexo-shell-offset)] left-0"
     >
         <div class="flex items-center gap-3">
             <!-- Mobile hamburger -->
@@ -406,11 +413,10 @@
 
     <!-- MAIN CONTENT -->
     <main
-        class="flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pt-14 sm:pt-16 md:pl-[72px] xl:pl-[80px]"
-        :class="sidebarOpen ? 'md:!pl-[240px] xl:!pl-[260px]' : ''"
+        class="manexo-shell-transition flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pt-14 sm:pt-16 pl-0 md:pl-[var(--manexo-shell-offset)]"
     >
-        <div class="page-content-safe flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar pt-4 sm:pt-5 md:pt-6 lg:pt-8 px-4 sm:px-5 md:px-6 lg:px-8">
-            <div class="mx-auto w-full min-w-0 max-w-7xl animate-enter space-y-4 sm:space-y-6">
+        <div class="page-content-safe manexo-shell-scroll flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar">
+            <div class="mx-auto manexo-content-wrap animate-enter space-y-[var(--manexo-space-section)]">
                 {{-- Session flash messages --}}
                 @if (session('success'))
                     <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -433,21 +439,5 @@
         if(!window.Echo){var _c={listen:function(){return _c},stopListening:function(){return _c},notification:function(){return _c},listenForWhisper:function(){return _c},subscribed:function(){return _c},error:function(){return _c}};window.Echo={private:function(){return _c},channel:function(){return _c},encryptedPrivate:function(){return _c},join:function(){return _c},leave:function(){},leaveChannel:function(){},leaveAllChannels:function(){},socketId:function(){return null},connector:{pusher:{connection:{state:"stub"}}}}}
     </script>
     @livewireScripts
-    {{-- Loading bar --}}
-    <div id="livewire-loading-bar" class="fixed top-0 left-0 right-0 h-0.5 z-[100] opacity-0 transition-opacity duration-150 pointer-events-none" style="background: #005F02; transform: scaleX(0); transform-origin: left;"></div>
-    <script>
-        document.addEventListener('livewire:init', function() {
-            var bar = document.getElementById('livewire-loading-bar');
-            if (!bar) return;
-            Livewire.hook('request', function({ uri, options }) {
-                bar.style.opacity = '1';
-                bar.style.transform = 'scaleX(0.3)';
-            });
-            Livewire.hook('commit', function({ component, commit, respond, succeed, fail }) {
-                succeed(function() { bar.style.transform = 'scaleX(1)'; bar.style.opacity = '0'; });
-                fail(function() { bar.style.opacity = '0'; bar.style.transform = 'scaleX(0)'; });
-            });
-        });
-    </script>
 </body>
 </html>

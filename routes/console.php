@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command('forms:mark-overdue')->hourly();
 Schedule::command('forms:update-statuses')->everyFifteenMinutes();
+Schedule::command('email:fetch')->everyMinute();
+Schedule::command('sla:check')->everyFiveMinutes();
+Schedule::command('queue:work --stop-when-empty --max-time=50')->everyMinute()->withoutOverlapping();

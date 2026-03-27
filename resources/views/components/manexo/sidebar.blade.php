@@ -22,12 +22,16 @@
     ]);
     $isStaff = $canSeeTeam || $canSeeReports || $canSeeForms || $canSeeSettings;
     // Nombre de nouveaux messages / invitations pour les discussions (badge sidebar).
-    $discussionsUnreadCount = \Illuminate\Support\Facades\Auth::user()?->unreadNotifications()
-        ->whereIn('type', [
-            \App\Notifications\DiscussionNewMessageNotification::class,
-            \App\Notifications\DiscussionInviteNotification::class,
-        ])
-        ->count() ?? 0;
+    $discussionsUnreadCount = \Illuminate\Support\Facades\Cache::remember(
+        'sidebar_disc_unread:' . ($authUser?->id ?? 0),
+        60, // 1 minute cache
+        fn () => $authUser?->unreadNotifications()
+            ->whereIn('type', [
+                \App\Notifications\DiscussionNewMessageNotification::class,
+                \App\Notifications\DiscussionInviteNotification::class,
+            ])
+            ->count() ?? 0
+    );
     // Logo: organisation (URL relative à la requête pour éviter erreur de chargement)
     $logoUrl = $org && $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
     $brandName = $org?->name ?? 'Manexo';
@@ -55,18 +59,18 @@
 @endphp
 
 <aside
-    class="fixed left-0 top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/5 text-white/60 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-[85vw] md:max-w-none backdrop-blur-xl"
+    class="manexo-shell-transition fixed left-0 top-0 z-40 flex h-screen shrink-0 flex-col border-r border-white/5 text-white/60 transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-[85vw] md:max-w-none backdrop-blur-xl"
     style="background: linear-gradient(180deg, var(--accent-dark) 0%, color-mix(in srgb, var(--accent-dark) 90%, black) 100%);"
     :class="{
-        'w-[240px] xl:w-[260px]': sidebarOpen,
-        'w-[72px] xl:w-[80px]': !sidebarOpen,
+        'w-[min(85vw,var(--manexo-sidebar-expanded))]': sidebarOpen,
+        'w-[var(--manexo-sidebar-collapsed)]': !sidebarOpen,
         '-translate-x-full md:translate-x-0': !mobileOpen,
         'translate-x-0': mobileOpen
     }"
 >
     <!-- LOGO AREA : logo entreprise (repli sur initiale si image ne charge pas) -->
     <div class="flex h-16 shrink-0 items-center px-4 xl:px-5" :class="sidebarOpen ? 'justify-start' : 'justify-center'">
-        <a href="{{ route('dashboard') }}" class="flex items-center gap-3 group transition-all duration-300">
+        <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3 group transition-all duration-300">
             <span class="relative h-9 w-9 shrink-0 rounded-xl overflow-hidden ring-1 ring-white/10 shadow-lg shadow-[var(--accent-ring)]">
                 {{-- Fallback : initiale (affiché si pas de logo ou si image en erreur) --}}
                 <span id="sidebar-org-logo-fallback"
@@ -98,25 +102,47 @@
             {{ __('menu.main_menu') }}
         </div>
 
-        @php
-            $isDashboard = request()->routeIs('dashboard');
-            $isTickets = request()->routeIs('tickets.*');
-            $isDiscussions = request()->routeIs('discussions.*');
-            $isForms = request()->routeIs('forms.*');
-            $isMyTasks = request()->routeIs('reports.tasks');
-            $currentDisplayMode = request()->query('displayMode', 'list');
-        @endphp
+        <!-- Navigation Links (reactive to URL changes via wire:navigate) -->
+        <div
+            x-data="{
+                path: window.location.pathname,
+                search: window.location.search,
+                ticketsOpen: false,
+                init() {
+                    this.update();
+                    document.addEventListener('livewire:navigated', () => this.update());
+                },
+                update() {
+                    this.path = window.location.pathname;
+                    this.search = window.location.search;
+                    if (this.isTickets) this.ticketsOpen = true;
+                },
+                get isDashboard() { return this.path === '/' || this.path === '/dashboard'; },
+                get isTickets() { return this.path.startsWith('/tickets') || this.path.startsWith('/conversation'); },
+                get isTicketsIndex() { return this.path === '/tickets' || this.path === '/tickets/'; },
+                get isTicketsAll() { return this.isTicketsIndex; },
+                get isTicketsGroups() { return this.path.startsWith('/tickets/groups'); },
+                get isDiscussions() { return this.path.startsWith('/discussions'); },
+                get isForms() { return this.path.startsWith('/forms'); },
+                get isKnowledgeBase() { return this.path.startsWith('/knowledge-base'); },
+                get isMyTasks() { return this.path === '/reports/tasks'; },
+                get isNotifications() { return this.path.startsWith('/notifications'); },
+            }"
+            class="contents"
+        >
 
         <!-- Dashboard -->
         <a
             href="{{ route('dashboard') }}"
-            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isDashboard ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-            :class="sidebarOpen ? '' : 'justify-center'"
+            wire:navigate
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+            :class="[
+                isDashboard ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                sidebarOpen ? '' : 'justify-center'
+            ]"
         >
-            @if($isDashboard)
-                <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-            @endif
-            <iconify-icon icon="solar:widget-5-bold-duotone" width="20" class="{{ $isDashboard ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+            <div x-show="isDashboard && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+            <iconify-icon icon="solar:widget-5-bold-duotone" width="20" :class="isDashboard ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
             <span x-show="sidebarOpen" class="truncate">{{ __('menu.dashboard') }}</span>
 
             <!-- Tooltip for collapsed state -->
@@ -126,15 +152,16 @@
         </a>
 
         <!-- Tickets -->
-        <div x-data="{ ticketsOpen: {{ $isTickets ? 'true' : 'false' }} }">
+        <div>
             <div x-show="sidebarOpen">
                 <button
                     type="button"
                     @click="ticketsOpen = !ticketsOpen"
-                    class="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200 {{ $isTickets ? 'text-white' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                    class="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200"
+                    :class="isTickets ? 'text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'"
                 >
                     <div class="flex items-center gap-3">
-                        <iconify-icon icon="solar:ticket-bold-duotone" width="20" class="{{ $isTickets ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                        <iconify-icon icon="solar:ticket-bold-duotone" width="20" :class="isTickets ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                         <span>{{ __('menu.tickets') }}</span>
                     </div>
                     <iconify-icon :icon="ticketsOpen ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" width="12" class="opacity-50 transition-transform duration-200" :class="ticketsOpen ? 'rotate-0' : '-rotate-90'"></iconify-icon>
@@ -142,24 +169,21 @@
 
                 <div x-show="ticketsOpen" x-collapse class="mt-1 space-y-1 px-3">
                     <a
-                        href="{{ route('tickets.index', ['displayMode' => 'list']) }}"
-                        class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isTickets && $currentDisplayMode === 'list' ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                        href="{{ route('tickets.index') }}"
+                        wire:navigate
+                        class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                        :class="isTicketsAll ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                     >
-                        <div class="h-1.5 w-1.5 rounded-full {{ $isTickets && $currentDisplayMode === 'list' ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
-                        {{ __('menu.list_view') }}
-                    </a>
-                    <a
-                        href="{{ route('tickets.index', ['displayMode' => 'kanban']) }}"
-                        class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isTickets && $currentDisplayMode === 'kanban' ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
-                    >
-                        <div class="h-1.5 w-1.5 rounded-full {{ $isTickets && $currentDisplayMode === 'kanban' ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
-                        {{ __('menu.kanban_view') }}
+                        <div class="h-1.5 w-1.5 rounded-full" :class="isTicketsAll ? 'bg-[var(--accent)]' : 'bg-white/20'"></div>
+                        {{ __('pages.tickets.all_tickets') }}
                     </a>
                     <a
                         href="{{ route('tickets.groups') }}"
-                        class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ request()->routeIs('tickets.groups') ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                        wire:navigate
+                        class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                        :class="isTicketsGroups ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                     >
-                        <div class="h-1.5 w-1.5 rounded-full {{ request()->routeIs('tickets.groups') ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
+                        <div class="h-1.5 w-1.5 rounded-full" :class="isTicketsGroups ? 'bg-[var(--accent)]' : 'bg-white/20'"></div>
                         {{ __('menu.groups_view') }}
                     </a>
                 </div>
@@ -169,12 +193,12 @@
             <a
                 x-show="!sidebarOpen"
                 href="{{ route('tickets.index') }}"
-                class="group relative flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isTickets ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                wire:navigate
+                class="group relative flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+                :class="isTickets ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white'"
             >
-                @if($isTickets)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
-                @endif
-                <iconify-icon icon="solar:ticket-bold-duotone" width="20" class="{{ $isTickets ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <div x-show="isTickets" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+                <iconify-icon icon="solar:ticket-bold-duotone" width="20" :class="isTickets ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                 <div class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('menu.tickets') }}
                 </div>
@@ -184,14 +208,16 @@
         <!-- Discussions -->
         <a
             href="{{ route('discussions.index') }}"
-            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isDiscussions ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-            :class="sidebarOpen ? '' : 'justify-center'"
+            wire:navigate
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+            :class="[
+                isDiscussions ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                sidebarOpen ? '' : 'justify-center'
+            ]"
         >
-            @if($isDiscussions)
-                <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-            @endif
+            <div x-show="isDiscussions && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
             <span class="relative shrink-0">
-                <iconify-icon icon="solar:chat-round-bold-duotone" width="20" class="{{ $isDiscussions ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:chat-round-bold-duotone" width="20" :class="isDiscussions ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                 @if ($discussionsUnreadCount > 0)
                     <span x-show="!sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak>{{ $discussionsUnreadCount > 99 ? '99+' : $discussionsUnreadCount }}</span>
                 @endif
@@ -209,13 +235,15 @@
         <!-- Formulaires -->
         <a
             href="{{ route('forms.index') }}"
-            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isForms ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-            :class="sidebarOpen ? '' : 'justify-center'"
+            wire:navigate
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+            :class="[
+                isForms ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                sidebarOpen ? '' : 'justify-center'
+            ]"
         >
-            @if($isForms)
-                <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-            @endif
-            <iconify-icon icon="solar:clipboard-text-bold-duotone" width="20" class="{{ $isForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+            <div x-show="isForms && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+            <iconify-icon icon="solar:clipboard-text-bold-duotone" width="20" :class="isForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
             <span x-show="sidebarOpen" class="truncate">{{ __('menu.forms') }}</span>
 
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
@@ -223,17 +251,38 @@
             </div>
         </a>
 
+        <!-- Base de connaissances -->
+        <a
+            href="{{ route('knowledge-base.index') }}"
+            wire:navigate
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+            :class="[
+                isKnowledgeBase ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                sidebarOpen ? '' : 'justify-center'
+            ]"
+        >
+            <div x-show="isKnowledgeBase && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+            <iconify-icon icon="solar:book-2-bold-duotone" width="20" :class="isKnowledgeBase ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
+            <span x-show="sidebarOpen" class="truncate">Base de connaissances</span>
+
+            <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
+                Base de connaissances
+            </div>
+        </a>
+
         <!-- Mes tâches (visible si permission view_tasks mais pas la vue globale reports) -->
         @if(!$canSeeReports && $authUser && $authUser->hasPermission(\App\Enums\Permission::ReportsViewTasks))
         <a
             href="{{ route('reports.tasks') }}"
-            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isMyTasks ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-            :class="sidebarOpen ? '' : 'justify-center'"
+            wire:navigate
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+            :class="[
+                isMyTasks ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                sidebarOpen ? '' : 'justify-center'
+            ]"
         >
-            @if($isMyTasks)
-                <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-            @endif
-            <iconify-icon icon="solar:checklist-bold-duotone" width="20" class="{{ $isMyTasks ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+            <div x-show="isMyTasks && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+            <iconify-icon icon="solar:checklist-bold-duotone" width="20" :class="isMyTasks ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
             <span x-show="sidebarOpen" class="truncate">{{ __('menu.reports_tasks') }}</span>
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                 {{ __('menu.reports_tasks') }}
@@ -243,19 +292,24 @@
 
         <!-- Notifications -->
         @php
-            $isNotifications = request()->routeIs('notifications.*');
-            $notificationsUnreadCount = \Illuminate\Support\Facades\Auth::user()?->unreadNotifications()->count() ?? 0;
+            $notificationsUnreadCount = \Illuminate\Support\Facades\Cache::remember(
+                'sidebar_notif_unread:' . ($authUser?->id ?? 0),
+                60,
+                fn () => $authUser?->unreadNotifications()->count() ?? 0
+            );
         @endphp
         <a
             href="{{ route('notifications.index') }}"
-            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isNotifications ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-            :class="sidebarOpen ? '' : 'justify-center'"
+            wire:navigate
+            class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+            :class="[
+                isNotifications ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                sidebarOpen ? '' : 'justify-center'
+            ]"
         >
-            @if($isNotifications)
-                <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-            @endif
+            <div x-show="isNotifications && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
             <span class="relative shrink-0">
-                <iconify-icon icon="solar:bell-bold-duotone" width="20" class="{{ $isNotifications ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:bell-bold-duotone" width="20" :class="isNotifications ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                 @if ($notificationsUnreadCount > 0)
                     <span x-show="!sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak>{{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}</span>
                 @endif
@@ -270,32 +324,49 @@
             </div>
         </a>
 
+        </div><!-- end x-data nav-state -->
+
         @if ($isStaff)
             <div class="px-3 mb-2 mt-6 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">
                 {{ __('menu.administration') }}
             </div>
 
-            @php
-                $isAdminUsers = request()->routeIs('admin.users');
-                $isReportsOverview = request()->routeIs('reports.index');
-                $isReportsTasks = request()->routeIs('reports.tasks');
-                $isReportsDaily = request()->routeIs('reports.daily');
-                $isReports = $isReportsOverview || $isReportsTasks || $isReportsDaily;
-                $isAdminForms = request()->routeIs('admin.forms*');
-                $isSettings = request()->routeIs('admin.settings');
-            @endphp
+            <div
+                x-data="{
+                    aPath: window.location.pathname,
+                    reportsOpen: false,
+                    init() {
+                        this.updateAdmin();
+                        document.addEventListener('livewire:navigated', () => this.updateAdmin());
+                    },
+                    updateAdmin() {
+                        this.aPath = window.location.pathname;
+                        if (this.isReports) this.reportsOpen = true;
+                    },
+                    get isAdminUsers() { return this.aPath === '/admin/users'; },
+                    get isReportsOverview() { return this.aPath === '/reports' || this.aPath === '/reports/'; },
+                    get isReportsTasks() { return this.aPath === '/reports/tasks'; },
+                    get isReportsDaily() { return this.aPath === '/reports/daily'; },
+                    get isReports() { return this.isReportsOverview || this.isReportsTasks || this.isReportsDaily; },
+                    get isAdminForms() { return this.aPath.startsWith('/admin/forms'); },
+                    get isSettings() { return this.aPath === '/admin/settings'; },
+                }"
+                class="contents"
+            >
 
             @if ($canSeeTeam)
             <!-- Team -->
             <a
                 href="{{ route('admin.users') }}"
-                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isAdminUsers ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-                :class="sidebarOpen ? '' : 'justify-center'"
+                wire:navigate
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+                :class="[
+                    isAdminUsers ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                    sidebarOpen ? '' : 'justify-center'
+                ]"
             >
-                @if($isAdminUsers)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-                @endif
-                <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" class="{{ $isAdminUsers ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <div x-show="isAdminUsers && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+                <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="20" :class="isAdminUsers ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('menu.team') }}</span>
                 <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                     {{ __('menu.team') }}
@@ -305,15 +376,16 @@
 
             @if ($canSeeReports)
             <!-- Reports (submenu) -->
-            <div x-data="{ reportsOpen: {{ $isReports ? 'true' : 'false' }} }">
+            <div>
                 <div x-show="sidebarOpen">
                     <button
                         type="button"
                         @click="reportsOpen = !reportsOpen"
-                        class="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200 {{ $isReports ? 'text-white' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                        class="group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200"
+                        :class="isReports ? 'text-white' : 'text-white/60 hover:bg-white/5 hover:text-white'"
                     >
                         <div class="flex items-center gap-3">
-                            <iconify-icon icon="solar:chart-2-bold-duotone" width="20" class="{{ $isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                            <iconify-icon icon="solar:chart-2-bold-duotone" width="20" :class="isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                             <span>{{ __('menu.reports') }}</span>
                         </div>
                         <iconify-icon :icon="reportsOpen ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" width="12" class="opacity-50 transition-transform duration-200" :class="reportsOpen ? 'rotate-0' : '-rotate-90'"></iconify-icon>
@@ -322,23 +394,29 @@
                     <div x-show="reportsOpen" x-collapse class="mt-1 space-y-1 px-3">
                         <a
                             href="{{ route('reports.index') }}"
-                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isReportsOverview ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                            wire:navigate
+                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                            :class="isReportsOverview ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                         >
-                            <div class="h-1.5 w-1.5 rounded-full {{ $isReportsOverview ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
+                            <div class="h-1.5 w-1.5 rounded-full" :class="isReportsOverview ? 'bg-[var(--accent)]' : 'bg-white/20'"></div>
                             {{ __('menu.reports_overview') }}
                         </a>
                         <a
                             href="{{ route('reports.tasks') }}"
-                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isReportsTasks ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                            wire:navigate
+                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                            :class="isReportsTasks ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                         >
-                            <div class="h-1.5 w-1.5 rounded-full {{ $isReportsTasks ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
+                            <div class="h-1.5 w-1.5 rounded-full" :class="isReportsTasks ? 'bg-[var(--accent)]' : 'bg-white/20'"></div>
                             {{ __('menu.reports_tasks') }}
                         </a>
                         <a
                             href="{{ route('reports.daily') }}"
-                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors {{ $isReportsDaily ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5' }}"
+                            wire:navigate
+                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                            :class="isReportsDaily ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                         >
-                            <div class="h-1.5 w-1.5 rounded-full {{ $isReportsDaily ? 'bg-[var(--accent)]' : 'bg-white/20' }}"></div>
+                            <div class="h-1.5 w-1.5 rounded-full" :class="isReportsDaily ? 'bg-[var(--accent)]' : 'bg-white/20'"></div>
                             {{ __('menu.reports_daily') }}
                         </a>
                     </div>
@@ -348,12 +426,12 @@
                 <a
                     x-show="!sidebarOpen"
                     href="{{ route('reports.index') }}"
-                    class="group relative flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isReports ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
+                    wire:navigate
+                    class="group relative flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+                    :class="isReports ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white'"
                 >
-                    @if($isReports)
-                        <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
-                    @endif
-                    <iconify-icon icon="solar:chart-2-bold-duotone" width="20" class="{{ $isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                    <div x-show="isReports" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+                    <iconify-icon icon="solar:chart-2-bold-duotone" width="20" :class="isReports ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                     <div class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                         {{ __('menu.reports') }}
                     </div>
@@ -365,13 +443,15 @@
             <!-- Admin Formulaires -->
             <a
                 href="{{ route('admin.forms') }}"
-                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isAdminForms ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-                :class="sidebarOpen ? '' : 'justify-center'"
+                wire:navigate
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+                :class="[
+                    isAdminForms ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                    sidebarOpen ? '' : 'justify-center'
+                ]"
             >
-                @if($isAdminForms)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-                @endif
-                <iconify-icon icon="solar:document-add-bold-duotone" width="20" class="{{ $isAdminForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <div x-show="isAdminForms && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+                <iconify-icon icon="solar:document-add-bold-duotone" width="20" :class="isAdminForms ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('menu.forms') }}</span>
             </a>
             @endif
@@ -380,16 +460,20 @@
             <!-- Settings -->
             <a
                 href="{{ route('admin.settings') }}"
-                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 {{ $isSettings ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white' }}"
-                :class="sidebarOpen ? '' : 'justify-center'"
+                wire:navigate
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
+                :class="[
+                    isSettings ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
+                    sidebarOpen ? '' : 'justify-center'
+                ]"
             >
-                @if($isSettings)
-                    <div class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" x-show="sidebarOpen"></div>
-                @endif
-                <iconify-icon icon="solar:settings-bold-duotone" width="20" class="{{ $isSettings ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80' }} transition-colors"></iconify-icon>
+                <div x-show="isSettings && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
+                <iconify-icon icon="solar:settings-bold-duotone" width="20" :class="isSettings ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                 <span x-show="sidebarOpen" class="truncate">{{ __('menu.settings') }}</span>
             </a>
             @endif
+
+            </div><!-- end admin x-data -->
         @endif
 
     </div>
@@ -450,7 +534,12 @@
     <button
         type="button"
         class="absolute -right-3 top-20 hidden md:flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-md ring-1 ring-slate-100 hover:text-[var(--accent)] transition-colors z-50"
-        @click="sidebarOpen = !sidebarOpen"
+        @click="
+            sidebarOpen = !sidebarOpen;
+            const offset = sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)';
+            document.body.style.setProperty('--manexo-shell-offset', offset);
+            localStorage.setItem('manexo_sidebar', sidebarOpen ? 'true' : 'false');
+        "
     >
         <iconify-icon :icon="sidebarOpen ? 'solar:alt-arrow-left-linear' : 'solar:alt-arrow-right-linear'" width="14"></iconify-icon>
     </button>

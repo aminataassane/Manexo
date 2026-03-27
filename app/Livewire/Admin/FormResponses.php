@@ -131,9 +131,17 @@ class FormResponses extends Component
         $form = $this->form;
         $formName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $form->name);
 
-        return response()->streamDownload(function () use ($form) {
+        $org = request()->attributes->get('currentOrganization');
+        $orgName = $org?->name ?? '';
+
+        return response()->streamDownload(function () use ($form, $orgName) {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+
+            // Manexo branding header
+            fputcsv($handle, ['Manexo — ' . $orgName], ';');
+            fputcsv($handle, ['Réponses au formulaire : ' . $form->name . ' — ' . now()->format('d/m/Y H:i')], ';');
+            fputcsv($handle, [], ';');
 
             // Build header from field snapshot of latest response or form fields
             $fields = $form->fields->where('type', '!=', 'section');

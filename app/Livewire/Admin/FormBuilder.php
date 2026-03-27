@@ -28,6 +28,11 @@ use Livewire\Component;
 #[Title('Éditeur de formulaires')]
 class FormBuilder extends Component
 {
+    /** Deferred loading: page shell renders immediately, data loads via wire:init */
+    public bool $ready = true;
+
+    public function loadPage(): void {}
+
     public bool $canManageForms = false;
     public bool $canAssignForms = false;
     public bool $canViewResponses = false;
@@ -133,8 +138,12 @@ class FormBuilder extends Component
         $this->fb_selected_form_public_description = (string) ($form->public_description ?? '');
         $this->fb_selected_form_public_thank_you = (string) ($form->public_thank_you ?? '');
         $this->fb_selected_form_description = (string) ($form->description ?? '');
-        $this->fb_selected_form_due_date = $form->due_date ? $form->due_date->format('Y-m-d') : null;
-        $this->fb_selected_form_expires_at = $form->expires_at ? $form->expires_at->format('Y-m-d\TH:i') : null;
+        $this->fb_selected_form_due_date = $form->due_date !== null
+            ? \Carbon\Carbon::parse($form->due_date)->format('Y-m-d')
+            : null;
+        $this->fb_selected_form_expires_at = $form->expires_at !== null
+            ? \Carbon\Carbon::parse($form->expires_at)->format('Y-m-d\TH:i')
+            : null;
         $this->fb_selected_field_id = null;
         $this->resetSelectedField();
     }
@@ -719,7 +728,7 @@ class FormBuilder extends Component
                     assignmentId: $assignment->id,
                     assignedById: $user->id,
                     assignedByName: $user->name,
-                    dueDate: $form->due_date?->toDateString(),
+                    dueDate: $form->due_date !== null ? \Carbon\Carbon::parse($form->due_date)->toDateString() : null,
                     assignmentPublicId: $assignment->public_id,
                 ));
                 event(new UserNotificationReceived(userId: $target->id, notificationType: 'form_assignment'));
@@ -742,16 +751,24 @@ class FormBuilder extends Component
                         assignmentId: $assignment->id,
                         assignedById: $user->id,
                         assignedByName: $user->name,
-                        dueDate: $form->due_date?->toDateString(),
+                        dueDate: $form->due_date !== null ? \Carbon\Carbon::parse($form->due_date)->toDateString() : null,
                         assignmentPublicId: $assignment->public_id,
                     ));
                     event(new UserNotificationReceived(userId: (int) $memberId, notificationType: 'form_assignment'));
                 }
             }
+            foreach ($memberIds as $memberId) {
+                CacheHelper::invalidateUserFormsCache($orgId, (int) $memberId);
+            }
         }
 
         $this->assign_user_id = null;
         $this->assign_function_id = null;
+
+        if ($validated['assign_user_id']) {
+            CacheHelper::invalidateUserFormsCache($orgId, (int) $validated['assign_user_id']);
+        }
+
         $this->dispatch('toast', type: 'success', message: 'Formulaire assigné.');
     }
 
@@ -761,9 +778,16 @@ class FormBuilder extends Component
             abort(403);
         }
         $orgId = $this->orgId();
+        $assignment = FormAssignment::query()
+            ->whereKey($assignmentId)
+            ->where('organization_id', $orgId)
+            ->first();
+        if ($assignment && $assignment->user_id) {
+            CacheHelper::invalidateUserFormsCache($orgId, (int) $assignment->user_id);
+        }
         FormAssignment::query()
             ->whereKey($assignmentId)
-            ->whereHas('form', fn($q) => $q->forOrg($orgId))
+            ->where('organization_id', $orgId)
             ->delete();
         $this->dispatch('toast', type: 'success', message: 'Assignation supprimée.');
     }
@@ -801,9 +825,17 @@ class FormBuilder extends Component
             return TicketCategory::query()->where('organization_id', $orgId)->orderBy('name')->get(['id', 'name', 'is_active']);
         }) : collect();
 
-        $members = $orgId ? Cache::remember(CacheHelper::membersKey($orgId), CacheHelper::TTL, function () use ($orgId) {
-            return OrganizationMembership::query()->where('organization_id', $orgId)->with(['user:id,name,email'])->orderBy('id')->get();
-        }) : collect();
+        // Heavy lists are loaded only when the related tab is active.
+        $members = collect();
+        if ($orgId && $this->activeTab === 'assignations') {
+            $members = Cache::remember(CacheHelper::membersKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                return OrganizationMembership::query()
+                    ->where('organization_id', $orgId)
+                    ->with(['user:id,name,email'])
+                    ->orderBy('id')
+                    ->get();
+            });
+        }
 
         $forms = $orgId ? Cache::remember(CacheHelper::formsListKey($orgId), CacheHelper::TTL, function () use ($orgId) {
             return Form::query()
@@ -815,16 +847,20 @@ class FormBuilder extends Component
 
         $selectedForm = null;
         if ($orgId && $this->fb_selected_form_id) {
-            $selectedForm = Form::query()
+            $selectedFormQuery = Form::query()
                 ->forOrg($orgId)
-                ->with(['fields' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')])
-                ->whereKey((int) $this->fb_selected_form_id)
-                ->first();
+                ->whereKey((int) $this->fb_selected_form_id);
+
+            if ($this->activeTab === 'champs') {
+                $selectedFormQuery->with(['fields' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')]);
+            }
+
+            $selectedForm = $selectedFormQuery->first();
         }
 
         $assignments = collect();
         $organizationFunctions = collect();
-        if ($orgId && $this->fb_selected_form_id) {
+        if ($orgId && $this->fb_selected_form_id && $this->activeTab === 'assignations') {
             $assignments = FormAssignment::query()
                 ->where('form_id', (int) $this->fb_selected_form_id)
                 ->with(['user:id,name,email', 'assignedBy:id,name', 'organizationFunction:id,name', 'response'])
@@ -839,8 +875,6 @@ class FormBuilder extends Component
             });
         }
 
-        $stats = $this->computeFormStats($orgId);
-
         return view('livewire.admin.form-builder', [
             'categories' => $categories,
             'members' => $members,
@@ -848,7 +882,7 @@ class FormBuilder extends Component
             'selectedForm' => $selectedForm,
             'assignments' => $assignments,
             'organizationFunctions' => $organizationFunctions,
-            'stats' => $stats,
+            'stats' => ['forms_total' => 0, 'forms_published' => 0, 'assignments_pending' => 0, 'responses_total' => 0],
         ]);
     }
 }

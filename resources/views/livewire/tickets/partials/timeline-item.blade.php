@@ -24,7 +24,7 @@
 @endphp
 
 @if($isSystem)
-    <div id="message-{{ $msg->id }}" class="flex justify-center py-3 min-w-0">
+    <div id="message-{{ $msg->id }}" class="message-row message-system flex justify-center py-3 min-w-0">
         <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs">
             <iconify-icon icon="solar:info-circle-linear" width="14" class="shrink-0 text-slate-500"></iconify-icon>
             <span class="break-words max-w-[min(100%,28rem)]">{!! $bodyFormatted !!}</span>
@@ -32,11 +32,11 @@
         </div>
     </div>
 @elseif($isNote)
-    <div id="message-{{ $msg->id }}" class="flex gap-3 py-3 min-w-0 max-w-[85%]">
+    <div id="message-{{ $msg->id }}" class="message-row message-note flex gap-3 py-3 min-w-0 max-w-[85%]">
         <div class="w-8 h-8 shrink-0 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
             <iconify-icon icon="solar:lock-keyhole-linear" width="14"></iconify-icon>
         </div>
-        <div class="flex-1 min-w-0 rounded-2xl rounded-tl-md bg-amber-50/90 border border-amber-200/80 shadow-sm overflow-hidden">
+        <div class="message-bubble flex-1 min-w-0 rounded-2xl rounded-tl-md bg-amber-50/90 border border-amber-200/80 shadow-sm overflow-hidden">
             <div class="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/60 bg-amber-50/50">
                 <div class="flex items-center gap-2">
                     <span class="text-[11px] font-bold text-amber-800 uppercase tracking-wide">{{ __('Note interne') }}</span>
@@ -60,7 +60,7 @@
     {{-- Message reçu (Support / autres) : gauche. Message envoyé (Client / moi) : droite --}}
     @if($isOwn)
         @php $hasAttachments = count($messageAttachments) > 0; @endphp
-        <div id="message-{{ $msg->id }}" class="flex justify-end py-3 min-w-0">
+        <div id="message-{{ $msg->id }}" class="message-row message-own flex justify-end py-3 min-w-0">
             <div class="flex items-end gap-3 max-w-[85%] min-w-0 flex-row-reverse">
                 <div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100">
                     <img src="{{ $avatarUrl }}" class="w-full h-full object-cover" alt="">
@@ -71,7 +71,7 @@
                         <span class="px-2 py-0.5 rounded-md bg-slate-700/10 text-[10px] font-medium text-slate-600">{{ $roleLabel }}</span>
                         <span class="text-[10px] text-slate-400">{{ $time }}</span>
                     </div>
-                    <div class="rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed shadow-md w-full max-w-full {{ $hasAttachments ? 'bg-white border border-slate-200 text-slate-700' : '' }}" @if(!$hasAttachments) style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%); color: #fff;" @endif>
+                    <div class="message-bubble rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed shadow-md w-full max-w-full {{ $hasAttachments ? 'bg-white border border-slate-200 text-slate-700' : '' }}" @if(!$hasAttachments) style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%); color: #fff;" @endif>
                         <div class="text-left break-words {{ !$hasAttachments ? 'text-white' : '' }}">
                             {!! $bodyFormatted !!}
                         </div>
@@ -87,7 +87,7 @@
             </div>
         </div>
     @else
-        <div id="message-{{ $msg->id }}" class="flex gap-3 py-3 min-w-0 max-w-[85%]">
+        <div id="message-{{ $msg->id }}" class="message-row message-incoming flex gap-3 py-3 min-w-0 max-w-[85%]">
             <div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100">
                 <img src="{{ $avatarUrl }}" class="w-full h-full object-cover" alt="">
             </div>
@@ -97,7 +97,7 @@
                     <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-medium text-slate-600 border border-slate-200/80">{{ $roleLabel }}</span>
                     <span class="text-[10px] text-slate-400 ml-auto">{{ $time }}</span>
                 </div>
-                <div class="rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0">
+                <div class="message-bubble rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0">
                     {!! $bodyFormatted !!}
                     @if(count($messageAttachments) > 0)
                         <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">

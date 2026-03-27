@@ -10,10 +10,11 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 
-    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <script defer src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap"></noscript>
 
     <style>
         /* Typography: Mona Sans uniquement */
@@ -38,11 +39,13 @@
 
         /* Organization accent color */
         ::selection { background: var(--accent-soft); color: var(--accent); }
+        /* En sidebar repliée, on neutralise les mini-tooltips (évite texte qui déborde) */
+        aside .group > .absolute.left-full { display: none !important; }
 
         /* ─── Print: hide shell UI, full-width content ─── */
         @media print {
             body { overflow: visible !important; height: auto !important; display: block !important; }
-            aside, header, #livewire-loading-bar,
+            aside, header,
             .fixed.inset-0,                 /* mobile overlay */
             .pointer-events-none.fixed      /* bg safety layer */
             { display: none !important; }
@@ -66,7 +69,8 @@
     $accent = ($currentOrganization?->primary_color ?: $defaultAccent);
 @endphp
 <body
-    class="flex h-screen w-full min-h-0 overflow-hidden bg-slate-50 text-slate-900 text-[14px] sm:text-[14px] lg:text-[15px] 2xl:text-[16px] min-[1920px]:text-[17px] min-[2560px]:text-[18px]"
+    class="manexo-fluid-root flex h-screen w-full min-h-0 overflow-hidden bg-slate-50 text-slate-900"
+    data-echo-enabled="1"
     style="
         --accent: {{ $accent }};
         --accent-soft: color-mix(in srgb, var(--accent) 15%, white);
@@ -75,8 +79,8 @@
         --accent-ring: color-mix(in srgb, var(--accent) 20%, transparent);
     "
     x-data="{ sidebarOpen: true, mobileOpen: false }"
-    x-init="sidebarOpen = (localStorage.getItem('manexo_sidebar') !== 'false')"
-    x-effect="localStorage.setItem('manexo_sidebar', sidebarOpen)"
+    x-init="sidebarOpen = (localStorage.getItem('manexo_sidebar') !== 'false'); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)')"
+    x-effect="localStorage.setItem('manexo_sidebar', sidebarOpen); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)')"
 >
 
     <!-- Support Session Banner -->
@@ -125,20 +129,23 @@
     <!-- Mobile Overlay -->
     <div x-show="mobileOpen" x-transition.opacity class="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden" @click="mobileOpen = false"></div>
 
-    <!-- SIDEBAR -->
-    <x-manexo.sidebar />
+    {{-- Shell conservé entre les navigations wire:navigate (pas de rechargement visuel du menu / header) --}}
+    @persist('manexo-sidebar')
+        <x-manexo.sidebar />
+    @endpersist
 
-    <!-- TOPBAR (fixed, always on top) -->
-    <x-manexo.topbar />
+    @persist('manexo-topbar')
+        <x-manexo.topbar />
+    @endpersist
 
     <!-- MAIN CONTENT: pt = hauteur du header (topbar) pour que le contenu reste sous le topbar -->
+        {{-- Décalage = --manexo-shell-offset (fluide + synchronisé barre / header via Alpine sur body) --}}
         <main
-            class="flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] {{ isset($activeSupportSession) && $activeSupportSession ? 'pt-24 sm:pt-[6.5rem]' : 'pt-14 sm:pt-16' }} md:pl-[72px] xl:pl-[80px]"
-        :class="sidebarOpen ? 'md:!pl-[240px] xl:!pl-[260px]' : ''"
+            class="manexo-shell-transition flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] {{ isset($activeSupportSession) && $activeSupportSession ? 'pt-24 sm:pt-[6.5rem]' : 'pt-14 sm:pt-16' }} pl-0 md:pl-[var(--manexo-shell-offset)]"
     >
-        <!-- PAGE BODY (scrollable) : padding horizontal pour ne pas coller au dashboard / bords -->
-        <div class="page-content-safe flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar pt-4 sm:pt-5 md:pt-6 lg:pt-8 xl:pt-10 2xl:pt-12 px-4 sm:px-5 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
-            <div class="mx-auto w-full min-w-0 max-w-7xl 2xl:max-w-[90rem] min-[1920px]:max-w-[110rem] min-[2560px]:max-w-[140rem] animate-enter space-y-4 sm:space-y-6">
+        <!-- PAGE BODY (scrollable) -->
+        <div class="page-content-safe manexo-shell-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            <div class="mx-auto manexo-content-wrap animate-enter space-y-[var(--manexo-space-section)]">
                 {{ $slot }}
             </div>
         </div>
@@ -158,20 +165,8 @@
         if(!window.Echo){var _c={listen:function(){return _c},stopListening:function(){return _c},notification:function(){return _c},listenForWhisper:function(){return _c},subscribed:function(){return _c},error:function(){return _c}};window.Echo={private:function(){return _c},channel:function(){return _c},encryptedPrivate:function(){return _c},join:function(){return _c},leave:function(){},leaveChannel:function(){},leaveAllChannels:function(){},socketId:function(){return null},connector:{pusher:{connection:{state:"stub"}}}}}
     </script>
     @livewireScripts
-    {{-- Global loading indicator when Livewire is processing (clicks, navigation) --}}
-    <div id="livewire-loading-bar" class="fixed top-0 left-0 right-0 h-0.5 z-[100] opacity-0 transition-opacity duration-150 pointer-events-none" style="background: var(--accent); transform: scaleX(0); transform-origin: left;"></div>
     <script>
         document.addEventListener('livewire:init', function() {
-            var bar = document.getElementById('livewire-loading-bar');
-            if (!bar) return;
-            Livewire.hook('request', function({ uri, options }) {
-                bar.style.opacity = '1';
-                bar.style.transform = 'scaleX(0.3)';
-            });
-            Livewire.hook('commit', function({ component, commit, respond, succeed, fail }) {
-                succeed(function() { bar.style.transform = 'scaleX(1)'; bar.style.opacity = '0'; });
-                fail(function() { bar.style.opacity = '0'; bar.style.transform = 'scaleX(0)'; });
-            });
             // Bridge Livewire dispatch('toast') → Alpine window event
             Livewire.on('toast', function(params) {
                 var p = Array.isArray(params) ? params[0] : params;

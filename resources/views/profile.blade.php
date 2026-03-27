@@ -5,35 +5,53 @@
         $user = Auth::user();
         $currentSessionId = session()->getId();
         $currentLocale = strtoupper((string) app()->getLocale());
+        $cacheTtl = 60;
+        $loadActivity = request()->boolean('load_activity', false);
 
-        $organizations = $user?->organizations()
-            ->withPivot(['role'])
-            ->orderBy('name')
-            ->get() ?? collect();
+        $organizations = $user
+            ? \Illuminate\Support\Facades\Cache::remember("profile:orgs:{$user->id}", $cacheTtl, function () use ($user) {
+                return $user->organizations()
+                    ->withPivot(['role'])
+                    ->orderBy('name')
+                    ->get();
+            })
+            : collect();
 
-        $sessions = \Illuminate\Support\Facades\DB::table('sessions')
-            ->where('user_id', $user?->id)
-            ->orderByDesc('last_activity')
-            ->limit(10)
-            ->get();
+        $sessions = $user
+            ? \Illuminate\Support\Facades\Cache::remember("profile:sessions:{$user->id}", $cacheTtl, function () use ($user) {
+                return \Illuminate\Support\Facades\DB::table('sessions')
+                    ->where('user_id', $user->id)
+                    ->orderByDesc('last_activity')
+                    ->limit(10)
+                    ->get();
+            })
+            : collect();
 
         $activityFilter = request('activity', 'all'); // all | tickets | assignations | commentaires
 
         $currentOrgId = (int) session('current_organization_id');
 
-        $ticketsCreated = $currentOrgId ? \App\Models\Ticket::query()
-            ->where('organization_id', $currentOrgId)
-            ->where('created_by', $user?->id)
-            ->latest('created_at')
-            ->limit(25)
-            ->get(['id', 'subject', 'status', 'created_at', 'updated_at']) : collect();
+        $ticketsCreated = collect();
+        $ticketsAssigned = collect();
+        if ($loadActivity && $currentOrgId && $user) {
+            $ticketsCreated = \Illuminate\Support\Facades\Cache::remember("profile:tickets_created:{$currentOrgId}:{$user->id}", $cacheTtl, function () use ($currentOrgId, $user) {
+                return \App\Models\Ticket::query()
+                    ->where('organization_id', $currentOrgId)
+                    ->where('created_by', $user->id)
+                    ->latest('created_at')
+                    ->limit(12)
+                    ->get(['id', 'subject', 'status', 'created_at', 'updated_at']);
+            });
 
-        $ticketsAssigned = $currentOrgId ? \App\Models\Ticket::query()
-            ->where('organization_id', $currentOrgId)
-            ->where('assigned_to', $user?->id)
-            ->latest('updated_at')
-            ->limit(25)
-            ->get(['id', 'subject', 'status', 'created_at', 'updated_at']) : collect();
+            $ticketsAssigned = \Illuminate\Support\Facades\Cache::remember("profile:tickets_assigned:{$currentOrgId}:{$user->id}", $cacheTtl, function () use ($currentOrgId, $user) {
+                return \App\Models\Ticket::query()
+                    ->where('organization_id', $currentOrgId)
+                    ->where('assigned_to', $user->id)
+                    ->latest('updated_at')
+                    ->limit(12)
+                    ->get(['id', 'subject', 'status', 'created_at', 'updated_at']);
+            });
+        }
 
         $events = collect();
         if (in_array($activityFilter, ['all', 'tickets'], true)) {
@@ -77,11 +95,13 @@
         };
 
         $pendingInvitations = $user
-            ? \App\Models\OrganizationInvitation::withoutOrganizationScope()
-                ->where('email', $user->email)
-                ->pending()
-                ->with(['organization', 'inviter'])
-                ->get()
+            ? \Illuminate\Support\Facades\Cache::remember("profile:pending_invitations:{$user->id}", $cacheTtl, function () use ($user) {
+                return \App\Models\OrganizationInvitation::withoutOrganizationScope()
+                    ->where('email', $user->email)
+                    ->pending()
+                    ->with(['organization', 'inviter'])
+                    ->get();
+            })
             : collect();
     @endphp
 
@@ -98,12 +118,6 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('pages.profile.heading') }}</h1>
             <p class="text-sm text-slate-500 mt-1">{{ __('pages.profile.subheading') }}</p>
         </div>
-        @if (Auth::user()?->hasPlatformAccess())
-            <a href="{{ route('platform-admin.dashboard') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-colors">
-                <iconify-icon icon="solar:arrow-left-linear" width="16"></iconify-icon>
-                {{ __('pages.profile.back_to_platform') }}
-            </a>
-        @endif
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -226,43 +240,56 @@
 
                 <div x-show="open" x-collapse>
                     <div class="p-6">
-                        <div class="flex flex-wrap gap-2 mb-6">
-                            @php $filters = [['all', 'filter_all'], ['tickets', 'filter_tickets'], ['commentaires', 'filter_comments'], ['assignations', 'filter_assignations']]; @endphp
-                            @foreach ($filters as [$key, $labelKey])
-                                @php
-                                    $isActive = $activityFilter === $key;
-                                    $disabled = $key === 'commentaires';
-                                @endphp
+                        @if(! $loadActivity)
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 text-center">
+                                <p class="text-sm text-slate-600 mb-3">Charge l'activité à la demande pour accélérer l'ouverture du profil.</p>
                                 <a
-                                    href="{{ route('profile', array_filter(['activity' => $key !== 'all' ? $key : null])) }}"
-                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all {{ $isActive ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} {{ $disabled ? 'pointer-events-none opacity-50' : '' }}"
-                                >{{ __('pages.profile.' . $labelKey) }}</a>
-                            @endforeach
-                        </div>
+                                    href="{{ route('profile', array_filter(['load_activity' => 1, 'activity' => request('activity')])) }}"
+                                    class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+                                >
+                                    <iconify-icon icon="solar:bolt-linear" width="14"></iconify-icon>
+                                    Charger l'activité
+                                </a>
+                            </div>
+                        @else
+                            <div class="flex flex-wrap gap-2 mb-6">
+                                @php $filters = [['all', 'filter_all'], ['tickets', 'filter_tickets'], ['commentaires', 'filter_comments'], ['assignations', 'filter_assignations']]; @endphp
+                                @foreach ($filters as [$key, $labelKey])
+                                    @php
+                                        $isActive = $activityFilter === $key;
+                                        $disabled = $key === 'commentaires';
+                                    @endphp
+                                    <a
+                                        href="{{ route('profile', array_filter(['load_activity' => 1, 'activity' => $key !== 'all' ? $key : null])) }}"
+                                        class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all {{ $isActive ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} {{ $disabled ? 'pointer-events-none opacity-50' : '' }}"
+                                    >{{ __('pages.profile.' . $labelKey) }}</a>
+                                @endforeach
+                            </div>
 
-                        <div class="relative pl-4 space-y-6 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-                            @forelse ($events as $e)
-                                <div class="relative pl-8">
-                                    <div class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white shadow-sm" style="background: var(--accent);"></div>
-                                    <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-                                        <p class="text-sm font-medium text-slate-900">{{ $e['label'] }}</p>
-                                        <span class="text-xs text-slate-400">{{ \Illuminate\Support\Carbon::parse($e['at'])->diffForHumans() }}</span>
+                            <div class="relative pl-4 space-y-6 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                                @forelse ($events as $e)
+                                    <div class="relative pl-8">
+                                        <div class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white shadow-sm" style="background: var(--accent);"></div>
+                                        <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                                            <p class="text-sm font-medium text-slate-900">{{ $e['label'] }}</p>
+                                            <span class="text-xs text-slate-400">{{ \Illuminate\Support\Carbon::parse($e['at'])->diffForHumans() }}</span>
+                                        </div>
+                                        <p class="text-xs text-slate-500 mt-1">
+                                            <span class="font-mono text-slate-400">#{{ $e['ticket_id'] }}</span> · {{ $e['subject'] }}
+                                        </p>
+                                        <div class="mt-2">
+                                            <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
+                                                {{ $statusLabel($e['status']) }}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <p class="text-xs text-slate-500 mt-1">
-                                        <span class="font-mono text-slate-400">#{{ $e['ticket_id'] }}</span> · {{ $e['subject'] }}
-                                    </p>
-                                    <div class="mt-2">
-                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
-                                            {{ $statusLabel($e['status']) }}
-                                        </span>
+                                @empty
+                                    <div class="py-8 text-center text-sm text-slate-500 italic">
+                                        {{ __('pages.profile.no_activity_found') }}
                                     </div>
-                                </div>
-                            @empty
-                                <div class="py-8 text-center text-sm text-slate-500 italic">
-                                    {{ __('pages.profile.no_activity_found') }}
-                                </div>
-                            @endforelse
-                        </div>
+                                @endforelse
+                            </div>
+                        @endif
                         
                         <div class="mt-6 pt-4 border-t border-slate-100 text-center">
                             <a href="{{ route('profile.history') }}" class="text-sm font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors inline-flex items-center gap-1">

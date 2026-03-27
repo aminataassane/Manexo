@@ -2,21 +2,22 @@
 
 namespace App\Models;
 
+use App\Enums\SlaStatus;
+use App\Enums\TicketSource;
 use App\Enums\TicketStatus;
 use App\Traits\BelongsToOrganization;
 use App\Traits\HasPublicId;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Ticket extends Model
 {
-    use SoftDeletes, HasPublicId, BelongsToOrganization, HasFactory;
+    use BelongsToOrganization, HasFactory, HasPublicId, SoftDeletes;
 
     public static string $publicIdPrefix = 'TCK';
 
@@ -32,6 +33,7 @@ class Ticket extends Model
         'assigned_at',
         'assigned_to_function_id',
         'status',
+        'source',
         'closed_by',
         'closed_at',
         'subject',
@@ -41,12 +43,26 @@ class Ticket extends Model
         'start_date',
         'due_date',
         'archived_at',
+        'sla_policy_id',
+        'sla_first_response_deadline',
+        'sla_resolution_deadline',
+        'sla_first_response_met_at',
+        'sla_resolution_met_at',
+        'sla_first_response_breached',
+        'sla_resolution_breached',
+        'sla_paused_at',
+        'sla_paused_seconds',
+        'requires_approval',
+        'approval_status',
+        'approval_policy_approver_type',
+        'approval_policy_approver_id',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => TicketStatus::class,
+            'source' => TicketSource::class,
             'custom_fields' => 'array',
             'attachments' => 'array',
             'start_date' => 'date',
@@ -55,6 +71,15 @@ class Ticket extends Model
             'deleted_at' => 'datetime',
             'assigned_at' => 'datetime',
             'closed_at' => 'datetime',
+            'sla_first_response_deadline' => 'datetime',
+            'sla_resolution_deadline' => 'datetime',
+            'sla_first_response_met_at' => 'datetime',
+            'sla_resolution_met_at' => 'datetime',
+            'sla_first_response_breached' => 'boolean',
+            'sla_resolution_breached' => 'boolean',
+            'sla_paused_at' => 'datetime',
+            'sla_paused_seconds' => 'integer',
+            'requires_approval' => 'boolean',
         ];
     }
 
@@ -91,6 +116,103 @@ class Ticket extends Model
     public function priority(): BelongsTo
     {
         return $this->belongsTo(TicketPriority::class, 'ticket_priority_id');
+    }
+
+    public function slaPolicy(): BelongsTo
+    {
+        return $this->belongsTo(SlaPolicy::class);
+    }
+
+    /** Compute SLA first response status (none/on_track/at_risk/breached/met). */
+    public function slaFirstResponseStatus(): SlaStatus
+    {
+        if (! $this->sla_first_response_deadline) {
+            return SlaStatus::None;
+        }
+        if ($this->sla_first_response_met_at) {
+            return SlaStatus::Met;
+        }
+        if ($this->sla_first_response_breached) {
+            return SlaStatus::Breached;
+        }
+
+        $remaining = $this->slaFirstResponseRemainingSeconds();
+        if ($remaining !== null && $remaining <= 0) {
+            return SlaStatus::Breached;
+        }
+
+        // Check at-risk threshold
+        $org = $this->relationLoaded('organization') ? $this->organization : Organization::find($this->organization_id);
+        $settings = is_array($org?->settings) ? $org->settings : [];
+        $threshold = (int) ($settings['sla']['at_risk_threshold_percent'] ?? 80);
+        $totalSeconds = $this->sla_first_response_deadline->diffInSeconds($this->created_at);
+        $elapsed = now()->diffInSeconds($this->created_at);
+
+        if ($totalSeconds > 0 && ($elapsed / $totalSeconds) * 100 >= $threshold) {
+            return SlaStatus::AtRisk;
+        }
+
+        return SlaStatus::OnTrack;
+    }
+
+    /** Compute SLA resolution status (none/on_track/at_risk/breached/met). */
+    public function slaResolutionStatus(): SlaStatus
+    {
+        if (! $this->sla_resolution_deadline) {
+            return SlaStatus::None;
+        }
+        if ($this->sla_resolution_met_at) {
+            return SlaStatus::Met;
+        }
+        if ($this->sla_resolution_breached) {
+            return SlaStatus::Breached;
+        }
+        if ($this->sla_paused_at) {
+            return SlaStatus::OnTrack; // Paused = timer frozen, no risk
+        }
+
+        $remaining = $this->slaResolutionRemainingSeconds();
+        if ($remaining !== null && $remaining <= 0) {
+            return SlaStatus::Breached;
+        }
+
+        $org = $this->relationLoaded('organization') ? $this->organization : Organization::find($this->organization_id);
+        $settings = is_array($org?->settings) ? $org->settings : [];
+        $threshold = (int) ($settings['sla']['at_risk_threshold_percent'] ?? 80);
+
+        // Total allowed seconds = resolution_minutes * 60 (from policy)
+        $policy = $this->relationLoaded('slaPolicy') ? $this->slaPolicy : SlaPolicy::find($this->sla_policy_id);
+        if (! $policy || ! $policy->resolution_minutes) {
+            return SlaStatus::OnTrack;
+        }
+        $totalAllowed = $policy->resolution_minutes * 60;
+        $elapsed = now()->diffInSeconds($this->created_at) - $this->sla_paused_seconds;
+
+        if ($totalAllowed > 0 && ($elapsed / $totalAllowed) * 100 >= $threshold) {
+            return SlaStatus::AtRisk;
+        }
+
+        return SlaStatus::OnTrack;
+    }
+
+    /** Remaining seconds before first response deadline, or null if no deadline. */
+    public function slaFirstResponseRemainingSeconds(): ?int
+    {
+        if (! $this->sla_first_response_deadline || $this->sla_first_response_met_at) {
+            return null;
+        }
+
+        return (int) max(0, now()->diffInSeconds($this->sla_first_response_deadline, false));
+    }
+
+    /** Remaining seconds before resolution deadline, or null if no deadline. */
+    public function slaResolutionRemainingSeconds(): ?int
+    {
+        if (! $this->sla_resolution_deadline || $this->sla_resolution_met_at || $this->sla_paused_at) {
+            return null;
+        }
+
+        return (int) max(0, now()->diffInSeconds($this->sla_resolution_deadline, false));
     }
 
     public function group(): BelongsTo
@@ -173,6 +295,41 @@ class Ticket extends Model
         return $this->hasMany(TicketParticipant::class);
     }
 
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(TicketApproval::class);
+    }
+
+    public function latestApproval(): HasOne
+    {
+        return $this->hasOne(TicketApproval::class)->latestOfMany();
+    }
+
+    public function pendingApproval(): HasOne
+    {
+        return $this->hasOne(TicketApproval::class)->where('status', 'pending');
+    }
+
+    public function requiresApproval(): bool
+    {
+        return (bool) $this->requires_approval;
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->approval_status === 'pending';
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approval_status === 'approved';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->approval_status === 'rejected';
+    }
+
     public function checklistItems(): HasMany
     {
         return $this->hasMany(TicketChecklistItem::class)->orderBy('sort_order');
@@ -182,6 +339,12 @@ class Ticket extends Model
     public function formResponse(): HasOne
     {
         return $this->hasOne(FormResponse::class);
+    }
+
+    /** Vérifie si le ticket provient d'un email. */
+    public function isFromEmail(): bool
+    {
+        return $this->source === TicketSource::Email;
     }
 
     /** Vérifie si le ticket provient d'un formulaire. */
@@ -195,13 +358,16 @@ class Ticket extends Model
     /** Nombre d'items cochés / total (0–100). */
     public function checklistProgress(): int
     {
-        $total = $this->checklistItems()->count();
+        $row = $this->checklistItems()
+            ->selectRaw('count(*) as total, sum(case when is_done then 1 else 0 end) as done')
+            ->first();
+
+        $total = (int) ($row->total ?? 0);
         if ($total === 0) {
             return 0;
         }
-        $done = $this->checklistItems()->where('is_done', true)->count();
 
-        return (int) round(100 * $done / $total);
+        return (int) round(100 * (int) $row->done / $total);
     }
 
     /** Scope : tickets où l'utilisateur participe (créateur, assigné, participant, ou a la fonction assignée). */
@@ -233,11 +399,11 @@ class Ticket extends Model
                 return true;
             }
         }
+
         // Tout membre de l'organisation du ticket peut voir la discussion (page déjà protégée par ensure.organization)
-        $user = User::find($userId);
-        if (! $user) {
-            return false;
-        }
-        return $user->organizations()->where('organization_id', $this->organization_id)->exists();
+        return \App\Models\OrganizationMembership::query()
+            ->where('organization_id', $this->organization_id)
+            ->where('user_id', $userId)
+            ->exists();
     }
 }

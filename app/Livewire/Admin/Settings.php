@@ -2,20 +2,30 @@
 
 namespace App\Livewire\Admin;
 
-use App\Enums\OrganizationRole;
+use App\Enums\ApiTokenScope;
 use App\Enums\Permission;
+use App\Enums\WebhookEvent;
 use App\Helpers\CacheHelper;
-use App\Services\OrganizationAuditService;
+use App\Models\AutomationRule;
+use App\Models\Form;
+use App\Models\KbArticle;
+use App\Models\KbCategory;
 use App\Models\Organization;
 use App\Models\OrganizationFunction;
+use App\Models\OrganizationMailbox;
 use App\Models\OrganizationMembership;
 use App\Models\OrganizationRolePermission;
 use App\Models\RoleDefinition;
-use App\Models\Form;
+use App\Models\SlaPolicy;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketGroup;
 use App\Models\TicketPriority;
+use App\Models\WebhookEndpoint;
+use App\Services\Email\ImapService;
+use App\Services\Email\MailErrorTranslator;
+use App\Services\OrganizationAuditService;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -32,12 +42,26 @@ class Settings extends Component
 {
     use WithFileUploads;
 
+    /** 1 = en-tête + navigation, 2 = listes / onglets (requêtes cache) */
+    public int $loadStage = 1;
+
+    public function loadSettingsBody(): void
+    {
+        if ($this->loadStage < 2) {
+            $this->loadStage = 2;
+        }
+    }
+
     public bool $canManage = false;
+
     public bool $isOwner = false;
 
     public string $name = '';
+
     public string $slug = '';
+
     public ?string $primary_color = null;
+
     public bool $slugManuallyEdited = false;
 
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
@@ -46,37 +70,73 @@ class Settings extends Component
     public ?string $currentLogoUrl = null;
 
     public ?int $default_category_id = null;
+
     public ?int $default_priority_id = null;
+
     public ?int $auto_close_days = null;
+
     public bool $members_can_edit = true;
+
     public bool $members_can_delete = false;
 
     // --- Category CRUD
     public string $newCategoryName = '';
+
     public ?int $newCategoryDefaultGroupId = null;
+
     public ?int $newCategoryDefaultFormId = null;
+
+    public bool $newCategoryRequiresApproval = false;
+
+    public ?string $newCategoryApprovalType = null;
+
+    public ?int $newCategoryApprovalUserId = null;
+
+    public ?string $newCategoryApprovalRole = null;
+
     public ?int $editingCategoryId = null;
+
     public string $editingCategoryName = '';
+
     public ?int $editingCategoryDefaultGroupId = null;
+
     public ?int $editingCategoryDefaultFormId = null;
+
+    public bool $editingCategoryRequiresApproval = false;
+
+    public ?string $editingCategoryApprovalType = null;
+
+    public ?int $editingCategoryApprovalUserId = null;
+
+    public ?string $editingCategoryApprovalRole = null;
 
     // --- Priority CRUD
     public string $newPriorityName = '';
+
     public ?int $newPriorityLevel = null;
+
     public ?int $editingPriorityId = null;
+
     public string $editingPriorityName = '';
+
     public ?int $editingPriorityLevel = null;
 
     // --- Function (fonction métier) CRUD
     public string $newFunctionName = '';
+
     public ?int $editingFunctionId = null;
+
     public string $editingFunctionName = '';
 
     // --- Group CRUD
     public string $newGroupName = '';
+
     public ?string $newGroupColor = null;
+
     public ?int $editingGroupId = null;
+
     public string $editingGroupName = '';
+
     public ?string $editingGroupColor = null;
 
     public string $dangerConfirmName = '';
@@ -86,7 +146,9 @@ class Settings extends Component
 
     /** Paramètres formulaires (onglet Formulaires) */
     public ?int $forms_default_due_days = 7;
+
     public bool $forms_notify_on_response = true;
+
     public ?int $forms_default_expiry_days = 30;
 
     /** Message de succès après enregistrement (affiché sans redirection). */
@@ -95,13 +157,137 @@ class Settings extends Component
     // --- Roles & Permissions
     /** @var array<string, array<string, bool>> [role => [permission => bool]] */
     public array $rolePermissions = [];
+
     public string $selectedRole = 'admin';
 
     // --- Role CRUD
     public string $newRoleName = '';
+
     public string $newRoleBaseSlug = '';
+
     public ?int $editingRoleId = null;
+
     public string $editingRoleName = '';
+
+    // --- Email Mailbox
+    public string $mailboxEmail = '';
+
+    public string $mailboxDisplayName = '';
+
+    public string $mailboxImapHost = '';
+
+    public int $mailboxImapPort = 993;
+
+    public string $mailboxImapUsername = '';
+
+    public string $mailboxImapPassword = '';
+
+    public string $mailboxImapEncryption = 'ssl';
+
+    public string $mailboxImapFolder = 'INBOX';
+
+    public ?int $mailboxDefaultCategoryId = null;
+
+    public ?int $mailboxDefaultPriorityId = null;
+
+    public ?int $mailboxDefaultGroupId = null;
+
+    public bool $mailboxIsActive = false;
+
+    public ?string $mailboxTestResult = null;
+
+    public ?string $mailboxLastError = null;
+
+    public ?string $mailboxLastFetchedAt = null;
+
+    // --- Email Mailbox SMTP
+    public string $mailboxSmtpHost = '';
+
+    public int $mailboxSmtpPort = 587;
+
+    public string $mailboxSmtpUsername = '';
+
+    public string $mailboxSmtpPassword = '';
+
+    public string $mailboxSmtpEncryption = 'tls';
+
+    public ?string $mailboxSmtpTestResult = null;
+
+    // --- SLA
+    public bool $slaEnabled = false;
+
+    public int $slaAtRiskThreshold = 80;
+
+    /** @var array<int, array{first_response_minutes: ?int, resolution_minutes: ?int, is_active: bool}> */
+    public array $slaPolicies = [];
+
+    // --- Automations
+    public bool $automationsEnabled = true;
+
+    public array $editingRule = [];
+
+    public ?int $editingRuleId = null;
+
+    public bool $showRuleModal = false;
+
+    // --- API Tokens
+    public string $newTokenName = '';
+
+    public array $newTokenScopes = [];
+
+    public ?string $newTokenExpiresAt = null;
+
+    public ?string $createdTokenPlainText = null;
+
+    // --- Webhooks
+    public string $newWebhookUrl = '';
+
+    public string $newWebhookDescription = '';
+
+    public array $newWebhookEvents = [];
+
+    public ?int $editingWebhookId = null;
+
+    public string $editingWebhookUrl = '';
+
+    public string $editingWebhookDescription = '';
+
+    public array $editingWebhookEvents = [];
+
+    public bool $editingWebhookIsActive = true;
+
+    public ?string $createdWebhookSecret = null;
+
+    // --- Knowledge Base
+    public string $newKbCategoryName = '';
+
+    public string $newKbCategoryDescription = '';
+
+    public string $newKbCategoryIcon = '';
+
+    public ?int $editingKbCategoryId = null;
+
+    public string $editingKbCategoryName = '';
+
+    public string $editingKbCategoryDescription = '';
+
+    public string $editingKbCategoryIcon = '';
+
+    public bool $showKbArticleModal = false;
+
+    public ?int $editingKbArticleId = null;
+
+    public string $kbArticleTitle = '';
+
+    public ?int $kbArticleCategoryId = null;
+
+    public string $kbArticleContent = '';
+
+    public string $kbArticleStatus = 'published';
+
+    public string $kbArticleVisibility = 'public';
+
+    public string $kbArticleKeywords = '';
 
     private function orgId(): int
     {
@@ -121,6 +307,10 @@ class Settings extends Component
 
     public function mount(): void
     {
+        // Ensure settings body is immediately available even with wire:navigate.
+        // Some clients may skip/lag wire:init, which left the page in stage 1 skeleton.
+        $this->loadStage = 2;
+
         $org = $this->orgOrFail();
 
         /** @var \App\Models\User $user */
@@ -132,13 +322,20 @@ class Settings extends Component
             Permission::SettingsManageFunctions,
             Permission::SettingsManageForms,
             Permission::SettingsManageRoles,
+            Permission::SettingsManageEmail,
+            Permission::SettingsManageSla,
+            Permission::SettingsManageAutomations,
+            Permission::SettingsManageApprovals,
+            Permission::SettingsManageApi,
+            Permission::SettingsManageWebhooks,
+            Permission::SettingsManageKnowledgeBase,
         ]);
         $this->isOwner = $user->hasPermission(Permission::SettingsDeleteOrg);
 
         $this->name = (string) $org->name;
         $this->slug = (string) $org->slug;
         $this->primary_color = $this->normalizeHexColorForDisplay($org->primary_color);
-        $this->currentLogoUrl = $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
+        $this->currentLogoUrl = $org->logo_path ? asset('storage/'.ltrim($org->logo_path, '/')) : null;
 
         $settings = is_array($org->settings) ? $org->settings : [];
 
@@ -161,6 +358,399 @@ class Settings extends Component
         $this->forms_default_expiry_days = isset($forms['default_expiry_days']) ? (int) $forms['default_expiry_days'] : 30;
 
         $this->loadRolePermissions();
+        $this->mountMailbox();
+        $this->mountSla();
+        $this->mountAutomations();
+    }
+
+    public function mountMailbox(): void
+    {
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            return;
+        }
+
+        try {
+            $mailbox = OrganizationMailbox::query()->where('organization_id', $orgId)->first();
+        } catch (\Throwable) {
+            return; // Table not yet migrated
+        }
+        if ($mailbox) {
+            $this->mailboxEmail = (string) $mailbox->email;
+            $this->mailboxDisplayName = (string) ($mailbox->display_name ?? '');
+            $this->mailboxImapHost = (string) $mailbox->imap_host;
+            $this->mailboxImapPort = (int) $mailbox->imap_port;
+            $this->mailboxImapUsername = (string) $mailbox->imap_username;
+            $this->mailboxImapPassword = ''; // Never send back to frontend
+            $this->mailboxImapEncryption = (string) $mailbox->imap_encryption;
+            $this->mailboxImapFolder = (string) ($mailbox->imap_folder ?: 'INBOX');
+            $this->mailboxDefaultCategoryId = $mailbox->default_category_id;
+            $this->mailboxDefaultPriorityId = $mailbox->default_priority_id;
+            $this->mailboxDefaultGroupId = $mailbox->default_group_id;
+            $this->mailboxIsActive = (bool) $mailbox->is_active;
+            $this->mailboxLastError = $mailbox->last_error_message;
+            $this->mailboxLastFetchedAt = $mailbox->last_fetched_at?->translatedFormat('d/m/Y H:i');
+
+            // SMTP
+            $this->mailboxSmtpHost = (string) ($mailbox->smtp_host ?? '');
+            $this->mailboxSmtpPort = (int) ($mailbox->smtp_port ?: 587);
+            $this->mailboxSmtpUsername = (string) ($mailbox->smtp_username ?? '');
+            $this->mailboxSmtpPassword = ''; // Never send back to frontend
+            $this->mailboxSmtpEncryption = (string) ($mailbox->smtp_encryption ?? 'tls');
+        }
+    }
+
+    public function mountSla(): void
+    {
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            return;
+        }
+
+        try {
+            $org = Organization::find($orgId);
+            $settings = is_array($org?->settings) ? $org->settings : [];
+            $this->slaEnabled = (bool) ($settings['sla']['enabled'] ?? false);
+            $this->slaAtRiskThreshold = (int) ($settings['sla']['at_risk_threshold_percent'] ?? 80);
+
+            $priorities = TicketPriority::withoutOrganizationScope()
+                ->where('organization_id', $orgId)
+                ->where('is_active', true)
+                ->orderByDesc('level')
+                ->get(['id', 'name', 'level']);
+
+            $policies = SlaPolicy::withoutOrganizationScope()
+                ->where('organization_id', $orgId)
+                ->get()
+                ->keyBy('ticket_priority_id');
+
+            $this->slaPolicies = [];
+            foreach ($priorities as $priority) {
+                $policy = $policies->get($priority->id);
+                $this->slaPolicies[$priority->id] = [
+                    'first_response_minutes' => $policy?->first_response_minutes,
+                    'resolution_minutes' => $policy?->resolution_minutes,
+                    'is_active' => $policy ? (bool) $policy->is_active : true,
+                ];
+            }
+        } catch (\Throwable) {
+            // Table not yet migrated
+        }
+    }
+
+    public function saveSlaSettings(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageSla)) {
+            $this->addError('slaEnabled', __('Accès refusé.'));
+
+            return;
+        }
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $this->validate([
+            'slaEnabled' => ['boolean'],
+            'slaAtRiskThreshold' => ['required', 'integer', 'min:1', 'max:99'],
+        ]);
+
+        // Update organization settings
+        $org = $this->orgOrFail();
+        $settings = is_array($org->settings) ? $org->settings : [];
+        $settings['sla'] = [
+            'enabled' => (bool) $this->slaEnabled,
+            'at_risk_threshold_percent' => (int) $this->slaAtRiskThreshold,
+        ];
+        $org->update(['settings' => $settings]);
+
+        // Upsert SLA policies per priority
+        foreach ($this->slaPolicies as $priorityId => $policyData) {
+            $frMinutes = isset($policyData['first_response_minutes']) && $policyData['first_response_minutes'] !== '' && $policyData['first_response_minutes'] !== null
+                ? (int) $policyData['first_response_minutes']
+                : null;
+            $resMinutes = isset($policyData['resolution_minutes']) && $policyData['resolution_minutes'] !== '' && $policyData['resolution_minutes'] !== null
+                ? (int) $policyData['resolution_minutes']
+                : null;
+            $isActive = (bool) ($policyData['is_active'] ?? true);
+
+            // Skip if both are null/empty — no policy to create
+            if ($frMinutes === null && $resMinutes === null) {
+                // Delete existing policy if any
+                SlaPolicy::withoutOrganizationScope()
+                    ->where('organization_id', $orgId)
+                    ->where('ticket_priority_id', (int) $priorityId)
+                    ->delete();
+
+                continue;
+            }
+
+            SlaPolicy::withoutOrganizationScope()->updateOrCreate(
+                [
+                    'organization_id' => $orgId,
+                    'ticket_priority_id' => (int) $priorityId,
+                ],
+                [
+                    'first_response_minutes' => $frMinutes,
+                    'resolution_minutes' => $resMinutes,
+                    'is_active' => $isActive,
+                ],
+            );
+        }
+
+        CacheHelper::invalidateSlaPolicies($orgId);
+
+        OrganizationAuditService::log(
+            'settings.sla_updated',
+            'organization',
+            (int) $org->id,
+            ['sla_enabled' => $this->slaEnabled],
+        );
+
+        $this->dispatch('toast', type: 'success', message: __('Paramètres SLA enregistrés.'));
+    }
+
+    // ─── Automations ──────────────────────────────────────────────────
+
+    public function mountAutomations(): void
+    {
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            return;
+        }
+
+        try {
+            $org = Organization::find($orgId);
+            $settings = is_array($org?->settings) ? $org->settings : [];
+            $this->automationsEnabled = (bool) ($settings['automations']['enabled'] ?? true);
+        } catch (\Throwable) {
+            // Table not yet migrated
+        }
+    }
+
+    public function saveAutomationsSettings(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageAutomations)) {
+            $this->addError('automationsEnabled', __('Accès refusé.'));
+
+            return;
+        }
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $org = $this->orgOrFail();
+        $settings = is_array($org->settings) ? $org->settings : [];
+        $settings['automations'] = [
+            'enabled' => (bool) $this->automationsEnabled,
+        ];
+        $org->update(['settings' => $settings]);
+
+        OrganizationAuditService::log(
+            'settings.automations_updated',
+            'organization',
+            (int) $org->id,
+            ['automations_enabled' => $this->automationsEnabled],
+        );
+
+        $this->dispatch('toast', type: 'success', message: __('Paramètres d\'automatisation enregistrés.'));
+    }
+
+    public function openCreateRule(): void
+    {
+        $this->editingRuleId = null;
+        $this->editingRule = [
+            'name' => '',
+            'description' => '',
+            'trigger_type' => 'ticket_created',
+            'conditions' => [],
+            'actions' => [],
+        ];
+        $this->showRuleModal = true;
+    }
+
+    public function openEditRule(int $id): void
+    {
+        $orgId = $this->orgId();
+        $rule = AutomationRule::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $this->editingRuleId = (int) $rule->id;
+        // Transform stored items array back to items_text for the blade input
+        $actions = $rule->actions ?? [];
+        foreach ($actions as &$action) {
+            if (($action['type'] ?? '') === 'add_checklist' && ! empty($action['items'])) {
+                $action['items_text'] = collect($action['items'])->pluck('title')->implode(', ');
+                unset($action['items']);
+            }
+        }
+        unset($action);
+
+        $this->editingRule = [
+            'name' => $rule->name,
+            'description' => $rule->description ?? '',
+            'trigger_type' => $rule->trigger_type,
+            'conditions' => $rule->conditions ?? [],
+            'actions' => $actions,
+        ];
+        $this->showRuleModal = true;
+    }
+
+    public function saveRule(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageAutomations)) {
+            $this->addError('editingRule.name', __('Accès refusé.'));
+
+            return;
+        }
+
+        $this->validate([
+            'editingRule.name' => ['required', 'string', 'max:120'],
+            'editingRule.trigger_type' => ['required', 'string', 'in:ticket_created,status_changed,priority_changed,sla_at_risk,sla_breached'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $conditions = $this->editingRule['conditions'] ?? [];
+        // Clean empty condition values
+        $conditions = array_filter($conditions, fn ($v) => $v !== null && $v !== '' && $v !== false);
+
+        $actions = $this->editingRule['actions'] ?? [];
+        // Transform items_text into proper items array for add_checklist actions
+        foreach ($actions as &$action) {
+            if (($action['type'] ?? '') === 'add_checklist' && ! empty($action['items_text'])) {
+                $action['items'] = collect(explode(',', $action['items_text']))
+                    ->map(fn ($t) => trim($t))
+                    ->filter()
+                    ->map(fn ($t) => ['title' => $t])
+                    ->values()
+                    ->all();
+                unset($action['items_text']);
+            }
+        }
+        unset($action);
+
+        $data = [
+            'organization_id' => $orgId,
+            'name' => trim($this->editingRule['name']),
+            'description' => trim($this->editingRule['description'] ?? '') ?: null,
+            'trigger_type' => $this->editingRule['trigger_type'],
+            'conditions' => $conditions,
+            'actions' => array_values($actions),
+        ];
+
+        if ($this->editingRuleId) {
+            $rule = AutomationRule::withoutOrganizationScope()
+                ->where('organization_id', $orgId)
+                ->whereKey($this->editingRuleId)
+                ->firstOrFail();
+            $rule->update($data);
+        } else {
+            $data['sort_order'] = (int) AutomationRule::withoutOrganizationScope()
+                ->where('organization_id', $orgId)
+                ->max('sort_order') + 1;
+            AutomationRule::create($data);
+        }
+
+        CacheHelper::invalidateAutomationRules($orgId);
+        $wasEditing = $this->editingRuleId;
+        $this->showRuleModal = false;
+        $this->editingRuleId = null;
+        $this->editingRule = [];
+
+        $this->dispatch('toast', type: 'success', message: $wasEditing ? __('Règle mise à jour.') : __('Règle créée.'));
+    }
+
+    public function deleteRule(int $id): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageAutomations)) {
+            return;
+        }
+
+        $orgId = $this->orgId();
+        AutomationRule::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->delete();
+
+        CacheHelper::invalidateAutomationRules($orgId);
+        $this->dispatch('toast', type: 'success', message: __('Règle supprimée.'));
+    }
+
+    public function toggleRule(int $id): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageAutomations)) {
+            return;
+        }
+
+        $orgId = $this->orgId();
+        $rule = AutomationRule::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $rule->update(['is_active' => ! $rule->is_active]);
+        CacheHelper::invalidateAutomationRules($orgId);
+
+        $this->dispatch('toast', type: 'success', message: $rule->is_active ? __('Règle activée.') : __('Règle désactivée.'));
+    }
+
+    public function moveRuleUp(int $id): void
+    {
+        $this->reorderRule($id, -1);
+    }
+
+    public function moveRuleDown(int $id): void
+    {
+        $this->reorderRule($id, 1);
+    }
+
+    private function reorderRule(int $id, int $direction): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageAutomations)) {
+            return;
+        }
+
+        $orgId = $this->orgId();
+        $rules = AutomationRule::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->orderBy('sort_order')
+            ->get();
+
+        $index = $rules->search(fn ($r) => (int) $r->id === $id);
+        if ($index === false) {
+            return;
+        }
+
+        $swapIndex = $index + $direction;
+        if ($swapIndex < 0 || $swapIndex >= $rules->count()) {
+            return;
+        }
+
+        /** @var AutomationRule $currentRule */
+        $currentRule = $rules[$index];
+        /** @var AutomationRule $swapRule */
+        $swapRule = $rules[$swapIndex];
+
+        $tmpOrder = $currentRule->sort_order;
+        $currentRule->update(['sort_order' => $swapRule->sort_order]);
+        $swapRule->update(['sort_order' => $tmpOrder]);
+
+        CacheHelper::invalidateAutomationRules($orgId);
     }
 
     public function loadRolePermissions(): void
@@ -234,6 +824,7 @@ class Settings extends Component
         $user = Auth::user();
         if (! $user || ! $user->hasPermission(Permission::SettingsManageRoles)) {
             $this->addError('rolePermissions', __('Acces refuse.'));
+
             return;
         }
 
@@ -295,6 +886,7 @@ class Settings extends Component
         $user = Auth::user();
         if (! $user || ! $user->hasPermission(Permission::SettingsManageRoles)) {
             $this->addError('rolePermissions', __('Acces refuse.'));
+
             return;
         }
 
@@ -373,7 +965,7 @@ class Settings extends Component
 
         $org = $this->orgOrFail();
         $ext = $this->logo->getClientOriginalExtension() ?: 'png';
-        $filename = 'org-' . $org->id . '-' . Str::lower(Str::random(10)) . '.' . $ext;
+        $filename = 'org-'.$org->id.'-'.Str::lower(Str::random(10)).'.'.$ext;
         $logoPath = $this->logo->storeAs('org-logos', $filename, 'public');
 
         if ($org->logo_path) {
@@ -383,7 +975,7 @@ class Settings extends Component
         $org->update(['logo_path' => $logoPath]);
         $org->refresh();
 
-        $this->currentLogoUrl = asset('storage/' . ltrim($logoPath, '/'));
+        $this->currentLogoUrl = asset('storage/'.ltrim($logoPath, '/'));
         $this->logo = null;
 
         CacheHelper::invalidateAll($this->orgId());
@@ -398,6 +990,7 @@ class Settings extends Component
         if ($value === null || $value === '') {
             return null;
         }
+
         return $this->normalizeHexColor(is_string($value) ? trim($value) : (string) $value) ?: null;
     }
 
@@ -418,13 +1011,13 @@ class Settings extends Component
         }
         $value = strtolower($value);
         if (preg_match('/^[0-9a-f]{3}$/', $value)) {
-            $value = $value[0] . $value[0] . $value[1] . $value[1] . $value[2] . $value[2];
+            $value = $value[0].$value[0].$value[1].$value[1].$value[2].$value[2];
         }
         if (! preg_match('/^[0-9a-f]{6}$/', $value)) {
             return null;
         }
 
-        return '#' . $value;
+        return '#'.$value;
     }
 
     public function save()
@@ -432,6 +1025,7 @@ class Settings extends Component
         if (! $this->canManage) {
             $this->successMessage = '';
             $this->addError('canManage', __('Accès refusé: réservé aux admins.'));
+
             return;
         }
 
@@ -442,6 +1036,7 @@ class Settings extends Component
             $normalized = $this->normalizeHexColor($this->primary_color);
             if ($normalized === null && $this->primary_color !== null && trim($this->primary_color) !== '') {
                 $this->addError('primary_color', __('La couleur doit être un code hex valide (ex: #000000 ou 000000).'));
+
                 return;
             }
             $this->primary_color = $normalized;
@@ -450,7 +1045,7 @@ class Settings extends Component
         $org = $this->orgOrFail();
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:120'],
-            'slug' => ['required', 'string', 'max:120', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:organizations,slug,' . $org->id],
+            'slug' => ['required', 'string', 'max:120', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:organizations,slug,'.$org->id],
             'primary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'logo' => ['nullable', 'image', 'max:2048'],
             'default_category_id' => ['nullable', 'integer'],
@@ -469,7 +1064,8 @@ class Settings extends Component
                 ->exists();
 
             if (! $catOk) {
-                $this->addError('default_category_id', "Catégorie invalide.");
+                $this->addError('default_category_id', 'Catégorie invalide.');
+
                 return;
             }
         }
@@ -482,7 +1078,8 @@ class Settings extends Component
                 ->exists();
 
             if (! $prioOk) {
-                $this->addError('default_priority_id', "Priorité invalide.");
+                $this->addError('default_priority_id', 'Priorité invalide.');
+
                 return;
             }
         }
@@ -490,7 +1087,7 @@ class Settings extends Component
         $logoPath = $org->logo_path;
         if ($this->logo) {
             $ext = $this->logo->getClientOriginalExtension() ?: 'png';
-            $filename = 'org-' . $org->id . '-' . Str::lower(Str::random(10)) . '.' . $ext;
+            $filename = 'org-'.$org->id.'-'.Str::lower(Str::random(10)).'.'.$ext;
             $logoPath = $this->logo->storeAs('org-logos', $filename, 'public');
         }
 
@@ -522,7 +1119,7 @@ class Settings extends Component
         $this->slug = (string) $org->slug;
         $this->primary_color = $this->normalizeHexColorForDisplay($org->primary_color);
 
-        $this->currentLogoUrl = $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
+        $this->currentLogoUrl = $org->logo_path ? asset('storage/'.ltrim($org->logo_path, '/')) : null;
         $this->logo = null;
 
         $settings = is_array($org->settings) ? $org->settings : [];
@@ -551,6 +1148,7 @@ class Settings extends Component
     {
         if (! $this->canManage) {
             $this->addError('canManage', __('Accès refusé.'));
+
             return;
         }
 
@@ -588,7 +1186,8 @@ class Settings extends Component
     public function removeLogo(): void
     {
         if (! $this->canManage) {
-            session()->flash('settings_status', "Accès refusé: réservé aux admins.");
+            session()->flash('settings_status', 'Accès refusé: réservé aux admins.');
+
             return;
         }
 
@@ -602,20 +1201,22 @@ class Settings extends Component
         $this->currentLogoUrl = null;
         $this->logo = null;
 
-        session()->flash('settings_status', "Logo supprimé.");
+        session()->flash('settings_status', 'Logo supprimé.');
     }
 
     public function deleteOrganization(): void
     {
         if (! $this->isOwner) {
-            session()->flash('settings_status', "Accès refusé: réservé au propriétaire.");
+            session()->flash('settings_status', 'Accès refusé: réservé au propriétaire.');
+
             return;
         }
 
         $org = $this->orgOrFail();
 
         if (trim($this->dangerConfirmName) !== (string) $org->name) {
-            $this->addError('dangerConfirmName', "Le nom ne correspond pas.");
+            $this->addError('dangerConfirmName', 'Le nom ne correspond pas.');
+
             return;
         }
 
@@ -649,13 +1250,13 @@ class Settings extends Component
 
         $slug = Str::slug($this->newCategoryName);
         if ($slug === '') {
-            $slug = 'cat-' . Str::lower(Str::random(6));
+            $slug = 'cat-'.Str::lower(Str::random(6));
         }
 
         $baseSlug = $slug;
         $suffix = 2;
         while (TicketCategory::query()->where('organization_id', $orgId)->where('slug', $slug)->exists()) {
-            $slug = $baseSlug . '-' . $suffix;
+            $slug = $baseSlug.'-'.$suffix;
             $suffix++;
         }
 
@@ -663,14 +1264,22 @@ class Settings extends Component
             'organization_id' => $orgId,
             'name' => trim($this->newCategoryName),
             'slug' => $slug,
-            'is_active' => true,
+            'is_active' => false,
             'default_ticket_group_id' => $this->newCategoryDefaultGroupId ?: null,
             'default_form_id' => $this->newCategoryDefaultFormId ?: null,
+            'requires_approval' => $this->newCategoryRequiresApproval,
+            'approval_type' => $this->newCategoryRequiresApproval ? $this->newCategoryApprovalType : null,
+            'approval_user_id' => $this->newCategoryRequiresApproval && $this->newCategoryApprovalType === 'user' ? $this->newCategoryApprovalUserId : null,
+            'approval_role' => $this->newCategoryRequiresApproval && $this->newCategoryApprovalType === 'role' ? $this->newCategoryApprovalRole : null,
         ]);
 
         $this->newCategoryName = '';
         $this->newCategoryDefaultGroupId = null;
         $this->newCategoryDefaultFormId = null;
+        $this->newCategoryRequiresApproval = false;
+        $this->newCategoryApprovalType = null;
+        $this->newCategoryApprovalUserId = null;
+        $this->newCategoryApprovalRole = null;
         CacheHelper::invalidateCategories($orgId);
 
         OrganizationAuditService::log(
@@ -695,6 +1304,10 @@ class Settings extends Component
         $this->editingCategoryName = (string) $cat->name;
         $this->editingCategoryDefaultGroupId = $cat->default_ticket_group_id;
         $this->editingCategoryDefaultFormId = $cat->default_form_id;
+        $this->editingCategoryRequiresApproval = (bool) $cat->requires_approval;
+        $this->editingCategoryApprovalType = $cat->approval_type;
+        $this->editingCategoryApprovalUserId = $cat->approval_user_id;
+        $this->editingCategoryApprovalRole = $cat->approval_role;
     }
 
     public function cancelEditCategory(): void
@@ -703,6 +1316,10 @@ class Settings extends Component
         $this->editingCategoryName = '';
         $this->editingCategoryDefaultGroupId = null;
         $this->editingCategoryDefaultFormId = null;
+        $this->editingCategoryRequiresApproval = false;
+        $this->editingCategoryApprovalType = null;
+        $this->editingCategoryApprovalUserId = null;
+        $this->editingCategoryApprovalRole = null;
     }
 
     public function updateCategory(): void
@@ -725,7 +1342,7 @@ class Settings extends Component
 
         $slug = Str::slug($this->editingCategoryName);
         if ($slug === '') {
-            $slug = 'cat-' . Str::lower(Str::random(6));
+            $slug = 'cat-'.Str::lower(Str::random(6));
         }
 
         $baseSlug = $slug;
@@ -737,7 +1354,7 @@ class Settings extends Component
                 ->where('id', '!=', $cat->id)
                 ->exists()
         ) {
-            $slug = $baseSlug . '-' . $suffix;
+            $slug = $baseSlug.'-'.$suffix;
             $suffix++;
         }
 
@@ -746,12 +1363,20 @@ class Settings extends Component
             'slug' => $slug,
             'default_ticket_group_id' => $this->editingCategoryDefaultGroupId ?: null,
             'default_form_id' => $this->editingCategoryDefaultFormId ?: null,
+            'requires_approval' => $this->editingCategoryRequiresApproval,
+            'approval_type' => $this->editingCategoryRequiresApproval ? $this->editingCategoryApprovalType : null,
+            'approval_user_id' => $this->editingCategoryRequiresApproval && $this->editingCategoryApprovalType === 'user' ? $this->editingCategoryApprovalUserId : null,
+            'approval_role' => $this->editingCategoryRequiresApproval && $this->editingCategoryApprovalType === 'role' ? $this->editingCategoryApprovalRole : null,
         ]);
 
         $this->editingCategoryId = null;
         $this->editingCategoryName = '';
         $this->editingCategoryDefaultGroupId = null;
         $this->editingCategoryDefaultFormId = null;
+        $this->editingCategoryRequiresApproval = false;
+        $this->editingCategoryApprovalType = null;
+        $this->editingCategoryApprovalUserId = null;
+        $this->editingCategoryApprovalRole = null;
         CacheHelper::invalidateCategories($orgId);
         $this->dispatch('toast', type: 'success', message: 'Catégorie mise à jour.');
     }
@@ -787,6 +1412,7 @@ class Settings extends Component
 
         if ($cat->tickets()->exists()) {
             $this->dispatch('toast', type: 'error', message: 'Impossible de supprimer : des tickets utilisent cette catégorie.');
+
             return;
         }
 
@@ -832,6 +1458,7 @@ class Settings extends Component
 
         if (TicketPriority::query()->where('organization_id', $orgId)->where('level', (int) $this->newPriorityLevel)->exists()) {
             $this->addError('newPriorityLevel', 'Ce niveau est déjà utilisé.');
+
             return;
         }
 
@@ -903,6 +1530,7 @@ class Settings extends Component
                 ->exists()
         ) {
             $this->addError('editingPriorityLevel', 'Ce niveau est déjà utilisé par une autre priorité.');
+
             return;
         }
 
@@ -949,6 +1577,7 @@ class Settings extends Component
 
         if ($prio->tickets()->exists()) {
             $this->dispatch('toast', type: 'error', message: 'Impossible de supprimer : des tickets utilisent cette priorité.');
+
             return;
         }
 
@@ -993,13 +1622,13 @@ class Settings extends Component
 
         $slug = Str::slug($this->newRoleName);
         if ($slug === '') {
-            $slug = 'role-' . Str::lower(Str::random(6));
+            $slug = 'role-'.Str::lower(Str::random(6));
         }
 
         $baseSlug = $slug;
         $suffix = 2;
         while (RoleDefinition::query()->where('organization_id', $orgId)->where('slug', $slug)->exists()) {
-            $slug = $baseSlug . '-' . $suffix;
+            $slug = $baseSlug.'-'.$suffix;
             $suffix++;
         }
 
@@ -1036,6 +1665,7 @@ class Settings extends Component
         $this->newRoleBaseSlug = '';
         $this->loadRolePermissions();
         CacheHelper::invalidateRolePermissions($orgId);
+        CacheHelper::invalidateSettingsRoles($orgId);
 
         OrganizationAuditService::log(
             'settings.role_created',
@@ -1090,7 +1720,7 @@ class Settings extends Component
             // Custom roles: rename name + slug + update memberships.role and permissions.role
             $newSlug = Str::slug($this->editingRoleName);
             if ($newSlug === '') {
-                $newSlug = 'role-' . Str::lower(Str::random(6));
+                $newSlug = 'role-'.Str::lower(Str::random(6));
             }
 
             $baseSlug = $newSlug;
@@ -1102,7 +1732,7 @@ class Settings extends Component
                     ->where('id', '!=', $role->id)
                     ->exists()
             ) {
-                $newSlug = $baseSlug . '-' . $suffix;
+                $newSlug = $baseSlug.'-'.$suffix;
                 $suffix++;
             }
 
@@ -1135,6 +1765,7 @@ class Settings extends Component
         $this->editingRoleName = '';
         $this->loadRolePermissions();
         CacheHelper::invalidateRolePermissions($orgId);
+        CacheHelper::invalidateSettingsRoles($orgId);
         $this->dispatch('toast', type: 'success', message: __('settings.role_updated'));
     }
 
@@ -1152,11 +1783,13 @@ class Settings extends Component
 
         if ($role->is_default) {
             $this->dispatch('toast', type: 'error', message: __('settings.role_cannot_delete_default'));
+
             return;
         }
 
         if ($role->memberCount() > 0) {
             $this->dispatch('toast', type: 'error', message: __('settings.role_cannot_delete_members'));
+
             return;
         }
 
@@ -1176,6 +1809,7 @@ class Settings extends Component
 
         $this->loadRolePermissions();
         CacheHelper::invalidateRolePermissions($orgId);
+        CacheHelper::invalidateSettingsRoles($orgId);
 
         OrganizationAuditService::log(
             'settings.role_deleted',
@@ -1187,18 +1821,587 @@ class Settings extends Component
         $this->dispatch('toast', type: 'success', message: __('settings.role_deleted'));
     }
 
-    public function render()
+    // ─── Email Mailbox ────────────────────────────────────────────────
+
+    public function saveMailbox(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageEmail)) {
+            $this->addError('mailboxEmail', __('Accès refusé.'));
+
+            return;
+        }
+
+        $orgId = $this->orgId();
+        if (! $orgId) {
+            $this->addError('mailboxEmail', __('Aucune organisation trouvée. Veuillez vous reconnecter.'));
+
+            return;
+        }
+
+        $rules = [
+            'mailboxEmail' => ['required', 'email', 'max:255'],
+            'mailboxDisplayName' => ['nullable', 'string', 'max:120'],
+            'mailboxImapHost' => ['required', 'string', 'max:255'],
+            'mailboxImapPort' => ['required', 'integer', 'min:1', 'max:65535'],
+            'mailboxImapUsername' => ['required', 'string', 'max:255'],
+            'mailboxImapEncryption' => ['required', 'in:ssl,tls,none'],
+            'mailboxImapFolder' => ['required', 'string', 'max:120'],
+            'mailboxDefaultCategoryId' => ['nullable', 'integer'],
+            'mailboxDefaultPriorityId' => ['nullable', 'integer'],
+            'mailboxDefaultGroupId' => ['nullable', 'integer'],
+            'mailboxSmtpHost' => ['nullable', 'string', 'max:255'],
+            'mailboxSmtpPort' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'mailboxSmtpUsername' => ['nullable', 'string', 'max:255'],
+            'mailboxSmtpPassword' => ['nullable', 'string', 'max:500'],
+            'mailboxSmtpEncryption' => ['nullable', 'in:ssl,tls,none'],
+        ];
+
+        // Password required only when creating new mailbox
+        $existing = OrganizationMailbox::query()->where('organization_id', $orgId)->first();
+        if (! $existing) {
+            $rules['mailboxImapPassword'] = ['required', 'string', 'max:500'];
+        } else {
+            $rules['mailboxImapPassword'] = ['nullable', 'string', 'max:500'];
+        }
+
+        $this->validate($rules);
+
+        $data = [
+            'organization_id' => $orgId,
+            'email' => $this->mailboxEmail,
+            'display_name' => $this->mailboxDisplayName ?: null,
+            'imap_host' => $this->mailboxImapHost,
+            'imap_port' => $this->mailboxImapPort,
+            'imap_username' => $this->mailboxImapUsername,
+            'imap_encryption' => $this->mailboxImapEncryption,
+            'imap_folder' => $this->mailboxImapFolder ?: 'INBOX',
+            'default_category_id' => $this->mailboxDefaultCategoryId ?: null,
+            'default_priority_id' => $this->mailboxDefaultPriorityId ?: null,
+            'default_group_id' => $this->mailboxDefaultGroupId ?: null,
+        ];
+
+        if ($this->mailboxImapPassword !== '') {
+            $data['imap_password'] = $this->mailboxImapPassword;
+        }
+
+        // SMTP fields
+        $data['smtp_host'] = $this->mailboxSmtpHost ?: null;
+        $data['smtp_port'] = $this->mailboxSmtpPort ?: 587;
+        $data['smtp_username'] = $this->mailboxSmtpUsername ?: null;
+        $data['smtp_encryption'] = $this->mailboxSmtpEncryption ?: 'tls';
+
+        if ($this->mailboxSmtpPassword !== '') {
+            $data['smtp_password'] = $this->mailboxSmtpPassword;
+        }
+
+        if ($existing) {
+            $existing->update($data);
+        } else {
+            OrganizationMailbox::query()->create($data);
+        }
+
+        $this->mailboxImapPassword = '';
+        $this->mailboxSmtpPassword = '';
+
+        OrganizationAuditService::log(
+            'settings.email_mailbox_updated',
+            'organization_mailbox',
+            null,
+            ['email' => $this->mailboxEmail],
+        );
+
+        $this->dispatch('toast', type: 'success', message: __('Configuration email enregistrée.'));
+    }
+
+    public function testMailboxConnection(): void
+    {
+        $this->mailboxTestResult = null;
+
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageEmail)) {
+            $this->mailboxTestResult = 'error:Accès refusé.';
+
+            return;
+        }
+
+        $password = $this->mailboxImapPassword;
+        if ($password === '') {
+            // Use stored password
+            $orgId = $this->orgId();
+            $existing = OrganizationMailbox::query()->where('organization_id', $orgId)->first();
+            $password = $existing?->imap_password;
+        }
+
+        if (! $password) {
+            $this->mailboxTestResult = 'error:Mot de passe requis.';
+
+            return;
+        }
+
+        $result = ImapService::testConnection(
+            host: $this->mailboxImapHost,
+            port: $this->mailboxImapPort,
+            username: $this->mailboxImapUsername,
+            password: $password,
+            encryption: $this->mailboxImapEncryption,
+            folder: $this->mailboxImapFolder ?: 'INBOX',
+        );
+
+        if ($result === true) {
+            $this->mailboxTestResult = 'success';
+            $this->dispatch('toast', type: 'success', message: __('Connexion IMAP réussie !'));
+        } else {
+            $friendly = MailErrorTranslator::translate($result, 'IMAP', $this->mailboxImapPort);
+            $this->mailboxTestResult = 'error:'.$friendly;
+            $this->dispatch('toast', type: 'error', message: $friendly);
+        }
+    }
+
+    public function testSmtpConnection(): void
+    {
+        $this->mailboxSmtpTestResult = null;
+
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageEmail)) {
+            $this->mailboxSmtpTestResult = 'error:Accès refusé.';
+
+            return;
+        }
+
+        if (! $this->mailboxSmtpHost) {
+            $this->mailboxSmtpTestResult = 'error:Hôte SMTP requis.';
+
+            return;
+        }
+
+        // Fallback: use IMAP credentials if SMTP username/password not set
+        $username = $this->mailboxSmtpUsername ?: $this->mailboxImapUsername;
+        $password = $this->mailboxSmtpPassword;
+        if ($password === '') {
+            $orgId = $this->orgId();
+            $existing = OrganizationMailbox::query()->where('organization_id', $orgId)->first();
+            // Try SMTP password first, then IMAP password
+            $password = $existing?->smtp_password ?: $existing?->imap_password;
+        }
+
+        if (! $username || ! $password) {
+            $this->mailboxSmtpTestResult = 'error:Identifiant et mot de passe requis (SMTP ou IMAP).';
+
+            return;
+        }
+
+        try {
+            $tls = match ($this->mailboxSmtpEncryption) {
+                'ssl', 'tls' => true,
+                default => false,
+            };
+
+            $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport(
+                host: $this->mailboxSmtpHost,
+                port: $this->mailboxSmtpPort ?: 587,
+                tls: $tls,
+            );
+
+            $transport->setUsername($username);
+            $transport->setPassword($password);
+
+            // Test the connection by starting and stopping
+            $transport->start();
+            $transport->stop();
+
+            $this->mailboxSmtpTestResult = 'success';
+            $this->dispatch('toast', type: 'success', message: __('Connexion SMTP réussie !'));
+        } catch (\Throwable $e) {
+            $friendly = MailErrorTranslator::translate($e->getMessage(), 'SMTP', $this->mailboxSmtpPort ?: 587);
+            $this->mailboxSmtpTestResult = 'error:'.$friendly;
+            $this->dispatch('toast', type: 'error', message: $friendly);
+        }
+    }
+
+    public function fetchMailboxNow(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageEmail)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
+            return;
+        }
+
+        $orgId = $this->orgId();
+        $mailbox = OrganizationMailbox::query()
+            ->where('organization_id', $orgId)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $mailbox) {
+            $this->dispatch('toast', type: 'error', message: __('Aucune boîte mail active.'));
+
+            return;
+        }
+
+        try {
+            $messages = ImapService::fetchNewMessages($mailbox, 50);
+            $count = count($messages);
+
+            if ($count === 0) {
+                $this->dispatch('toast', type: 'info', message: __('Aucun nouveau message.'));
+
+                return;
+            }
+
+            $service = new \App\Services\Email\InboundEmailService;
+            $parser = \App\Services\Email\EmailParser::class;
+            $processed = 0;
+            $maxUid = $mailbox->last_fetched_uid;
+
+            foreach ($messages as $imapMessage) {
+                try {
+                    $parsed = $parser::parse($imapMessage);
+                    $service->process($parsed, $mailbox);
+                    $uid = $parsed->uid;
+                    if ($uid && $uid > $maxUid) {
+                        $maxUid = $uid;
+                    }
+                    $processed++;
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Manual email fetch: failed to process', [
+                        'mailbox_id' => $mailbox->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $mailbox->update([
+                'last_fetched_at' => now(),
+                'last_fetched_uid' => $maxUid,
+                'last_error_at' => null,
+                'last_error_message' => null,
+            ]);
+
+            $this->mailboxLastFetchedAt = now()->translatedFormat('d/m/Y H:i');
+            $this->mailboxLastError = null;
+
+            $this->dispatch('toast', type: 'success', message: __(':count email(s) récupéré(s) et traité(s).', ['count' => $processed]));
+        } catch (\Throwable $e) {
+            $friendly = MailErrorTranslator::translate($e->getMessage(), 'IMAP', $mailbox->imap_port);
+            $mailbox->update([
+                'last_error_at' => now(),
+                'last_error_message' => $friendly,
+            ]);
+            $this->mailboxLastError = $friendly;
+
+            $this->dispatch('toast', type: 'error', message: $friendly);
+        }
+    }
+
+    public function toggleMailbox(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageEmail)) {
+            return;
+        }
+
+        $orgId = $this->orgId();
+        $mailbox = OrganizationMailbox::query()->where('organization_id', $orgId)->first();
+        if (! $mailbox) {
+            $this->dispatch('toast', type: 'error', message: __('Veuillez d\'abord configurer la boîte mail.'));
+
+            return;
+        }
+
+        $mailbox->update(['is_active' => ! $mailbox->is_active]);
+        $this->mailboxIsActive = (bool) $mailbox->is_active;
+
+        $this->dispatch('toast', type: 'success', message: $this->mailboxIsActive
+            ? __('Réception email activée.')
+            : __('Réception email désactivée.'));
+    }
+
+    // ─── Knowledge Base ─────────────────────────────────────────────
+
+    public function addKbCategory(): void
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(! $user?->hasPermission(Permission::SettingsManageKnowledgeBase), 403);
+
+        $this->validate([
+            'newKbCategoryName' => ['required', 'string', 'max:120'],
+            'newKbCategoryDescription' => ['nullable', 'string', 'max:500'],
+            'newKbCategoryIcon' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $orgId = $this->orgId();
+        $maxSort = KbCategory::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->max('sort_order') ?? 0;
+
+        KbCategory::create([
+            'organization_id' => $orgId,
+            'name' => $this->newKbCategoryName,
+            'slug' => Str::slug($this->newKbCategoryName),
+            'description' => $this->newKbCategoryDescription ?: null,
+            'icon' => $this->newKbCategoryIcon ?: null,
+            'sort_order' => $maxSort + 1,
+        ]);
+
+        $this->reset(['newKbCategoryName', 'newKbCategoryDescription', 'newKbCategoryIcon']);
+        CacheHelper::invalidateKnowledgeBase($orgId);
+        $this->dispatch('toast', type: 'success', message: __('Catégorie KB créée.'));
+    }
+
+    public function editKbCategory(int $id): void
+    {
+        $orgId = $this->orgId();
+        $cat = KbCategory::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->findOrFail($id);
+
+        $this->editingKbCategoryId = $cat->id;
+        $this->editingKbCategoryName = (string) $cat->name;
+        $this->editingKbCategoryDescription = (string) ($cat->description ?? '');
+        $this->editingKbCategoryIcon = (string) ($cat->icon ?? '');
+    }
+
+    public function updateKbCategory(): void
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(! $user?->hasPermission(Permission::SettingsManageKnowledgeBase), 403);
+
+        $this->validate([
+            'editingKbCategoryName' => ['required', 'string', 'max:120'],
+            'editingKbCategoryDescription' => ['nullable', 'string', 'max:500'],
+            'editingKbCategoryIcon' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $orgId = $this->orgId();
+        $cat = KbCategory::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->findOrFail($this->editingKbCategoryId);
+
+        $cat->update([
+            'name' => $this->editingKbCategoryName,
+            'slug' => Str::slug($this->editingKbCategoryName),
+            'description' => $this->editingKbCategoryDescription ?: null,
+            'icon' => $this->editingKbCategoryIcon ?: null,
+        ]);
+
+        $this->editingKbCategoryId = null;
+        CacheHelper::invalidateKnowledgeBase($orgId);
+        $this->dispatch('toast', type: 'success', message: __('Catégorie KB mise à jour.'));
+    }
+
+    public function deleteKbCategory(int $id): void
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(! $user?->hasPermission(Permission::SettingsManageKnowledgeBase), 403);
+
+        $orgId = $this->orgId();
+        KbCategory::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->where('id', $id)
+            ->delete();
+
+        CacheHelper::invalidateKnowledgeBase($orgId);
+        $this->dispatch('toast', type: 'success', message: __('Catégorie KB supprimée.'));
+    }
+
+    public function toggleKbCategory(int $id): void
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(! $user?->hasPermission(Permission::SettingsManageKnowledgeBase), 403);
+
+        $orgId = $this->orgId();
+        $cat = KbCategory::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->findOrFail($id);
+
+        $cat->update(['is_active' => ! $cat->is_active]);
+
+        CacheHelper::invalidateKnowledgeBase($orgId);
+        $this->dispatch('toast', type: 'success', message: $cat->is_active
+            ? __('Catégorie activée.')
+            : __('Catégorie désactivée.'));
+    }
+
+    public function openCreateArticle(): void
+    {
+        $this->reset(['editingKbArticleId', 'kbArticleTitle', 'kbArticleCategoryId', 'kbArticleContent', 'kbArticleStatus', 'kbArticleVisibility', 'kbArticleKeywords']);
+        $this->kbArticleStatus = 'published';
+        $this->kbArticleVisibility = 'public';
+        $this->showKbArticleModal = true;
+    }
+
+    public function openEditArticle(int $id): void
+    {
+        $orgId = $this->orgId();
+        $article = KbArticle::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->findOrFail($id);
+
+        $this->editingKbArticleId = $article->id;
+        $this->kbArticleTitle = (string) $article->title;
+        $this->kbArticleCategoryId = $article->kb_category_id;
+        $this->kbArticleContent = (string) $article->content;
+        $this->kbArticleStatus = (string) $article->status;
+        $this->kbArticleVisibility = (string) $article->visibility;
+        $this->kbArticleKeywords = implode(', ', $article->keywords ?? []);
+        $this->showKbArticleModal = true;
+    }
+
+    public function saveArticle(): void
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(! $user?->hasPermission(Permission::SettingsManageKnowledgeBase), 403);
+
+        $this->validate([
+            'kbArticleTitle' => ['required', 'string', 'max:255'],
+            'kbArticleCategoryId' => ['required', 'integer', 'exists:kb_categories,id'],
+            'kbArticleContent' => ['required', 'string'],
+            'kbArticleStatus' => ['required', 'in:draft,published'],
+            'kbArticleVisibility' => ['required', 'in:public,internal'],
+            'kbArticleKeywords' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $orgId = $this->orgId();
+
+        $allowedTags = '<b><strong><i><em><u><br><p><ul><ol><li><h2><h3><h4><blockquote><a><hr>';
+        $cleanContent = strip_tags($this->kbArticleContent, $allowedTags);
+
+        $data = [
+            'organization_id' => $orgId,
+            'kb_category_id' => $this->kbArticleCategoryId,
+            'title' => $this->kbArticleTitle,
+            'slug' => Str::slug($this->kbArticleTitle),
+            'content' => $cleanContent,
+            'status' => $this->kbArticleStatus,
+            'visibility' => $this->kbArticleVisibility,
+            'keywords' => array_values(array_filter(array_map('trim', explode(',', $this->kbArticleKeywords)))),
+            'updated_by' => $user->id,
+        ];
+
+        if ($this->kbArticleStatus === 'published') {
+            $data['published_at'] = now();
+        }
+
+        if ($this->editingKbArticleId) {
+            $article = KbArticle::withoutOrganizationScope()
+                ->where('organization_id', $orgId)
+                ->findOrFail($this->editingKbArticleId);
+            $article->update($data);
+        } else {
+            $data['created_by'] = $user->id;
+            KbArticle::create($data);
+        }
+
+        $this->showKbArticleModal = false;
+        CacheHelper::invalidateKnowledgeBase($orgId);
+        $this->dispatch('toast', type: 'success', message: $this->editingKbArticleId
+            ? __('Article mis à jour.')
+            : __('Article créé.'));
+    }
+
+    public function deleteArticle(int $id): void
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(! $user?->hasPermission(Permission::SettingsManageKnowledgeBase), 403);
+
+        $orgId = $this->orgId();
+        KbArticle::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->where('id', $id)
+            ->delete();
+
+        CacheHelper::invalidateKnowledgeBase($orgId);
+        $this->dispatch('toast', type: 'success', message: __('Article supprimé.'));
+    }
+
+    public function toggleArticle(int $id): void
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(! $user?->hasPermission(Permission::SettingsManageKnowledgeBase), 403);
+
+        $orgId = $this->orgId();
+        $article = KbArticle::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->findOrFail($id);
+
+        $article->update(['is_active' => ! $article->is_active]);
+
+        CacheHelper::invalidateKnowledgeBase($orgId);
+        $this->dispatch('toast', type: 'success', message: $article->is_active
+            ? __('Article activé.')
+            : __('Article désactivé.'));
+    }
+
+    public function render(): View
+    {
+        return view('livewire.admin.settings', $this->buildSettingsViewData());
+    }
+
+    /**
+     * Données passées à la vue Paramètres (logique extraite pour l’analyse statique / IDE).
+     *
+     * @return array<string, mixed>
+     */
+    private function buildSettingsViewData(): array
     {
         $orgId = $this->orgId();
 
-        $org = $orgId ? Organization::query()->find($orgId) : null;
+        if ($this->loadStage < 2) {
+            $org = null;
+            if ($orgId) {
+                $org = request()->attributes->get('currentOrganization');
+                if (! $org instanceof Organization) {
+                    $org = Organization::query()->find($orgId);
+                }
+            }
+
+            return [
+                'org' => $org,
+                'categories' => collect(),
+                'priorities' => collect(),
+                'organizationFunctions' => collect(),
+                'ticketGroups' => collect(),
+                'forms' => collect(),
+                'members' => collect(),
+                'roles' => collect(),
+                'roleMemberCounts' => [],
+                'automationRules' => collect(),
+                'maintenanceStats' => [],
+                'apiTokens' => collect(),
+                'webhookEndpoints' => collect(),
+                'kbCategories' => collect(),
+                'kbArticles' => collect(),
+            ];
+        }
+
+        $org = null;
+        if ($orgId) {
+            $org = request()->attributes->get('currentOrganization');
+            if (! $org instanceof Organization) {
+                $org = Organization::query()->find($orgId);
+            }
+        }
 
         $categories = $orgId
             ? Cache::remember(CacheHelper::categoriesKey($orgId, false), CacheHelper::TTL, function () use ($orgId) {
                 return TicketCategory::query()
                     ->where('organization_id', $orgId)
                     ->orderBy('name')
-                    ->get(['id', 'name', 'slug', 'is_active', 'default_ticket_group_id', 'default_form_id']);
+                    ->get(['id', 'name', 'slug', 'is_active', 'default_ticket_group_id', 'default_form_id', 'requires_approval', 'approval_type', 'approval_user_id', 'approval_role']);
             })
             : collect();
 
@@ -1212,11 +2415,12 @@ class Settings extends Component
             : collect();
 
         $members = $orgId
-            ? OrganizationMembership::query()
-            ->where('organization_id', $orgId)
-            ->with(['user:id,name,email'])
-            ->orderBy('id')
-            ->get()
+            ? Cache::remember(CacheHelper::settingsMembersListKey($orgId), 300, fn () => OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->with(['user:id,name,email'])
+                ->orderBy('id')
+                ->get()
+            )
             : collect();
 
         $organizationFunctions = $orgId
@@ -1240,42 +2444,117 @@ class Settings extends Component
             : collect();
 
         $roles = $orgId
-            ? RoleDefinition::query()
+            ? Cache::remember(CacheHelper::settingsRolesListKey($orgId), 300, fn () => RoleDefinition::query()
                 ->where('organization_id', $orgId)
                 ->orderByRaw("case slug when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 when 'member' then 3 else 4 end")
                 ->get()
+            )
             : collect();
 
         $roleMemberCounts = [];
         if ($orgId) {
-            $counts = OrganizationMembership::query()
-                ->where('organization_id', $orgId)
-                ->selectRaw('role, count(*) as cnt')
-                ->groupBy('role')
-                ->pluck('cnt', 'role');
-            foreach ($roles as $r) {
-                $roleMemberCounts[$r->slug] = (int) ($counts[$r->slug] ?? 0);
-            }
+            $roleMemberCounts = Cache::remember(CacheHelper::settingsRoleCountsKey($orgId), 120, function () use ($orgId, $roles) {
+                $counts = OrganizationMembership::query()
+                    ->where('organization_id', $orgId)
+                    ->selectRaw('role, count(*) as cnt')
+                    ->groupBy('role')
+                    ->pluck('cnt', 'role');
+                $result = [];
+                foreach ($roles as $r) {
+                    $result[$r->slug] = (int) ($counts[$r->slug] ?? 0);
+                }
+
+                return $result;
+            });
         }
 
         $forms = $orgId
-            ? Form::query()
-                ->where('organization_id', $orgId)
-                ->where('status', \App\Enums\FormStatus::Published)
-                ->orderBy('name')
-                ->get(['id', 'name'])
+            ? Cache::remember(CacheHelper::settingsPublishedFormsKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                return Form::query()
+                    ->where('organization_id', $orgId)
+                    ->where('status', \App\Enums\FormStatus::Published)
+                    ->orderBy('name')
+                    ->get(['id', 'name']);
+            })
             : collect();
 
-        $maintenanceStats = $orgId ? [
-            'members' => $members->count(),
-            'tickets' => Ticket::query()->where('organization_id', $orgId)->count(),
-            'forms' => Form::query()->where('organization_id', $orgId)->count(),
-            'categories' => $categories->count(),
-            'priorities' => $priorities->count(),
-            'roles' => $roles->count(),
-        ] : [];
+        $automationRules = collect();
+        if ($orgId) {
+            try {
+                $automationRules = Cache::remember(CacheHelper::settingsAutomationRulesListKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                    return AutomationRule::withoutOrganizationScope()
+                        ->where('organization_id', $orgId)
+                        ->orderBy('sort_order')
+                        ->get();
+                });
+            } catch (\Throwable) {
+                // Table not yet migrated
+            }
+        }
 
-        return view('livewire.admin.settings', [
+        $maintenanceStats = $orgId ? Cache::remember(CacheHelper::settingsMaintenanceStatsKey($orgId), 300, function () use ($orgId) {
+            return [
+                'members' => OrganizationMembership::query()->where('organization_id', $orgId)->count(),
+                'tickets' => Ticket::query()->where('organization_id', $orgId)->count(),
+                'forms' => Form::query()->where('organization_id', $orgId)->count(),
+                'categories' => TicketCategory::query()->where('organization_id', $orgId)->count(),
+                'priorities' => TicketPriority::query()->where('organization_id', $orgId)->count(),
+                'roles' => RoleDefinition::query()->where('organization_id', $orgId)->count(),
+            ];
+        }) : [];
+
+        $apiTokens = collect();
+        if ($orgId) {
+            try {
+                $apiTokens = Cache::remember(CacheHelper::settingsApiTokensKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                    return \Laravel\Sanctum\PersonalAccessToken::query()
+                        ->where('organization_id', $orgId)
+                        ->orderByDesc('created_at')
+                        ->get();
+                });
+            } catch (\Throwable) {
+                // Table not yet migrated
+            }
+        }
+
+        $kbCategories = collect();
+        $kbArticles = collect();
+        if ($orgId) {
+            try {
+                $kbCategories = Cache::remember(CacheHelper::settingsKbCategoriesAdminKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                    return KbCategory::withoutOrganizationScope()
+                        ->where('organization_id', $orgId)
+                        ->orderBy('sort_order')
+                        ->orderBy('name')
+                        ->get();
+                });
+                $kbArticles = Cache::remember(CacheHelper::settingsKbArticlesAdminKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                    return KbArticle::withoutOrganizationScope()
+                        ->where('organization_id', $orgId)
+                        ->with('category')
+                        ->orderByDesc('updated_at')
+                        ->get();
+                });
+            } catch (\Throwable) {
+                // Table not yet migrated
+            }
+        }
+
+        $webhookEndpoints = collect();
+        if ($orgId) {
+            try {
+                $webhookEndpoints = Cache::remember(CacheHelper::settingsWebhookEndpointsKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+                    return WebhookEndpoint::query()
+                        ->where('organization_id', $orgId)
+                        ->orderByDesc('created_at')
+                        ->get();
+                });
+            } catch (\Throwable) {
+                // Table not yet migrated
+            }
+        }
+
+        return [
             'org' => $org,
             'categories' => $categories,
             'priorities' => $priorities,
@@ -1285,8 +2564,13 @@ class Settings extends Component
             'members' => $members,
             'roles' => $roles,
             'roleMemberCounts' => $roleMemberCounts,
+            'automationRules' => $automationRules,
             'maintenanceStats' => $maintenanceStats,
-        ]);
+            'apiTokens' => $apiTokens,
+            'webhookEndpoints' => $webhookEndpoints,
+            'kbCategories' => $kbCategories,
+            'kbArticles' => $kbArticles,
+        ];
     }
 
     // ─── Maintenance ──────────────────────────────────────────────────
@@ -1297,6 +2581,7 @@ class Settings extends Component
         $user = Auth::user();
         if (! $user || ! $user->hasPermission(Permission::SettingsManageBranding)) {
             $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
             return;
         }
 
@@ -1327,6 +2612,7 @@ class Settings extends Component
         $user = Auth::user();
         if (! $user || ! $user->canPlatformAdminister()) {
             $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
             return;
         }
 
@@ -1350,15 +2636,15 @@ class Settings extends Component
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
 
-        $slug = \Illuminate\Support\Str::slug($this->newGroupName);
+        $slug = Str::slug($this->newGroupName);
         if ($slug === '') {
-            $slug = 'grp-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6));
+            $slug = 'grp-'.Str::lower(Str::random(6));
         }
 
         $baseSlug = $slug;
         $suffix = 2;
         while (TicketGroup::query()->where('organization_id', $orgId)->where('slug', $slug)->exists()) {
-            $slug = $baseSlug . '-' . $suffix;
+            $slug = $baseSlug.'-'.$suffix;
             $suffix++;
         }
 
@@ -1426,9 +2712,9 @@ class Settings extends Component
             ->whereKey((int) $this->editingGroupId)
             ->firstOrFail();
 
-        $slug = \Illuminate\Support\Str::slug($this->editingGroupName);
+        $slug = Str::slug($this->editingGroupName);
         if ($slug === '') {
-            $slug = 'grp-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(6));
+            $slug = 'grp-'.Str::lower(Str::random(6));
         }
 
         $baseSlug = $slug;
@@ -1440,7 +2726,7 @@ class Settings extends Component
                 ->where('id', '!=', $group->id)
                 ->exists()
         ) {
-            $slug = $baseSlug . '-' . $suffix;
+            $slug = $baseSlug.'-'.$suffix;
             $suffix++;
         }
 
@@ -1571,6 +2857,7 @@ class Settings extends Component
         $fn = OrganizationFunction::query()->where('organization_id', $orgId)->whereKey($id)->firstOrFail();
         if ($fn->tickets()->exists()) {
             $this->dispatch('toast', type: 'error', message: __('Impossible de supprimer : des tickets sont assignés à cette fonction.'));
+
             return;
         }
         $fn->memberships()->update(['organization_function_id' => null]);
@@ -1578,5 +2865,251 @@ class Settings extends Component
         CacheHelper::invalidateOrgFunctions($orgId);
         $this->dispatch('toast', type: 'success', message: __('Fonction supprimée.'));
     }
-}
 
+    // ─── API Tokens ───────────────────────────────────────────────────
+
+    public function createApiToken(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageApi)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
+            return;
+        }
+
+        $this->validate([
+            'newTokenName' => ['required', 'string', 'max:120'],
+            'newTokenScopes' => ['required', 'array', 'min:1'],
+            'newTokenScopes.*' => ['string', \Illuminate\Validation\Rule::in(array_column(ApiTokenScope::cases(), 'value'))],
+            'newTokenExpiresAt' => ['nullable', 'date', 'after:today'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $token = $user->createToken($this->newTokenName, $this->newTokenScopes);
+
+        $accessToken = $token->accessToken;
+        $accessToken->forceFill([
+            'organization_id' => $orgId,
+            'scopes' => $this->newTokenScopes,
+            'expires_at' => $this->newTokenExpiresAt ? \Carbon\Carbon::parse($this->newTokenExpiresAt)->endOfDay() : null,
+        ])->save();
+
+        $this->createdTokenPlainText = 'mnx_'.base64_encode($token->plainTextToken);
+        $this->newTokenName = '';
+        $this->newTokenScopes = [];
+        $this->newTokenExpiresAt = null;
+
+        OrganizationAuditService::log('api_token.created', 'PersonalAccessToken', $accessToken->id, [
+            'name' => $accessToken->name,
+            'scopes' => $this->createdTokenPlainText ? $accessToken->scopes : [],
+        ]);
+
+        CacheHelper::invalidateSettingsApiTokens($orgId);
+
+        $this->dispatch('toast', type: 'success', message: __('Token API créé avec succès.'));
+    }
+
+    public function dismissCreatedToken(): void
+    {
+        $this->createdTokenPlainText = null;
+    }
+
+    public function revokeApiToken(int $tokenId): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageApi)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
+            return;
+        }
+
+        $orgId = $this->orgId();
+        $token = \Laravel\Sanctum\PersonalAccessToken::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($tokenId)
+            ->firstOrFail();
+
+        OrganizationAuditService::log('api_token.revoked', 'PersonalAccessToken', $token->id, [
+            'name' => $token->name,
+        ]);
+
+        $token->delete();
+
+        CacheHelper::invalidateSettingsApiTokens($orgId);
+
+        $this->dispatch('toast', type: 'success', message: __('Token révoqué.'));
+    }
+
+    // ─── Webhooks ─────────────────────────────────────────────────────
+
+    public function createWebhookEndpoint(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageWebhooks)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
+            return;
+        }
+
+        $this->validate([
+            'newWebhookUrl' => ['required', 'url', 'max:2048'],
+            'newWebhookEvents' => ['required', 'array', 'min:1'],
+            'newWebhookEvents.*' => ['string', \Illuminate\Validation\Rule::in(array_column(WebhookEvent::cases(), 'value'))],
+            'newWebhookDescription' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $orgId = $this->orgId();
+        abort_if(! $orgId, 403);
+
+        $secret = Str::random(64);
+
+        $endpoint = WebhookEndpoint::query()->create([
+            'organization_id' => $orgId,
+            'url' => $this->newWebhookUrl,
+            'description' => $this->newWebhookDescription ?: null,
+            'secret' => $secret,
+            'events' => $this->newWebhookEvents,
+            'is_active' => true,
+            'created_by' => $user->id,
+        ]);
+
+        $this->createdWebhookSecret = $secret;
+        $this->newWebhookUrl = '';
+        $this->newWebhookDescription = '';
+        $this->newWebhookEvents = [];
+
+        OrganizationAuditService::log('webhook.created', 'WebhookEndpoint', $endpoint->id, [
+            'url' => $endpoint->url,
+            'events' => $endpoint->events,
+        ]);
+
+        CacheHelper::invalidateSettingsWebhooks($orgId);
+
+        $this->dispatch('toast', type: 'success', message: __('Webhook créé avec succès.'));
+    }
+
+    public function dismissCreatedWebhookSecret(): void
+    {
+        $this->createdWebhookSecret = null;
+    }
+
+    public function startEditWebhook(int $id): void
+    {
+        $orgId = $this->orgId();
+        $endpoint = WebhookEndpoint::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $this->editingWebhookId = $endpoint->id;
+        $this->editingWebhookUrl = $endpoint->url;
+        $this->editingWebhookDescription = $endpoint->description ?? '';
+        $this->editingWebhookEvents = $endpoint->events ?? [];
+        $this->editingWebhookIsActive = $endpoint->is_active;
+    }
+
+    public function cancelEditWebhook(): void
+    {
+        $this->editingWebhookId = null;
+        $this->editingWebhookUrl = '';
+        $this->editingWebhookDescription = '';
+        $this->editingWebhookEvents = [];
+        $this->editingWebhookIsActive = true;
+    }
+
+    public function updateWebhookEndpoint(): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageWebhooks)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
+            return;
+        }
+
+        $this->validate([
+            'editingWebhookUrl' => ['required', 'url', 'max:2048'],
+            'editingWebhookEvents' => ['required', 'array', 'min:1'],
+            'editingWebhookEvents.*' => ['string', \Illuminate\Validation\Rule::in(array_column(WebhookEvent::cases(), 'value'))],
+            'editingWebhookDescription' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $orgId = $this->orgId();
+        $endpoint = WebhookEndpoint::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($this->editingWebhookId)
+            ->firstOrFail();
+
+        $endpoint->update([
+            'url' => $this->editingWebhookUrl,
+            'description' => $this->editingWebhookDescription ?: null,
+            'events' => $this->editingWebhookEvents,
+            'is_active' => $this->editingWebhookIsActive,
+        ]);
+
+        OrganizationAuditService::log('webhook.updated', 'WebhookEndpoint', $endpoint->id, [
+            'url' => $endpoint->url,
+            'events' => $endpoint->events,
+        ]);
+
+        CacheHelper::invalidateSettingsWebhooks($orgId);
+
+        $this->cancelEditWebhook();
+        $this->dispatch('toast', type: 'success', message: __('Webhook mis à jour.'));
+    }
+
+    public function toggleWebhookEndpoint(int $id): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageWebhooks)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
+            return;
+        }
+
+        $orgId = $this->orgId();
+        $endpoint = WebhookEndpoint::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $endpoint->update(['is_active' => ! $endpoint->is_active]);
+
+        CacheHelper::invalidateSettingsWebhooks($orgId);
+
+        $this->dispatch('toast', type: 'success', message: $endpoint->is_active ? __('Webhook activé.') : __('Webhook désactivé.'));
+    }
+
+    public function deleteWebhookEndpoint(int $id): void
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+        if (! $user || ! $user->hasPermission(Permission::SettingsManageWebhooks)) {
+            $this->dispatch('toast', type: 'error', message: __('Accès refusé.'));
+
+            return;
+        }
+
+        $orgId = $this->orgId();
+        $endpoint = WebhookEndpoint::query()
+            ->where('organization_id', $orgId)
+            ->whereKey($id)
+            ->firstOrFail();
+
+        OrganizationAuditService::log('webhook.deleted', 'WebhookEndpoint', $endpoint->id, [
+            'url' => $endpoint->url,
+        ]);
+
+        $endpoint->delete();
+
+        CacheHelper::invalidateSettingsWebhooks($orgId);
+
+        $this->dispatch('toast', type: 'success', message: __('Webhook supprimé.'));
+    }
+}

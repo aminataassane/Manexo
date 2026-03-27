@@ -5,9 +5,11 @@ namespace App\Livewire\Discussions;
 use App\Events\DiscussionMessageSent;
 use App\Events\DiscussionParticipantChanged;
 use App\Events\UserNotificationReceived;
+use App\Helpers\CacheHelper;
 use App\Models\DiscussionMessage;
 use App\Models\DiscussionThread;
 use App\Models\User;
+use App\Notifications\DiscussionRemovedNotification;
 use App\Notifications\DiscussionInviteNotification;
 use App\Notifications\DiscussionNewMessageNotification;
 use Illuminate\Broadcasting\BroadcastException;
@@ -191,6 +193,13 @@ class Thread extends Component
         }
 
         $thread->participants()->detach($userId);
+        $threadName = $thread->name ?: __('Groupe de discussion');
+        $removedUser->notify(new DiscussionRemovedNotification(
+            threadId: $thread->id,
+            threadName: $threadName,
+            actorName: $user->name,
+        ));
+        $this->broadcastSafe(fn () => event(new UserNotificationReceived((int) $removedUser->id, 'discussion_removed')));
 
         // Broadcast to remaining participants
         $this->broadcastSafe(fn () => event(new DiscussionParticipantChanged(
@@ -365,10 +374,15 @@ class Thread extends Component
         ]);
 
         $orgId = (int) session('current_organization_id');
-        $orgUsers = User::query()
-            ->whereHas('organizations', fn ($q) => $q->where('organization_id', $orgId))
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+        $orgUsers = cache()->remember(
+            CacheHelper::membersKey($orgId),
+            CacheHelper::TTL,
+            fn () => User::query()
+                ->whereHas('organizations', fn ($q) => $q->where('organization_id', $orgId))
+                ->orderBy('name')
+                ->limit(200)
+                ->get(['id', 'name', 'email'])
+        );
 
         $layout = $this->embedded ? 'layouts.manexo-embed' : 'layouts.manexo-app';
 

@@ -12,8 +12,9 @@ import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
 const key = import.meta.env.VITE_REVERB_APP_KEY;
+const echoEnabled = document.body?.dataset?.echoEnabled === '1';
 
-if (key) {
+if (key && echoEnabled) {
     window.Pusher = Pusher;
     window.Echo = new Echo({
         broadcaster: 'reverb',

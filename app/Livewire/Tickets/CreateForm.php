@@ -7,8 +7,11 @@ use App\Helpers\CacheHelper;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketPriority;
+use App\Services\ApprovalService;
+use App\Services\AutomationService;
+use App\Services\SlaService;
+use App\Services\WebhookService;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -17,9 +20,16 @@ class CreateForm extends Component
 {
     use WithFileUploads;
 
+    public bool $ready = true;
+
+    public function loadPage(): void {}
+
     public int $ticket_category_id;
+
     public int $ticket_priority_id;
+
     public string $subject = '';
+
     public string $description = '';
 
     /** @var array<int, \Livewire\Features\SupportFileUploads\TemporaryUploadedFile> */
@@ -29,6 +39,43 @@ class CreateForm extends Component
     public array $links = [];
 
     public string $linkUrl = '';
+
+    /** KB deflection suggestions */
+    public array $kbSuggestions = [];
+
+    public function updatedSubject(string $value): void
+    {
+        $this->kbSuggestions = [];
+
+        if (mb_strlen(trim($value)) < 3) {
+            return;
+        }
+
+        $orgId = (int) session('current_organization_id');
+        if (! $orgId) {
+            return;
+        }
+
+        $term = '%'.trim($value).'%';
+        $this->kbSuggestions = \App\Models\KbArticle::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->published()
+            ->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
+                    ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
+                    ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
+            })
+            ->orderByDesc('view_count')
+            ->limit(5)
+            ->get(['id', 'title', 'content', 'view_count'])
+            ->map(fn ($a) => [
+                'id' => $a->id,
+                'title' => $a->title,
+                'excerpt' => $a->excerpt(200),
+                'view_count' => $a->view_count,
+            ])
+            ->toArray();
+    }
 
     public function mount(): void
     {
@@ -64,10 +111,11 @@ class CreateForm extends Component
 
         if (! $user || ! $orgId) {
             $this->dispatch('tickets:closeCreateDrawer');
+
             return;
         }
 
-        abort_if(! $user->hasPermission(\App\Enums\Permission::TicketsCreate), 403);
+        abort_if(! ($user instanceof \App\Models\User) || ! $user->hasPermission(\App\Enums\Permission::TicketsCreate), 403);
 
         $validated = $this->validate([
             'ticket_category_id' => ['required', 'integer', 'exists:ticket_categories,id'],
@@ -92,6 +140,7 @@ class CreateForm extends Component
 
         if (! $categoryOk || ! $priorityOk) {
             $this->addError('ticket_category_id', "Sélection invalide pour l'entreprise.");
+
             return;
         }
 
@@ -105,6 +154,9 @@ class CreateForm extends Component
             'description' => $validated['description'],
         ]);
 
+        SlaService::applyPolicy($ticket);
+        ApprovalService::applyPolicy($ticket);
+
         $attachments = [
             'files' => [],
             'links' => [],
@@ -114,7 +166,7 @@ class CreateForm extends Component
             $original = (string) ($file->getClientOriginalName() ?: 'file');
             $ext = (string) ($file->getClientOriginalExtension() ?: '');
             $safeBase = Str::slug(pathinfo($original, PATHINFO_FILENAME)) ?: 'file';
-            $filename = $safeBase . '-' . Str::lower(Str::random(10)) . ($ext ? '.' . $ext : '');
+            $filename = $safeBase.'-'.Str::lower(Str::random(10)).($ext ? '.'.$ext : '');
 
             $path = $file->storeAs("ticket-attachments/org-{$orgId}/ticket-{$ticket->id}", $filename, 'local');
 
@@ -145,6 +197,13 @@ class CreateForm extends Component
         CacheHelper::invalidateDashboard($orgId);
         CacheHelper::invalidateReports($orgId);
         CacheHelper::invalidateTicketCounts($orgId);
+
+        AutomationService::evaluate($ticket, 'ticket_created');
+
+        $ticket->load(['category', 'priority', 'group', 'creator', 'assignees']);
+        WebhookService::dispatch($orgId, 'ticket.created', [
+            'ticket' => (new \App\Http\Resources\Api\V1\TicketResource($ticket))->resolve(),
+        ]);
 
         $this->dispatch('tickets:created');
         $this->dispatch('tickets:closeCreateDrawer');
@@ -206,4 +265,3 @@ class CreateForm extends Component
         ]);
     }
 }
-

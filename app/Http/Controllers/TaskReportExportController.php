@@ -100,13 +100,35 @@ class TaskReportExportController extends Controller
             : $this->exportCsv($request);
     }
 
+    private function getLogoBase64(?object $org): ?string
+    {
+        if ($org && $org->logo_path) {
+            $path = storage_path('app/public/' . ltrim($org->logo_path, '/'));
+            if (file_exists($path)) {
+                $mime = mime_content_type($path) ?: 'image/png';
+
+                return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            }
+        }
+
+        return null;
+    }
+
     private function exportCsv(Request $request): StreamedResponse
     {
         [$from, $to] = $this->dateRange($request);
+        $org = $request->attributes->get('currentOrganization');
+        $orgName = $org?->name ?? '';
 
-        return response()->streamDownload(function () use ($request, $from, $to) {
+        return response()->streamDownload(function () use ($request, $from, $to, $orgName) {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF");
+
+            // Manexo branding header
+            fputcsv($handle, ['Manexo — ' . $orgName], ';');
+            fputcsv($handle, [__('task_report.shared_report_title') . ' — ' . $from->format('d/m/Y') . ' au ' . $to->format('d/m/Y')], ';');
+            fputcsv($handle, [__('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')])], ';');
+            fputcsv($handle, [], ';');
 
             fputcsv($handle, [
                 __('task_report.export_type'),
@@ -193,6 +215,7 @@ class TaskReportExportController extends Controller
 
         $org = $request->attributes->get('currentOrganization');
         $orgName = $org?->name ?? '';
+        $logoBase64 = $this->getLogoBase64($org);
 
         $pdf = Pdf::loadView('pdf.task-report', [
             'stats' => $stats,
@@ -200,6 +223,7 @@ class TaskReportExportController extends Controller
             'from' => $from,
             'to' => $to,
             'orgName' => $orgName,
+            'logoBase64' => $logoBase64,
         ])->setPaper('a4', 'landscape');
 
         return response()->streamDownload(

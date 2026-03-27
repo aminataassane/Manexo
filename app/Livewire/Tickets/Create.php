@@ -2,9 +2,10 @@
 
 namespace App\Livewire\Tickets;
 
-use App\Enums\Permission;
-use App\Enums\TicketStatus;
 use App\Enums\FormStatus;
+use App\Enums\Permission;
+use App\Enums\TicketSource;
+use App\Enums\TicketStatus;
 use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\Ticket;
@@ -13,9 +14,12 @@ use App\Models\TicketChecklistItem;
 use App\Models\TicketGroup;
 use App\Models\TicketPriority;
 use App\Models\User;
+use App\Services\ApprovalService;
+use App\Services\AutomationService;
+use App\Services\SlaService;
+use App\Services\WebhookService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -29,14 +33,23 @@ class Create extends Component
 {
     use WithFileUploads;
 
-    public int $ticket_category_id;
-    public int $ticket_priority_id;
+    public bool $ready = true;
+
+    public ?int $ticket_category_id = null;
+
+    public ?int $ticket_priority_id = null;
+
     public ?int $ticket_group_id = null;
+
     /** @var array<int, int> */
     public array $assigned_to_ids = [];
+
     public ?string $start_date = null;
+
     public ?string $due_date = null;
+
     public string $subject = '';
+
     public string $description = '';
 
     /** @var array<string, mixed> */
@@ -53,6 +66,99 @@ class Create extends Component
     /** Checklist initiale : liste de ['title' => string, 'assigned_to' => ?int, 'due_date' => ?string] */
     public array $checklistItems = [];
 
+    /** KB deflection suggestions */
+    public array $kbSuggestions = [];
+
+    /** KB browser */
+    public bool $showKbBrowser = false;
+
+    public string $kbSearchTerm = '';
+
+    public array $kbSearchResults = [];
+
+    public bool $canAssignAtCreate = false;
+
+    public function updatedSubject(string $value): void
+    {
+        $this->kbSuggestions = [];
+
+        if (mb_strlen(trim($value)) < 3) {
+            return;
+        }
+
+        $orgId = (int) session('current_organization_id');
+        if (! $orgId) {
+            return;
+        }
+
+        $term = '%'.trim($value).'%';
+        $this->kbSuggestions = \App\Models\KbArticle::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->published()
+            ->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
+                    ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
+                    ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
+            })
+            ->orderByDesc('view_count')
+            ->limit(5)
+            ->get(['id', 'title', 'content', 'view_count'])
+            ->map(fn (\App\Models\KbArticle $a) => [
+                'id' => $a->id,
+                'title' => $a->title,
+                'excerpt' => $a->excerpt(200),
+                'view_count' => $a->view_count,
+            ])
+            ->toArray();
+    }
+
+    public function openKbBrowser(): void
+    {
+        $this->showKbBrowser = true;
+        $this->kbSearchTerm = '';
+        $this->kbSearchResults = [];
+    }
+
+    public function updatedKbSearchTerm(): void
+    {
+        $this->searchKbArticles();
+    }
+
+    public function searchKbArticles(): void
+    {
+        $this->kbSearchResults = [];
+
+        if (mb_strlen(trim($this->kbSearchTerm)) < 2) {
+            return;
+        }
+
+        $orgId = (int) session('current_organization_id');
+        if (! $orgId) {
+            return;
+        }
+
+        $term = '%'.trim($this->kbSearchTerm).'%';
+        $this->kbSearchResults = \App\Models\KbArticle::withoutOrganizationScope()
+            ->where('organization_id', $orgId)
+            ->published()
+            ->where(function ($q) use ($term) {
+                $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
+                    ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
+                    ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
+            })
+            ->orderByDesc('view_count')
+            ->limit(10)
+            ->get(['id', 'title', 'content', 'view_count'])
+            ->map(fn (\App\Models\KbArticle $a) => [
+                'id' => $a->id,
+                'title' => $a->title,
+                'excerpt' => $a->excerpt(300),
+                'safeHtml' => $a->safeHtml(),
+                'view_count' => $a->view_count,
+            ])
+            ->toArray();
+    }
+
     public function mount(): void
     {
         /** @var \App\Models\User|null $user */
@@ -63,32 +169,33 @@ class Create extends Component
         $orgId = (int) session('current_organization_id');
         abort_if(! $orgId, 403);
 
-        // Preselect first active options if available
-        if ($orgId) {
-            $category = TicketCategory::query()
+        $this->canAssignAtCreate = $user->hasPermission(Permission::TicketsAssign);
+
+        // Set defaults once at mount (avoid mutating state during render).
+        $categories = Cache::remember(CacheHelper::categoriesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+            return TicketCategory::query()
                 ->where('organization_id', $orgId)
                 ->where('is_active', true)
                 ->orderBy('name')
-                ->first();
+                ->get(['id', 'default_ticket_group_id']);
+        });
+        if ($this->ticket_category_id === null && $categories->isNotEmpty()) {
+            $this->ticket_category_id = (int) $categories->first()->id;
+            $defaultGroupId = $categories->first()->default_ticket_group_id ?? null;
+            if ($defaultGroupId) {
+                $this->ticket_group_id = (int) $defaultGroupId;
+            }
+        }
 
-            $priority = TicketPriority::query()
+        $priorities = Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+            return TicketPriority::query()
                 ->where('organization_id', $orgId)
                 ->where('is_active', true)
                 ->orderBy('level')
-                ->first();
-
-            if ($category) {
-                $this->ticket_category_id = $category->id;
-
-                // Auto-set default group from category
-                if ($category->default_ticket_group_id) {
-                    $this->ticket_group_id = $category->default_ticket_group_id;
-                }
-            }
-
-            if ($priority) {
-                $this->ticket_priority_id = $priority->id;
-            }
+                ->get(['id']);
+        });
+        if ($this->ticket_priority_id === null && $priorities->isNotEmpty()) {
+            $this->ticket_priority_id = (int) $priorities->first()->id;
         }
     }
 
@@ -118,11 +225,17 @@ class Create extends Component
 
     public function submit(): void
     {
+        $this->handleSubmit();
+    }
+
+    private function handleSubmit(): void
+    {
         $user = Auth::user();
         $orgId = (int) session('current_organization_id');
 
         if (! $user || ! $orgId) {
             $this->redirectRoute('organizations.select');
+
             return;
         }
 
@@ -146,7 +259,7 @@ class Create extends Component
             } elseif ($type === 'checkbox') {
                 if (is_array($options) && count($options) > 0) {
                     $rules[] = 'array';
-                    $rules[] = 'max:' . count($options);
+                    $rules[] = 'max:'.count($options);
                     if ($f->required) {
                         $rules[] = 'min:1';
                     }
@@ -217,19 +330,48 @@ class Create extends Component
 
         if (! $categoryOk || ! $priorityOk || ! $groupOk) {
             $this->addError('ticket_category_id', "Sélection invalide pour l'entreprise.");
+
             return;
         }
 
-        // Ensure all assignees belong to current org
+        // Ensure all assignees are internal staff of current org
         $assigneeIds = array_map('intval', array_filter($validated['assigned_to_ids'] ?? []));
         if (! empty($assigneeIds)) {
             $validCount = User::query()
                 ->whereIn('id', $assigneeIds)
-                ->whereHas('organizations', fn($q) => $q->whereKey($orgId))
+                ->whereHas('organizations', function ($q) use ($orgId) {
+                    $q->where('organization_memberships.organization_id', $orgId)
+                        ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+                })
                 ->count();
 
             if ($validCount !== count($assigneeIds)) {
-                $this->addError('assigned_to_ids', "Un ou plusieurs assignés sont invalides pour l'entreprise.");
+                $this->addError('assigned_to_ids', 'Un ou plusieurs assignés ne font pas partie de l\'équipe interne.');
+
+                return;
+            }
+        }
+
+        // Ensure checklist assignees are also internal staff of current org
+        $checklistAssigneeIds = collect($validated['checklistItems'] ?? [])
+            ->pluck('assigned_to')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        if (! empty($checklistAssigneeIds)) {
+            $validChecklistAssignees = User::query()
+                ->whereIn('id', $checklistAssigneeIds)
+                ->whereHas('organizations', function ($q) use ($orgId) {
+                    $q->where('organization_memberships.organization_id', $orgId)
+                        ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+                })
+                ->count();
+
+            if ($validChecklistAssignees !== count($checklistAssigneeIds)) {
+                $this->addError('checklistItems', 'Un ou plusieurs assignés de checklist ne font pas partie de l\'équipe interne.');
+
                 return;
             }
         }
@@ -272,12 +414,16 @@ class Create extends Component
             'assigned_by' => $firstAssignee ? $user->id : null,
             'assigned_at' => $firstAssignee ? now() : null,
             'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
             'subject' => $validated['subject'],
             'description' => $validated['description'],
             'custom_fields' => $customFields ?: null,
             'start_date' => $validated['start_date'] ?? null,
             'due_date' => $validated['due_date'] ?? null,
         ]);
+
+        SlaService::applyPolicy($ticket);
+        ApprovalService::applyPolicy($ticket);
 
         // Sync assignees to the pivot table
         if (! empty($assigneeIds)) {
@@ -297,7 +443,7 @@ class Create extends Component
             $original = (string) ($file->getClientOriginalName() ?: 'file');
             $ext = (string) ($file->getClientOriginalExtension() ?: '');
             $safeBase = Str::slug(pathinfo($original, PATHINFO_FILENAME)) ?: 'file';
-            $filename = $safeBase . '-' . Str::lower(Str::random(10)) . ($ext ? '.' . $ext : '');
+            $filename = $safeBase.'-'.Str::lower(Str::random(10)).($ext ? '.'.$ext : '');
 
             $path = $file->storeAs("ticket-attachments/org-{$orgId}/ticket-{$ticket->id}", $filename, 'local');
 
@@ -340,6 +486,14 @@ class Create extends Component
         CacheHelper::invalidateDashboard($orgId);
         CacheHelper::invalidateReports($orgId);
         CacheHelper::invalidateTicketCounts($orgId);
+
+        AutomationService::evaluate($ticket, 'ticket_created');
+
+        $ticket->load(['category', 'priority', 'group', 'creator', 'assignees']);
+        WebhookService::dispatch($orgId, 'ticket.created', [
+            'ticket' => (new \App\Http\Resources\Api\V1\TicketResource($ticket))->resolve(),
+        ]);
+
         $this->redirectRoute('tickets.index');
     }
 
@@ -422,6 +576,7 @@ class Create extends Component
             })
             : collect();
 
+
         $priorities = $orgId
             ? Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
                 return TicketPriority::query()
@@ -432,11 +587,16 @@ class Create extends Component
             })
             : collect();
 
-        $assignees = $orgId
-            ? User::query()
-            ->whereHas('organizations', fn($q) => $q->whereKey($orgId))
-            ->orderBy('name')
-            ->get()
+        $assignees = ($this->canAssignAtCreate && $orgId)
+            ? Cache::remember("create_ticket_assignees_staff:{$orgId}", CacheHelper::TTL, function () use ($orgId) {
+                return User::query()
+                    ->whereHas('organizations', function ($q) use ($orgId) {
+                        $q->where('organization_memberships.organization_id', $orgId)
+                            ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+                    })
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'email']);
+            })
             : collect();
 
         $ticketGroups = $orgId
@@ -451,14 +611,10 @@ class Create extends Component
             : collect();
 
         $userId = (int) (Auth::id() ?: 0);
-        $form = ($orgId && $userId && ($this->ticket_category_id ?? null))
+        $form = ($orgId && $userId && $this->ticket_category_id)
             ? $this->resolveForm($orgId, (int) $this->ticket_category_id, $userId)
             : null;
         $formFields = $form?->fields ?? collect();
-
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
-        $canAssignAtCreate = $user && $user->hasPermission(Permission::TicketsAssign);
 
         return view('livewire.tickets.create', [
             'categories' => $categories,
@@ -468,79 +624,57 @@ class Create extends Component
             'formTemplateName' => $form?->name,
             'formSteps' => collect(),
             'formFields' => $formFields,
-            'canAssignAtCreate' => $canAssignAtCreate,
+            'canAssignAtCreate' => $this->canAssignAtCreate,
         ]);
     }
 
     private function resolveForm(int $orgId, int $categoryId, int $userId): ?Form
     {
-        $base = Form::query()
-            ->where('organization_id', $orgId)
-            ->where('status', FormStatus::Published)
-            ->where(function ($q) use ($categoryId) {
-                $q->whereNull('ticket_category_id');
-                if ($categoryId) {
-                    $q->orWhere('ticket_category_id', $categoryId);
+        return Cache::remember(
+            "create_ticket_form:{$orgId}:{$categoryId}:{$userId}",
+            CacheHelper::TTL,
+            function () use ($orgId, $categoryId, $userId) {
+                // Single query with specificity ranking:
+                // 1) category+user, 2) category+public, 3) global+user, 4) global+public.
+                $form = Form::query()
+                    ->where('organization_id', $orgId)
+                    ->where('status', FormStatus::Published)
+                    ->where(function ($q) use ($categoryId) {
+                        $q->whereNull('ticket_category_id')
+                            ->orWhere('ticket_category_id', $categoryId);
+                    })
+                    ->where(function ($q) use ($userId) {
+                        $q->whereNull('target_user_id')
+                            ->orWhere('target_user_id', $userId);
+                    })
+                    ->orderByRaw(
+                        'CASE
+                            WHEN ticket_category_id = ? AND target_user_id = ? THEN 4
+                            WHEN ticket_category_id = ? AND target_user_id IS NULL THEN 3
+                            WHEN ticket_category_id IS NULL AND target_user_id = ? THEN 2
+                            ELSE 1
+                        END DESC',
+                        [$categoryId, $userId, $categoryId, $userId]
+                    )
+                    ->with(['fields'])
+                    ->first();
+                if ($form) {
+                    return $form;
                 }
-            })
-            ->where(function ($q) use ($userId) {
-                $q->whereNull('target_user_id');
-                if ($userId) {
-                    $q->orWhere('target_user_id', $userId);
+
+                // Last resort: category's default_form_id
+                $category = TicketCategory::query()->find($categoryId);
+                if ($category && $category->default_form_id) {
+                    return Form::query()
+                        ->where('id', $category->default_form_id)
+                        ->where('organization_id', $orgId)
+                        ->where('status', FormStatus::Published)
+                        ->with(['fields'])
+                        ->first();
                 }
-            });
 
-        // Prefer: specific user + specific category
-        $first = (clone $base)
-            ->where('ticket_category_id', $categoryId)
-            ->where('target_user_id', $userId)
-            ->with(['fields'])
-            ->first();
-        if ($first) {
-            return $first;
-        }
-
-        // Prefer: public + specific category
-        $second = (clone $base)
-            ->where('ticket_category_id', $categoryId)
-            ->whereNull('target_user_id')
-            ->with(['fields'])
-            ->first();
-        if ($second) {
-            return $second;
-        }
-
-        // Prefer: specific user + all categories
-        $third = (clone $base)
-            ->whereNull('ticket_category_id')
-            ->where('target_user_id', $userId)
-            ->with(['fields'])
-            ->first();
-        if ($third) {
-            return $third;
-        }
-
-        // Fallback: public + all categories
-        $fourth = (clone $base)
-            ->whereNull('ticket_category_id')
-            ->whereNull('target_user_id')
-            ->with(['fields'])
-            ->first();
-        if ($fourth) {
-            return $fourth;
-        }
-
-        // Last resort: category's default_form_id
-        $category = TicketCategory::query()->find($categoryId);
-        if ($category && $category->default_form_id) {
-            return Form::query()
-                ->where('id', $category->default_form_id)
-                ->where('organization_id', $orgId)
-                ->where('status', FormStatus::Published)
-                ->with(['fields'])
-                ->first();
-        }
-
-        return null;
+                return null;
+            }
+        );
     }
 }

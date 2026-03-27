@@ -4,28 +4,33 @@ namespace App\Livewire\Tickets;
 
 use App\Enums\Permission;
 use App\Enums\TicketMessageType;
+use App\Enums\TicketStatus;
 use App\Events\TicketAssigneeChanged;
-use App\Helpers\CacheHelper;
 use App\Events\TicketMessageSent;
 use App\Events\UserNotificationReceived;
-use App\Enums\TicketStatus;
+use App\Helpers\CacheHelper;
 use App\Models\FormResponse;
 use App\Models\Organization;
 use App\Models\OrganizationFunction;
 use App\Models\Ticket;
 use App\Models\TicketChecklistItem;
-use App\Models\TicketMessage;
-use App\Models\TicketParticipant;
 use App\Models\TicketGroup;
+use App\Models\TicketMessage;
 use App\Models\TicketPriority;
 use App\Models\User;
 use App\Notifications\ChecklistItemAssignedNotification;
+use App\Notifications\TicketReopenedNotification;
 use App\Notifications\TicketAssigneeNotification;
 use App\Notifications\TicketMentionNotification;
 use App\Notifications\TicketNewMessageNotification;
+use App\Services\ApprovalService;
+use App\Services\AutomationService;
 use App\Services\OrganizationAuditService;
+use App\Services\SlaService;
+use App\Services\WebhookService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Title;
@@ -38,13 +43,44 @@ class Discussion extends Component
     use WithFileUploads;
 
     public int $ticketId;
+
     public string $ticketPublicId = '';
 
     public function getListeners(): array
     {
         return [
+            "echo-private:ticket.{$this->ticketPublicId},.message.sent" => 'onNewMessage',
+            "echo-private:ticket.staff.{$this->ticketPublicId},.message.sent" => 'onNewMessage',
             "echo-private:ticket.{$this->ticketPublicId},.assignee.changed" => '$refresh',
         ];
+    }
+
+    /**
+     * Called in real-time when a new message arrives (from platform or email).
+     * Refreshes the conversation without full page reload.
+     */
+    public function onNewMessage(array $payload = []): void
+    {
+        // Skip if the message was sent by the current user (already visible)
+        $currentUserId = Auth::id();
+        if (isset($payload['user_id']) && (int) $payload['user_id'] === (int) $currentUserId) {
+            return;
+        }
+
+        // Dispatch a browser event so the frontend can scroll to the new message
+        $this->dispatch('new-message-received');
+    }
+
+    /** 1 = shell instantané, 2 = conversation/messages (progressif). */
+    public int $loadStage = 1;
+
+    /** Chargement progressif des messages après premier rendu. */
+    public function loadMessages(): void
+    {
+        if ($this->loadStage >= 2) {
+            return;
+        }
+        $this->loadStage = 2;
     }
 
     /** When true, component is embedded (e.g. in Discussions page) and uses minimal layout. */
@@ -52,31 +88,53 @@ class Discussion extends Component
 
     /** Staff roles can see/write internal notes. */
     public bool $canSeeInternalNotes = false;
+
     public bool $canWriteInternalNotes = false;
+
     public string $body = '';
+
     public bool $asInternalNote = false;
+
     public array $attachments = [];
+
     /** @var \Illuminate\Http\UploadedFile[] */
     public $attachmentFiles = [];
 
     public bool $showAddChecklistItem = false;
+
     public string $newChecklistTitle = '';
+
     public ?int $newChecklistAssignedTo = null;
+
     public ?int $newChecklistAssignedToFunction = null;
+
     public ?string $newChecklistDueDate = null;
 
     /** Édition du ticket (titre, description, pièces jointes) */
     public string $editSubject = '';
+
     public string $editDescription = '';
+
     /** @var \Illuminate\Http\UploadedFile[]|array */
     public $editAttachmentFiles = [];
+
     public string $editLinkUrl = '';
+
+    /** Approval workflow */
+    public string $approvalComment = '';
+
+    public bool $showApprovalModal = false;
+
+    public string $approvalAction = '';
 
     public function mount(Ticket $ticket): void
     {
         $this->ticketId = (int) $ticket->id;
         $this->ticketPublicId = $ticket->public_id;
         $this->authorizeTicket();
+
+        // Fast entry: load stage 2 directly to avoid a second request on page open.
+        $this->loadStage = 2;
     }
 
     private function getTicket(): Ticket
@@ -108,7 +166,7 @@ class Discussion extends Component
         $user = Auth::user();
         $ticket = $this->getTicket();
         Gate::authorize('view', $ticket);
-        $orgMember = User::whereKey($userId)->whereHas('organizations', fn($q) => $q->where('organization_id', $ticket->organization_id))->firstOrFail();
+        $orgMember = User::whereKey($userId)->whereHas('organizations', fn ($q) => $q->where('organization_id', $ticket->organization_id))->firstOrFail();
         if ($ticket->created_by === (int) $userId || $ticket->assignees()->where('users.id', $userId)->exists()) {
             return;
         }
@@ -130,6 +188,17 @@ class Discussion extends Component
     {
         /** @var User|null $user */
         return Gate::allows('assign', $this->getTicket());
+    }
+
+    private function isInternalStaffUser(int $userId, int $organizationId): bool
+    {
+        return User::query()
+            ->whereKey($userId)
+            ->whereHas('organizations', function ($q) use ($organizationId) {
+                $q->where('organization_memberships.organization_id', $organizationId)
+                    ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+            })
+            ->exists();
     }
 
     /** Rôle de l'utilisateur dans l'organisation courante (session). Fiable en requêtes Livewire. */
@@ -173,9 +242,13 @@ class Discussion extends Component
             if ($current) {
                 $this->removeAssignee((int) $current->id);
             }
+
             return;
         }
-        $orgMember = User::whereKey($userId)->whereHas('organizations', fn($q) => $q->where('organization_id', $ticket->organization_id))->firstOrFail();
+        $orgMember = User::whereKey($userId)->whereHas('organizations', function ($q) use ($ticket) {
+            $q->where('organization_memberships.organization_id', $ticket->organization_id)
+                ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+        })->firstOrFail();
         $previousAssignee = $ticket->assignees()->first();
         // Demote previous responsible to collaborator
         $ticket->assignees()->newPivotQuery()->where('role', 'responsible')->update(['role' => 'collaborator']);
@@ -218,7 +291,10 @@ class Discussion extends Component
         }
         $ticket = $this->getTicket();
         $this->guardAgainstLock($ticket);
-        $orgMember = User::whereKey($userId)->whereHas('organizations', fn($q) => $q->where('organization_id', $ticket->organization_id))->firstOrFail();
+        $orgMember = User::whereKey($userId)->whereHas('organizations', function ($q) use ($ticket) {
+            $q->where('organization_memberships.organization_id', $ticket->organization_id)
+                ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+        })->firstOrFail();
         if ($ticket->assignees()->where('users.id', $userId)->exists()) {
             return;
         }
@@ -246,6 +322,17 @@ class Discussion extends Component
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
         CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
+
+        $ticket->load('assignees');
+        WebhookService::dispatch((int) $ticket->organization_id, 'ticket.assigned', [
+            'ticket_id' => $ticket->public_id,
+            'assignees' => $ticket->assignees->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'role' => $a->pivot->role ?? 'collaborator',
+            ])->toArray(),
+            'changed_by' => $user->id,
+        ]);
     }
 
     public function removeAssignee(int $userId): void
@@ -291,6 +378,17 @@ class Discussion extends Component
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
         CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
+
+        $ticket->load('assignees');
+        WebhookService::dispatch((int) $ticket->organization_id, 'ticket.assigned', [
+            'ticket_id' => $ticket->public_id,
+            'assignees' => $ticket->assignees->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'role' => $a->pivot->role ?? 'collaborator',
+            ])->toArray(),
+            'changed_by' => $user->id,
+        ]);
     }
 
     /** Promouvoir un collaborateur en responsable. */
@@ -368,15 +466,23 @@ class Discussion extends Component
 
     public function sendMessage(): void
     {
-        $this->validate([
-            'body' => ['nullable', 'string', 'max:10000'],
-            'attachmentFiles.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip'],
-        ]);
-        $hasBody = trim($this->body ?? '') !== '';
-        $hasAttachments = is_array($this->attachmentFiles) && count($this->attachmentFiles) > 0;
-        if (! $hasBody && ! $hasAttachments) {
-            $this->addError('body', __('Ajoutez un message ou joignez au moins un fichier.'));
+        $this->handleSendMessage();
+    }
 
+    private function handleSendMessage(): void
+    {
+        $this->performSendMessage();
+    }
+
+    private function performSendMessage(): void
+    {
+        $this->processSendMessage();
+    }
+
+    private function processSendMessage(): void
+    {
+        $this->validateSendMessageInput();
+        if (! $this->canSendMessagePayload()) {
             return;
         }
         $user = Auth::user();
@@ -395,18 +501,7 @@ class Discussion extends Component
         }
         $body = trim($this->body);
         $mentions = $this->extractMentions($body, $ticket->organization_id);
-        $savedAttachments = [];
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $localDisk */
-        $localDisk = Storage::disk('local');
-        foreach ($this->attachmentFiles as $file) {
-            $path = $file->store('ticket-messages/' . $ticket->id, 'local');
-            $savedAttachments[] = [
-                'path' => $path,
-                'name' => $file->getClientOriginalName(),
-                'size' => $file->getSize(),
-                'url' => route('tickets.discussion.file', ['ticket' => $ticket->public_id, 'filename' => basename($path)]),
-            ];
-        }
+        $savedAttachments = $this->storeDiscussionAttachments($ticket);
         $message = TicketMessage::create([
             'ticket_id' => $ticket->id,
             'user_id' => $user->id,
@@ -417,32 +512,12 @@ class Discussion extends Component
         ]);
         event(new TicketMessageSent($message));
 
-        $notifyUserIds = collect([$ticket->created_by])
-            ->merge($ticket->assignees->pluck('id'))
-            ->merge($ticket->participants->pluck('id'))
-            ->filter()
-            ->unique()
-            ->diff([$user->id])
-            ->values();
-
-        $recipientsQuery = User::whereIn('id', $notifyUserIds);
-
-        // Never notify non-staff about internal notes.
-        if ($type === TicketMessageType::InternalNote) {
-            $recipientsQuery->whereHas('organizations', function ($q) use ($ticket) {
-                $q->where('organization_memberships.organization_id', $ticket->organization_id)
-                    ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
-            });
+        // SLA: record first response if this is a message (not internal note) from someone other than the creator
+        if ($type === TicketMessageType::Message && (int) $user->id !== (int) $ticket->created_by) {
+            SlaService::recordFirstResponse($ticket);
         }
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, User> $recipients */
-        $recipients = $recipientsQuery->get();
-        foreach ($recipients as $recipient) {
-            if ($ticket->hasDiscussionAccess((int) $recipient->id)) {
-                $recipient->notify(new TicketNewMessageNotification($message));
-                event(new UserNotificationReceived((int) $recipient->id, 'ticket_new_message'));
-            }
-        }
+        $this->notifyMessageRecipients($ticket, $message, $user, $type);
 
         // Send mention-specific notifications
         if (! empty($mentions)) {
@@ -461,10 +536,91 @@ class Discussion extends Component
         CacheHelper::invalidateReports($orgId);
         CacheHelper::invalidateTicketCounts($orgId);
 
+        if ($type === TicketMessageType::Message) {
+            WebhookService::dispatch($orgId, 'ticket.comment_created', [
+                'ticket_id' => $ticket->public_id,
+                'comment' => (new \App\Http\Resources\Api\V1\TicketCommentResource($message->load('user')))->resolve(),
+            ]);
+        }
+
         $this->body = '';
         $this->asInternalNote = false;
         $this->attachments = [];
         $this->attachmentFiles = [];
+    }
+
+    private function validateSendMessageInput(): void
+    {
+        $this->validate([
+            'body' => ['nullable', 'string', 'max:10000'],
+            'attachmentFiles.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip'],
+        ]);
+    }
+
+    private function canSendMessagePayload(): bool
+    {
+        $hasBody = trim($this->body ?? '') !== '';
+        $hasAttachments = is_array($this->attachmentFiles) && count($this->attachmentFiles) > 0;
+        if ($hasBody || $hasAttachments) {
+            return true;
+        }
+
+        $this->addError('body', __('Ajoutez un message ou joignez au moins un fichier.'));
+
+        return false;
+    }
+
+    private function storeDiscussionAttachments(Ticket $ticket): array
+    {
+        $savedAttachments = [];
+        foreach ($this->attachmentFiles as $file) {
+            $path = $file->store('ticket-messages/'.$ticket->id, 'local');
+            $savedAttachments[] = [
+                'path' => $path,
+                'name' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'url' => route('tickets.discussion.file', ['ticket' => $ticket->public_id, 'filename' => basename($path)]),
+            ];
+        }
+
+        return $savedAttachments;
+    }
+
+    private function notifyMessageRecipients(Ticket $ticket, TicketMessage $message, User $user, TicketMessageType $type): void
+    {
+        $notifyUserIds = collect([$ticket->created_by])
+            ->merge($ticket->assignees->pluck('id'))
+            ->merge($ticket->participants->pluck('id'))
+            ->filter()
+            ->unique()
+            ->diff([$user->id])
+            ->values();
+
+        $recipientsQuery = User::whereIn('id', $notifyUserIds);
+        if ($type === TicketMessageType::InternalNote) {
+            $recipientsQuery->whereHas('organizations', function ($q) use ($ticket) {
+                $q->where('organization_memberships.organization_id', $ticket->organization_id)
+                    ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+            });
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, User> $recipients */
+        $recipients = $recipientsQuery->get();
+        foreach ($recipients as $recipient) {
+            if ($ticket->hasDiscussionAccess((int) $recipient->id)) {
+                try {
+                    $recipient->notify(new TicketNewMessageNotification($message));
+                } catch (\Throwable $e) {
+                    Log::error('Échec envoi notification email', [
+                        'ticket_id' => $ticket->public_id,
+                        'recipient_id' => $recipient->id,
+                        'recipient_email' => $recipient->email,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                event(new UserNotificationReceived((int) $recipient->id, 'ticket_new_message'));
+            }
+        }
     }
 
     public function archiveTicket(): void
@@ -537,7 +693,7 @@ class Discussion extends Component
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
             abort(403);
         }
-        $hasDeletePerm = $user->hasPermission(Permission::TicketsDelete);
+        $hasDeletePerm = $user instanceof User && $user->hasPermission(Permission::TicketsDelete);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
         $canDelete = $hasDeletePerm || ($isCreator && $ticket->status !== TicketStatus::Closed);
         if (! $canDelete) {
@@ -575,8 +731,9 @@ class Discussion extends Component
             return false;
         }
         $ticket = $this->getTicket();
-        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
+        $hasEditPerm = $user instanceof User && $user->hasPermission(Permission::TicketsEdit);
         $isCreator = $ticket->created_by !== null && (int) $ticket->created_by === (int) $user->id;
+
         return $hasEditPerm || $isCreator;
     }
 
@@ -634,7 +791,7 @@ class Discussion extends Component
             $original = (string) ($file->getClientOriginalName() ?: 'file');
             $ext = (string) ($file->getClientOriginalExtension() ?: '');
             $safeBase = Str::slug(pathinfo($original, PATHINFO_FILENAME)) ?: 'file';
-            $filename = $safeBase . '-' . Str::lower(Str::random(10)) . ($ext ? '.' . $ext : '');
+            $filename = $safeBase.'-'.Str::lower(Str::random(10)).($ext ? '.'.$ext : '');
             $path = $file->storeAs("ticket-attachments/org-{$orgId}/ticket-{$ticket->id}", $filename, 'local');
             $filesList[] = [
                 'disk' => 'local',
@@ -708,7 +865,7 @@ class Discussion extends Component
             return [];
         }
         $ids = [];
-        $baseQuery = User::query()->whereHas('organizations', fn($q) => $q->where('organization_id', $organizationId));
+        $baseQuery = User::query()->whereHas('organizations', fn ($q) => $q->where('organization_id', $organizationId));
 
         foreach ($m[1] as $part) {
             $part = trim($part);
@@ -723,11 +880,12 @@ class Discussion extends Component
                     ->first();
                 if ($byTag) {
                     $ids[] = (int) $byTag->id;
+
                     continue;
                 }
             }
             // Fallback: match by name (comportement existant)
-            $byName = (clone $baseQuery)->where('name', 'ilike', '%' . $part . '%')->first();
+            $byName = (clone $baseQuery)->where('name', 'ilike', '%'.$part.'%')->first();
             if ($byName) {
                 $ids[] = (int) $byName->id;
             }
@@ -738,6 +896,16 @@ class Discussion extends Component
 
     /** Change le statut du ticket. Réservé au staff. Admin/owner can bypass lock to reopen. */
     public function changeStatus(string $status): void
+    {
+        $this->handleChangeStatus($status);
+    }
+
+    private function handleChangeStatus(string $status): void
+    {
+        $this->processChangeStatus($status);
+    }
+
+    private function processChangeStatus(string $status): void
     {
         $user = Auth::user();
         if (! $user || ! $this->canAssignTicket()) {
@@ -758,21 +926,8 @@ class Discussion extends Component
             abort(403, __('tickets.locked'));
         }
 
-        // Strict mode: all checklist items must be done before resolving/closing
-        $isResolving = in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true);
-        if ($isResolving) {
-            $org = Organization::find($ticket->organization_id);
-            $orgSettings = is_array($org?->settings) ? $org->settings : [];
-            $resolutionMode = $orgSettings['workflow']['ticket_resolution_mode'] ?? 'flexible';
-
-            if ($resolutionMode === 'strict') {
-                $totalItems = $ticket->checklistItems()->count();
-                $doneItems = $ticket->checklistItems()->where('is_done', true)->count();
-                if ($totalItems > 0 && $doneItems < $totalItems) {
-                    $this->dispatch('toast', type: 'error', message: __('tickets.ticket_resolution_strict_error'));
-                    return;
-                }
-            }
+        if (! $this->passesResolutionStrictMode($ticket, $newStatus)) {
+            return;
         }
 
         $isClosed = in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true);
@@ -787,8 +942,8 @@ class Discussion extends Component
             'type' => TicketMessageType::System,
             'body' => __('tickets.status_changed', [
                 'actor' => $user->name,
-                'old' => __('tickets.status.' . $oldStatus->value),
-                'new' => __('tickets.status.' . $newStatus->value),
+                'old' => __('tickets.status.'.$oldStatus->value),
+                'new' => __('tickets.status.'.$newStatus->value),
             ]),
             'meta' => ['action' => 'status_changed', 'old' => $oldStatus->value, 'new' => $newStatus->value],
         ]);
@@ -797,9 +952,84 @@ class Discussion extends Component
             'old_status' => $oldStatus->value,
             'new_status' => $newStatus->value,
         ]);
+
+        // SLA tracking
+        if ($newStatus === TicketStatus::Pending) {
+            SlaService::pause($ticket);
+        } elseif ($oldStatus === TicketStatus::Pending && $newStatus !== TicketStatus::Pending) {
+            SlaService::resume($ticket);
+        }
+        if (in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true)) {
+            SlaService::recordResolution($ticket);
+        }
+        if (in_array($oldStatus, [TicketStatus::Resolved, TicketStatus::Closed], true)
+            && ! in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true)) {
+            SlaService::onReopened($ticket);
+            $this->notifyTicketReopened($ticket, (int) $user->id, $user->name);
+        }
+
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
         CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
+
+        AutomationService::evaluate($ticket, 'status_changed');
+
+        $ticket->load(['category', 'priority', 'group', 'creator', 'assignees']);
+        WebhookService::dispatch((int) $ticket->organization_id, 'ticket.status_changed', [
+            'ticket_id' => $ticket->public_id,
+            'old_status' => $oldStatus->value,
+            'new_status' => $newStatus->value,
+            'changed_by' => $user->id,
+        ]);
+    }
+
+    private function passesResolutionStrictMode(Ticket $ticket, TicketStatus $newStatus): bool
+    {
+        $isResolving = in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true);
+        if (! $isResolving) {
+            return true;
+        }
+
+        $org = Organization::find($ticket->organization_id);
+        $orgSettings = is_array($org?->settings) ? $org->settings : [];
+        $resolutionMode = $orgSettings['workflow']['ticket_resolution_mode'] ?? 'flexible';
+        if ($resolutionMode !== 'strict') {
+            return true;
+        }
+
+        $totalItems = $ticket->checklistItems()->count();
+        $doneItems = $ticket->checklistItems()->where('is_done', true)->count();
+        if ($totalItems > 0 && $doneItems < $totalItems) {
+            $this->dispatch('toast', type: 'error', message: __('tickets.ticket_resolution_strict_error'));
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function notifyTicketReopened(Ticket $ticket, int $actorId, string $actorName): void
+    {
+        $notifyUserIds = collect([$ticket->created_by])
+            ->merge($ticket->assignees->pluck('id'))
+            ->merge($ticket->participants->pluck('id'))
+            ->filter()
+            ->unique()
+            ->diff([$actorId])
+            ->values();
+
+        if ($notifyUserIds->isEmpty()) {
+            return;
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, User> $recipients */
+        $recipients = User::query()->whereIn('id', $notifyUserIds)->get();
+        foreach ($recipients as $recipient) {
+            if ($ticket->hasDiscussionAccess((int) $recipient->id)) {
+                $recipient->notify(new TicketReopenedNotification($ticket, $actorId, $actorName));
+                event(new UserNotificationReceived((int) $recipient->id, 'ticket_reopened'));
+            }
+        }
     }
 
     /** Change la priorité du ticket. Réservé au staff. */
@@ -822,6 +1052,9 @@ class Discussion extends Component
         }
 
         $ticket->update(['ticket_priority_id' => $newPriority->id]);
+
+        SlaService::onPriorityChanged($ticket, $oldPriority?->id);
+
         TicketMessage::create([
             'ticket_id' => $ticket->id,
             'user_id' => null,
@@ -836,6 +1069,8 @@ class Discussion extends Component
         CacheHelper::invalidateDashboard((int) $ticket->organization_id);
         CacheHelper::invalidateReports((int) $ticket->organization_id);
         CacheHelper::invalidateTicketCounts((int) $ticket->organization_id);
+
+        AutomationService::evaluate($ticket, 'priority_changed');
     }
 
     /** Change le groupe du ticket. Réservé au staff. */
@@ -868,7 +1103,7 @@ class Discussion extends Component
         $ticket = $this->getTicket();
         $this->guardAgainstLock($ticket);
 
-        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
+        $hasEditPerm = $user instanceof User && $user->hasPermission(Permission::TicketsEdit);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
         $isAssignee = $ticket->assignees()->where('users.id', $user->id)->exists();
 
@@ -913,7 +1148,7 @@ class Discussion extends Component
         $this->guardAgainstLock($ticket);
 
         // Check canEditChecklist logic
-        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
+        $hasEditPerm = $user instanceof User && $user->hasPermission(Permission::TicketsEdit);
         $isAssignee = $ticket->assignees->contains('id', $user->id);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
 
@@ -942,7 +1177,7 @@ class Discussion extends Component
         }
         $this->guardAgainstLock($ticket);
 
-        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
+        $hasEditPerm = $user instanceof User && $user->hasPermission(Permission::TicketsEdit);
         $isAssignee = $ticket->assignees->contains('id', $user->id);
         $isCreator = (int) $ticket->created_by === (int) $user->id;
 
@@ -955,24 +1190,93 @@ class Discussion extends Component
         $item->update(['title' => $title]);
     }
 
+    // ─── Approval workflow ─────────────────────────────────────────────
+
+    public function openApprovalModal(string $action): void
+    {
+        $this->approvalAction = $action;
+        $this->approvalComment = '';
+        $this->showApprovalModal = true;
+    }
+
+    public function cancelApproval(): void
+    {
+        $this->showApprovalModal = false;
+        $this->approvalAction = '';
+        $this->approvalComment = '';
+    }
+
+    public function submitApproval(): void
+    {
+        $this->validate([
+            'approvalComment' => ['required', 'string', 'min:3', 'max:2000'],
+        ]);
+
+        $user = Auth::user();
+        abort_if(! $user, 403);
+
+        $ticket = $this->getTicket();
+
+        if ($this->approvalAction === 'approve') {
+            ApprovalService::approve($ticket, $user, $this->approvalComment);
+        } elseif ($this->approvalAction === 'reject') {
+            ApprovalService::reject($ticket, $user, $this->approvalComment);
+        }
+
+        $this->showApprovalModal = false;
+        $this->approvalAction = '';
+        $this->approvalComment = '';
+    }
+
     /** Load ticket with relations used by the discussion view (reduces type complexity in render()). */
     private function loadTicketForRender(): Ticket
     {
-        return Ticket::query()
-            ->with([
-                'creator:id,name,email',
-                'assignees:id,name,email',
-                'participants:id,name,email',
-                'category:id,name',
-                'priority:id,name,level',
-                'organization:id,name',
-                'assignedToFunction:id,name',
-                'group:id,name,color',
+        $relations = [
+            'creator:id,name,email,mention_tag',
+            'assignees:id,name,email,mention_tag',
+            'participants:id,name,email,mention_tag',
+            'category:id,name',
+            'priority:id,name,level',
+            'organization:id,name',
+            'assignedToFunction:id,name',
+            'group:id,name,color',
+        ];
+
+        // Heavy relations are deferred to stage 2 for faster first paint.
+        if ($this->loadStage >= 2) {
+            $relations = array_merge($relations, [
                 'checklistItems.assignee:id,name,email',
                 'checklistItems.assignees:id,name,email',
                 'checklistItems.doneByUser:id,name,email',
                 'checklistItems.assignedToFunction:id,name',
+                'approvals.approver:id,name',
+                'approvals.requester:id,name',
+            ]);
+        }
+
+        return Ticket::query()
+            ->select([
+                'id',
+                'public_id',
+                'organization_id',
+                'created_by',
+                'ticket_category_id',
+                'ticket_priority_id',
+                'ticket_group_id',
+                'assigned_to',
+                'assigned_to_function_id',
+                'status',
+                'subject',
+                'description',
+                'custom_fields',
+                'attachments',
+                'start_date',
+                'due_date',
+                'closed_by',
+                'closed_at',
+                'updated_at',
             ])
+            ->with($relations)
             ->whereKey($this->ticketId)
             ->where('organization_id', session('current_organization_id'))
             ->firstOrFail();
@@ -985,12 +1289,30 @@ class Discussion extends Component
      */
     private function buildUsersData(Ticket $ticket): array
     {
+        // Fast first paint: avoid loading all organization members before the page is visible.
+        if ($this->loadStage < 2) {
+            $orgUsers = collect([$ticket->creator])
+                ->merge($ticket->assignees)
+                ->merge($ticket->participants)
+                ->filter()
+                ->unique('id')
+                ->values();
+
+            $mentionableUsers = $orgUsers
+                ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'tag' => $u->mention_tag])
+                ->values()
+                ->all();
+
+            return compact('orgUsers', 'mentionableUsers');
+        }
+
         $orgUsers = cache()->remember(
             CacheHelper::membersKey((int) $ticket->organization_id),
             CacheHelper::TTL,
             fn () => User::query()
                 ->whereHas('organizations', fn ($q) => $q->where('organization_id', $ticket->organization_id))
                 ->orderBy('name')
+                ->limit(300)
                 ->get(['id', 'name', 'email', 'mention_tag'])
         );
 
@@ -1070,15 +1392,21 @@ class Discussion extends Component
                 ->get(['id', 'name', 'level'])
         );
 
-        $formResponse = FormResponse::where('ticket_id', $ticket->id)->first();
+        // Fast first paint: keep sidebar essentials only.
+        if ($this->loadStage < 2) {
+            return [
+                'orgPriorities' => $orgPriorities,
+                'formResponse' => null,
+                'orgMemberRoles' => [],
+                'organizationFunctions' => collect(),
+                'ticketGroups' => collect(),
+            ];
+        }
 
-        $orgMemberRoles = cache()->remember(
-            CacheHelper::orgMemberRolesKey($orgId),
-            CacheHelper::TTL,
-            fn () => \Illuminate\Support\Facades\DB::table('organization_memberships')
-                ->where('organization_id', $orgId)
-                ->pluck('role', 'user_id')
-                ->all()
+        $formResponse = cache()->remember(
+            "form_response:ticket:{$ticket->id}",
+            60,
+            fn () => FormResponse::where('ticket_id', $ticket->id)->first()
         );
 
         $organizationFunctions = $orgId
@@ -1105,21 +1433,26 @@ class Discussion extends Component
             )
             : collect();
 
-        return compact('orgPriorities', 'formResponse', 'orgMemberRoles', 'organizationFunctions', 'ticketGroups');
+        return [
+            'orgPriorities' => $orgPriorities,
+            'formResponse' => $formResponse,
+            'orgMemberRoles' => [],
+            'organizationFunctions' => $organizationFunctions,
+            'ticketGroups' => $ticketGroups,
+        ];
     }
 
     /** Build view data for the discussion view. */
     private function getDiscussionViewData(Ticket $ticket): array
     {
-        $usersData = $this->buildUsersData($ticket);
+        $usersData = $this->cachedUsersData ?? $this->buildUsersData($ticket);
         $permissions = $this->buildPermissionFlags($ticket);
-        $orgRef = $this->buildOrgReferenceData($ticket);
+        $orgRef = $this->cachedOrgRef ?? $this->buildOrgReferenceData($ticket);
 
         // Use cached orgMemberRoles to get user's function IDs (no extra query)
         $orgId = (int) session('current_organization_id');
         $userFunctionIds = [];
         if ($permissions['authUserId'] && $orgId) {
-            $memberRoles = $orgRef['orgMemberRoles'];
             // We need function IDs — get from cached membership data
             $userFunctionIds = cache()->remember(
                 "org_member_functions:{$orgId}:{$permissions['authUserId']}",
@@ -1138,6 +1471,7 @@ class Discussion extends Component
         $authUser = Auth::user();
         $isLocked = $ticket->isLocked();
         $canBypassLock = $authUser && $ticket->canBypassLock($authUser);
+        $canApproveTicket = $authUser && $ticket->isPendingApproval() && ApprovalService::canApprove($ticket, $authUser);
 
         return [
             'ticket' => $ticket,
@@ -1164,27 +1498,57 @@ class Discussion extends Component
             'ticketGroups' => $orgRef['ticketGroups'],
             'isLocked' => $isLocked,
             'canBypassLock' => $canBypassLock,
+            'canApproveTicket' => $canApproveTicket,
         ];
     }
 
+    /** Cached view data that rarely changes (org priorities, roles, functions, groups). */
+    private ?array $cachedOrgRef = null;
+
+    private ?array $cachedUsersData = null;
+
     public function render(): \Illuminate\Contracts\View\View
     {
+        $layout = $this->embedded ? 'layouts.manexo-embed' : 'layouts.manexo-app';
+
         $ticket = $this->loadTicketForRender();
         $this->computeNotePermissions($ticket);
 
-        $ticket->load([
-            'messages' => function ($q) {
-                if (! $this->canSeeInternalNotes) {
-                    $q->where('type', '!=', TicketMessageType::InternalNote);
-                }
-                $q->with('user:id,name,email');
-            },
-        ]);
+        // Stage 2+: load messages (the heavy part, deferred from stage 1)
+        if ($this->loadStage >= 2) {
+            $ticket->load([
+                'messages' => function ($q) {
+                    if (! $this->canSeeInternalNotes) {
+                        $q->where('type', '!=', TicketMessageType::InternalNote);
+                    }
+                    // Keep initial payload compact: recent messages only.
+                    $q->select([
+                        'id',
+                        'ticket_id',
+                        'user_id',
+                        'type',
+                        'body',
+                        'attachments',
+                        'meta',
+                        'created_at',
+                    ])
+                        ->with('user:id,name,email')
+                        ->latest('id')
+                        ->limit(80);
+                },
+            ]);
+            $ticket->setRelation('messages', $ticket->messages->sortBy('id')->values());
+        }
 
-        $layout = $this->embedded ? 'layouts.manexo-embed' : 'layouts.manexo-app';
+        // Cache org reference data within the request lifecycle (priorities, roles, functions)
+        $this->cachedOrgRef ??= $this->buildOrgReferenceData($ticket);
+        $this->cachedUsersData ??= $this->buildUsersData($ticket);
+
+        $viewData = $this->getDiscussionViewData($ticket);
+        $viewData['loadStage'] = $this->loadStage;
 
         /** @var \Illuminate\View\View $view */
-        $view = view('livewire.tickets.discussion', $this->getDiscussionViewData($ticket));
+        $view = view('livewire.tickets.discussion', $viewData);
 
         return $view->layout($layout);
     }
@@ -1197,7 +1561,7 @@ class Discussion extends Component
             abort(403);
         }
         $ticket = $this->getTicket();
-        if (! $user->hasPermission(Permission::TicketsAssign)) {
+        if (! ($user instanceof User) || ! $user->hasPermission(Permission::TicketsAssign)) {
             abort(403);
         }
         $id = $functionId === '' || $functionId === null ? null : (int) $functionId;
@@ -1227,7 +1591,7 @@ class Discussion extends Component
         $userId = (int) $user->id;
         $isItemAssignee = $item->assigned_to && (int) $item->assigned_to === $userId;
         $isItemPivotAssignee = $item->assignees()->where('user_id', $userId)->exists();
-        $hasEditPerm = $user->hasPermission(Permission::TicketsEdit);
+        $hasEditPerm = $user instanceof User && $user->hasPermission(Permission::TicketsEdit);
         $isTicketAssignee = $ticket->assignees->contains('id', $userId);
         $isTicketCreator = $ticket->created_by && (int) $ticket->created_by === $userId;
 
@@ -1270,7 +1634,7 @@ class Discussion extends Component
             ->where('organization_function_id', $item->assigned_to_function_id)
             ->exists();
 
-        if (! $belongsToFunction) {
+        if (! $belongsToFunction || ! $this->isInternalStaffUser((int) $user->id, $orgId)) {
             abort(403);
         }
 
@@ -1319,6 +1683,11 @@ class Discussion extends Component
             abort(403);
         }
         $this->guardAgainstLock($ticket);
+        if ($this->newChecklistAssignedTo && ! $this->isInternalStaffUser((int) $this->newChecklistAssignedTo, (int) $ticket->organization_id)) {
+            $this->addError('newChecklistAssignedTo', 'Cette personne ne fait pas partie de l\'équipe interne.');
+
+            return;
+        }
         $maxOrder = $ticket->checklistItems()->max('sort_order') ?? -1;
         $item = TicketChecklistItem::create([
             'ticket_id' => $ticket->id,
@@ -1364,6 +1733,11 @@ class Discussion extends Component
         }
         /** @var TicketChecklistItem $item */
         $item = $ticket->checklistItems()->whereKey($itemId)->firstOrFail();
+        if (! $this->isInternalStaffUser($userId, (int) $ticket->organization_id)) {
+            $this->addError('checklist', 'Cette personne ne fait pas partie de l\'équipe interne.');
+
+            return;
+        }
         if ($item->assignees()->where('user_id', $userId)->exists()) {
             return;
         }

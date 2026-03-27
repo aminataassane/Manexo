@@ -37,6 +37,11 @@ class AuditExportController extends Controller
             // BOM for Excel UTF-8
             fwrite($handle, "\xEF\xBB\xBF");
 
+            // Manexo branding header
+            fputcsv($handle, ['Manexo — Journal d\'audit'], ';');
+            fputcsv($handle, ['Exporté le ' . now()->format('d/m/Y H:i')], ';');
+            fputcsv($handle, [], ';');
+
             fputcsv($handle, ['Date', 'Admin', 'Action', 'Target Type', 'Target ID', 'IP', 'Metadata'], ';');
 
             foreach ($logs as $log) {

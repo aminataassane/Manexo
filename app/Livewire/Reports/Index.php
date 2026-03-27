@@ -4,6 +4,7 @@ namespace App\Livewire\Reports;
 
 use App\Enums\Permission;
 use App\Helpers\CacheHelper;
+use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Ticket;
 use Illuminate\Support\Carbon;
@@ -18,6 +19,16 @@ use Livewire\Component;
 #[Title('Rapports')]
 class Index extends Component
 {
+    /** 1 = shell instantané, 2 = KPI + graphiques (progressif). */
+    public int $loadStage = 1;
+
+    public function loadReportBody(): void
+    {
+        if ($this->loadStage < 2) {
+            $this->loadStage = 2;
+        }
+    }
+
     /** @var string 'default' (30 days) | 'monthly' (current month) | 'yearly' (12 months) */
     public string $period = 'default';
 
@@ -36,6 +47,41 @@ class Index extends Component
         $pct = max(-99, min(99, $pct));
 
         return ['dir' => $pct >= 0 ? 'up' : 'down', 'val' => (int) abs($pct)];
+    }
+
+    /**
+     * Données vides pour le premier rendu (évite le cache lourd avant wire:init).
+     *
+     * @return array<string, mixed>
+     */
+    private function emptyReportsIndexData(): array
+    {
+        return [
+            'kpis' => [
+                'total' => 0,
+                'open' => 0,
+                'in_progress' => 0,
+                'pending' => 0,
+                'done' => 0,
+                'created_7d' => 0,
+                'done_7d' => 0,
+                'avg_open_age_hours' => 0,
+            ],
+            'byStatus' => [],
+            'createdLast7d' => [],
+            'createdLast30d' => [],
+            'topCategories' => [],
+            'topAssignees' => [],
+            'team' => ['owners' => 0, 'admins' => 0, 'agents' => 0, 'members' => 0],
+            'trendTotal' => ['dir' => 'up', 'val' => 0],
+            'trendNew30d' => ['dir' => 'up', 'val' => 0],
+            'trendNewInPeriod' => ['dir' => 'up', 'val' => 0],
+            'resolutionRate' => 0.0,
+            'teamCapacityPercent' => 0,
+            'performanceSeries' => [],
+            'createdInPeriod' => 0,
+            'slaKpis' => null,
+        ];
     }
 
     /**
@@ -71,12 +117,19 @@ class Index extends Component
         }
 
         // Only users with reports.view permission
-        if (! $user->hasPermission(Permission::ReportsView)) {
+        if (! ($user instanceof \App\Models\User) || ! $user->hasPermission(Permission::ReportsView)) {
             abort(403);
         }
 
         $period = $this->period;
-        $data = Cache::remember(CacheHelper::reportsKey($orgId, $period), CacheHelper::TTL, function () use ($orgId, $period) {
+
+        if ($this->loadStage < 2) {
+            return view('livewire.reports.index', $this->emptyReportsIndexData());
+        }
+
+        $cacheKey = CacheHelper::reportsKey($orgId, $period);
+        $data = Cache::get($cacheKey);
+        if ($data === null) {
             $now = Carbon::now();
             $since7d = $now->copy()->subDays(7);
             $since30d = $now->copy()->subDays(30);
@@ -96,15 +149,17 @@ class Index extends Component
                 ->selectRaw("count(*) filter (where status = 'in_progress') as in_progress_count")
                 ->selectRaw("count(*) filter (where status = 'pending') as pending_count")
                 ->selectRaw("count(*) filter (where status in ('resolved','closed')) as done_count")
-                ->selectRaw("count(*) filter (where created_at >= ?) as created_7d", [$since7d])
+                ->selectRaw('count(*) filter (where created_at >= ?) as created_7d', [$since7d])
                 ->selectRaw("count(*) filter (where status in ('resolved','closed') and updated_at >= ?) as done_7d", [$since7d])
-                ->selectRaw("count(*) filter (where created_at >= ? and created_at < ?) as created_prev_30d", [$since60d, $since30d])
+                ->selectRaw('count(*) filter (where created_at >= ? and created_at < ?) as created_prev_30d', [$since60d, $since30d])
                 ->selectRaw("avg(extract(epoch from (? - created_at))) filter (where status in ('open','in_progress','pending')) as avg_open_age_seconds", [$now])
+                ->selectRaw('count(*) filter (where created_at < ?) as total_30d_ago', [$since30d])
+                ->selectRaw('count(*) filter (where created_at >= ?) as created_curr_30d', [$since30d])
                 ->first();
 
-            $total30dAgo = (clone $base)->where('created_at', '<', $since30d)->count();
+            $total30dAgo = (int) ($kpiRow?->total_30d_ago ?? 0);
             $totalNow = (int) ($kpiRow?->total ?? 0);
-            $createdCurr30d = (int) (clone $base)->where('created_at', '>=', $since30d)->count();
+            $createdCurr30d = (int) ($kpiRow?->created_curr_30d ?? 0);
             $createdPrev30d = (int) ($kpiRow?->created_prev_30d ?? 0);
 
             $kpis = [
@@ -241,15 +296,62 @@ class Index extends Component
                 'members' => (int) ($rolesCount?->members ?? 0),
             ];
 
-            return compact(
+            // SLA KPIs (only if SLA is enabled for this organization)
+            $slaKpis = null;
+            $orgSettings = Organization::query()->where('id', $orgId)->value('settings');
+            $orgSettings = is_array($orgSettings) ? $orgSettings : (is_string($orgSettings) ? json_decode($orgSettings, true) : []);
+            $slaEnabled = (bool) ($orgSettings['sla']['enabled'] ?? false);
+            if ($slaEnabled) {
+                $slaBase = (clone $base)->whereNotNull('sla_policy_id');
+
+                $slaRow = (clone $slaBase)
+                    ->selectRaw('count(*) as total')
+                    ->selectRaw('count(*) filter (where sla_first_response_met_at is not null and sla_first_response_breached = false) as fr_met')
+                    ->selectRaw('count(*) filter (where sla_resolution_met_at is not null and sla_resolution_breached = false) as res_met')
+                    ->selectRaw('count(*) filter (where sla_first_response_breached = true) as fr_breached')
+                    ->selectRaw('count(*) filter (where sla_resolution_breached = true) as res_breached')
+                    ->first();
+
+                $slaTotal = (int) ($slaRow->total ?? 0);
+                if ($slaTotal > 0) {
+                    $slaPriorityStats = (clone $slaBase)
+                        ->join('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
+                        ->selectRaw('tp.name as priority_name, tp.level as priority_level')
+                        ->selectRaw('count(*) as total')
+                        ->selectRaw('count(*) filter (where tickets.sla_first_response_met_at is not null and tickets.sla_first_response_breached = false) as fr_met')
+                        ->selectRaw('count(*) filter (where tickets.sla_resolution_met_at is not null and tickets.sla_resolution_breached = false) as res_met')
+                        ->groupBy('tp.name', 'tp.level')
+                        ->orderByDesc('tp.level')
+                        ->get()
+                        ->map(fn ($r) => [
+                            'name' => (string) $r->priority_name,
+                            'total' => (int) $r->total,
+                            'fr_met_pct' => (int) $r->total > 0 ? round(((int) $r->fr_met / (int) $r->total) * 100, 1) : 0,
+                            'res_met_pct' => (int) $r->total > 0 ? round(((int) $r->res_met / (int) $r->total) * 100, 1) : 0,
+                        ])
+                        ->all();
+
+                    $slaKpis = [
+                        'total' => (int) $slaRow->total,
+                        'fr_met_pct' => round(((int) $slaRow->fr_met / (int) $slaRow->total) * 100, 1),
+                        'res_met_pct' => round(((int) $slaRow->res_met / (int) $slaRow->total) * 100, 1),
+                        'fr_breached_pct' => round(((int) $slaRow->fr_breached / (int) $slaRow->total) * 100, 1),
+                        'res_breached_pct' => round(((int) $slaRow->res_breached / (int) $slaRow->total) * 100, 1),
+                        'by_priority' => $slaPriorityStats,
+                    ];
+                }
+            }
+
+            $data = compact(
                 'kpis', 'byStatus', 'createdLast7d', 'createdLast30d',
                 'topCategories', 'topAssignees', 'team', 'trendTotal',
                 'trendNew30d', 'trendNewInPeriod', 'resolutionRate',
                 'teamCapacityPercent', 'performanceSeries', 'createdInPeriod',
+                'slaKpis',
             );
-        });
+            Cache::put($cacheKey, $data, CacheHelper::TTL);
+        }
 
         return view('livewire.reports.index', $data);
     }
 }
-

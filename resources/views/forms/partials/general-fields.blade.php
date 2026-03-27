@@ -34,7 +34,7 @@
             @error('ticket_category_id')<p class="text-[12px] text-red-500 mt-1 flex items-center gap-1"><iconify-icon icon="solar:danger-circle-bold" width="13"></iconify-icon> {{ $message }}</p>@enderror
         </div>
     @else
-        <input type="hidden" name="ticket_category_id" value="{{ (int) $form->ticket_category_id }}">
+        <input type="hidden" name="ticket_category_id" id="ticket_category_id_fixed" value="{{ (int) $form->ticket_category_id }}">
     @endif
 @endif
 

@@ -162,6 +162,7 @@ return [
         'groups' => 'Groups',
         'all_groups' => 'All groups',
         'no_group' => 'No group',
+        'all_tickets' => 'All tickets',
     ],
     'groups' => [
         'title' => 'Groups',
@@ -207,6 +208,7 @@ return [
         'no_conversation_started' => 'No conversation started.',
         'no_discussion_in_view' => 'No discussion in this view.',
         'back_to_list' => 'Back to list',
+        'open_full_ticket' => 'Open full ticket detail',
         'select_discussion' => 'Select a discussion',
         'select_discussion_help' => 'Choose a conversation from the list or start a new discussion with a user or group.',
         'choose_user' => 'Choose a user to start a conversation.',
@@ -264,6 +266,9 @@ return [
         'form_expired' => 'This form has expired and can no longer be submitted.',
         'form_overdue_warning' => 'This form is overdue. Please fill it as soon as possible.',
         'expires_at' => 'Expires',
+        'no_forms_overdue' => 'No overdue forms.',
+        'no_forms_expired' => 'No expired forms.',
+        'team_form_badge' => 'Team',
     ],
     'notifications' => [
         'title' => 'Notifications',

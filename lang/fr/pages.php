@@ -162,6 +162,7 @@ return [
         'groups' => 'Groupes',
         'all_groups' => 'Tous les groupes',
         'no_group' => 'Sans groupe',
+        'all_tickets' => 'Tous les tickets',
     ],
     'groups' => [
         'title' => 'Groupes',
@@ -207,6 +208,7 @@ return [
         'no_conversation_started' => 'Aucune conversation démarrée.',
         'no_discussion_in_view' => 'Aucune discussion dans cette vue.',
         'back_to_list' => 'Retour à la liste',
+        'open_full_ticket' => 'Ouvrir le détail du ticket',
         'select_discussion' => 'Sélectionnez une discussion',
         'select_discussion_help' => 'Choisissez une conversation dans la liste ou démarrez une nouvelle discussion avec un utilisateur ou un groupe.',
         'choose_user' => 'Choisissez un utilisateur pour démarrer une conversation.',
@@ -264,6 +266,9 @@ return [
         'form_expired' => 'Ce formulaire a expiré et ne peut plus être soumis.',
         'form_overdue_warning' => 'Ce formulaire est en retard. Veuillez le remplir au plus vite.',
         'expires_at' => 'Expiration',
+        'no_forms_overdue' => "Aucun formulaire en retard.",
+        'no_forms_expired' => "Aucun formulaire expiré.",
+        'team_form_badge' => 'Équipe',
     ],
     'notifications' => [
         'title' => 'Notifications',

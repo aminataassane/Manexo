@@ -4,8 +4,6 @@ return [
     'main_menu' => 'Main menu',
     'dashboard' => 'Dashboard',
     'tickets' => 'Tickets',
-    'list_view' => 'List view',
-    'kanban_view' => 'Kanban view',
     'groups_view' => 'Groups',
     'discussions' => 'Discussions',
     'forms' => 'Forms',

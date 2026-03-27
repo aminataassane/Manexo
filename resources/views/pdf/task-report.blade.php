@@ -19,11 +19,29 @@
         .data-table td { padding: 7px 12px; border-bottom: 1px solid #f1f5f9; font-size: 10px; color: #334155; }
         .data-table tr:nth-child(even) td { background: #f8fafc; }
         .footer { margin-top: 30px; padding: 15px 30px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #94a3b8; text-align: center; }
+        .header-logo { display: inline-block; vertical-align: middle; }
+        .header-logo img { height: 32px; max-width: 120px; object-fit: contain; }
+        .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .brand-badge { display: inline-block; background: #f1f5f9; border-radius: 4px; padding: 3px 8px; font-size: 8px; font-weight: 600; color: #64748b; letter-spacing: 0.5px; }
+        .footer-brand { font-weight: 600; color: #475569; }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>{{ $orgName }} — {{ __('task_report.shared_report_title') }}</h1>
+        <table style="width:100%;border:none;border-collapse:collapse;">
+            <tr>
+                <td style="border:none;padding:0;vertical-align:middle;">
+                    @if(!empty($logoBase64))
+                        <img src="{{ $logoBase64 }}" style="height:32px;max-width:120px;margin-right:10px;vertical-align:middle;" alt="">
+                    @endif
+                    <span style="font-size:18px;font-weight:bold;color:#0f172a;vertical-align:middle;">{{ $orgName }}</span>
+                </td>
+                <td style="border:none;padding:0;text-align:right;vertical-align:middle;">
+                    <span class="brand-badge">Manexo</span>
+                </td>
+            </tr>
+        </table>
+        <h1 style="margin-top:6px;">{{ __('task_report.shared_report_title') }}</h1>
         <p>{{ __('task_report.period_label', ['from' => $from->format('d/m/Y'), 'to' => $to->format('d/m/Y')]) }} &middot; {{ __('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')]) }}</p>
     </div>
 
@@ -79,7 +97,7 @@
     </div>
 
     <div class="footer">
-        {{ $orgName }} &middot; {{ __('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')]) }}
+        <span class="footer-brand">Manexo</span> &middot; {{ $orgName }} &middot; {{ __('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')]) }}
     </div>
 </body>
 </html>

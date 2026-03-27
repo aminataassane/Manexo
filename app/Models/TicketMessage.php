@@ -15,6 +15,7 @@ class TicketMessage extends Model
         'body',
         'attachments',
         'meta',
+        'email_message_id',
     ];
 
     protected function casts(): array

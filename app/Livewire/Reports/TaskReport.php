@@ -26,6 +26,16 @@ class TaskReport extends Component
 {
     use WithPagination;
 
+    /** 1 = shell instantané, 2 = stats + tableaux (progressif). */
+    public int $loadStage = 1;
+
+    public function loadReportBody(): void
+    {
+        if ($this->loadStage < 2) {
+            $this->loadStage = 2;
+        }
+    }
+
     public string $period = 'week';
 
     public string $dateFrom = '';
@@ -231,6 +241,27 @@ class TaskReport extends Component
         );
     }
 
+    /**
+     * Structure identique à computeStats pour le premier rendu (sans requêtes).
+     *
+     * @return array<string, mixed>
+     */
+    private static function emptyTaskReportStats(): array
+    {
+        return [
+            'closedTicketsCount' => 0,
+            'byCategoryClosed' => [],
+            'byUserClosed' => [],
+            'topCategoryClosed' => ['name' => null, 'count' => 0],
+            'topUserClosed' => ['name' => null, 'count' => 0],
+            'tasksTotal' => 0,
+            'byUserTasks' => [],
+            'byCategoryTasks' => [],
+            'topUserTasks' => ['name' => null, 'count' => 0],
+            'topCategoryTasks' => ['name' => null, 'count' => 0],
+        ];
+    }
+
     #[Computed]
     public function closedTickets()
     {
@@ -260,13 +291,35 @@ class TaskReport extends Component
             ->paginate(20);
     }
 
+    private function getLogoBase64(?object $org): ?string
+    {
+        if ($org && $org->logo_path) {
+            $path = storage_path('app/public/' . ltrim($org->logo_path, '/'));
+            if (file_exists($path)) {
+                $mime = mime_content_type($path) ?: 'image/png';
+
+                return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+            }
+        }
+
+        return null;
+    }
+
     public function exportCsv(): StreamedResponse
     {
         [$from, $to] = $this->dateRange();
+        $org = request()->attributes->get('currentOrganization');
+        $orgName = $org?->name ?? '';
 
-        return response()->streamDownload(function () use ($from, $to) {
+        return response()->streamDownload(function () use ($from, $to, $orgName) {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM
+
+            // Manexo branding header
+            fputcsv($handle, ['Manexo — ' . $orgName], ';');
+            fputcsv($handle, [__('task_report.shared_report_title') . ' — ' . $from->format('d/m/Y') . ' au ' . $to->format('d/m/Y')], ';');
+            fputcsv($handle, [__('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')])], ';');
+            fputcsv($handle, [], ';');
 
             fputcsv($handle, [
                 __('task_report.export_type'),
@@ -353,6 +406,7 @@ class TaskReport extends Component
 
         $org = request()->attributes->get('currentOrganization');
         $orgName = $org?->name ?? '';
+        $logoBase64 = $this->getLogoBase64($org);
 
         $pdf = Pdf::loadView('pdf.task-report', [
             'stats' => $stats,
@@ -361,6 +415,7 @@ class TaskReport extends Component
             'from' => $from,
             'to' => $to,
             'orgName' => $orgName,
+            'logoBase64' => $logoBase64,
         ])->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
@@ -444,7 +499,9 @@ class TaskReport extends Component
         }
 
         [$from, $to] = $this->dateRange();
-        $stats = $this->computeStats($from, $to);
+        $stats = $this->loadStage < 2
+            ? self::emptyTaskReportStats()
+            : $this->computeStats($from, $to);
 
         return view('livewire.reports.task-report', [
             'stats' => $stats,

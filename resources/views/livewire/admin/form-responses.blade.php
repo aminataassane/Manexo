@@ -14,9 +14,16 @@
                 </div>
             </div>
             <button type="button" wire:click="exportCsv"
-                    class="h-8 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 transition inline-flex items-center gap-1.5 shrink-0">
-                <iconify-icon icon="solar:document-text-linear" width="15"></iconify-icon>
-                {{ __('forms_builder.export_csv') }}
+                    class="h-8 px-3 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50 transition inline-flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                    wire:loading.attr="disabled" wire:target="exportCsv">
+                <span wire:loading.remove wire:target="exportCsv">
+                    <iconify-icon icon="solar:document-text-linear" width="15"></iconify-icon>
+                </span>
+                <span wire:loading wire:target="exportCsv" class="animate-spin">
+                    <iconify-icon icon="solar:refresh-linear" width="15"></iconify-icon>
+                </span>
+                <span wire:loading.remove wire:target="exportCsv">{{ __('forms_builder.export_csv') }}</span>
+                <span wire:loading wire:target="exportCsv" class="text-slate-400">Génération...</span>
             </button>
         </div>
 

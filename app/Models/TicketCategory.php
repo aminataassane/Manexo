@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Traits\BelongsToOrganization;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Model;
 
 class TicketCategory extends Model
 {
     use BelongsToOrganization;
+
     protected $fillable = [
         'organization_id',
         'name',
@@ -17,12 +18,17 @@ class TicketCategory extends Model
         'is_active',
         'default_ticket_group_id',
         'default_form_id',
+        'requires_approval',
+        'approval_type',
+        'approval_user_id',
+        'approval_role',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'requires_approval' => 'boolean',
         ];
     }
 
@@ -44,5 +50,10 @@ class TicketCategory extends Model
     public function defaultForm(): BelongsTo
     {
         return $this->belongsTo(Form::class, 'default_form_id');
+    }
+
+    public function approvalUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approval_user_id');
     }
 }

@@ -7,43 +7,48 @@
 @endphp
 
 <div
-    class="flex flex-col min-h-0 overflow-hidden bg-white border-0 sm:border border-slate-200 shadow-sm rounded-none sm:rounded-2xl"
-    style="{{ ($embedded ?? false) ? 'height: 100%; min-height: 0;' : 'height: calc(100dvh - 4rem); min-height: 12rem;' }} padding-bottom: env(safe-area-inset-bottom, 0);"
+    class="flex flex-col h-full min-h-0 overflow-hidden bg-white"
     x-data="threadWebSocket({{ $thread->id }}, {{ auth()->id() ?? 'null' }})"
     @keydown.enter.window="if (document.activeElement?.closest('[data-composer]') && !$event.shiftKey) { $event.preventDefault(); $refs.submitBtn?.click() }"
 >
-    <div class="flex flex-1 min-h-0 overflow-hidden" x-data="{ infoOpen: false, mobileInfoOpen: false, toggleInfo(){ if (window.innerWidth >= 1024) this.infoOpen = !this.infoOpen; else this.mobileInfoOpen = !this.mobileInfoOpen; } }">
-        <!-- CENTER -->
-        <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50/50">
-            <header class="shrink-0 bg-white border-b border-slate-100 px-3 py-2.5 sm:px-6 sm:py-3" style="padding-top: max(0.625rem, env(safe-area-inset-top));">
-                <div class="flex items-center justify-between gap-2 sm:gap-3">
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg sm:rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] shrink-0">
-                                <iconify-icon icon="{{ $thread->is_group ? 'solar:users-group-rounded-bold-duotone' : 'solar:user-circle-bold-duotone' }}" width="20"></iconify-icon>
-                            </span>
-                            <div class="min-w-0 flex-1">
-                                <h1 class="text-sm sm:text-base font-bold text-slate-900 truncate">{{ $title }}</h1>
-                                <p class="text-xs text-slate-500 truncate">
-                                    {{ $participants->count() }} {{ $participants->count() > 1 ? __('pages.discussions.participants') : __('pages.discussions.participant') }}
-                                </p>
-                            </div>
+    <div class="flex flex-1 min-h-0 overflow-hidden" x-data="{ infoOpen: false, mobileInfoOpen: false, toggleInfo(){ if (window.innerWidth >= 768) this.infoOpen = !this.infoOpen; else this.mobileInfoOpen = !this.mobileInfoOpen; } }">
+        {{-- CENTER COLUMN --}}
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            {{-- Chat header (slim) --}}
+            <header class="shrink-0 bg-white border-b border-slate-100 px-4 py-2" style="padding-top: max(0.375rem, env(safe-area-inset-top));">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                        @if($embedded ?? false)
+                            <a href="{{ route('discussions.index') }}" wire:navigate
+                               class="md:hidden shrink-0 h-8 w-8 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors inline-flex items-center justify-center mr-1">
+                                <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
+                            </a>
+                        @endif
+                        <div class="h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
+                            <iconify-icon icon="{{ $thread->is_group ? 'solar:users-group-rounded-bold-duotone' : 'solar:user-circle-bold-duotone' }}" width="18"></iconify-icon>
+                        </div>
+                        <div class="min-w-0">
+                            <h1 class="text-sm font-bold text-slate-900 truncate">{{ $title }}</h1>
+                            <p class="text-[11px] text-slate-400 truncate">
+                                {{ $participants->count() }} {{ $participants->count() > 1 ? __('pages.discussions.participants') : __('pages.discussions.participant') }}
+                            </p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                        <button type="button" @click="toggleInfo()" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors touch-manipulation" aria-label="{{ __('pages.discussions.info') }}">
-                            <iconify-icon icon="solar:sidebar-minimalistic-linear" width="20"></iconify-icon>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" @click="toggleInfo()" class="h-8 w-8 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors inline-flex items-center justify-center" aria-label="{{ __('pages.discussions.info') }}">
+                            <iconify-icon icon="solar:sidebar-minimalistic-linear" width="18"></iconify-icon>
                         </button>
-                        <button type="button" wire:click="$refresh" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors touch-manipulation" title="{{ __('pages.discussions.refresh') }}">
-                            <iconify-icon icon="solar:refresh-linear" width="18" class="wire-loading:animate-spin"></iconify-icon>
+                        <button type="button" wire:click="$refresh" class="h-8 w-8 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors inline-flex items-center justify-center" title="{{ __('pages.discussions.refresh') }}">
+                            <iconify-icon icon="solar:refresh-linear" width="16" class="wire-loading:animate-spin"></iconify-icon>
                         </button>
                     </div>
                 </div>
             </header>
 
-            <div id="thread-messages" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-contain">
-                <div class="mx-auto w-full max-w-4xl px-3 py-4 sm:px-6 sm:py-8" style="padding-left: max(0.75rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right));">
-                    <div id="thread-timeline" class="space-y-4">
+            {{-- Chat scroll area --}}
+            <div id="thread-messages" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-contain messaging-chat-scroll">
+                <div class="mx-auto w-full max-w-3xl px-4 py-6" style="padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right));">
+                    <div id="thread-timeline" class="space-y-3">
                         @forelse($thread->messages as $msg)
                         @php
                             $isOwn = $msg->user_id && (int) $msg->user_id === (int) auth()->id();
@@ -58,12 +63,12 @@
 
                         @if($isOwn)
                             <div class="flex justify-end">
-                                <div class="max-w-[85%] min-w-0">
+                                <div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0">
                                     <div class="flex items-center justify-end gap-2 mb-1">
                                         <span class="text-[10px] text-slate-400">{{ $time }}</span>
-                                        <span class="text-xs font-semibold text-slate-900">{{ $msg->user?->name ?? '—' }}</span>
+                                        <span class="text-[11px] font-semibold text-slate-600">{{ $msg->user?->name ?? '—' }}</span>
                                     </div>
-                                    <div class="rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed text-white shadow-sm" style="background-color: var(--accent);">
+                                    <div class="messaging-bubble-own rounded-2xl rounded-br-sm px-4 py-2.5 text-[0.88rem] leading-relaxed text-white" style="background-color: var(--accent);">
                                         {!! $bodyFormatted !!}
                                         @if(count($messageAttachments) > 0)
                                             <div class="mt-2 pt-2 border-t border-white/20 space-y-1.5">
@@ -76,14 +81,14 @@
                                 </div>
                             </div>
                         @else
-                            <div class="flex items-end gap-2 sm:gap-3">
-                                <img src="{{ $avatarUrl }}" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-200 bg-white shrink-0" alt="">
-                                <div class="max-w-[85%] min-w-0">
+                            <div class="flex items-end gap-2">
+                                <img src="{{ $avatarUrl }}" class="w-7 h-7 rounded-full border border-slate-100 bg-white shrink-0" alt="">
+                                <div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0">
                                     <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-xs font-semibold text-slate-900">{{ $msg->user?->name ?? '—' }}</span>
+                                        <span class="text-[11px] font-semibold text-slate-600">{{ $msg->user?->name ?? '—' }}</span>
                                         <span class="text-[10px] text-slate-400">{{ $time }}</span>
                                     </div>
-                                    <div class="rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 text-slate-700 shadow-sm">
+                                    <div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">
                                         {!! $bodyFormatted !!}
                                         @if(count($messageAttachments) > 0)
                                             <div class="mt-2 pt-2 border-t border-slate-100 space-y-1.5">
@@ -98,65 +103,92 @@
                         @endif
                     @empty
                         <div class="py-16 text-center" data-empty-thread>
-                            <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                                <iconify-icon icon="solar:chat-round-dots-linear" width="24"></iconify-icon>
+                            <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full text-slate-300" style="background: var(--accent-soft);">
+                                <iconify-icon icon="solar:chat-round-dots-linear" width="24" style="color: var(--accent); opacity: 0.5;"></iconify-icon>
                             </div>
-                            <p class="text-sm text-slate-500">{{ __('pages.discussions.empty_message') }}</p>
+                            <p class="text-sm text-slate-400">{{ __('pages.discussions.empty_message') }}</p>
                         </div>
                     @endforelse
                     </div>
                 </div>
             </div>
 
-            <!-- Composer (toujours visible en bas : ne pas scroller avec les messages) -->
-            <div class="shrink-0 bg-white border-t border-slate-200 p-2 sm:p-4 z-10 flex-shrink-0" data-composer style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom));">
-                <div class="mx-auto w-full max-w-4xl">
-                    <form wire:submit="sendMessage" class="relative rounded-2xl bg-slate-50 border border-slate-200 shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)] focus-within:border-transparent transition-all">
-                        <div class="p-2">
-                            <textarea
-                                wire:model="body"
-                                rows="3"
-                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm p-2"
-                                placeholder="{{ __('pages.discussions.write_message') }}"
-                                @keydown.enter="if (!$event.shiftKey) { $event.preventDefault(); $el.closest('form').requestSubmit(); }"
-                            ></textarea>
-                        </div>
-                        <div class="flex items-center justify-between px-3 py-2 border-t border-slate-200/50 bg-white/50 rounded-b-2xl">
-                            <div class="flex items-center gap-1">
-                                <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="thread-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
-                                <button type="button" onclick="document.getElementById('thread-file-input').click()" class="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" title="{{ __('pages.discussions.attach_file') }}">
-                                    <iconify-icon icon="solar:paperclip-linear" width="20"></iconify-icon>
-                                </button>
-                                @if(count($attachmentFiles ?? []) > 0)
-                                    <span class="ml-2 text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-2 py-1 rounded-md">{{ count($attachmentFiles) }} fichier(s)</span>
-                                @endif
-                            </div>
-                            <button type="submit" x-ref="submitBtn" class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-md hover:opacity-90 transition-all" style="background-color: var(--accent);">
-                                <span>{{ __('pages.discussions.send') }}</span>
-                                <iconify-icon icon="solar:plain-bold" width="16"></iconify-icon>
-                            </button>
-                        </div>
+            {{-- Composer --}}
+            <div class="shrink-0 messaging-composer border-t border-slate-100 p-2 sm:p-3 z-10" data-composer style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));">
+                <div class="mx-auto w-full max-w-3xl">
+                    <form wire:submit="sendMessage" class="flex items-end gap-2 bg-[#F1F5F9]/80 rounded-2xl border border-slate-200 p-1.5 focus-within:ring-2 focus-within:ring-[var(--accent)]/30 focus-within:border-[var(--accent)]/30 transition-all"
+                        x-data="{
+                            draftKey: 'discussion-draft-{{ $thread->id }}',
+                            draftTimer: null,
+                            init() {
+                                try {
+                                    const saved = localStorage.getItem(this.draftKey);
+                                    if (saved && !this.$wire.get('body')) this.$wire.set('body', saved);
+                                } catch (e) {}
+                            },
+                            saveDraft(val) {
+                                clearTimeout(this.draftTimer);
+                                this.draftTimer = setTimeout(() => {
+                                    try {
+                                        if (val && val.trim()) localStorage.setItem(this.draftKey, val);
+                                        else localStorage.removeItem(this.draftKey);
+                                    } catch (e) {}
+                                }, 500);
+                            },
+                            autoGrow(el) {
+                                el.style.height = 'auto';
+                                el.style.height = Math.min(el.scrollHeight, 128) + 'px';
+                            }
+                        }"
+                        x-on:submit="localStorage.removeItem('discussion-draft-{{ $thread->id }}')"
+                    >
+                        {{-- Paperclip --}}
+                        <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="thread-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
+                        <button type="button" onclick="document.getElementById('thread-file-input').click()" class="shrink-0 h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-white/70 transition-colors inline-flex items-center justify-center" title="{{ __('pages.discussions.attach_file') }}">
+                            <iconify-icon icon="solar:paperclip-linear" width="19"></iconify-icon>
+                        </button>
+
+                        {{-- Textarea --}}
+                        <textarea
+                            wire:model="body"
+                            rows="1"
+                            class="flex-1 bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm py-2 px-1 max-h-32"
+                            style="min-height: 2.25rem;"
+                            placeholder="{{ __('pages.discussions.write_message') }}"
+                            @input="saveDraft($event.target.value); autoGrow($event.target)"
+                            @keydown.enter="if (!$event.shiftKey) { $event.preventDefault(); $el.closest('form').requestSubmit(); }"
+                        ></textarea>
+
+                        {{-- File count badge --}}
+                        @if(count($attachmentFiles ?? []) > 0)
+                            <span class="shrink-0 text-[11px] font-semibold px-2 py-1 rounded-lg" style="background: var(--accent-soft); color: var(--accent);">{{ count($attachmentFiles) }}</span>
+                        @endif
+
+                        {{-- Send button --}}
+                        <button type="submit" x-ref="submitBtn" class="shrink-0 h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-white inline-flex items-center justify-center shadow-sm hover:opacity-90 transition-all" style="background-color: var(--accent);">
+                            <iconify-icon icon="solar:plain-bold" width="16"></iconify-icon>
+                        </button>
                     </form>
-                    <x-input-error :messages="$errors->get('body')" class="mt-2" />
+                    <x-input-error :messages="$errors->get('body')" class="mt-1.5" />
                 </div>
             </div>
         </div>
 
-        <!-- RIGHT INFO -->
-        <aside class="hidden lg:flex shrink-0 flex-col bg-white border-l border-slate-200 overflow-hidden transition-[width] duration-300 ease-in-out" :class="infoOpen ? 'w-[320px]' : 'w-0 border-l-0'">
-            <div class="flex flex-col flex-1 min-w-0 min-h-0 w-[320px]">
-                <div class="flex h-[60px] shrink-0 items-center justify-between border-b border-slate-100 px-5">
+        {{-- RIGHT INFO SIDEBAR --}}
+        <aside class="hidden md:flex shrink-0 flex-col bg-white border-l border-slate-100 overflow-hidden transition-[width] duration-300 ease-in-out" :class="infoOpen ? 'w-60 lg:w-72' : 'w-0 border-l-0'">
+            <div class="flex flex-col flex-1 min-w-0 min-h-0 w-60 lg:w-72">
+                <div class="flex h-12 shrink-0 items-center justify-between border-b border-slate-100 px-4">
                     <span class="text-sm font-bold text-slate-900">{{ __('pages.discussions.participants') }} ({{ $participants->count() }})</span>
-                    <button type="button" @click="infoOpen = false" class="text-slate-400 hover:text-slate-900 transition-colors">
-                        <iconify-icon icon="solar:close-circle-linear" width="20"></iconify-icon>
+                    <button type="button" @click="infoOpen = false" class="text-slate-400 hover:text-slate-700 transition-colors">
+                        <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
                     </button>
                 </div>
-                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5 space-y-3">
-                    {{-- Add participant (groups only, for creator/staff) --}}
+                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-2">
+                    {{-- Add participant (groups only) --}}
                     @if($thread->is_group && $canManageParticipants)
-                        <div x-data="{ showAdd: false, search: '' }" class="mb-3">
-                            <button type="button" @click="showAdd = !showAdd; if(showAdd) $nextTick(() => $refs.addSearch?.focus())" class="flex items-center gap-2 w-full rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-slate-500 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">
-                                <iconify-icon icon="solar:user-plus-linear" width="16"></iconify-icon>
+                        <div x-data="{ showAdd: false, search: '' }" class="mb-2">
+                            <button type="button" @click="showAdd = !showAdd; if(showAdd) $nextTick(() => $refs.addSearch?.focus())" class="flex items-center gap-2 w-full rounded-lg border border-dashed border-slate-200 px-3 py-2 text-xs font-medium text-slate-400 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">
+                                <iconify-icon icon="solar:user-plus-linear" width="15"></iconify-icon>
                                 {{ __('pages.discussions.add_member') }}
                             </button>
                             <div x-show="showAdd" x-cloak x-transition class="mt-2">
@@ -165,9 +197,9 @@
                                     x-ref="addSearch"
                                     x-model="search"
                                     placeholder="{{ __('pages.discussions.search') }}"
-                                    class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
+                                    class="w-full rounded-lg bg-[#F1F5F9] border-0 px-3 py-2 text-xs focus:ring-2 focus:ring-[var(--accent)]/20"
                                 >
-                                <div class="mt-1 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                                <div class="mt-1 max-h-40 overflow-y-auto rounded-lg border border-slate-100 bg-white shadow-sm">
                                     @foreach($orgUsers as $ou)
                                         @if(! in_array($ou->id, $participantIds))
                                             <button
@@ -193,18 +225,18 @@
 
                     {{-- Participant list --}}
                     @foreach($participants as $p)
-                        <div class="flex items-center gap-3 group">
-                            <div class="h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
+                        <div class="flex items-center gap-2.5 group py-1">
+                            <div class="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
                                 {{ strtoupper(mb_substr($p->name ?? '?', 0, 1)) }}
                             </div>
                             <div class="min-w-0 flex-1">
-                                <div class="text-sm font-semibold text-slate-900 truncate">
+                                <div class="text-[13px] font-semibold text-slate-900 truncate">
                                     {{ $p->name }}
                                     @if((int) $p->id === (int) $thread->created_by)
                                         <span class="text-[10px] text-slate-400 font-normal ml-1">{{ __('pages.discussions.creator') }}</span>
                                     @endif
                                 </div>
-                                <div class="text-xs text-slate-500 truncate">{{ $p->email }}</div>
+                                <div class="text-[11px] text-slate-400 truncate">{{ $p->email }}</div>
                             </div>
                             @if($thread->is_group && $canManageParticipants && (int) $p->id !== (int) $thread->created_by)
                                 <button
@@ -213,7 +245,7 @@
                                     class="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
                                     title="{{ __('pages.discussions.remove') }}"
                                 >
-                                    <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
+                                    <iconify-icon icon="solar:close-circle-linear" width="15"></iconify-icon>
                                 </button>
                             @endif
                         </div>
@@ -221,6 +253,90 @@
                 </div>
             </div>
         </aside>
+
+        {{-- MOBILE INFO DRAWER --}}
+        <div x-show="mobileInfoOpen" x-cloak class="md:hidden fixed inset-0 z-50">
+            <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="mobileInfoOpen = false" x-transition.opacity></div>
+            <div class="absolute right-0 top-0 bottom-0 w-full max-w-[min(100%,20rem)] bg-white shadow-2xl flex flex-col rounded-l-2xl overflow-hidden"
+                 x-show="mobileInfoOpen"
+                 x-transition:enter="transform transition ease-out duration-300"
+                 x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+                 x-transition:leave="transform transition ease-in duration-300"
+                 x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full">
+                <div class="flex h-12 shrink-0 items-center justify-between border-b border-slate-100 px-4">
+                    <span class="text-sm font-bold text-slate-900">{{ __('pages.discussions.participants') }} ({{ $participants->count() }})</span>
+                    <button type="button" @click="mobileInfoOpen = false" class="text-slate-400 hover:text-slate-700 transition-colors">
+                        <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
+                    </button>
+                </div>
+                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-2">
+                    @if($thread->is_group && $canManageParticipants)
+                        <div x-data="{ showAdd: false, search: '' }" class="mb-2">
+                            <button type="button" @click="showAdd = !showAdd; if(showAdd) $nextTick(() => $refs.mobileAddSearch?.focus())" class="flex items-center gap-2 w-full rounded-lg border border-dashed border-slate-200 px-3 py-2 text-xs font-medium text-slate-400 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">
+                                <iconify-icon icon="solar:user-plus-linear" width="15"></iconify-icon>
+                                {{ __('pages.discussions.add_member') }}
+                            </button>
+                            <div x-show="showAdd" x-cloak x-transition class="mt-2">
+                                <input
+                                    type="text"
+                                    x-ref="mobileAddSearch"
+                                    x-model="search"
+                                    placeholder="{{ __('pages.discussions.search') }}"
+                                    class="w-full rounded-lg bg-[#F1F5F9] border-0 px-3 py-2 text-xs focus:ring-2 focus:ring-[var(--accent)]/20"
+                                >
+                                <div class="mt-1 max-h-40 overflow-y-auto rounded-lg border border-slate-100 bg-white shadow-sm">
+                                    @foreach($orgUsers as $ou)
+                                        @if(! in_array($ou->id, $participantIds))
+                                            <button
+                                                type="button"
+                                                x-show="!search || '{{ strtolower(e($ou->name)) }}'.includes(search.toLowerCase()) || '{{ strtolower(e($ou->email)) }}'.includes(search.toLowerCase())"
+                                                wire:click="addParticipant({{ $ou->id }})"
+                                                class="flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-slate-50 transition-colors"
+                                            >
+                                                <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
+                                                    {{ strtoupper(mb_substr($ou->name, 0, 1)) }}
+                                                </div>
+                                                <div class="min-w-0 text-left">
+                                                    <div class="font-medium text-slate-900 truncate">{{ $ou->name }}</div>
+                                                    <div class="text-slate-400 truncate">{{ $ou->email }}</div>
+                                                </div>
+                                            </button>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    @foreach($participants as $p)
+                        <div class="flex items-center gap-2.5 py-1">
+                            <div class="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
+                                {{ strtoupper(mb_substr($p->name ?? '?', 0, 1)) }}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-[13px] font-semibold text-slate-900 truncate">
+                                    {{ $p->name }}
+                                    @if((int) $p->id === (int) $thread->created_by)
+                                        <span class="text-[10px] text-slate-400 font-normal ml-1">{{ __('pages.discussions.creator') }}</span>
+                                    @endif
+                                </div>
+                                <div class="text-[11px] text-slate-400 truncate">{{ $p->email }}</div>
+                            </div>
+                            @if($thread->is_group && $canManageParticipants && (int) $p->id !== (int) $thread->created_by)
+                                <button
+                                    type="button"
+                                    @click="$dispatch('confirm-action', { title: 'Retirer', message: '{{ __('pages.discussions.remove_participant_confirm') }}', confirmLabel: 'Retirer', variant: 'danger', onConfirm: () => $wire.removeParticipant({{ $p->id }}) })"
+                                    class="shrink-0 p-1 rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                    title="{{ __('pages.discussions.remove') }}"
+                                >
+                                    <iconify-icon icon="solar:close-circle-linear" width="15"></iconify-icon>
+                                </button>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -269,8 +385,8 @@
                 : '';
 
             const html = isOwn
-                ? `<div class="flex justify-end"><div class="max-w-[85%]"><div class="flex items-center justify-end gap-2 mb-1"><span class="text-[10px] text-slate-400">${time}</span><span class="text-xs font-semibold text-slate-900">${name}</span></div><div class="rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed text-white shadow-sm" style="background-color: var(--accent);">${body}${attachmentsHtml}</div></div></div>`
-                : `<div class="flex items-end gap-3"><img src="${avatarUrl}" class="w-8 h-8 rounded-full border border-slate-200 bg-white shrink-0" alt=""><div class="max-w-[85%]"><div class="flex items-center gap-2 mb-1"><span class="text-xs font-semibold text-slate-900">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 text-slate-700 shadow-sm">${body}${attachmentsHtml}</div></div></div>`;
+                ? `<div class="flex justify-end"><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center justify-end gap-2 mb-1"><span class="text-[10px] text-slate-400">${time}</span><span class="text-[11px] font-semibold text-slate-600">${name}</span></div><div class="messaging-bubble-own rounded-2xl rounded-br-sm px-4 py-2.5 text-[0.88rem] leading-relaxed text-white" style="background-color: var(--accent);">${body}${attachmentsHtml}</div></div></div>`
+                : `<div class="flex items-end gap-2"><img src="${avatarUrl}" class="w-7 h-7 rounded-full border border-slate-100 bg-white shrink-0" alt=""><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center gap-2 mb-1"><span class="text-[11px] font-semibold text-slate-600">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">${body}${attachmentsHtml}</div></div></div>`;
 
             const div = document.createElement('div');
             div.className = 'animate-enter';

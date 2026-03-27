@@ -4,8 +4,6 @@ return [
     'main_menu' => 'Menu principal',
     'dashboard' => 'Tableau de bord',
     'tickets' => 'Tickets',
-    'list_view' => 'Vue Liste',
-    'kanban_view' => 'Vue Kanban',
     'groups_view' => 'Groupes',
     'discussions' => 'Discussions',
     'forms' => 'Formulaires',

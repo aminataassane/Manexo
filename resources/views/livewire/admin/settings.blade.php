@@ -1,28 +1,32 @@
-<div class="mx-auto w-full max-w-7xl 2xl:max-w-[90rem] min-[1920px]:max-w-[110rem] py-8 px-4 sm:px-6 lg:px-8" x-data="{ tab: 'branding' }">
-    <!-- HEADER -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('settings.title') }}</h1>
-            <p class="mt-1 text-sm text-slate-500">{{ __('settings.subtitle') }}</p>
+<div class="w-full max-w-full min-w-0 mx-auto" x-data="{ tab: 'branding' }">
+    {{-- ═══ HEADER ═══ --}}
+    <div class="page-header">
+        <div class="min-w-0">
+            <h1 class="page-title">{{ __('settings.title') }}</h1>
+            <p class="page-subtitle">{{ __('settings.subtitle') }}</p>
         </div>
-        <a
-            href="{{ route('dashboard') }}"
-            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
-        >
-            <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
-            {{ __('settings.back') }}
-        </a>
+        <div class="page-actions">
+            <a
+                href="{{ route('dashboard') }}"
+                wire:navigate
+                class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0"
+                style="border: 1px solid #e2e8f0;"
+            >
+                <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
+                {{ __('settings.back') }}
+            </a>
+        </div>
     </div>
 
     @if (session('settings_status') || $successMessage)
-        <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm flex items-center gap-3">
+        <div class="mb-6 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm flex items-center gap-3" style="border: 1px solid #a7f3d0;">
             <iconify-icon icon="solar:check-circle-bold" width="22"></iconify-icon>
             <span>{{ $successMessage ?: session('settings_status') }}</span>
         </div>
     @endif
 
     @if ($errors->any())
-        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 shadow-sm">
+        <div class="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-800 shadow-sm" style="border: 1px solid #fecaca;">
             <p class="font-semibold flex items-center gap-2 mb-2">
                 <iconify-icon icon="solar:danger-triangle-bold" width="20"></iconify-icon>
                 {{ __('settings.fix_errors') }}
@@ -35,70 +39,86 @@
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <!-- LEFT SIDEBAR NAV -->
-        <div class="lg:col-span-3 space-y-6">
-            <nav class="space-y-1">
-                @php
-                    $navItemClass = "group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full text-left";
-                    $activeClass = "bg-white text-[var(--accent)] shadow-sm ring-1 ring-slate-200";
-                    $inactiveClass = "text-slate-600 hover:bg-slate-50 hover:text-slate-900";
-                @endphp
+    @php
+        $navItems = [
+            ['key' => 'branding', 'icon' => 'solar:palette-bold-duotone', 'label' => __('settings.appearance')],
+            ['key' => 'tickets', 'icon' => 'solar:ticket-bold-duotone', 'label' => __('menu.tickets')],
+            ['key' => 'categories', 'icon' => 'solar:tag-bold-duotone', 'label' => __('settings.categories')],
+            ['key' => 'groups', 'icon' => 'solar:widget-5-bold-duotone', 'label' => __('settings.groups')],
+            ['key' => 'priorities', 'icon' => 'solar:flag-bold-duotone', 'label' => __('settings.priorities')],
+            ['key' => 'functions', 'icon' => 'solar:user-id-bold-duotone', 'label' => __('settings.business_functions')],
+            ['key' => 'forms', 'icon' => 'solar:clipboard-list-bold-duotone', 'label' => __('settings.forms')],
+            ['key' => 'email', 'icon' => 'solar:letter-bold-duotone', 'label' => 'Email'],
+            ['key' => 'sla', 'icon' => 'solar:alarm-bold-duotone', 'label' => 'SLA'],
+            ['key' => 'automations', 'icon' => 'solar:bolt-circle-bold-duotone', 'label' => 'Automatisations'],
+            ['key' => 'knowledge_base', 'icon' => 'solar:book-2-bold-duotone', 'label' => 'Base de connaissances'],
+            ['key' => 'api', 'icon' => 'solar:programming-bold-duotone', 'label' => 'API'],
+            ['key' => 'roles', 'icon' => 'solar:shield-keyhole-bold-duotone', 'label' => __('settings.roles_permissions')],
+            ['key' => 'maintenance', 'icon' => 'solar:tuning-2-bold-duotone', 'label' => __('settings.maintenance')],
+            ['key' => 'danger', 'icon' => 'solar:danger-triangle-bold-duotone', 'label' => __('settings.danger_zone')],
+        ];
+    @endphp
 
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'branding' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'branding'">
-                    <iconify-icon icon="solar:palette-bold-duotone" width="20" :class="tab === 'branding' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('settings.appearance') }}
-                </button>
-
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'tickets' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'tickets'">
-                    <iconify-icon icon="solar:ticket-bold-duotone" width="20" :class="tab === 'tickets' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('menu.tickets') }}
-                </button>
-
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'categories' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'categories'">
-                    <iconify-icon icon="solar:tag-bold-duotone" width="20" :class="tab === 'categories' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('settings.categories') }}
-                </button>
-
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'groups' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'groups'">
-                    <iconify-icon icon="solar:widget-5-bold-duotone" width="20" :class="tab === 'groups' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('settings.groups') }}
-                </button>
-
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'priorities' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'priorities'">
-                    <iconify-icon icon="solar:flag-bold-duotone" width="20" :class="tab === 'priorities' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('settings.priorities') }}
-                </button>
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'functions' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'functions'">
-                    <iconify-icon icon="solar:user-id-bold-duotone" width="20" :class="tab === 'functions' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('settings.business_functions') }}
-                </button>
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'forms' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'forms'">
-                    <iconify-icon icon="solar:clipboard-list-bold-duotone" width="20" :class="tab === 'forms' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('settings.forms') }}
-                </button>
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'roles' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'roles'">
-                    <iconify-icon icon="solar:shield-keyhole-bold-duotone" width="20" :class="tab === 'roles' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('settings.roles_permissions') }}
-                </button>
-
-                <button type="button" class="{{ $navItemClass }}" :class="tab === 'maintenance' ? '{{ $activeClass }}' : '{{ $inactiveClass }}'" @click="tab = 'maintenance'">
-                    <iconify-icon icon="solar:tuning-2-bold-duotone" width="20" :class="tab === 'maintenance' ? 'text-[var(--accent)]' : 'text-slate-400 group-hover:text-slate-600'"></iconify-icon>
-                    {{ __('settings.maintenance') }}
-                </button>
-
-                <div class="pt-4 mt-4 border-t border-slate-200">
-                    <button type="button" class="{{ $navItemClass }}" :class="tab === 'danger' ? 'bg-red-50 text-red-700 ring-1 ring-red-100' : 'text-slate-600 hover:bg-red-50 hover:text-red-700'" @click="tab = 'danger'">
-                        <iconify-icon icon="solar:danger-triangle-bold-duotone" width="20" :class="tab === 'danger' ? 'text-red-600' : 'text-slate-400 group-hover:text-red-500'"></iconify-icon>
-                        {{ __('settings.danger_zone') }}
+    {{-- ═══ MOBILE/TABLET HORIZONTAL NAV ═══ --}}
+    <div class="lg:hidden mb-4 -mx-1">
+        <div
+            class="overflow-x-auto scrollbar-hide overscroll-x-contain [touch-action:pan-x]"
+            x-ref="mobileNav"
+        >
+            <div class="flex gap-1.5 px-1 pb-1 min-w-max">
+                @foreach ($navItems as $nav)
+                    <button type="button"
+                        @click="tab = '{{ $nav['key'] }}'; $nextTick(() => $el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }))"
+                        class="shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
+                        :class="tab === '{{ $nav['key'] }}'
+                            ? '{{ $nav['key'] === 'danger' ? 'bg-red-50 text-red-700 shadow-sm' : 'bg-[var(--accent)]/10 text-[var(--accent)] shadow-sm' }}'
+                            : '{{ $nav['key'] === 'danger' ? 'text-slate-500 hover:bg-red-50 hover:text-red-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700' }}'"
+                    >
+                        <iconify-icon icon="{{ $nav['icon'] }}" width="16" class="shrink-0"
+                            :class="tab === '{{ $nav['key'] }}'
+                                ? '{{ $nav['key'] === 'danger' ? 'text-red-600' : 'text-[var(--accent)]' }}'
+                                : 'text-slate-400'"
+                        ></iconify-icon>
+                        {{ $nav['label'] }}
                     </button>
-                </div>
-            </nav>
+                @endforeach
+            </div>
+        </div>
+    </div>
 
-            <!-- Info Box -->
-            <div class="rounded-2xl bg-slate-50 p-5 border border-slate-100">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {{-- ── LEFT SIDEBAR NAV (desktop only) ── --}}
+        <div class="hidden lg:block lg:col-span-3 space-y-4 sm:space-y-6">
+            <div class="sidebar-panel sticky top-24">
+                <div class="sidebar-panel-body">
+                    @foreach ($navItems as $nav)
+                        @if ($nav['key'] === 'danger')
+                            <div class="pt-3 mt-3" style="border-top: 1px solid #f1f5f9;">
+                                <button type="button" @click="tab = 'danger'"
+                                    class="sidebar-item" :class="tab === 'danger' ? 'bg-red-50 text-red-700' : 'text-slate-600 hover:bg-red-50 hover:text-red-700'">
+                                    <span class="flex items-center gap-2.5">
+                                        <iconify-icon icon="solar:danger-triangle-bold-duotone" width="18" :class="tab === 'danger' ? 'text-red-600' : 'text-slate-400'" class="shrink-0"></iconify-icon>
+                                        {{ __('settings.danger_zone') }}
+                                    </span>
+                                </button>
+                            </div>
+                        @else
+                            <button type="button" @click="tab = '{{ $nav['key'] }}'"
+                                class="sidebar-item" :class="tab === '{{ $nav['key'] }}' ? 'sidebar-item-active' : 'sidebar-item-default'">
+                                <span class="flex items-center gap-2.5">
+                                    <iconify-icon icon="{{ $nav['icon'] }}" width="18" :class="tab === '{{ $nav['key'] }}' ? 'text-[var(--accent)]' : 'text-slate-400'" class="shrink-0"></iconify-icon>
+                                    {{ $nav['label'] }}
+                                </span>
+                            </button>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Info Box --}}
+            <div class="rounded-2xl bg-slate-50 p-5" style="border: 1px solid #f1f5f9;">
                 <div class="flex items-start gap-3">
-                    <iconify-icon icon="solar:info-circle-bold" class="text-slate-400 mt-0.5" width="20"></iconify-icon>
+                    <iconify-icon icon="solar:info-circle-bold" class="text-slate-400 mt-0.5 shrink-0" width="20"></iconify-icon>
                     <div>
                         <h4 class="text-sm font-semibold text-slate-900">{{ __('settings.need_help') }}</h4>
                         <p class="text-xs text-slate-500 mt-1 leading-relaxed">
@@ -111,16 +131,30 @@
 
         <!-- RIGHT CONTENT AREA -->
         <div class="lg:col-span-9 space-y-6">
+            @if($loadStage < 2)
+                <div class="content-card p-8 min-h-[24rem] animate-pulse space-y-6">
+                    <div class="h-7 bg-slate-200 rounded-lg w-2/5 max-w-xs"></div>
+                    <div class="space-y-3">
+                        <div class="h-4 bg-slate-100 rounded w-full"></div>
+                        <div class="h-4 bg-slate-100 rounded w-11/12"></div>
+                        <div class="h-4 bg-slate-100 rounded w-4/5"></div>
+                    </div>
+                    <div class="grid sm:grid-cols-2 gap-4 pt-4">
+                        <div class="h-32 bg-slate-50 rounded-xl" style="border: 1px solid #f1f5f9;"></div>
+                        <div class="h-32 bg-slate-50 rounded-xl" style="border: 1px solid #f1f5f9;"></div>
+                    </div>
+                </div>
+            @else
             @if (! $canManage)
-                <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3">
-                    <iconify-icon icon="solar:lock-keyhole-bold" width="20"></iconify-icon>
+                <div class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3" style="border: 1px solid #fde68a;">
+                    <iconify-icon icon="solar:lock-keyhole-bold" width="20" class="shrink-0"></iconify-icon>
                     {{ __('settings.read_only') }}
                 </div>
             @endif
 
             <!-- BRANDING TAB -->
-            <div x-show="tab === 'branding'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div x-show="tab === 'branding'" class="content-card">
+                <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.branding_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.branding_subtitle') }}</p>
                 </div>
@@ -225,8 +259,8 @@
             </div>
 
             <!-- TICKETS TAB -->
-            <div x-show="tab === 'tickets'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div x-show="tab === 'tickets'" x-cloak class="content-card">
+                <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.tickets_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.tickets_subtitle') }}</p>
                 </div>
@@ -325,8 +359,8 @@
             </div>
 
             <!-- CATEGORIES TAB -->
-            <div x-show="tab === 'categories'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div x-show="tab === 'categories'" x-cloak class="content-card">
+                <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.categories_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.categories_subtitle') }}</p>
                 </div>
@@ -371,6 +405,47 @@
                                         @endforeach
                                     </x-select-input>
                                 </div>
+                            </div>
+                            {{-- Approval config --}}
+                            <div class="mt-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 space-y-3">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" wire:model.live="newCategoryRequiresApproval" class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]" />
+                                    <span class="text-sm font-medium text-slate-700">Nécessite une approbation</span>
+                                </label>
+                                @if($newCategoryRequiresApproval)
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <x-input-label value="Type d'approbateur" />
+                                            <x-select-input wire:model.live="newCategoryApprovalType" class="mt-1">
+                                                <option value="">Choisir...</option>
+                                                <option value="user">Utilisateur spécifique</option>
+                                                <option value="role">Rôle</option>
+                                                <option value="org_admin">Owner / Admin de l'org</option>
+                                            </x-select-input>
+                                        </div>
+                                        @if($newCategoryApprovalType === 'user')
+                                            <div>
+                                                <x-input-label value="Approbateur" />
+                                                <x-select-input wire:model="newCategoryApprovalUserId" class="mt-1">
+                                                    <option value="">Choisir...</option>
+                                                    @foreach($members as $m)
+                                                        <option value="{{ $m->user?->id }}">{{ $m->user?->name }} ({{ $m->role }})</option>
+                                                    @endforeach
+                                                </x-select-input>
+                                            </div>
+                                        @elseif($newCategoryApprovalType === 'role')
+                                            <div>
+                                                <x-input-label value="Rôle approbateur" />
+                                                <x-select-input wire:model="newCategoryApprovalRole" class="mt-1">
+                                                    <option value="">Choisir...</option>
+                                                    @foreach($roles as $r)
+                                                        <option value="{{ $r->slug }}">{{ $r->label ?? $r->slug }}</option>
+                                                    @endforeach
+                                                </x-select-input>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                         </form>
                         <hr class="border-slate-100">
@@ -420,6 +495,38 @@
                                                     @endforeach
                                                 </x-select-input>
                                             </div>
+                                            {{-- Approval config (edit) --}}
+                                            <div class="mt-2 rounded-lg border border-slate-100 bg-slate-50/50 p-2.5 space-y-2">
+                                                <label class="flex items-center gap-2 cursor-pointer">
+                                                    <input type="checkbox" wire:model.live="editingCategoryRequiresApproval" class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]" />
+                                                    <span class="text-xs font-medium text-slate-700">Nécessite une approbation</span>
+                                                </label>
+                                                @if($editingCategoryRequiresApproval)
+                                                    <div class="grid grid-cols-2 gap-2">
+                                                        <x-select-input wire:model.live="editingCategoryApprovalType" class="text-xs">
+                                                            <option value="">Type...</option>
+                                                            <option value="user">Utilisateur</option>
+                                                            <option value="role">Rôle</option>
+                                                            <option value="org_admin">Owner/Admin</option>
+                                                        </x-select-input>
+                                                        @if($editingCategoryApprovalType === 'user')
+                                                            <x-select-input wire:model="editingCategoryApprovalUserId" class="text-xs">
+                                                                <option value="">Approbateur...</option>
+                                                                @foreach($members as $m)
+                                                                    <option value="{{ $m->user?->id }}">{{ $m->user?->name }}</option>
+                                                                @endforeach
+                                                            </x-select-input>
+                                                        @elseif($editingCategoryApprovalType === 'role')
+                                                            <x-select-input wire:model="editingCategoryApprovalRole" class="text-xs">
+                                                                <option value="">Rôle...</option>
+                                                                @foreach($roles as $r)
+                                                                    <option value="{{ $r->slug }}">{{ $r->label ?? $r->slug }}</option>
+                                                                @endforeach
+                                                            </x-select-input>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </form>
                                         <x-input-error :messages="$errors->get('editingCategoryName')" class="mt-1" />
                                     @else
@@ -445,6 +552,12 @@
                                                             {{ $linkedForm->name }}
                                                         </span>
                                                     @endif
+                                                @endif
+                                                @if($cat->requires_approval)
+                                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-700">
+                                                        <iconify-icon icon="solar:shield-check-linear" width="10"></iconify-icon>
+                                                        Approbation
+                                                    </span>
                                                 @endif
                                             </div>
                                         </div>
@@ -479,8 +592,8 @@
             </div>
 
             <!-- GROUPS TAB -->
-            <div x-show="tab === 'groups'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div x-show="tab === 'groups'" x-cloak class="content-card">
+                <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.groups_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.groups_subtitle') }}</p>
                 </div>
@@ -589,8 +702,8 @@
             </div>
 
             <!-- PRIORITIES TAB -->
-            <div x-show="tab === 'priorities'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div x-show="tab === 'priorities'" x-cloak class="content-card">
+                <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.priorities_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.priorities_subtitle') }}</p>
                 </div>
@@ -704,8 +817,8 @@
             </div>
 
             <!-- FONCTIONS MÉTIER TAB -->
-            <div x-show="tab === 'functions'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div x-show="tab === 'functions'" x-cloak class="content-card">
+                <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.functions_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.functions_subtitle') }}</p>
                 </div>
@@ -764,8 +877,8 @@
                 </div>
             </div>
 
-            <div x-show="tab === 'forms'" x-cloak class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div x-show="tab === 'forms'" x-cloak class="content-card">
+                <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.forms_editor_title') }}</h2>
                     <p class="text-sm text-slate-500 mt-1">{{ __('settings.forms_editor_subtitle') }}</p>
                 </div>
@@ -773,19 +886,19 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label for="forms_default_due_days" class="block text-sm font-semibold text-slate-700 mb-1.5">{{ __('settings.forms_default_due_days') }}</label>
-                            <input type="number" id="forms_default_due_days" wire:model="forms_default_due_days" min="1" max="365" placeholder="7"
+                            <input type="number" id="forms_default_due_days" name="forms_default_due_days" wire:model="forms_default_due_days" min="1" max="365" placeholder="7"
                                    class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm">
                             <p class="mt-1 text-xs text-slate-500">{{ __('settings.forms_default_due_days_help') }}</p>
                         </div>
                         <div>
                             <label for="forms_default_expiry_days" class="block text-sm font-semibold text-slate-700 mb-1.5">{{ __('settings.forms_default_expiry_days') }}</label>
-                            <input type="number" id="forms_default_expiry_days" wire:model="forms_default_expiry_days" min="1" max="365" placeholder="30"
+                            <input type="number" id="forms_default_expiry_days" name="forms_default_expiry_days" wire:model="forms_default_expiry_days" min="1" max="365" placeholder="30"
                                    class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm">
                             <p class="mt-1 text-xs text-slate-500">{{ __('settings.forms_default_expiry_days_help') }}</p>
                         </div>
                     </div>
                     <div class="flex items-start gap-3">
-                        <input type="checkbox" id="forms_notify_on_response" wire:model="forms_notify_on_response"
+                        <input type="checkbox" id="forms_notify_on_response" name="forms_notify_on_response" wire:model="forms_notify_on_response"
                                class="h-4 w-4 rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]">
                         <div>
                             <label for="forms_notify_on_response" class="text-sm font-semibold text-slate-700">{{ __('settings.forms_notify_on_response') }}</label>
@@ -805,11 +918,21 @@
                 </form>
             </div>
 
+            @include('livewire.admin.partials.settings-email')
+
+            @include('livewire.admin.partials.settings-sla')
+
+            @include('livewire.admin.partials.settings-automations')
+
+            @include('livewire.admin.partials.settings-knowledge-base')
+
+            @include('livewire.admin.partials.settings-api')
+
             <!-- ROLES & PERMISSIONS TAB -->
             <div x-show="tab === 'roles'" x-cloak class="space-y-6">
                 {{-- Card 1: Role Management --}}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                <div class="content-card">
+                    <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                         <h2 class="text-lg font-bold text-slate-900">{{ __('settings.roles_management_title') }}</h2>
                         <p class="text-sm text-slate-500">{{ __('settings.roles_management_subtitle') }}</p>
                     </div>
@@ -917,8 +1040,8 @@
                 </div>
 
                 {{-- Card 2: Tableau des permissions du rôle sélectionné (clic sur un rôle = ouvre son tableau) --}}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                <div class="content-card">
+                    <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                         @php
                             $selectedRoleDef = $roles->firstWhere('slug', $selectedRole);
                         @endphp
@@ -938,7 +1061,7 @@
                         @else
                             {{-- Message propriétaire --}}
                             @if ($selectedRole === 'owner')
-                                <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3 mb-6">
+                                <div class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3 mb-6" style="border: 1px solid #fde68a;">
                                     <iconify-icon icon="solar:crown-bold-duotone" width="22" class="text-amber-600 shrink-0"></iconify-icon>
                                     {{ __('settings.owner_all_permissions') }}
                                 </div>
@@ -957,7 +1080,7 @@
                             @endphp
 
                             {{-- Accordéon : un groupe ouvert à la fois pour raccourcir la page --}}
-                            <div class="rounded-xl border border-slate-200 overflow-hidden" x-data="{ openGroup: 'tickets' }">
+                            <div class="rounded-xl overflow-hidden" style="border: 1px solid #e2e8f0;" x-data="{ openGroup: 'tickets' }">
                                 <div class="divide-y divide-slate-100">
                                     @foreach ($grouped as $group => $permissions)
                                         <div class="bg-white">
@@ -1031,8 +1154,8 @@
             <!-- MAINTENANCE TAB -->
             <div x-show="tab === 'maintenance'" x-cloak class="space-y-6">
                 {{-- Org Info Card --}}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                <div class="content-card">
+                    <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                         <h2 class="text-lg font-bold text-slate-900">{{ __('settings.org_info_title') }}</h2>
                         <p class="text-sm text-slate-500">{{ __('settings.org_info_subtitle') }}</p>
                     </div>
@@ -1088,8 +1211,8 @@
                 </div>
 
                 {{-- Cache Management Card --}}
-                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
+                <div class="content-card">
+                    <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                         <h2 class="text-lg font-bold text-slate-900">{{ __('settings.cache_title') }}</h2>
                         <p class="text-sm text-slate-500">{{ __('settings.cache_subtitle') }}</p>
                     </div>
@@ -1148,13 +1271,13 @@
             </div>
 
             <!-- DANGER ZONE -->
-            <div x-show="tab === 'danger'" x-cloak class="bg-red-50 rounded-2xl border border-red-100 shadow-sm overflow-hidden">
-                <div class="px-6 py-5 border-b border-red-100 bg-red-100/50">
+            <div x-show="tab === 'danger'" x-cloak class="rounded-xl sm:rounded-2xl bg-red-50 overflow-hidden" style="border: 1px solid #fecaca;">
+                <div class="px-6 py-5 bg-red-100/50" style="border-bottom: 1px solid #fecaca;">
                     <h2 class="text-lg font-bold text-red-900">{{ __('settings.danger_title') }}</h2>
                     <p class="text-sm text-red-700">{{ __('settings.danger_subtitle') }}</p>
                 </div>
                 <div class="p-6">
-                    <div class="rounded-xl bg-white p-6 border border-red-100">
+                    <div class="rounded-xl bg-white p-6" style="border: 1px solid #fecaca;">
                         <h3 class="text-base font-bold text-slate-900">{{ __('settings.delete_organization') }}</h3>
                         <p class="text-sm text-slate-500 mt-1 mb-4">{{ __('settings.delete_organization_help') }}</p>
 
@@ -1178,6 +1301,7 @@
                     </div>
                 </div>
             </div>
+        @endif
         </div>
     </div>
 </div>

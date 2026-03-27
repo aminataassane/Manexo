@@ -34,7 +34,36 @@
         </div>
     </div>
 
-    <form id="ticket-create-form" wire:submit="submit" class="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+    <form id="ticket-create-form" wire:submit="submit" class="mt-4 sm:mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6"
+        x-data="{
+            draftKey: 'ticket-draft-create-page',
+            draftTimer: null,
+            init() {
+                try {
+                    const draft = JSON.parse(localStorage.getItem(this.draftKey) || '{}');
+                    if (draft.subject && !this.$wire.get('subject')) this.$wire.set('subject', draft.subject);
+                    if (draft.description && !this.$wire.get('description')) this.$wire.set('description', draft.description);
+                } catch (e) {}
+            },
+            saveDraft() {
+                clearTimeout(this.draftTimer);
+                this.draftTimer = setTimeout(() => {
+                    try {
+                        const data = {
+                            subject: this.$wire.get('subject') || '',
+                            description: this.$wire.get('description') || '',
+                        };
+                        if (data.subject || data.description) {
+                            localStorage.setItem(this.draftKey, JSON.stringify(data));
+                        } else {
+                            localStorage.removeItem(this.draftKey);
+                        }
+                    } catch (e) {}
+                }, 500);
+            }
+        }"
+        x-on:submit="localStorage.removeItem('ticket-draft-create-page')"
+    >
         <!-- LEFT (main form) -->
         <div class="lg:col-span-2 space-y-6">
             <div class="rounded-2xl border border-[#E5E7EB] bg-white shadow-sm overflow-visible">
@@ -90,19 +119,67 @@
                         <input
                             id="subject"
                             type="text"
-                            wire:model="subject"
+                            wire:model.live.debounce.500ms="subject"
+                            @input="saveDraft()"
                             required
                             class="mt-1 {{ $field }}"
                             placeholder="{{ __('Ex: Erreur 500 sur le checkout') }}"
                         >
                         <x-input-error :messages="$errors->get('subject')" class="mt-2" />
+
+                        @if (count($kbSuggestions))
+                            <div class="mt-2 rounded-xl border border-blue-200 bg-blue-50 p-3" x-data="{ expanded: null }">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <iconify-icon icon="solar:book-2-bold-duotone" width="16" class="text-blue-600"></iconify-icon>
+                                    <span class="text-xs font-semibold text-blue-800">{{ __('Articles qui pourraient vous aider :') }}</span>
+                                </div>
+                                <ul class="space-y-1.5">
+                                    @foreach ($kbSuggestions as $idx => $suggestion)
+                                        <li class="rounded-lg transition-colors" :class="expanded === {{ $idx }} ? 'bg-blue-100/60' : ''">
+                                            <button
+                                                type="button"
+                                                class="w-full flex items-center gap-2 text-xs text-blue-700 hover:text-blue-900 transition-colors px-2 py-1.5 text-left"
+                                                @click="expanded = expanded === {{ $idx }} ? null : {{ $idx }}"
+                                            >
+                                                <iconify-icon
+                                                    :icon="expanded === {{ $idx }} ? 'solar:alt-arrow-down-linear' : 'solar:arrow-right-linear'"
+                                                    width="12"
+                                                    class="shrink-0"
+                                                ></iconify-icon>
+                                                <span class="font-medium">{{ $suggestion['title'] }}</span>
+                                            </button>
+                                            <div
+                                                x-show="expanded === {{ $idx }}"
+                                                x-collapse
+                                                class="px-6 pb-2 text-xs text-blue-900/80 leading-relaxed"
+                                            >
+                                                {{ $suggestion['excerpt'] }}
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        {{-- Browse KB button --}}
+                        <div class="mt-2">
+                            <button
+                                type="button"
+                                wire:click="openKbBrowser"
+                                class="inline-flex items-center gap-1.5 text-xs font-medium text-[color:var(--accent)] hover:underline transition-colors"
+                            >
+                                <iconify-icon icon="solar:book-2-linear" width="14"></iconify-icon>
+                                {{ __('Parcourir la base de connaissance') }}
+                            </button>
+                        </div>
                     </div>
 
                     <div>
                         <x-input-label for="description" :value="__('Description *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                         <textarea
                             id="description"
-                            wire:model="description"
+                            wire:model.defer="description"
+                            @input="saveDraft()"
                             rows="8"
                             class="mt-1 {{ $textarea }}"
                             placeholder="{{ __('Donnez un maximum de détails (étapes, capture, contexte...)') }}"
@@ -635,4 +712,110 @@
             </div>
         </div>
     </form>
+
+    {{-- KB Browser Modal --}}
+    @if ($showKbBrowser)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4" x-data="{ viewArticle: null }">
+            <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" wire:click="$set('showKbBrowser', false)"></div>
+
+            <div class="relative bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 w-full max-w-2xl max-h-[85vh] flex flex-col">
+                {{-- Header --}}
+                <div class="shrink-0 px-6 py-4 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                            <iconify-icon icon="solar:book-2-bold-duotone" width="20"></iconify-icon>
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900">{{ __('Base de connaissance') }}</h3>
+                            <p class="text-xs text-slate-500">{{ __('Recherchez un article avant de creer un ticket.') }}</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('showKbBrowser', false)" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                        <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
+                    </button>
+                </div>
+
+                {{-- Search --}}
+                <div class="shrink-0 px-6 py-3 border-b border-slate-100">
+                    <div class="relative">
+                        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="16"></iconify-icon>
+                        <input
+                            type="text"
+                            wire:model.live.debounce.400ms="kbSearchTerm"
+                            wire:keydown.enter="searchKbArticles"
+                            class="w-full rounded-xl border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-all"
+                            placeholder="{{ __('Rechercher dans les articles...') }}"
+                            autofocus
+                        />
+                    </div>
+                </div>
+
+                {{-- Results --}}
+                <div class="flex-1 overflow-y-auto p-4">
+                    @if (empty($kbSearchResults) && mb_strlen(trim($kbSearchTerm)) >= 2)
+                        <div class="py-8 text-center" wire:loading.remove wire:target="searchKbArticles">
+                            <iconify-icon icon="solar:document-text-linear" width="32" class="text-slate-300"></iconify-icon>
+                            <p class="mt-2 text-sm text-slate-500">{{ __('Aucun article trouve.') }}</p>
+                        </div>
+                    @elseif (empty($kbSearchResults))
+                        <div class="py-8 text-center">
+                            <iconify-icon icon="solar:magnifer-linear" width="32" class="text-slate-300"></iconify-icon>
+                            <p class="mt-2 text-sm text-slate-500">{{ __('Tapez un mot-cle pour rechercher.') }}</p>
+                        </div>
+                    @else
+                        <div class="space-y-2">
+                            @foreach ($kbSearchResults as $kIdx => $result)
+                                <div class="rounded-xl border border-slate-200 hover:border-slate-300 transition-colors overflow-hidden">
+                                    <button
+                                        type="button"
+                                        class="w-full flex items-start gap-3 px-4 py-3 text-left"
+                                        @click="viewArticle = viewArticle === {{ $kIdx }} ? null : {{ $kIdx }}"
+                                    >
+                                        <iconify-icon
+                                            :icon="viewArticle === {{ $kIdx }} ? 'solar:alt-arrow-down-bold' : 'solar:alt-arrow-right-bold'"
+                                            width="14"
+                                            class="text-slate-400 mt-0.5 shrink-0"
+                                        ></iconify-icon>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="text-sm font-semibold text-slate-900">{{ $result['title'] }}</div>
+                                            <p class="mt-0.5 text-xs text-slate-500 line-clamp-2" x-show="viewArticle !== {{ $kIdx }}">{{ $result['excerpt'] }}</p>
+                                        </div>
+                                        <span class="shrink-0 inline-flex items-center gap-1 text-[10px] text-slate-400 mt-0.5">
+                                            <iconify-icon icon="solar:eye-linear" width="11"></iconify-icon>
+                                            {{ $result['view_count'] }}
+                                        </span>
+                                    </button>
+                                    <div
+                                        x-show="viewArticle === {{ $kIdx }}"
+                                        x-collapse
+                                        class="px-4 pb-4 border-t border-slate-100"
+                                    >
+                                        <div class="pt-3 prose prose-sm prose-slate max-w-none text-sm text-slate-700 [&_h2]:text-base [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:border-l-4 [&_blockquote]:border-slate-300 [&_blockquote]:pl-4 [&_blockquote]:italic">
+                                            {!! $result['safeHtml'] !!}
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <div class="py-4 text-center" wire:loading wire:target="searchKbArticles">
+                        <iconify-icon icon="solar:refresh-circle-bold-duotone" width="24" class="text-slate-400 animate-spin"></iconify-icon>
+                    </div>
+                </div>
+
+                {{-- Footer --}}
+                <div class="shrink-0 px-6 py-3 border-t border-slate-100 bg-slate-50/30 rounded-b-2xl flex justify-end">
+                    <button
+                        type="button"
+                        wire:click="$set('showKbBrowser', false)"
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
+                    >
+                        {{ __('Fermer') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+    {{-- end KB browser --}}
 </div>

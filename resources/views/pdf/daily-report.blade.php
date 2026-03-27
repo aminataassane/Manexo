@@ -44,6 +44,8 @@
         .two-col td:last-child { padding-left: 12px; width: 45%; }
 
         .footer { margin-top: 20px; padding: 12px 30px; border-top: 1px solid #e2e8f0; font-size: 8px; color: #94a3b8; text-align: center; }
+        .footer-brand { font-weight: 600; color: #475569; }
+        .brand-badge { display: inline-block; background: #f1f5f9; border-radius: 4px; padding: 3px 8px; font-size: 8px; font-weight: 600; color: #64748b; letter-spacing: 0.5px; }
 
         .text-right { text-align: right; }
         .text-center { text-align: center; }
@@ -56,7 +58,20 @@
 <body>
     {{-- ─── HEADER ─────────────────────────────────── --}}
     <div class="header">
-        <h1>{{ $orgName }} &mdash; {{ __('daily_report.title') }}</h1>
+        <table style="width:100%;border:none;border-collapse:collapse;">
+            <tr>
+                <td style="border:none;padding:0;vertical-align:middle;">
+                    @if(!empty($logoBase64))
+                        <img src="{{ $logoBase64 }}" style="height:30px;max-width:120px;margin-right:10px;vertical-align:middle;" alt="">
+                    @endif
+                    <span style="font-size:18px;font-weight:bold;color:#0f172a;vertical-align:middle;">{{ $orgName }}</span>
+                </td>
+                <td style="border:none;padding:0;text-align:right;vertical-align:middle;">
+                    <span class="brand-badge">Manexo</span>
+                </td>
+            </tr>
+        </table>
+        <h1 style="margin-top:6px;">{{ __('daily_report.title') }}</h1>
         <p>{{ __('daily_report.export_date') }} : {{ \Illuminate\Support\Carbon::parse($date)->translatedFormat('l j F Y') }} &middot; {{ __('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')]) }}</p>
     </div>
 
@@ -216,7 +231,7 @@
     </div>
 
     <div class="footer">
-        {{ $orgName }} &middot; {{ __('daily_report.title') }} &middot; {{ \Illuminate\Support\Carbon::parse($date)->format('d/m/Y') }} &middot; {{ __('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')]) }}
+        <span class="footer-brand">Manexo</span> &middot; {{ $orgName }} &middot; {{ __('daily_report.title') }} &middot; {{ \Illuminate\Support\Carbon::parse($date)->format('d/m/Y') }} &middot; {{ __('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')]) }}
     </div>
 </body>
 </html>

@@ -17,8 +17,13 @@ class SecurityHeaders
         $response->headers->remove('Server');
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+        // Allow iframe embedding only for public form routes
+        $isPublicForm = $request->is('f/*');
+        if (! $isPublicForm) {
+            $response->headers->set('X-Frame-Options', 'DENY');
+        }
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
         // Content-Security-Policy
@@ -26,9 +31,9 @@ class SecurityHeaders
         $reverbPort = (string) config('broadcasting.connections.reverb.options.port', '');
         $wsConnect = '';
         if ($reverbHost !== '') {
-            $hostPort = $reverbHost . ($reverbPort !== '' ? ':' . $reverbPort : '');
+            $hostPort = $reverbHost.($reverbPort !== '' ? ':'.$reverbPort : '');
             // wss:// for production, ws:// for local dev (no TLS)
-            $wsConnect = ' wss://' . $hostPort . ' ws://' . $hostPort;
+            $wsConnect = ' wss://'.$hostPort.' ws://'.$hostPort;
         }
 
         // Livewire injects inline <script> tags and Alpine.js evaluates
@@ -44,13 +49,13 @@ class SecurityHeaders
 
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://code.iconify.design" . $viteDev,
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://code.iconify.design https://cdn.jsdelivr.net".$viteDev,
             $workerSrc,
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com" . $viteDev,
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com".$viteDev,
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https://ui-avatars.com",
-            "connect-src 'self' https://api.iconify.design" . $wsConnect . $viteDev,
-            "frame-ancestors 'none'",
+            "connect-src 'self' https://api.iconify.design".$wsConnect.$viteDev,
+            $isPublicForm ? 'frame-ancestors *' : "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",
         ]);

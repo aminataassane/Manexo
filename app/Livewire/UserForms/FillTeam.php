@@ -22,8 +22,17 @@ class FillTeam extends Component
     use WithFileUploads;
 
     public Form $form;
+
+    /** Fields are loaded synchronously in mount (no wire:init needed). */
+    public bool $formReady = false;
+
     public array $answers = [];
     public array $fileUploads = [];
+
+    public function loadFormFields(): void
+    {
+        // No-op: fields already loaded in mount().
+    }
 
     public function mount(Form $form): void
     {
@@ -46,6 +55,8 @@ class FillTeam extends Component
                 ? (is_array($field->options) && count($field->options) > 0 ? [] : false)
                 : '';
         }
+
+        $this->formReady = true;
     }
 
     public function submit(): void

@@ -3,18 +3,26 @@
     $avgResolution = $summary['avg_resolution_seconds'] ?? null;
 
     $fmtDuration = function (?float $seconds) {
-        if ($seconds === null || $seconds <= 0) return __('daily_report.na');
+        if ($seconds === null || $seconds <= 0) return '—';
         $h = (int) floor($seconds / 3600);
         $m = (int) round(($seconds % 3600) / 60);
         if ($h > 0) return $h . __('daily_report.hours_short') . ' ' . $m . __('daily_report.minutes_short');
         return $m . __('daily_report.minutes_short');
     };
 
-    $atRisk = $this->atRiskTickets;
-    $activeTickets = $this->activeTickets;
-    $agentPerf = $this->agentPerformance;
-    $distCategory = $this->distributionByCategory;
-    $distPriority = $this->distributionByPriority;
+    if ($loadStage >= 2) {
+        $atRisk = $this->atRiskTickets;
+        $activeTickets = $this->activeTickets;
+        $agentPerf = $this->agentPerformance;
+        $distCategory = $this->distributionByCategory;
+        $distPriority = $this->distributionByPriority;
+    } else {
+        $atRisk = ['overdue' => collect(), 'due_soon' => collect()];
+        $activeTickets = collect();
+        $agentPerf = [];
+        $distCategory = [];
+        $distPriority = [];
+    }
     $totalCat = collect($distCategory)->sum('count') ?: 1;
     $totalPri = collect($distPriority)->sum('count') ?: 1;
     $maxAgentHandled = collect($agentPerf)->max('handled') ?: 1;
@@ -23,184 +31,189 @@
     $backlogTotal = $backlogTotal ?: 1;
 @endphp
 
-<div class="daily-report w-full max-w-full min-w-0 mx-auto space-y-6 sm:space-y-8">
+<div class="daily-report w-full max-w-full min-w-0 mx-auto space-y-6 sm:space-y-8" wire:init="loadReportBody">
 
     {{-- ════════════════════════════════════════════════════════════════
-         HEADER
+         HEADER — même style que la page Rapport des tâches
          ════════════════════════════════════════════════════════════════ --}}
-    <header class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--accent)] via-[color-mix(in_srgb,var(--accent),#1e293b_35%)] to-slate-900 text-white shadow-xl">
-        {{-- Grain overlay --}}
-        <div class="absolute inset-0 opacity-[0.04]" style="background-image:url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22f%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23f)%22/%3E%3C/svg%3E')"></div>
-        {{-- Decorative circles --}}
-        <div class="absolute -top-16 -right-16 h-56 w-56 rounded-full bg-white/[0.04]"></div>
-        <div class="absolute -bottom-20 -left-10 h-40 w-40 rounded-full bg-white/[0.03]"></div>
+    <div class="page-header !mb-2">
+        <div class="min-w-0">
+            <h1 class="page-title">{{ __('daily_report.title') }}</h1>
+            <p class="page-subtitle">{{ __('daily_report.subtitle') }}</p>
+        </div>
+        <div class="page-actions">
+            <input
+                type="date"
+                wire:model.live="date"
+                class="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors"
+            />
 
-        <div class="relative z-10 px-5 py-5 sm:px-8 sm:py-7">
-            <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                {{-- Left --}}
-                <div class="min-w-0">
-                    <div class="inline-flex items-center gap-1.5 rounded-full bg-white/[0.12] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest text-white/70 backdrop-blur-sm mb-2">
-                        <iconify-icon icon="solar:calendar-bold-duotone" width="13"></iconify-icon>
-                        {{ __('daily_report.subtitle') }}
-                    </div>
-                    <h1 class="text-xl font-extrabold tracking-tight sm:text-2xl lg:text-3xl text-white">{{ __('daily_report.title') }}</h1>
-                </div>
-
-                {{-- Right controls --}}
-                <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                    <input
-                        type="date"
-                        wire:model.live="date"
-                        class="h-10 rounded-xl border-0 bg-white/[0.12] px-3.5 text-sm font-semibold text-white shadow-inner backdrop-blur-sm focus:ring-2 focus:ring-white/30 focus:bg-white/[0.18] [color-scheme:dark] transition-colors"
-                    />
-
-                    <x-dropdown align="right" width="72" contentClasses="py-3 bg-white rounded-xl shadow-xl border border-slate-200">
-                        <x-slot name="trigger">
-                            <button type="button" class="relative inline-flex items-center gap-2 rounded-xl bg-white/[0.12] px-3.5 h-10 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/[0.18] transition-colors">
-                                <iconify-icon icon="solar:tuning-2-linear" width="17"></iconify-icon>
-                                <span class="hidden sm:inline">Filtres</span>
-                                @if($filterGroup || $filterAgent || $filterCategory || $filterPriority)
-                                    <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[9px] font-black text-[var(--accent)]">
-                                        {{ collect([$filterGroup, $filterAgent, $filterCategory, $filterPriority])->filter()->count() }}
-                                    </span>
-                                @endif
+            <x-dropdown align="right" width="72" contentClasses="py-3 bg-white rounded-xl shadow-xl border border-slate-200">
+                <x-slot name="trigger">
+                    <button type="button" class="relative inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 h-10 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                        <iconify-icon icon="solar:tuning-2-linear" width="17"></iconify-icon>
+                        <span class="hidden sm:inline">Filtres</span>
+                        @if($filterGroup || $filterAgent || $filterCategory || $filterPriority)
+                            <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent)] text-[9px] font-black text-white">
+                                {{ collect([$filterGroup, $filterAgent, $filterCategory, $filterPriority])->filter()->count() }}
+                            </span>
+                        @endif
+                    </button>
+                </x-slot>
+                <x-slot name="content">
+                    <div class="space-y-3.5 px-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_group') }}</label>
+                            <select wire:model.live="filterGroup" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <option value="">{{ __('daily_report.all') }}</option>
+                                @foreach($groups as $g)
+                                    <option value="{{ $g->id }}">{{ $g->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_agent') }}</label>
+                            <select wire:model.live="filterAgent" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <option value="">{{ __('daily_report.all') }}</option>
+                                @foreach($agents as $a)
+                                    <option value="{{ $a->id }}">{{ $a->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_category') }}</label>
+                            <select wire:model.live="filterCategory" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <option value="">{{ __('daily_report.all') }}</option>
+                                @foreach($categories as $c)
+                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_priority') }}</label>
+                            <select wire:model.live="filterPriority" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <option value="">{{ __('daily_report.all') }}</option>
+                                @foreach($priorities as $p)
+                                    <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @if($filterGroup || $filterAgent || $filterCategory || $filterPriority)
+                            <button type="button" wire:click="$set('filterGroup', ''); $set('filterAgent', ''); $set('filterCategory', ''); $set('filterPriority', '')" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors">
+                                {{ __('daily_report.reset_filters') }}
                             </button>
-                        </x-slot>
-                        <x-slot name="content">
-                            <div class="space-y-3.5 px-4">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_group') }}</label>
-                                    <select wire:model.live="filterGroup" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
-                                        <option value="">{{ __('daily_report.all') }}</option>
-                                        @foreach($groups as $g)
-                                            <option value="{{ $g->id }}">{{ $g->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_agent') }}</label>
-                                    <select wire:model.live="filterAgent" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
-                                        <option value="">{{ __('daily_report.all') }}</option>
-                                        @foreach($agents as $a)
-                                            <option value="{{ $a->id }}">{{ $a->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_category') }}</label>
-                                    <select wire:model.live="filterCategory" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
-                                        <option value="">{{ __('daily_report.all') }}</option>
-                                        @foreach($categories as $c)
-                                            <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_priority') }}</label>
-                                    <select wire:model.live="filterPriority" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
-                                        <option value="">{{ __('daily_report.all') }}</option>
-                                        @foreach($priorities as $p)
-                                            <option value="{{ $p->id }}">{{ $p->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                @if($filterGroup || $filterAgent || $filterCategory || $filterPriority)
-                                    <button type="button" wire:click="$set('filterGroup', ''); $set('filterAgent', ''); $set('filterCategory', ''); $set('filterPriority', '')" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors">
-                                        {{ __('daily_report.reset_filters') }}
-                                    </button>
-                                @endif
-                            </div>
-                        </x-slot>
-                    </x-dropdown>
-
-                    <div class="inline-flex items-center rounded-xl overflow-hidden border border-white/20">
-                        <button wire:click="exportCsv" type="button" class="inline-flex items-center gap-1.5 bg-white/[0.12] px-3 h-10 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/[0.18] transition-colors border-r border-white/15">
-                            <iconify-icon icon="solar:table-bold-duotone" width="16"></iconify-icon>
-                            CSV
-                        </button>
-                        <button wire:click="exportPdf" type="button" class="inline-flex items-center gap-1.5 bg-white/[0.12] px-3 h-10 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/[0.18] transition-colors">
-                            <iconify-icon icon="solar:file-text-bold-duotone" width="16"></iconify-icon>
-                            PDF
-                        </button>
+                        @endif
                     </div>
-                </div>
-            </div>
-        </div>
-    </header>
+                </x-slot>
+            </x-dropdown>
 
+            <x-dropdown align="right" width="48" contentClasses="py-1 bg-white rounded-xl shadow-xl border border-slate-200">
+                <x-slot name="trigger">
+                    <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                        <iconify-icon icon="solar:export-linear" width="18"></iconify-icon>
+                        {{ __('task_report.export') }}
+                    </button>
+                </x-slot>
+                <x-slot name="content">
+                    <button wire:click="exportCsv" type="button" class="block w-full px-4 py-2.5 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 rounded-lg mx-1 disabled:opacity-50" wire:loading.attr="disabled" wire:target="exportCsv,exportPdf">
+                        <span wire:loading.remove wire:target="exportCsv">
+                            <iconify-icon icon="solar:document-text-bold-duotone" width="16"></iconify-icon>
+                        </span>
+                        <span wire:loading wire:target="exportCsv" class="animate-spin">
+                            <iconify-icon icon="solar:refresh-linear" width="16"></iconify-icon>
+                        </span>
+                        <span wire:loading.remove wire:target="exportCsv">{{ __('task_report.export_csv') }}</span>
+                        <span wire:loading wire:target="exportCsv" class="text-slate-400">Génération...</span>
+                    </button>
+                    <button wire:click="exportPdf" type="button" class="block w-full px-4 py-2.5 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 rounded-lg mx-1 disabled:opacity-50" wire:loading.attr="disabled" wire:target="exportCsv,exportPdf">
+                        <span wire:loading.remove wire:target="exportPdf">
+                            <iconify-icon icon="solar:file-bold-duotone" width="16"></iconify-icon>
+                        </span>
+                        <span wire:loading wire:target="exportPdf" class="animate-spin">
+                            <iconify-icon icon="solar:refresh-linear" width="16"></iconify-icon>
+                        </span>
+                        <span wire:loading.remove wire:target="exportPdf">{{ __('task_report.export_pdf') }}</span>
+                        <span wire:loading wire:target="exportPdf" class="text-slate-400">Génération...</span>
+                    </button>
+                </x-slot>
+            </x-dropdown>
+        </div>
+    </div>
+
+    @if($loadStage >= 2)
     {{-- ════════════════════════════════════════════════════════════════
-         KPI BENTO GRID  (4 KPIs + 3 backlog = layout 4+3)
+         KPI CARDS — même style que Rapport des tâches
          ════════════════════════════════════════════════════════════════ --}}
-    <section class="grid grid-cols-2 lg:grid-cols-7 gap-4">
-
-        {{-- Card: Crees --}}
-        <div class="col-span-2 lg:col-span-2 relative overflow-hidden rounded-2xl bg-[var(--accent)] p-5 sm:p-6 text-white shadow-lg group">
-            <div class="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10"></div>
-            <div class="absolute right-3 top-3 opacity-15"><iconify-icon icon="solar:add-circle-bold" width="48"></iconify-icon></div>
-            <div class="relative z-10">
-                <p class="text-xs font-semibold text-white/80 uppercase tracking-wider">{{ __('daily_report.created_today') }}</p>
-                <p class="mt-3 text-4xl font-extrabold tabular-nums tracking-tight leading-none">{{ $summary['created_total'] }}</p>
-                {{-- Mini breakdown --}}
-                @if($summary['created_total'] > 0)
-                    <div class="mt-4 flex items-center gap-1.5 flex-wrap">
-                        @foreach([
-                            ['label' => __('daily_report.open'), 'val' => $summary['created_open'], 'ring' => 'ring-blue-300/40'],
-                            ['label' => __('daily_report.in_progress'), 'val' => $summary['created_in_progress'], 'ring' => 'ring-amber-300/40'],
-                            ['label' => __('daily_report.pending'), 'val' => $summary['created_pending'], 'ring' => 'ring-slate-300/30'],
-                        ] as $s)
-                            @if($s['val'] > 0)
-                                <span class="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold ring-1 {{ $s['ring'] }}">{{ $s['val'] }} {{ $s['label'] }}</span>
-                            @endif
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-        </div>
-
-        {{-- Card: Resolus --}}
-        <div class="relative rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm hover:shadow transition-shadow">
-            <div class="flex items-start justify-between gap-2">
-                <div>
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{{ __('daily_report.resolved_today') }}</p>
-                    <p class="mt-2.5 text-3xl font-extrabold text-slate-900 tabular-nums leading-none">{{ $summary['resolved_today'] }}</p>
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 min-[1920px]:gap-6">
+        {{-- Créés --}}
+        <div class="stat-card">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <span class="stat-card-label">{{ __('daily_report.created_today') }}</span>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl min-[1920px]:text-4xl font-bold text-slate-900 tabular-nums">{{ $summary['created_total'] }}</div>
+                    @if($summary['created_total'] > 0)
+                        <p class="text-xs text-slate-400 mt-0.5 tabular-nums">
+                            {{ $summary['created_open'] }} {{ __('daily_report.open') }}
+                            @if($summary['created_in_progress'] > 0), {{ $summary['created_in_progress'] }} {{ __('daily_report.in_progress') }}@endif
+                        </p>
+                    @endif
                 </div>
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500">
-                    <iconify-icon icon="solar:check-circle-bold-duotone" width="22"></iconify-icon>
+                <div class="stat-card-icon bg-[var(--accent)]/10 text-[var(--accent)]">
+                    <iconify-icon icon="solar:add-circle-bold-duotone" width="20"></iconify-icon>
                 </div>
             </div>
         </div>
 
-        {{-- Card: Tps 1ere reponse --}}
-        <div class="relative rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm hover:shadow transition-shadow">
-            <div class="flex items-start justify-between gap-2">
-                <div>
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{{ __('daily_report.avg_first_response') }}</p>
-                    <p class="mt-2.5 text-2xl font-extrabold text-slate-900 tabular-nums leading-none">{{ $fmtDuration($avgFirstResp) }}</p>
+        {{-- Résolus --}}
+        <div class="stat-card">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <span class="stat-card-label">{{ __('daily_report.resolved_today') }}</span>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl min-[1920px]:text-4xl font-bold text-slate-900 tabular-nums">{{ $summary['resolved_today'] }}</div>
                 </div>
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
-                    <iconify-icon icon="solar:clock-circle-bold-duotone" width="22"></iconify-icon>
+                <div class="stat-card-icon bg-emerald-50 text-emerald-600">
+                    <iconify-icon icon="solar:check-circle-bold-duotone" width="20"></iconify-icon>
                 </div>
             </div>
         </div>
 
-        {{-- Card: Tps resolution --}}
-        <div class="relative rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm hover:shadow transition-shadow">
-            <div class="flex items-start justify-between gap-2">
-                <div>
-                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{{ __('daily_report.avg_resolution_time') }}</p>
-                    <p class="mt-2.5 text-2xl font-extrabold text-slate-900 tabular-nums leading-none">{{ $fmtDuration($avgResolution) }}</p>
+        {{-- Tps 1ère réponse --}}
+        <div class="stat-card">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <span class="stat-card-label">{{ __('daily_report.avg_first_response') }}</span>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl min-[1920px]:text-4xl font-bold tabular-nums {{ $avgFirstResp !== null ? 'text-slate-900' : 'text-slate-300' }}">{{ $fmtDuration($avgFirstResp) }}</div>
+                    @if($avgFirstResp === null)
+                        <p class="text-[10px] text-slate-400 mt-0.5">Aucune réponse ce jour</p>
+                    @endif
                 </div>
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
-                    <iconify-icon icon="solar:stopwatch-bold-duotone" width="22"></iconify-icon>
+                <div class="stat-card-icon bg-amber-50 text-amber-600">
+                    <iconify-icon icon="solar:clock-circle-bold-duotone" width="20"></iconify-icon>
                 </div>
             </div>
         </div>
-    </section>
+
+        {{-- Tps résolution --}}
+        <div class="stat-card">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <span class="stat-card-label">{{ __('daily_report.avg_resolution_time') }}</span>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl min-[1920px]:text-4xl font-bold tabular-nums {{ $avgResolution !== null ? 'text-slate-900' : 'text-slate-300' }}">{{ $fmtDuration($avgResolution) }}</div>
+                    @if($avgResolution === null)
+                        <p class="text-[10px] text-slate-400 mt-0.5">Aucun ticket résolu ce jour</p>
+                    @endif
+                </div>
+                <div class="stat-card-icon bg-blue-50 text-blue-600">
+                    <iconify-icon icon="solar:stopwatch-bold-duotone" width="20"></iconify-icon>
+                </div>
+            </div>
+        </div>
+    </div>
 
     {{-- ════════════════════════════════════════════════════════════════
          BACKLOG : stacked bar + 3 metrics
          ════════════════════════════════════════════════════════════════ --}}
-    <section class="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm">
+    <section class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white p-5 sm:p-6 shadow-sm">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <iconify-icon icon="solar:layers-bold-duotone" width="18" class="text-[var(--accent)]"></iconify-icon>
@@ -261,7 +274,7 @@
             @endif
         </div>
 
-        <div class="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+        <div class="content-card">
             @if($atRisk['overdue']->isEmpty() && $atRisk['due_soon']->isEmpty())
                 <div class="px-6 py-14 text-center">
                     <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-400 mb-3">
@@ -364,7 +377,7 @@
             </div>
         </div>
 
-        <div class="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+        <div class="content-card">
             @if($activeTickets->isEmpty())
                 <div class="px-6 py-14 text-center">
                     <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-3">
@@ -437,13 +450,13 @@
     {{-- ════════════════════════════════════════════════════════════════
          PERFORMANCE AGENTS + REPARTITION
          ════════════════════════════════════════════════════════════════ --}}
-    <section class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <section class="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
 
         {{-- Agent Performance (3 cols) --}}
-        <div class="lg:col-span-3 rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-            <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+        <div class="lg:col-span-3 content-card">
+            <div class="px-4 sm:px-6 py-4 border-b border-slate-50 bg-slate-50/50 flex items-center gap-2">
                 <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" width="18" class="text-[var(--accent)]"></iconify-icon>
-                <h3 class="text-sm font-bold text-slate-800">{{ __('daily_report.agent_performance') }}</h3>
+                <h3 class="text-base font-bold text-slate-900">{{ __('daily_report.agent_performance') }}</h3>
             </div>
             @if(empty($agentPerf))
                 <div class="px-6 py-14 text-center">
@@ -453,7 +466,7 @@
                     <p class="text-sm font-medium text-slate-500">{{ __('daily_report.no_agent_data') }}</p>
                 </div>
             @else
-                <div class="p-5 space-y-4">
+                <div class="p-4 sm:p-6 space-y-4">
                     @foreach($agentPerf as $agent)
                         @php $pctBar = round(($agent['handled'] / $maxAgentHandled) * 100); @endphp
                         <div class="flex items-center gap-3">
@@ -477,12 +490,12 @@
         </div>
 
         {{-- Distribution (2 cols) --}}
-        <div class="lg:col-span-2 rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
-            <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+        <div class="lg:col-span-2 content-card">
+            <div class="px-4 sm:px-6 py-4 border-b border-slate-50 bg-slate-50/50 flex items-center gap-2">
                 <iconify-icon icon="solar:pie-chart-2-bold-duotone" width="18" class="text-[var(--accent)]"></iconify-icon>
-                <h3 class="text-sm font-bold text-slate-800">{{ __('daily_report.distribution') }}</h3>
+                <h3 class="text-base font-bold text-slate-900">{{ __('daily_report.distribution') }}</h3>
             </div>
-            <div class="p-5 space-y-6">
+            <div class="p-4 sm:p-6 space-y-6">
                 {{-- By category --}}
                 <div>
                     <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">{{ __('daily_report.by_category') }}</h4>
@@ -496,7 +509,7 @@
                             <span class="text-[11px] font-bold text-slate-700 tabular-nums w-8 text-right shrink-0">{{ $cat['count'] }}</span>
                         </div>
                     @empty
-                        <p class="text-center text-xs text-slate-400 py-3">{{ __('daily_report.na') }}</p>
+                        <p class="text-center text-xs text-slate-400 py-3">Aucune donnée</p>
                     @endforelse
                 </div>
 
@@ -518,10 +531,15 @@
                             <span class="text-[11px] font-bold text-slate-700 tabular-nums w-8 text-right shrink-0">{{ $pri['count'] }}</span>
                         </div>
                     @empty
-                        <p class="text-center text-xs text-slate-400 py-3">{{ __('daily_report.na') }}</p>
+                        <p class="text-center text-xs text-slate-400 py-3">Aucune donnée</p>
                     @endforelse
                 </div>
             </div>
         </div>
     </section>
+
+    @else
+        <x-page-skeleton variant="list" />
+    @endif
+
 </div>

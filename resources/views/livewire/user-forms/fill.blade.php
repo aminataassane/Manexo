@@ -1,3 +1,27 @@
+<div
+    wire:init="loadFormFields"
+    class="flex flex-col w-full max-w-3xl mx-auto min-w-0 px-0 sm:px-2 pb-6 sm:pb-8"
+    style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0));"
+>
+@if(! $formReady)
+    {{-- Coquille immédiate : pas de requête lourde avant wire:init --}}
+    <div class="animate-pulse space-y-4">
+        <div class="flex items-center gap-3">
+            <div class="h-10 w-10 rounded-lg bg-slate-200"></div>
+            <div class="flex-1 space-y-2">
+                <div class="h-6 bg-slate-200 rounded-lg w-2/3"></div>
+                <div class="h-4 bg-slate-100 rounded w-1/2"></div>
+            </div>
+        </div>
+        <div class="rounded-xl border border-slate-100 bg-white p-6 space-y-4 shadow-sm">
+            <div class="h-4 bg-slate-100 rounded w-1/4"></div>
+            <div class="h-10 bg-slate-100 rounded w-full"></div>
+            <div class="h-4 bg-slate-100 rounded w-1/3"></div>
+            <div class="h-24 bg-slate-50 rounded-lg w-full"></div>
+            <div class="h-10 bg-slate-100 rounded w-full"></div>
+        </div>
+    </div>
+@else
 @php
     $form = isset($assignment) && $assignment ? $assignment->form : ($form ?? null);
     abort_if(! $form, 404);
@@ -28,8 +52,6 @@
 @endphp
 
 <div
-    class="flex flex-col w-full max-w-3xl mx-auto min-w-0 px-0 sm:px-2 pb-6 sm:pb-8"
-    style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0));"
     x-data="{
         step: 0,
         totalSteps: {{ $stepsCount }},
@@ -104,11 +126,9 @@
         </div>
     @endif
 
-    {{-- Carte formulaire : contenu scrollable quand plein, pied fixe en bas de la carte --}}
-    <form wire:submit="submit" class="flex flex-col bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-hidden max-h-[70vh] sm:max-h-[720px]">
-        {{-- Zone de contenu scrollable quand c'est plein --}}
-        <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-            <div class="p-5 sm:p-6 lg:p-8 space-y-6">
+    {{-- Formulaire : page scroll normale (pas de scroll interne) --}}
+    <form wire:submit="submit" class="flex flex-col bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-visible">
+        <div class="p-5 sm:p-6 lg:p-8 space-y-6">
             @foreach($steps as $stepIndex => $stepData)
                 <div x-show="{{ $hasStepper ? 'step === ' . $stepIndex : 'true' }}"
                      x-transition:enter="transition ease-out duration-200"
@@ -219,11 +239,10 @@
                     </div>
                 </div>
             @endforeach
-            </div>
         </div>
 
         {{-- Pied : Annuler (icône X) | Précédent / Suivant / Soumettre — toujours visible --}}
-        <div class="shrink-0 px-5 sm:px-6 lg:px-8 py-4 border-t border-slate-200 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
+        <div class="sticky bottom-0 z-20 shrink-0 px-5 sm:px-6 lg:px-8 py-4 border-t border-slate-200 bg-white/90 backdrop-blur flex flex-wrap items-center justify-between gap-3">
             <a href="{{ route('forms.index') }}"
                class="order-2 sm:order-1 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors touch-manipulation">
                 <iconify-icon icon="solar:close-circle-bold" width="18" class="text-red-500"></iconify-icon>
@@ -275,4 +294,6 @@
             </div>
         </div>
     </form>
+</div>
+@endif
 </div>
