@@ -16,6 +16,7 @@ return [
     'tickets.change_status' => 'Changer le statut',
     'tickets.assign' => 'Assigner les tickets',
     'tickets.archive' => 'Archiver les tickets',
+    'tickets.approve' => 'Approuver les tickets',
     'tickets.view_trash' => 'Voir la corbeille',
 
     // Equipe
@@ -36,6 +37,13 @@ return [
     'settings.manage_functions' => 'Gerer les fonctions metier',
     'settings.manage_forms' => 'Gerer les formulaires',
     'settings.manage_roles' => 'Gerer les roles et permissions',
+    'settings.manage_email' => 'Gerer l\'e-mail entrant',
+    'settings.manage_sla' => 'Gerer les SLA',
+    'settings.manage_automations' => 'Gerer les automatisations',
+    'settings.manage_approvals' => 'Gerer les approbations',
+    'settings.manage_api' => 'Gerer l\'API',
+    'settings.manage_webhooks' => 'Gerer les webhooks',
+    'settings.manage_knowledge_base' => 'Gerer la base de connaissances',
     'settings.delete_org' => 'Supprimer l\'organisation',
 
     // Rapports

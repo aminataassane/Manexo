@@ -168,13 +168,12 @@
                                           placeholder="{{ $placeholder ?: $field->label }}"
                                           class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] resize-y min-h-[100px]"></textarea>
                             @elseif($type === 'select')
-                                <select wire:model="answers.{{ $key }}"
-                                        class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
+                                <x-select-input wire:model="answers.{{ $key }}">
                                     <option value="">{{ $placeholder ?: __('Sélectionnez...') }}</option>
                                     @foreach((array) $options as $opt)
                                         <option value="{{ $opt }}">{{ $opt }}</option>
                                     @endforeach
-                                </select>
+                                </x-select-input>
                             @elseif($type === 'radio')
                                 <div class="{{ $displayMode === 'inline' ? 'flex flex-wrap gap-2.5' : ($displayMode === 'grid' ? 'grid grid-cols-2 gap-2.5' : ($displayMode === 'card' ? 'space-y-2.5' : 'space-y-2')) }}">
                                     @foreach((array) $options as $opt)

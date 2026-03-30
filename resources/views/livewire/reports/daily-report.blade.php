@@ -29,6 +29,23 @@
 
     $backlogTotal = ($summary['backlog_open'] ?? 0) + ($summary['backlog_in_progress'] ?? 0) + ($summary['backlog_pending'] ?? 0);
     $backlogTotal = $backlogTotal ?: 1;
+
+    $dailyReportGroupOptions = [['value' => '', 'label' => __('daily_report.all')]];
+    foreach ($groups ?? [] as $g) {
+        $dailyReportGroupOptions[] = ['value' => (string) data_get($g, 'id'), 'label' => (string) data_get($g, 'name')];
+    }
+    $dailyReportAgentOptions = [['value' => '', 'label' => __('daily_report.all')]];
+    foreach ($agents ?? [] as $a) {
+        $dailyReportAgentOptions[] = ['value' => (string) data_get($a, 'id'), 'label' => (string) data_get($a, 'name')];
+    }
+    $dailyReportCategoryOptions = [['value' => '', 'label' => __('daily_report.all')]];
+    foreach ($categories ?? [] as $c) {
+        $dailyReportCategoryOptions[] = ['value' => (string) data_get($c, 'id'), 'label' => (string) data_get($c, 'name')];
+    }
+    $dailyReportPriorityOptions = [['value' => '', 'label' => __('daily_report.all')]];
+    foreach ($priorities ?? [] as $p) {
+        $dailyReportPriorityOptions[] = ['value' => (string) data_get($p, 'id'), 'label' => (string) data_get($p, 'name')];
+    }
 @endphp
 
 <div class="daily-report w-full max-w-full min-w-0 mx-auto space-y-6 sm:space-y-8" wire:init="loadReportBody">
@@ -64,39 +81,39 @@
                     <div class="space-y-3.5 px-4">
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_group') }}</label>
-                            <select wire:model.live="filterGroup" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
-                                <option value="">{{ __('daily_report.all') }}</option>
-                                @foreach($groups as $g)
-                                    <option value="{{ $g->id }}">{{ $g->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-select-input
+                                :options="$dailyReportGroupOptions"
+                                :label="collect($dailyReportGroupOptions)->firstWhere('value', (string) ($filterGroup ?? ''))['label'] ?? __('daily_report.all')"
+                                :selected-value="(string) ($filterGroup ?? '')"
+                                wire:model.live="filterGroup"
+                            />
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_agent') }}</label>
-                            <select wire:model.live="filterAgent" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
-                                <option value="">{{ __('daily_report.all') }}</option>
-                                @foreach($agents as $a)
-                                    <option value="{{ $a->id }}">{{ $a->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-select-input
+                                :options="$dailyReportAgentOptions"
+                                :label="collect($dailyReportAgentOptions)->firstWhere('value', (string) ($filterAgent ?? ''))['label'] ?? __('daily_report.all')"
+                                :selected-value="(string) ($filterAgent ?? '')"
+                                wire:model.live="filterAgent"
+                            />
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_category') }}</label>
-                            <select wire:model.live="filterCategory" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
-                                <option value="">{{ __('daily_report.all') }}</option>
-                                @foreach($categories as $c)
-                                    <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-select-input
+                                :options="$dailyReportCategoryOptions"
+                                :label="collect($dailyReportCategoryOptions)->firstWhere('value', (string) ($filterCategory ?? ''))['label'] ?? __('daily_report.all')"
+                                :selected-value="(string) ($filterCategory ?? '')"
+                                wire:model.live="filterCategory"
+                            />
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{{ __('daily_report.filter_priority') }}</label>
-                            <select wire:model.live="filterPriority" class="w-full rounded-lg border-slate-200 text-sm py-2 focus:border-[var(--accent)] focus:ring-[var(--accent)]">
-                                <option value="">{{ __('daily_report.all') }}</option>
-                                @foreach($priorities as $p)
-                                    <option value="{{ $p->id }}">{{ $p->name }}</option>
-                                @endforeach
-                            </select>
+                            <x-select-input
+                                :options="$dailyReportPriorityOptions"
+                                :label="collect($dailyReportPriorityOptions)->firstWhere('value', (string) ($filterPriority ?? ''))['label'] ?? __('daily_report.all')"
+                                :selected-value="(string) ($filterPriority ?? '')"
+                                wire:model.live="filterPriority"
+                            />
                         </div>
                         @if($filterGroup || $filterAgent || $filterCategory || $filterPriority)
                             <button type="button" wire:click="$set('filterGroup', ''); $set('filterAgent', ''); $set('filterCategory', ''); $set('filterPriority', '')" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors">

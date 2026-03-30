@@ -1,50 +1,21 @@
-@php
-    if (($loadStage ?? 0) >= 2) {
-        $notesCount = $ticket->messages->where('type', \App\Enums\TicketMessageType::InternalNote)->count();
-        $lastActivity = $ticket->messages->last()?->created_at ?? $ticket->updated_at;
-        $allAttachments = $ticket->messages->flatMap(fn ($m) => is_array($m->attachments) ? $m->attachments : [])->filter()->values();
-    } else {
-        $notesCount = 0;
-        $lastActivity = $ticket->updated_at;
-        $allAttachments = collect();
-    }
-    $creator = $ticket->creator;
-    $discussionUsers = collect([$creator])->merge($ticket->assignees)->merge($ticket->participants)->filter()->unique('id');
-    $ticketAttachments = [];
-    if (is_array($ticket->attachments)) {
-        $files = $ticket->attachments['files'] ?? [];
-        $links = $ticket->attachments['links'] ?? [];
-        foreach ($files as $f) {
-            $ticketAttachments[] = is_array($f) ? $f : [];
-        }
-        foreach ($links as $l) {
-            $ticketAttachments[] = ['name' => $l['name'] ?? __('Lien'), 'url' => $l['url'] ?? '#', 'path' => null];
-        }
-    }
-    $customFields = is_array($ticket->custom_fields) ? $ticket->custom_fields : [];
-
-    $statusLabels = [
-        'open' => __('tickets.status.open'),
-        'in_progress' => __('tickets.status.in_progress'),
-        'pending' => __('tickets.status.pending'),
-        'resolved' => __('tickets.status.resolved'),
-        'closed' => __('tickets.status.closed'),
-    ];
-    $priorityDotClass = [
-        1 => 'bg-slate-400',
-        2 => 'bg-blue-500',
-        3 => 'bg-amber-500',
-        4 => 'bg-red-500',
-    ];
-    $priorityLevel = optional($ticket->priority)->level ?? 2;
-    $priorityDot = $priorityDotClass[$priorityLevel] ?? 'bg-slate-400';
-@endphp
-
 <div
     class="discussion-shell flex flex-col min-h-0 rounded-none sm:rounded-xl lg:rounded-2xl overflow-hidden bg-white border-0 sm:border border-slate-200 shadow-sm"
-    style="height: calc(100dvh - 4.25rem); min-height: 12rem; padding-bottom: env(safe-area-inset-bottom, 0);"
+    style="height: calc(100dvh - var(--discussion-offset, 7rem)); min-height: 12rem; padding-bottom: env(safe-area-inset-bottom, 0);"
+    x-init="
+        // Calculate exact offset: topbar + shell padding + content wrap spacing
+        $nextTick(() => {
+            const shell = $el.closest('.manexo-shell-scroll');
+            if (shell) {
+                const shellStyle = getComputedStyle(shell);
+                const shellRect = shell.getBoundingClientRect();
+                const offset = shellRect.top + parseFloat(shellStyle.paddingTop);
+                $el.style.height = 'calc(100dvh - ' + offset + 'px - 1rem)';
+                // Prevent parent from scrolling
+                shell.style.overflow = 'hidden';
+            }
+        });
+    "
     x-data="discussionWebSocket('{{ $ticketPublicId }}', {{ auth()->id() ?? 'null' }}, {{ $canSeeInternalNotes ? 'true' : 'false' }})"
-    @keydown.enter.window="if (document.activeElement?.closest('[data-composer]') && !$event.shiftKey) { $event.preventDefault(); $refs.submitBtn?.click() }"
     @keydown.escape.window="addParticipantOpen = false"
 >
     <div
@@ -70,7 +41,7 @@
         }"
         x-init="init()"
     >
-        {{-- SECTION DÉTAILS : uniquement infos ticket (sidebar). Récupération discussion n'affecte pas cette section. --}}
+        {{-- SIDEBAR (isolated sub-component) --}}
         <section id="ticket-details-section" aria-label="{{ __('Détails du ticket') }}" class="hidden lg:block shrink-0">
             <aside class="flex shrink-0 flex-col bg-white border-r border-slate-200 overflow-hidden transition-[width] duration-300 ease-in-out h-full" :class="sidebarOpen ? 'w-[290px] xl:w-[310px]' : 'w-0 border-r-0'">
                 <div class="flex flex-col flex-1 min-w-0 min-h-0 w-[290px] xl:w-[310px]">
@@ -81,15 +52,20 @@
                         </button>
                     </div>
                     <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5">
-                        @include('livewire.tickets.partials.discussion-sidebar-content')
+                        @livewire('tickets.ticket-sidebar', [
+                            'ticketId' => $ticket->id,
+                            'ticketPublicId' => $ticketPublicId,
+                            'canSeeInternalNotes' => $canSeeInternalNotes,
+                            'canWriteInternalNotes' => $canWriteInternalNotes,
+                        ], key('sidebar-' . $ticket->id))
                     </div>
                 </div>
             </aside>
         </section>
 
-        {{-- SECTION DISCUSSION : uniquement fil de discussion + composer. Cible pour récupération discussion. --}}
+        {{-- DISCUSSION SECTION --}}
         <section id="ticket-discussion-section" aria-label="{{ __('Discussion') }}" class="discussion-chat-panel flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-white">
-            <!-- Header (sticky pour rester visible sous le header de l'app) -->
+            <!-- Header -->
             <header class="sticky top-0 z-20 shrink-0 bg-white/95 border-b border-slate-200 px-3 py-1.5 sm:px-5 sm:py-2 backdrop-blur safe-area-inset-top" style="padding-top: max(0.5rem, env(safe-area-inset-top));">
                 <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
                     <nav class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-xs sm:text-sm" style="min-width: 0;">
@@ -133,321 +109,29 @@
                         <button type="button" @click="toggleSidebar()" class="hidden lg:flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors" :title="sidebarOpen ? '{{ __('Fermer le panneau') }}' : '{{ __('Ouvrir le panneau Infos') }}'">
                             <iconify-icon icon="solar:sidebar-minimalistic-linear" width="20" class="transition-transform" :class="sidebarOpen ? 'rotate-180' : ''"></iconify-icon>
                         </button>
-                        <button type="button" wire:click="$refresh" wire:loading.attr="disabled" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors" title="{{ __('Actualiser') }}">
-                            <iconify-icon icon="solar:refresh-linear" width="18" class="wire-loading:animate-spin"></iconify-icon>
-                        </button>
-                        @if($canEditTicket ?? false)
-                            <button type="button" wire:click="openEditTicketModal" class="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 hover:text-slate-900 transition-colors" title="{{ __('Modifier le ticket') }}">
-                                <iconify-icon icon="solar:pen-linear" width="18"></iconify-icon>
-                                <span class="hidden sm:inline">{{ __('Modifier') }}</span>
-                            </button>
-                        @endif
                     </div>
                 </div>
             </header>
 
-            <!-- Messages Scroll Area (flex-1 + min-h-0 so this div gets bounded height and scrolls) -->
-            <div id="discussion-messages"
-                 class="discussion-chat-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-contain"
-                 x-data="{ tab: 'discussion' }"
-                 x-on:new-message-received.window="$nextTick(() => { $el.scrollTop = $el.scrollHeight })"
-            >
-                <div class="discussion-chat-stream mx-auto w-full max-w-4xl px-3 py-3 sm:px-5 sm:py-5" style="padding-left: max(0.75rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right));">
+            <!-- Timeline (isolated sub-component with cursor pagination) -->
+            @livewire('tickets.ticket-timeline', [
+                'ticketId' => $ticket->id,
+                'ticketPublicId' => $ticketPublicId,
+                'ticketCreatorId' => (int) $ticket->created_by,
+                'canSeeInternalNotes' => $canSeeInternalNotes,
+            ], key('timeline-' . $ticket->id))
 
-                    <!-- Tabs -->
-                    <div class="mb-4 w-full max-w-full">
-                        <div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                        <button type="button" @click="tab = 'discussion'" class="rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all touch-manipulation min-h-[36px]" :class="tab === 'discussion' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
-                            {{ __('Discussion') }}
-                        </button>
-                        @if($canSeeInternalNotes)
-                            <button type="button" @click="tab = 'notes'" class="flex items-center gap-1.5 rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all touch-manipulation min-h-[36px]" :class="tab === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
-                                <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="14"></iconify-icon>
-                                <span class="whitespace-nowrap">{{ __('Notes internes') }}</span>
-                                @if($notesCount > 0)
-                                    <span class="ml-1 px-1.5 py-0.5 rounded-full bg-slate-200 text-[10px]">{{ $notesCount }}</span>
-                                @endif
-                            </button>
-                        @endif
-                        </div>
-                    </div>
-
-                    {{-- Discussion Tab --}}
-                    <div id="discussion-tab-content" x-show="tab === 'discussion'" x-cloak class="space-y-4 sm:space-y-6">
-                        <div class="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 sm:px-5 sm:py-4">
-                            <div class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                                <span class="inline-flex items-center rounded-lg bg-white px-2.5 py-1 font-mono font-bold text-slate-700 border border-slate-200">{{ $ticket->shortReference() }}</span>
-                                <span class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 border border-slate-200"><span class="h-2 w-2 rounded-full {{ $priorityDot }}"></span>{{ $ticket->priority?->name ?? '—' }}</span>
-                                <span class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 border border-slate-200">{{ $statusLabels[$ticket->status->value] ?? $ticket->status->value }}</span>
-                                <span class="inline-flex items-center rounded-lg bg-white px-2.5 py-1 border border-slate-200">{{ $ticket->category?->name ?? '—' }}</span>
-                            </div>
-                            <p class="mt-2 text-sm text-slate-700 break-words line-clamp-2">{{ $ticket->description }}</p>
-                        </div>
-
-                        <!-- Timeline (messages de la discussion) -->
-                        @if (($loadStage ?? 0) >= 2)
-                        @php
-                            $messagesByDate = $ticket->messages->groupBy(fn ($m) => $m->created_at->format('Y-m-d'));
-                            $discussionMessagesByDate = $messagesByDate
-                                ->map(fn ($msgs) => $canSeeInternalNotes
-                                    ? $msgs
-                                    : $msgs->where('type', '!=', \App\Enums\TicketMessageType::InternalNote))
-                                ->filter(fn ($msgs) => $msgs->isNotEmpty());
-                        @endphp
-                        <div class="discussion-thread relative min-w-0 overflow-hidden space-y-6" data-timeline="discussion">
-                            @forelse($discussionMessagesByDate as $date => $msgs)
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-3 my-2 first:mt-0">
-                                        <span class="flex-1 h-px bg-slate-200" aria-hidden="true"></span>
-                                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{{ \Carbon\Carbon::parse($date)->translatedFormat('l d F') }}</span>
-                                        <span class="flex-1 h-px bg-slate-200" aria-hidden="true"></span>
-                                    </div>
-                                    <div class="space-y-1">
-                                        @foreach($msgs as $msg)
-                                            @include('livewire.tickets.partials.timeline-item', ['msg' => $msg, 'ticket' => $ticket])
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @empty
-                                <div data-empty-discussion class="py-14 sm:py-16 text-center">
-                                    <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4">
-                                        <iconify-icon icon="solar:chat-round-dots-linear" width="28"></iconify-icon>
-                                    </div>
-                                    <p class="text-base font-semibold text-slate-700">{{ __('La discussion commence ici.') }}</p>
-                                    <p class="mt-2 text-sm text-slate-500">{{ __('Utilisez le formulaire ci-dessous pour envoyer un message.') }}</p>
-                                </div>
-                            @endforelse
-                        </div>
-                        @else
-                        {{-- Messages skeleton (stage 1 — header+sidebar visible, messages loading) --}}
-                        <div class="space-y-4 animate-pulse" data-timeline="discussion">
-                            <div class="flex gap-3 py-3 max-w-[70%]">
-                                <div class="w-9 h-9 shrink-0 rounded-full bg-slate-200"></div>
-                                <div class="flex-1 space-y-2">
-                                    <div class="h-3 bg-slate-200 rounded w-24"></div>
-                                    <div class="rounded-2xl bg-slate-100 p-4 space-y-2">
-                                        <div class="h-3 bg-slate-200 rounded w-full"></div>
-                                        <div class="h-3 bg-slate-200 rounded w-3/4"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex justify-end py-3">
-                                <div class="flex items-end gap-3 max-w-[70%] flex-row-reverse">
-                                    <div class="w-9 h-9 shrink-0 rounded-full bg-slate-200"></div>
-                                    <div class="flex-1 space-y-2">
-                                        <div class="h-3 bg-slate-200 rounded w-20 ml-auto"></div>
-                                        <div class="rounded-2xl bg-slate-100 p-4 space-y-2">
-                                            <div class="h-3 bg-slate-200 rounded w-full"></div>
-                                            <div class="h-3 bg-slate-200 rounded w-2/3"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex gap-3 py-3 max-w-[60%]">
-                                <div class="w-9 h-9 shrink-0 rounded-full bg-slate-200"></div>
-                                <div class="flex-1 space-y-2">
-                                    <div class="h-3 bg-slate-200 rounded w-28"></div>
-                                    <div class="rounded-2xl bg-slate-100 p-4 space-y-2">
-                                        <div class="h-3 bg-slate-200 rounded w-full"></div>
-                                        <div class="h-3 bg-slate-200 rounded w-1/2"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
-                    </div>
-
-                    {{-- Notes Tab --}}
-                    @if($canSeeInternalNotes)
-                    <div id="notes-tab-content" x-show="tab === 'notes'" x-cloak class="space-y-6">
-                        @if (($loadStage ?? 0) >= 2)
-                        @php $notesByDate = $ticket->messages->where('type', \App\Enums\TicketMessageType::InternalNote)->groupBy(fn ($m) => $m->created_at->format('Y-m-d')); @endphp
-                        <div class="discussion-thread relative min-w-0 overflow-hidden space-y-6" data-timeline="notes">
-                            @forelse($notesByDate as $date => $msgs)
-                                <div class="flex flex-col gap-4">
-                                    <div class="flex items-center gap-3 my-2">
-                                        <span class="flex-1 h-px bg-amber-100" aria-hidden="true"></span>
-                                        <span class="text-[11px] font-bold text-amber-600/80 uppercase tracking-widest">{{ \Carbon\Carbon::parse($date)->translatedFormat('l d F') }}</span>
-                                        <span class="flex-1 h-px bg-amber-100" aria-hidden="true"></span>
-                                    </div>
-                                    <div class="space-y-1">
-                                        @foreach($msgs as $msg)
-                                            @include('livewire.tickets.partials.timeline-item', ['msg' => $msg, 'ticket' => $ticket])
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @empty
-                                <div data-empty-notes class="py-14 text-center">
-                                    <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-500 mb-4">
-                                        <iconify-icon icon="solar:lock-keyhole-linear" width="28"></iconify-icon>
-                                    </div>
-                                    <p class="text-base font-semibold text-slate-600">{{ __('Aucune note interne pour le moment.') }}</p>
-                                </div>
-                            @endforelse
-                        </div>
-                        @else
-                        <div class="space-y-4 animate-pulse py-4">
-                            <div class="flex gap-3 max-w-[85%]">
-                                <div class="w-8 h-8 shrink-0 rounded-full bg-amber-100"></div>
-                                <div class="flex-1 space-y-2">
-                                    <div class="h-3 bg-amber-100 rounded w-32"></div>
-                                    <div class="rounded-xl bg-amber-50 border border-amber-100 p-4 space-y-2">
-                                        <div class="h-3 bg-amber-100/80 rounded w-full"></div>
-                                        <div class="h-3 bg-amber-100/80 rounded w-4/5"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex gap-3 max-w-[85%]">
-                                <div class="w-8 h-8 shrink-0 rounded-full bg-amber-100"></div>
-                                <div class="flex-1 space-y-2">
-                                    <div class="h-3 bg-amber-100 rounded w-28"></div>
-                                    <div class="rounded-xl bg-amber-50 border border-amber-100 p-4 h-16"></div>
-                                </div>
-                            </div>
-                        </div>
-                        @endif
-                    </div>
-                    @endif
-                </div>
-            </div>
-
-            <!-- Composer (compact) -->
-            <div class="discussion-composer shrink-0 border-t border-slate-200 bg-white/95 p-2 sm:p-2.5 z-10 safe-area-pb min-w-0 overflow-hidden backdrop-blur" data-composer>
-                <div class="mx-auto max-w-3xl min-w-0">
-                    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                        <button type="button" wire:click="setAsInternalNote(false)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 {{ !$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
-                            {{ __('Répondre') }}
-                        </button>
-                        @if($canWriteInternalNotes)
-                            <button type="button" wire:click="setAsInternalNote(true)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1 {{ $asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
-                                <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="10"></iconify-icon>
-                                {{ __('Note interne') }}
-                            </button>
-                        @endif
-                    </div>
-
-                    <form wire:submit="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-{{ $ticketPublicId }}')" class="discussion-composer-box relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)]/25 focus-within:border-[var(--accent)] transition-all min-w-0"
-                    x-data="{
-                        users: {{ \Illuminate\Support\Js::from($mentionableUsers ?? []) }},
-                        mentionOpen: false,
-                        mentionQuery: '',
-                        mentionStart: 0,
-                        mentionCursor: 0,
-                        draftTimer: null,
-                        draftKey: 'ticket-draft-{{ $ticketPublicId }}',
-                        init() {
-                            try {
-                                const saved = localStorage.getItem(this.draftKey);
-                                if (saved && !this.$wire.get('body')) {
-                                    this.$wire.set('body', saved);
-                                }
-                            } catch (e) {}
-                        },
-                        get filteredMentions() {
-                            if (!this.mentionQuery) return this.users.slice(0, 8);
-                            const q = this.mentionQuery.toLowerCase();
-                            return this.users.filter(u =>
-                                (u.tag && u.tag.toLowerCase().startsWith(q)) ||
-                                (u.name && u.name.toLowerCase().includes(q))
-                            ).slice(0, 8);
-                        },
-                        saveDraft(val) {
-                            clearTimeout(this.draftTimer);
-                            this.draftTimer = setTimeout(() => {
-                                try {
-                                    if (val && val.trim()) localStorage.setItem(this.draftKey, val);
-                                    else localStorage.removeItem(this.draftKey);
-                                } catch (e) {}
-                            }, 500);
-                        },
-                        onInput(ev) {
-                            const el = ev.target;
-                            const val = el.value;
-                            this.saveDraft(val);
-                            const pos = el.selectionStart || 0;
-                            const before = val.slice(0, pos);
-                            const lastAt = before.lastIndexOf('@');
-                            if (lastAt === -1) { this.mentionOpen = false; return; }
-                            const afterAt = before.slice(lastAt + 1);
-                            if (/[\s\n]/.test(afterAt)) { this.mentionOpen = false; return; }
-                            this.mentionStart = lastAt;
-                            this.mentionCursor = pos;
-                            this.mentionQuery = afterAt;
-                            this.mentionOpen = true;
-                        },
-                        pickUser(user) {
-                            const el = this.$refs.mentionInput;
-                            if (!el) return;
-                            const val = el.value;
-                            const newVal = val.slice(0, this.mentionStart) + '@' + user.tag + ' ' + val.slice(this.mentionCursor);
-                            this.$wire.set('body', newVal);
-                            this.mentionOpen = false;
-                            this.$nextTick(() => { el.focus(); el.setSelectionRange(this.mentionStart + user.tag.length + 2, this.mentionStart + user.tag.length + 2); });
-                        }
-                    }"
-                    @keydown.escape="mentionOpen = false">
-                        <div class="p-1.5 sm:p-2 relative">
-                            <textarea
-                                x-ref="mentionInput"
-                                wire:model="body"
-                                rows="2"
-                                @input="onInput($event)"
-                                @keydown.arrow-down.prevent="mentionOpen && filteredMentions.length && (mentionOpen = true)"
-                                class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm p-1 min-h-[2.5rem] sm:min-h-[2.75rem] max-h-28"
-                                placeholder="{{ $asInternalNote ? __('Ajouter une note visible uniquement par l\'équipe...') : __('Écrivez votre réponse ici...') }}"
-                            ></textarea>
-                            <div x-show="mentionOpen" x-cloak @click.outside="mentionOpen = false"
-                                class="absolute left-1 right-1 sm:left-1.5 sm:right-1.5 bottom-full mb-1 py-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-36 overflow-y-auto"
-                                style="display: none;" wire:ignore>
-                                <template x-for="u in filteredMentions" :key="u.id">
-                                    <button type="button" @click="pickUser(u)"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
-                                        <span class="font-medium text-slate-900" x-text="u.name"></span>
-                                        <span class="text-slate-400 text-xs" x-text="'@' + u.tag"></span>
-                                    </button>
-                                </template>
-                                <p x-show="filteredMentions.length === 0" class="px-3 py-2 text-xs text-slate-500">{{ __('Aucun utilisateur') }}</p>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 border-t border-slate-100 rounded-b-xl bg-slate-50/50">
-                            <div class="flex items-center gap-0.5 min-w-0 flex-1 sm:flex-initial">
-                                <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="discussion-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
-                                <button type="button" onclick="document.getElementById('discussion-file-input').click()" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Joindre un fichier') }}">
-                                    <iconify-icon icon="solar:paperclip-linear" width="16"></iconify-icon>
-                                </button>
-                                <div x-data="{ emojiOpen: false }" class="relative">
-                                    <button type="button" @click="emojiOpen = !emojiOpen" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Emoji') }}">
-                                        <iconify-icon icon="solar:smile-circle-linear" width="16"></iconify-icon>
-                                    </button>
-                                    <div x-show="emojiOpen" @click.outside="emojiOpen = false" x-cloak class="absolute bottom-full left-0 mb-1 p-1.5 rounded-lg bg-white shadow-xl border border-slate-200 grid grid-cols-8 gap-1 max-h-36 overflow-y-auto z-50 w-48">
-                                        @foreach(['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','👍','👎','👏','🙌','👋','💪','✨','🔥','❤️','💯','✅','📎','📁','🔒'] as $emoji)
-                                            <button type="button" @click="$wire.set('body', ($wire.get('body') || '') + '{{ $emoji }}'); emojiOpen = false" class="p-1.5 hover:bg-slate-100 rounded-lg text-xl transition-colors">{{ $emoji }}</button>
-                                        @endforeach
-                                    </div>
-                                </div>
-                                @if(count($attachmentFiles ?? []) > 0)
-                                    <span class="ml-1 text-[10px] sm:text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-1.5 py-0.5 rounded">{{ count($attachmentFiles) }} fichier(s)</span>
-                                @endif
-                            </div>
-
-                            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                                <p class="text-[10px] text-slate-400 hidden sm:inline">{{ __('Markdown') }}</p>
-                                <p class="text-[10px] text-slate-400">{{ __('Tapez') }} <kbd class="px-0.5 py-px rounded bg-slate-100 text-slate-600 font-mono text-[9px]">@</kbd> {{ __('pour mentionner') }}</p>
-                                <button type="submit" x-ref="submitBtn" wire:loading.attr="disabled" wire:target="sendMessage" class="inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 min-h-[34px] sm:min-h-0 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70 disabled:cursor-not-allowed" style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};">
-                                    <span wire:loading.remove wire:target="sendMessage">{{ __('Envoyer') }}</span>
-                                    <span wire:loading wire:target="sendMessage" class="inline-block h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                                    <iconify-icon icon="solar:plain-bold" width="12" wire:loading.remove wire:target="sendMessage"></iconify-icon>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                    <x-input-error :messages="$errors->get('body')" class="mt-2" />
-                </div>
-            </div>
+            <!-- Composer (isolated sub-component) -->
+            @livewire('tickets.ticket-composer', [
+                'ticketId' => $ticket->id,
+                'ticketPublicId' => $ticketPublicId,
+                'canWriteInternalNotes' => $canWriteInternalNotes,
+                'isLocked' => $isLocked,
+                'mentionableUsers' => $mentionableUsers ?? [],
+            ], key('composer-' . $ticket->id))
         </section>
 
-        <!-- MOBILE DRAWER (panneau Infos = même section Détails, overlay sur mobile) -->
+        <!-- MOBILE DRAWER -->
         <div x-show="mobileDrawerOpen" x-cloak class="lg:hidden fixed inset-0 z-50" style="display: none; padding-left: env(safe-area-inset-left); padding-bottom: env(safe-area-inset-bottom);">
             <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" x-show="mobileDrawerOpen" x-transition.opacity @click="mobileDrawerOpen = false"></div>
             <div class="absolute right-0 top-0 bottom-0 w-full max-w-[min(100%,24rem)] bg-white shadow-2xl flex flex-col rounded-l-2xl overflow-hidden"
@@ -465,218 +149,17 @@
                     </button>
                 </div>
                 <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
-                    @include('livewire.tickets.partials.discussion-sidebar-content')
+                    {{-- Mobile reuses the same sidebar component via a second instance --}}
+                    @livewire('tickets.ticket-sidebar', [
+                        'ticketId' => $ticket->id,
+                        'ticketPublicId' => $ticketPublicId,
+                        'canSeeInternalNotes' => $canSeeInternalNotes,
+                        'canWriteInternalNotes' => $canWriteInternalNotes,
+                    ], key('sidebar-mobile-' . $ticket->id))
                 </div>
             </div>
         </div>
-
-        <!-- ADD PARTICIPANT MODAL (single instance, works for desktop + mobile) -->
-        <div
-            x-show="addParticipantOpen"
-            x-cloak
-            class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50"
-            @click.self="addParticipantOpen = false"
-        >
-            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80dvh] overflow-hidden border border-slate-200" @click.stop>
-                <div class="p-4 border-b border-slate-100 flex items-center justify-between">
-                    <h3 class="text-base font-semibold text-slate-900">{{ __('Ajouter à la discussion') }}</h3>
-                    <button type="button" @click="addParticipantOpen = false" class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors" aria-label="{{ __('Fermer') }}">
-                        <iconify-icon icon="solar:close-circle-linear" width="20"></iconify-icon>
-                    </button>
-                </div>
-                <div class="p-2 overflow-y-auto max-h-[60dvh] custom-scrollbar">
-                    @php
-                        $availableUsers = $orgUsers->filter(fn ($u) =>
-                            $u->id !== $ticket->created_by
-                            && $u->id !== $ticket->assigned_to
-                            && ! $ticket->participants->contains('id', $u->id)
-                        );
-                    @endphp
-
-                    @forelse($availableUsers as $u)
-                        <button
-                            type="button"
-                            wire:click="addParticipant({{ $u->id }})"
-                            @click="addParticipantOpen = false"
-                            class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 text-left transition-colors"
-                        >
-                            <div class="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
-                                {{ strtoupper(mb_substr($u->name ?? '?', 0, 1)) }}
-                            </div>
-                            <div class="min-w-0">
-                                <p class="text-sm font-medium text-slate-900 truncate">{{ $u->name }}</p>
-                                <p class="text-xs text-slate-500 truncate">{{ $u->email }}</p>
-                            </div>
-                        </button>
-                    @empty
-                        <div class="p-6 text-center">
-                            <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                                <iconify-icon icon="solar:users-group-rounded-linear" width="20"></iconify-icon>
-                            </div>
-                            <p class="text-sm text-slate-600">{{ __('Tous les membres sont déjà dans la discussion.') }}</p>
-                        </div>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-
-        {{-- Modal d'édition du ticket (titre, description, pièces jointes) --}}
-        @if($canEditTicket ?? false)
-        <x-modal name="edit-ticket" maxWidth="2xl" focusable>
-            <div class="p-6">
-                <h2 class="text-lg font-bold text-slate-900 mb-4">{{ __('Modifier le ticket') }}</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label for="edit-subject" class="block text-sm font-semibold text-slate-700 mb-1">{{ __('Titre') }}</label>
-                        <input id="edit-subject" type="text" wire:model="editSubject" wire:blur="updateSubject" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" placeholder="{{ __('Sujet du ticket') }}" />
-                        @error('editSubject')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
-                        <label for="edit-description" class="block text-sm font-semibold text-slate-700 mb-1">{{ __('Description') }}</label>
-                        <textarea id="edit-description" wire:model="editDescription" wire:blur="updateDescription" rows="4" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" placeholder="{{ __('Description') }}"></textarea>
-                        @error('editDescription')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
-                        <div class="text-sm font-semibold text-slate-700 mb-2">{{ __('Pièces jointes du ticket') }}</div>
-                        @php
-                            $editFiles = is_array($ticket->attachments) ? ($ticket->attachments['files'] ?? []) : [];
-                            $editLinks = is_array($ticket->attachments) ? ($ticket->attachments['links'] ?? []) : [];
-                        @endphp
-                        <div class="space-y-2 mb-3">
-                            @foreach($editFiles as $idx => $f)
-                                @php $f = is_array($f) ? $f : []; @endphp
-                                <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                    <iconify-icon icon="solar:file-text-linear" width="18" class="text-slate-500 shrink-0"></iconify-icon>
-                                    <span class="text-sm font-medium text-slate-800 truncate flex-1 min-w-0">{{ $f['name'] ?? __('Fichier') }}</span>
-                                    <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Supprimer') }}', message: '{{ __('Supprimer cette pièce jointe ?') }}', confirmLabel: '{{ __('Supprimer') }}', variant: 'danger', onConfirm: () => $wire.removeTicketAttachment('files', {{ $idx }}) })" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Supprimer') }}">
-                                        <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
-                                    </button>
-                                </div>
-                            @endforeach
-                            @foreach($editLinks as $idx => $l)
-                                @php $l = is_array($l) ? $l : []; $linkUrl = $l['url'] ?? '#'; @endphp
-                                <div class="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                                    <iconify-icon icon="solar:link-linear" width="18" class="text-slate-500 shrink-0"></iconify-icon>
-                                    <a href="{{ $linkUrl }}" target="_blank" rel="noopener" class="text-sm font-medium text-[var(--accent)] truncate flex-1 min-w-0">{{ $linkUrl }}</a>
-                                    <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Supprimer') }}', message: '{{ __('Supprimer ce lien ?') }}', confirmLabel: '{{ __('Supprimer') }}', variant: 'danger', onConfirm: () => $wire.removeTicketAttachment('links', {{ $idx }}) })" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="{{ __('Supprimer') }}">
-                                        <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
-                                    </button>
-                                </div>
-                            @endforeach
-                        </div>
-                        <div class="flex flex-wrap gap-3">
-                            <div class="min-w-0">
-                                <input type="file" wire:model="editAttachmentFiles" wire:change="addTicketAttachmentFile" class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--accent-soft)] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-[var(--accent)] hover:file:opacity-90" />
-                                <p class="mt-1 text-xs text-slate-500">{{ __('Max 5 fichiers, 10 Mo chacun.') }}</p>
-                            </div>
-                            <div class="flex gap-2 flex-1 min-w-0">
-                                <input type="url" wire:model="editLinkUrl" wire:keydown.enter.prevent="addTicketAttachmentLink" placeholder="{{ __('Ajouter un lien') }}" class="block flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
-                                <button type="button" wire:click="addTicketAttachmentLink" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-bold text-white hover:opacity-90">
-                                    <iconify-icon icon="solar:link-linear" width="16"></iconify-icon>
-                                    {{ __('Ajouter') }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-6 flex flex-wrap justify-end gap-3">
-                    <button type="button" x-on:click="$dispatch('close-modal', 'edit-ticket')" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
-                        {{ __('Fermer') }}
-                    </button>
-                </div>
-            </div>
-        </x-modal>
-        @endif
-
-        {{-- Modal de confirmation de suppression du ticket (remplace l'alerte native) --}}
-        @if($canDeleteTicket ?? false)
-        <x-modal name="confirm-delete-ticket" maxWidth="sm" focusable>
-            <div class="p-6">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-                        <iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="24"></iconify-icon>
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">{{ __('Supprimer le ticket') }}</h2>
-                        <p class="mt-0.5 text-sm text-slate-600">{{ __('Êtes-vous sûr de vouloir supprimer ce ticket ?') }}</p>
-                    </div>
-                </div>
-                <p class="text-sm text-slate-500">{{ __('Le ticket sera masqué des listes. La suppression peut être annulée par un administrateur.') }}</p>
-                <div class="mt-6 flex flex-wrap justify-end gap-3">
-                    <button type="button" x-on:click="$dispatch('close-modal', 'confirm-delete-ticket')" class="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors">
-                        {{ __('Annuler') }}
-                    </button>
-                    <button type="button" wire:click="deleteTicket" wire:loading.attr="disabled" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-colors inline-flex items-center gap-2 disabled:opacity-70">
-                        <span wire:loading.remove wire:target="deleteTicket"><iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="18"></iconify-icon></span>
-                        <span wire:loading wire:target="deleteTicket" class="inline-block h-[18px] w-[18px] rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                        <span>{{ __('Supprimer') }}</span>
-                    </button>
-                </div>
-            </div>
-        </x-modal>
-        @endif
     </div>
-
-    {{-- Approval Modal --}}
-    @if($ticket->requires_approval && $ticket->isPendingApproval() && ($canApproveTicket ?? false))
-        <div
-            x-data="{ open: @entangle('showApprovalModal') }"
-            x-show="open"
-            x-cloak
-            class="fixed inset-0 z-50 flex items-center justify-center p-4"
-            x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0"
-            x-transition:enter-end="opacity-100"
-            x-transition:leave="transition ease-in duration-150"
-            x-transition:leave-start="opacity-100"
-            x-transition:leave-end="opacity-0"
-        >
-            <div class="fixed inset-0 bg-black/40" @click="$wire.cancelApproval()"></div>
-            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10" @click.stop>
-                <h3 class="text-lg font-bold text-slate-900 mb-1">
-                    @{{ $wire.approvalAction === 'approve' ? 'Approuver le ticket' : 'Rejeter le ticket' }}
-                </h3>
-                <p class="text-sm text-slate-500 mb-4">
-                    Un commentaire est obligatoire pour justifier votre décision.
-                </p>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Commentaire</label>
-                    <textarea
-                        wire:model="approvalComment"
-                        rows="4"
-                        class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
-                        placeholder="Justifiez votre décision..."
-                    ></textarea>
-                    @error('approvalComment')
-                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="flex items-center gap-3 justify-end">
-                    <button
-                        type="button"
-                        wire:click="cancelApproval"
-                        class="px-4 py-2 rounded-xl text-sm font-medium text-slate-700 border border-slate-200 hover:bg-slate-50 transition-colors"
-                    >
-                        Annuler
-                    </button>
-                    <button
-                        type="button"
-                        wire:click="submitApproval"
-                        class="px-4 py-2 rounded-xl text-sm font-bold text-white shadow-sm transition-colors"
-                        :class="$wire.approvalAction === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'"
-                    >
-                        <span x-text="$wire.approvalAction === 'approve' ? 'Confirmer l\'approbation' : 'Confirmer le rejet'"></span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
 </div>
 
 @script
@@ -694,7 +177,6 @@
                     chan.listen('.message.sent', (e) => this.appendMessage(e));
                     chan.subscribed(() => { this.wsConnected = true; });
 
-                    // Internal notes are broadcasted only to staff channel.
                     if (this.canSeeInternalNotes) {
                         window.Echo.private('ticket.staff.' + this.ticketPublicId)
                             .listen('.message.sent', (e) => this.appendMessage(e));
@@ -706,22 +188,15 @@
             tryConnect();
         },
         appendMessage(e) {
-            // Dedup: skip if already seen or already in DOM
             if (e.id && (this.seenIds.has(e.id) || document.getElementById('message-' + e.id))) {
                 return;
             }
             if (e.id) this.seenIds.add(e.id);
 
             const isNote = e.type === 'internal_note';
-
             const targets = [];
-            // Always append normal messages to discussion timeline.
             if (!isNote) targets.push('discussion');
-            // For internal notes, append inline to discussion (staff view) and also to notes tab if present.
-            if (isNote) {
-                targets.push('discussion');
-                targets.push('notes');
-            }
+            if (isNote) { targets.push('discussion'); targets.push('notes'); }
 
             for (const kind of targets) {
                 const containerId = kind === 'notes' ? 'notes-tab-content' : 'discussion-tab-content';

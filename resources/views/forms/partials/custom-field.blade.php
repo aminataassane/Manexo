@@ -27,19 +27,12 @@
                   @required($f->required)>{{ $oldVal }}</textarea>
 
     @elseif($type === 'select')
-        <div class="relative">
-            <select name="{{ $name }}" id="{{ $fieldId }}"
-                    class="mnx-input appearance-none block w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-10 text-sm text-slate-900 focus:ring-0 transition cursor-pointer"
-                    @required($f->required)>
-                <option value="">{{ $placeholder ?: __('Sélectionner…') }}</option>
-                @foreach((array) $options as $opt)
-                    <option value="{{ $opt }}" @selected((string) $oldVal === (string) $opt)>{{ $opt }}</option>
-                @endforeach
-            </select>
-            <div class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-                <iconify-icon icon="solar:alt-arrow-down-linear" width="16"></iconify-icon>
-            </div>
-        </div>
+        <x-select-input name="{{ $name }}" id="{{ $fieldId }}" @required($f->required)>
+            <option value="">{{ $placeholder ?: __('Sélectionner…') }}</option>
+            @foreach((array) $options as $opt)
+                <option value="{{ $opt }}" @selected((string) $oldVal === (string) $opt)>{{ $opt }}</option>
+            @endforeach
+        </x-select-input>
 
     @elseif($type === 'radio')
         @php $radioOpts = (array) $options; @endphp

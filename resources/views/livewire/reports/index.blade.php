@@ -10,6 +10,12 @@
     $perfByDate = collect($performanceSeries)->keyBy('date');
     $perfMax = max(1, collect($performanceSeries)->max('count') ?? 1);
     $perfCount = count($performanceSeries);
+    $reportPeriodChartOptions = [
+        ['value' => 'default', 'label' => __('reports.view_default')],
+        ['value' => 'monthly', 'label' => __('reports.this_month')],
+        ['value' => 'yearly', 'label' => __('reports.this_year')],
+    ];
+    $reportPeriodChartLabel = collect($reportPeriodChartOptions)->firstWhere('value', $period ?? 'default')['label'] ?? ($period ?? 'default');
 @endphp
 
 <div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadReportBody">
@@ -180,11 +186,12 @@
                         <span class="w-2.5 h-2.5 rounded-full bg-slate-200"></span> {{ __('reports.resolved') }}
                     </span>
                     <div class="h-4 w-px bg-slate-200 mx-2"></div>
-                    <select wire:model.live="period" class="text-xs border-none bg-slate-50 rounded-md py-1 pl-2 pr-6 font-medium text-slate-600 focus:ring-0 appearance-none cursor-pointer">
-                        <option value="default">{{ __('reports.view_default') }}</option>
-                        <option value="monthly">{{ __('reports.this_month') }}</option>
-                        <option value="yearly">{{ __('reports.this_year') }}</option>
-                    </select>
+                    <x-select-input
+                        :options="$reportPeriodChartOptions"
+                        :label="$reportPeriodChartLabel"
+                        :selected-value="$period ?? 'default'"
+                        wire:model.live="period"
+                    />
                 </div>
             </div>
 

@@ -264,12 +264,12 @@
                         </div>
                         <div class="border-t border-slate-100 pt-5">
                             <label for="shareUser" class="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5 block">{{ __('task_report.send_to') }}</label>
-                            <select id="shareUser" name="share_user_id" wire:model="shareUserId" class="w-full rounded-xl border-slate-200 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] mb-3 py-2.5">
+                            <x-select-input id="shareUser" name="share_user_id" wire:model="shareUserId">
                                 <option value="">—</option>
                                 @foreach($this->staffMembers as $member)
                                     <option value="{{ $member->id }}">{{ $member->name }}</option>
                                 @endforeach
-                            </select>
+                            </x-select-input>
                             <button wire:click="sendShareNotification" type="button" class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 transition-colors disabled:opacity-50" {{ !$shareUserId ? 'disabled' : '' }}>
                                 <iconify-icon icon="solar:plain-bold" width="16" class="mr-1 align-text-bottom"></iconify-icon>
                                 {{ __('task_report.send_notification') }}

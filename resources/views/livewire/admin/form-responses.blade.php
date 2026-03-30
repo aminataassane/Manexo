@@ -27,6 +27,16 @@
             </button>
         </div>
 
+        @php
+            $formResponseSourceOptions = [
+                ['value' => '', 'label' => __('forms_builder.all_sources')],
+                ['value' => 'public', 'label' => __('forms_builder.source_public')],
+                ['value' => 'internal_assignment', 'label' => __('forms_builder.source_internal_assignment')],
+                ['value' => 'internal_team', 'label' => __('forms_builder.source_internal_team')],
+                ['value' => 'internal_team_slug', 'label' => __('forms_builder.source_internal_team_slug')],
+            ];
+            $formResponseSourceLabel = collect($formResponseSourceOptions)->firstWhere('value', (string) ($filterSource ?? ''))['label'] ?? '';
+        @endphp
         <!-- FILTERS -->
         <div class="mt-2.5 flex flex-wrap items-center gap-2">
             <div class="relative flex-1 min-w-[160px] max-w-xs">
@@ -35,14 +45,12 @@
                        placeholder="{{ __('forms_builder.filter_search') }}"
                        class="input-builder w-full text-[11px] py-2 pl-8 pr-3">
             </div>
-            <select wire:model.live="filterSource"
-                    class="input-builder text-[11px] py-2 px-2.5 w-auto min-w-[120px]">
-                <option value="">{{ __('forms_builder.all_sources') }}</option>
-                <option value="public">{{ __('forms_builder.source_public') }}</option>
-                <option value="internal_assignment">{{ __('forms_builder.source_internal_assignment') }}</option>
-                <option value="internal_team">{{ __('forms_builder.source_internal_team') }}</option>
-                <option value="internal_team_slug">{{ __('forms_builder.source_internal_team_slug') }}</option>
-            </select>
+            <x-select-input
+                :options="$formResponseSourceOptions"
+                :label="$formResponseSourceLabel"
+                :selected-value="$filterSource ?? ''"
+                wire:model.live="filterSource"
+            />
             <div class="flex items-center gap-1.5">
                 <label class="text-[10px] font-medium text-slate-400 shrink-0">{{ __('forms_builder.filter_date_from') }}</label>
                 <input type="date" wire:model.live="filterDateFrom"

@@ -1,6 +1,11 @@
 @php
     $field = 'block w-full rounded-md border-0 bg-slate-50 py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200';
     $textarea = 'block w-full rounded-md border-0 bg-slate-50 p-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200';
+
+    $drawerCategoryOptions = $categories->map(fn ($c) => ['value' => (string) $c->id, 'label' => $c->name])->all();
+    $drawerCategoryLabel = $categories->firstWhere('id', (int) $ticket_category_id)?->name ?? '';
+    $drawerPriorityOptions = $priorities->map(fn ($p) => ['value' => (string) $p->id, 'label' => $p->name])->all();
+    $drawerPriorityLabel = $priorities->firstWhere('id', (int) $ticket_priority_id)?->name ?? '';
 @endphp
 
 <div class="h-full min-h-0">
@@ -49,11 +54,13 @@
                     <div>
                         <x-input-label for="drawer_category" :value="__('Catégorie *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                         <div class="mt-1">
-                            <x-select-input id="drawer_category" wire:model.live="ticket_category_id">
-                                @foreach ($categories as $c)
-                                    <option value="{{ (int) $c->id }}">{{ $c->name }}</option>
-                                @endforeach
-                            </x-select-input>
+                            <x-select-input
+                                id="drawer_category"
+                                :options="$drawerCategoryOptions"
+                                :label="$drawerCategoryLabel"
+                                :selected-value="(string) $ticket_category_id"
+                                wire:model.live="ticket_category_id"
+                            />
                         </div>
                         <x-input-error :messages="$errors->get('ticket_category_id')" class="mt-2" />
                     </div>
@@ -61,11 +68,13 @@
                     <div>
                         <x-input-label for="drawer_priority" :value="__('Priorité *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                         <div class="mt-1">
-                            <x-select-input id="drawer_priority" wire:model="ticket_priority_id">
-                                @foreach ($priorities as $p)
-                                    <option value="{{ (int) $p->id }}">{{ $p->name }}</option>
-                                @endforeach
-                            </x-select-input>
+                            <x-select-input
+                                id="drawer_priority"
+                                :options="$drawerPriorityOptions"
+                                :label="$drawerPriorityLabel"
+                                :selected-value="(string) $ticket_priority_id"
+                                wire:model="ticket_priority_id"
+                            />
                         </div>
                         <x-input-error :messages="$errors->get('ticket_priority_id')" class="mt-2" />
                     </div>

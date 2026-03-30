@@ -450,6 +450,26 @@
                 </div>
             @else
                 {{-- ═══ LIST VIEW ═══ --}}
+                @php
+                    $ticketStatusFilterOptions = [
+                        ['value' => '', 'label' => __('pages.dashboard.status')],
+                        ['value' => 'open', 'label' => __('Ouvert')],
+                        ['value' => 'in_progress', 'label' => __('En cours')],
+                        ['value' => 'pending', 'label' => __('En attente')],
+                        ['value' => 'resolved', 'label' => __('Résolu')],
+                        ['value' => 'closed', 'label' => __('Fermé')],
+                    ];
+                    $ticketStatusFilterLabel = $status === ''
+                        ? __('pages.dashboard.status')
+                        : (collect($ticketStatusFilterOptions)->firstWhere('value', $status)['label'] ?? $status);
+                    $ticketPriorityFilterOptions = [['value' => '', 'label' => __('pages.dashboard.priority')]];
+                    foreach ($priorities as $p) {
+                        $ticketPriorityFilterOptions[] = ['value' => (string) $p->id, 'label' => $p->name];
+                    }
+                    $ticketPriorityFilterLabel = $priority === ''
+                        ? __('pages.dashboard.priority')
+                        : ($priorities->firstWhere('id', (int) $priority)?->name ?? $priority);
+                @endphp
                 <div class="content-card">
                     {{-- Filter bar --}}
                     <div class="filter-bar">
@@ -462,22 +482,20 @@
                             </div>
                             <div class="filter-controls">
                                 <div class="w-full min-w-0 sm:w-36 flex-1 sm:flex-none">
-                                    <x-select-input wire:model.live="status">
-                                        <option value="">{{ __('pages.dashboard.status') }}</option>
-                                        <option value="open">{{ __('Ouvert') }}</option>
-                                        <option value="in_progress">{{ __('En cours') }}</option>
-                                        <option value="pending">{{ __('En attente') }}</option>
-                                        <option value="resolved">{{ __('Résolu') }}</option>
-                                        <option value="closed">{{ __('Fermé') }}</option>
-                                    </x-select-input>
+                                    <x-select-input
+                                        :options="$ticketStatusFilterOptions"
+                                        :label="$ticketStatusFilterLabel"
+                                        :selected-value="$status"
+                                        wire:model.live="status"
+                                    />
                                 </div>
                                 <div class="w-full min-w-0 sm:w-36 flex-1 sm:flex-none">
-                                    <x-select-input wire:model.live="priority">
-                                        <option value="">{{ __('pages.dashboard.priority') }}</option>
-                                        @foreach ($priorities as $p)
-                                            <option value="{{ $p->id }}">{{ $p->name }}</option>
-                                        @endforeach
-                                    </x-select-input>
+                                    <x-select-input
+                                        :options="$ticketPriorityFilterOptions"
+                                        :label="$ticketPriorityFilterLabel"
+                                        :selected-value="$priority"
+                                        wire:model.live="priority"
+                                    />
                                 </div>
                                 <button wire:click="resetFilters" class="filter-reset touch-target sm:min-h-0">
                                     <iconify-icon icon="solar:restart-linear" width="16" class="text-slate-400"></iconify-icon>

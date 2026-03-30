@@ -1,3 +1,16 @@
+@php
+    $supportOrgOptions = [['value' => '', 'label' => __('super_admin.support.select_org_placeholder')]];
+    foreach ($this->organizations as $org) {
+        $supportOrgOptions[] = ['value' => (string) $org->id, 'label' => $org->name];
+    }
+    $supportOrgLabel = collect($supportOrgOptions)->firstWhere('value', (string) ($selectedOrgId ?? ''))['label'] ?? __('super_admin.support.select_org_placeholder');
+    $supportDurationOptions = [
+        ['value' => '15', 'label' => __('super_admin.support.duration_15')],
+        ['value' => '30', 'label' => __('super_admin.support.duration_30')],
+        ['value' => '60', 'label' => __('super_admin.support.duration_60')],
+    ];
+    $supportDurationLabel = collect($supportDurationOptions)->firstWhere('value', (string) ($duration ?? '15'))['label'] ?? '';
+@endphp
 <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between">
@@ -138,15 +151,12 @@
                     <!-- Organization -->
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">{{ __('super_admin.support.select_org') }}</label>
-                        <select
+                        <x-select-input
+                            :options="$supportOrgOptions"
+                            :label="$supportOrgLabel"
+                            :selected-value="(string) ($selectedOrgId ?? '')"
                             wire:model="selectedOrgId"
-                            class="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all"
-                        >
-                            <option value="">{{ __('super_admin.support.select_org_placeholder') }}</option>
-                            @foreach ($this->organizations as $org)
-                                <option value="{{ $org->id }}">{{ $org->name }}</option>
-                            @endforeach
-                        </select>
+                        />
                         @error('selectedOrgId') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                     </div>
 
@@ -165,14 +175,12 @@
                     <!-- Duration -->
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">{{ __('super_admin.support.duration') }}</label>
-                        <select
+                        <x-select-input
+                            :options="$supportDurationOptions"
+                            :label="$supportDurationLabel"
+                            :selected-value="(string) ($duration ?? '15')"
                             wire:model="duration"
-                            class="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all"
-                        >
-                            <option value="15">{{ __('super_admin.support.duration_15') }}</option>
-                            <option value="30">{{ __('super_admin.support.duration_30') }}</option>
-                            <option value="60">{{ __('super_admin.support.duration_60') }}</option>
-                        </select>
+                        />
                         @error('duration') <p class="mt-1 text-xs text-red-500">{{ $message }}</p> @enderror
                     </div>
                 </div>

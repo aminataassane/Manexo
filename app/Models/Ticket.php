@@ -330,6 +330,7 @@ class Ticket extends Model
         return $this->approval_status === 'rejected';
     }
 
+    /** @return HasMany<TicketChecklistItem, $this> */
     public function checklistItems(): HasMany
     {
         return $this->hasMany(TicketChecklistItem::class)->orderBy('sort_order');
@@ -339,6 +340,31 @@ class Ticket extends Model
     public function formResponse(): HasOne
     {
         return $this->hasOne(FormResponse::class);
+    }
+
+    public function satisfactionRating(): HasOne
+    {
+        return $this->hasOne(TicketSatisfactionRating::class);
+    }
+
+    public function mergedIntoTicket(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'merged_into_ticket_id');
+    }
+
+    public function mergedTickets(): HasMany
+    {
+        return $this->hasMany(self::class, 'merged_into_ticket_id');
+    }
+
+    public function links(): HasMany
+    {
+        return $this->hasMany(TicketLink::class);
+    }
+
+    public function isMerged(): bool
+    {
+        return $this->merged_into_ticket_id !== null;
     }
 
     /** Vérifie si le ticket provient d'un email. */
@@ -370,14 +396,21 @@ class Ticket extends Model
         return (int) round(100 * (int) $row->done / $total);
     }
 
-    /** Scope : tickets où l'utilisateur participe (créateur, assigné, participant, ou a la fonction assignée). */
+    /** Scope : tickets où l'utilisateur participe (créateur, assigné, participant, fonction assignée, ou a posté un message). */
     public function scopeWhereUserParticipates($query, int $userId)
     {
         return $query->where(function ($q) use ($userId) {
             $q->where('created_by', $userId)
                 ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $userId))
                 ->orWhereHas('participants', fn ($p) => $p->where('user_id', $userId))
-                ->orWhereHas('assignedToFunction', fn ($f) => $f->whereHas('memberships', fn ($m) => $m->where('user_id', $userId)));
+                ->orWhereHas('assignedToFunction', fn ($f) => $f->whereHas('memberships', fn ($m) => $m->where('user_id', $userId)))
+                ->orWhereExists(function ($sub) use ($userId) {
+                    $sub->selectRaw('1')
+                        ->from('ticket_messages')
+                        ->whereColumn('ticket_messages.ticket_id', 'tickets.id')
+                        ->where('ticket_messages.user_id', $userId)
+                        ->where('ticket_messages.type', '!=', 'system');
+                });
         });
     }
 

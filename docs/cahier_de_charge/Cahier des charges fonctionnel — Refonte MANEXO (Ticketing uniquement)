@@ -1,0 +1,905 @@
+# Cahier des charges fonctionnel — Refonte MANEXO (Ticketing uniquement)
+
+## 1. Présentation générale
+
+### 1.1 Objet du document
+
+Ce document définit le cahier des charges fonctionnel de la refonte du module **Ticketing** de MANEXO. Il se concentre exclusivement sur la gestion des tickets, les échanges autour des tickets, l’intégration email, les notifications, la visibilité des messages, les pièces jointes, les notes internes et l’amélioration des interfaces liées au traitement des tickets.
+
+### 1.2 Contexte
+
+Le module Ticketing de MANEXO permet déjà de créer et suivre des tickets, de gérer les statuts, les priorités, les pièces jointes et les discussions privées ou internes. Le système couvre également les notifications de base et une première intégration des emails entrants et sortants. fileciteturn2file2
+
+La refonte demandée vise à rendre le ticketing plus complet, plus lisible, plus robuste et plus fluide à l’usage, notamment sur les échanges par email et la compréhension de la timeline d’un ticket.
+
+### 1.3 Objectifs
+
+Les objectifs de cette refonte sont les suivants :
+
+* faire de l’email un canal natif du ticket ;
+* unifier les échanges email et plateforme dans une seule discussion ;
+* rendre l’origine des messages lisible dans l’interface ;
+* garantir que les notes internes ne soient jamais visibles côté client ;
+* mieux informer le client des évolutions de son ticket ;
+* améliorer les performances et l’ergonomie de la page détail ticket ;
+* améliorer l’interface de la page de groupe liée au traitement collaboratif ;
+* renforcer la traçabilité des événements liés au ticket.
+
+---
+
+## 2. Périmètre du module Ticketing
+
+Le périmètre couvre exclusivement :
+
+* la création des tickets ;
+* les sources de création de tickets ;
+* la consultation et le suivi des tickets ;
+* les messages liés aux tickets ;
+* les discussions privées ;
+* les discussions de groupe ;
+* les notes internes ;
+* les pièces jointes ;
+* les notifications liées aux tickets ;
+* les emails entrants et sortants liés aux tickets ;
+* l’affichage de la timeline et des types de messages ;
+* les performances et améliorations UX des pages ticket.
+
+Sont exclus de ce document :
+
+* le Form Builder ;
+* la base de connaissance ;
+* le branding global ;
+* les statistiques globales hors besoin direct du ticketing ;
+* les autres modules non directement liés au traitement des tickets.
+
+---
+
+## 3. Existant déjà disponible dans le ticketing
+
+Le module ticketing dispose déjà des éléments suivants :
+
+* une source de ticket avec les valeurs **platform**, **form**, **email**, **api** ;
+* un identifiant public de type **TCK-...** ;
+* un mécanisme de réception d’emails entrants via récupération IMAP et traitement applicatif ;
+* un routage permettant soit la création d’un nouveau ticket, soit l’ajout d’un message à un ticket existant ;
+* une résolution de l’expéditeur vers un utilisateur membre ou invité ;
+* une détection de boucles email et d’auto-répondeurs ;
+* une limitation de débit pour certains expéditeurs inconnus ;
+* une gestion des pièces jointes email ;
+* un journal des emails entrants ;
+* un envoi d’emails sortants lors de nouvelles activités sur un ticket ;
+* un threading email via Message-ID, In-Reply-To et References ;
+* un modèle de message avec type, métadonnées, pièces jointes et email_message_id.
+
+Le système de discussion existant prévoit déjà des discussions privées, des discussions de groupe et des notes internes, avec interdiction d’accès des utilisateurs externes aux contenus internes. fileciteturn2file2 fileciteturn2file3
+
+---
+
+## 4. Acteurs concernés
+
+### 4.1 Client / utilisateur externe
+
+Le client peut :
+
+* créer un ticket ;
+* consulter ses tickets ;
+* consulter le détail d’un ticket ;
+* répondre à la discussion privée ;
+* joindre des fichiers ;
+* recevoir des notifications ;
+* répondre par email ;
+* retrouver dans la plateforme les échanges réalisés par email sur son ticket.
+
+Le client ne peut jamais :
+
+* voir les notes internes ;
+* voir les discussions de groupe ;
+* recevoir par erreur un contenu interne ;
+* accéder à un ticket qui ne lui appartient pas selon les règles d’accès de l’entreprise.
+
+### 4.2 Agent support
+
+L’agent peut :
+
+* consulter les tickets de son périmètre ;
+* répondre au client ;
+* modifier le statut ;
+* modifier la priorité ;
+* assigner ou réassigner un ticket ;
+* participer à la discussion de groupe ;
+* ajouter des notes internes ;
+* consulter les messages email intégrés au ticket ;
+* envoyer des réponses qui repartent par email au client.
+
+### 4.3 Administrateur
+
+L’administrateur peut :
+
+* gérer les catégories, priorités et paramètres ticketing ;
+* configurer les notifications ;
+* configurer les paramètres email liés au support ;
+* superviser la sécurité, la visibilité et la traçabilité des échanges ;
+* consulter tous les tickets de l’entreprise.
+
+---
+
+## 5. Exigences fonctionnelles détaillées
+
+## 5.1 Gestion des tickets
+
+### 5.1.1 Création d’un ticket
+
+Un ticket doit pouvoir être créé depuis plusieurs canaux, notamment la plateforme et l’email. La source du ticket doit être enregistrée et affichée clairement.
+
+### 5.1.2 Source du ticket
+
+Chaque ticket doit porter une information de source parmi :
+
+* platform
+* form
+* email
+* api
+
+Un ticket créé par email doit être explicitement marqué comme **email**.
+
+### 5.1.3 Identifiant public
+
+Chaque ticket doit disposer d’un identifiant public de type **TCK-...** utilisé pour :
+
+* les URLs de consultation ;
+* les échanges externes ;
+* le routage des réponses email ;
+* l’identification lisible du ticket par les utilisateurs.
+
+### 5.1.4 Cycle de vie
+
+Le ticket suit un cycle de vie avec au minimum les statuts suivants :
+
+* Ouvert
+* En cours
+* En attente
+* Résolu
+* Fermé
+
+Le système doit conserver l’historique complet des changements de statut, de priorité, d’assignation et des messages.
+
+---
+
+## 5.2 Intégration des emails entrants
+
+### 5.2.1 Réception des emails
+
+Le système doit pouvoir récupérer les emails entrants, les analyser et déclencher leur traitement métier.
+
+### 5.2.2 Routage des emails
+
+À la réception d’un email, le système doit être capable de déterminer si le message :
+
+* correspond à un ticket existant ;
+* ou doit créer un nouveau ticket.
+
+Le routage peut s’appuyer sur :
+
+* l’identifiant public du ticket ;
+* le sujet ;
+* les références du fil email ;
+* les identifiants techniques du message.
+
+### 5.2.3 Création d’un nouveau ticket par email
+
+Si l’email entrant ne correspond à aucun ticket existant, le système doit :
+
+* créer un nouveau ticket ;
+* définir sa source à **email** ;
+* rattacher le ticket au bon utilisateur ou invité ;
+* enregistrer le corps du mail comme description initiale ou comme premier contenu exploitable ;
+* créer un message système indiquant que le ticket a été créé via email ;
+* associer les pièces jointes éventuelles.
+
+### 5.2.4 Réponse à un ticket existant
+
+Si l’email entrant correspond à un ticket existant, le système doit :
+
+* rattacher le message au bon ticket ;
+* créer un message de discussion normal ;
+* conserver le lien avec l’identifiant du message email ;
+* enregistrer les pièces jointes éventuelles ;
+* notifier les agents concernés.
+
+### 5.2.5 Résolution de l’expéditeur
+
+Le système doit résoudre l’expéditeur vers :
+
+* un membre existant de l’organisation ;
+* ou un compte invité/guest autorisé.
+
+Le système ne doit pas créer de collision avec un compte déjà vérifié ou attribuer un ticket au mauvais utilisateur.
+
+### 5.2.6 Sécurité email
+
+Le système doit intégrer des protections contre :
+
+* les boucles email ;
+* les auto-répondeurs ;
+* les expéditeurs inconnus abusifs ;
+* les créations massives non légitimes.
+
+### 5.2.7 Journalisation
+
+Chaque email entrant doit être journalisé avec au minimum :
+
+* le statut de traitement ;
+* la date ;
+* l’expéditeur ;
+* le ticket lié si applicable ;
+* le message lié si applicable ;
+* les métadonnées nécessaires au diagnostic.
+
+---
+
+## 5.3 Emails sortants liés aux tickets
+
+### 5.3.1 Envoi lors d’une activité sur ticket
+
+Lorsqu’une activité pertinente a lieu sur un ticket, le système doit pouvoir envoyer un email sortant au client concerné.
+
+### 5.3.2 Réponse agent depuis la plateforme
+
+Quand un agent répond depuis MANEXO, la réponse doit :
+
+* être enregistrée dans la discussion du ticket ;
+* être visible dans la timeline ;
+* être envoyée par email au client si la configuration l’autorise ;
+* permettre au client de répondre ensuite directement par email.
+
+### 5.3.3 Adressage de réponse
+
+Si la boîte email de l’organisation le permet, le système doit utiliser un schéma d’adresse de retour permettant de rattacher automatiquement la réponse au bon ticket.
+
+### 5.3.4 Threading email
+
+Les emails sortants doivent inclure les en-têtes nécessaires au threading dans les clients mail, afin de conserver la continuité des échanges.
+
+### 5.3.5 Réponse automatique de réception
+
+Le système doit permettre la configuration d’une réponse automatique lorsqu’un email est reçu. Cette réponse automatique doit confirmer la bonne réception de la demande ou du message, sans créer de boucle.
+
+---
+
+## 5.4 Discussion unifiée ticket / email / plateforme
+
+### 5.4.1 Principe général
+
+Les échanges email et les échanges réalisés depuis la plateforme doivent être regroupés dans **une seule discussion unifiée** par ticket.
+
+### 5.4.2 Continuité pour le client
+
+Un client doit pouvoir :
+
+* commencer un échange par email ;
+* poursuivre par email ;
+* puis se connecter à la plateforme ;
+* retrouver la même discussion dans le ticket ;
+* répondre depuis la plateforme sans perdre l’historique.
+
+### 5.4.3 Continuité pour l’agent
+
+L’agent doit visualiser dans le même fil :
+
+* les messages envoyés depuis la plateforme ;
+* les messages reçus par email ;
+* les messages système ;
+* les notes internes ;
+* les échanges internes selon les droits.
+
+### 5.4.4 Règle métier centrale
+
+Il ne doit pas exister deux historiques séparés pour un même ticket selon le canal. Le ticket constitue la source unique de vérité.
+
+---
+
+## 5.5 Typologie des messages et visibilité
+
+### 5.5.1 Types de messages
+
+Le système doit distinguer au minimum :
+
+* message privé normal ;
+* message reçu par email ;
+* message envoyé par email ;
+* note interne ;
+* message système ;
+* message de discussion de groupe.
+
+### 5.5.2 Affichage explicite dans l’interface
+
+L’interface doit indiquer clairement l’origine ou la nature d’un message. L’objectif est qu’un agent sache immédiatement si un message :
+
+* vient du client ;
+* vient d’un email ;
+* vient d’un agent ;
+* est une note interne ;
+* est un événement système.
+
+### 5.5.3 Badge ou indicateur visuel
+
+La timeline doit afficher un libellé, badge ou indicateur visuel clair de type :
+
+* Reçu par email
+* Envoyé par email
+* Client
+* Support
+* Note interne
+* Système
+
+### 5.5.4 Données d’affichage complémentaires
+
+Selon le type de message, l’interface peut afficher :
+
+* l’auteur ;
+* le canal d’origine ;
+* la date et l’heure ;
+* la présence de pièces jointes ;
+* l’adresse email d’origine si utile pour l’agent.
+
+---
+
+## 5.6 Notes internes et sécurité de visibilité
+
+### 5.6.1 Règle absolue
+
+Les notes internes ne doivent jamais être visibles par les utilisateurs externes.
+
+### 5.6.2 Périmètre de la protection
+
+Cette règle doit être respectée dans :
+
+* l’interface web ;
+* les notifications ;
+* les emails sortants ;
+* les exports éventuels ;
+* les accès API éventuels.
+
+### 5.6.3 Contrôle d’accès
+
+Seuls les agents, administrateurs et profils autorisés peuvent voir ou créer des notes internes.
+
+### 5.6.4 Anti-fuite fonctionnelle
+
+Aucune note interne ne doit être insérée par erreur dans un email client, dans la discussion privée visible côté client ou dans un résumé de ticket destiné à un utilisateur externe.
+
+---
+
+## 5.7 Notifications client liées au ticket
+
+### 5.7.1 Principe
+
+Le client doit être informé des événements importants concernant son ticket.
+
+### 5.7.2 Événements à notifier
+
+Le système doit permettre de notifier le client au minimum lors des événements suivants :
+
+* création du ticket ;
+* assignation du ticket ;
+* prise en charge ;
+* changement de priorité ;
+* changement de statut ;
+* nouvelle réponse d’un agent ;
+* clôture du ticket.
+
+### 5.7.3 Formulation des notifications
+
+Les messages de notification doivent être compréhensibles, professionnels et orientés client.
+
+### 5.7.4 Respect des permissions
+
+Les notifications envoyées au client ne doivent jamais contenir :
+
+* de notes internes ;
+* d’échanges de groupe ;
+* d’informations réservées aux agents.
+
+### 5.7.5 Canaux
+
+Les notifications peuvent être diffusées :
+
+* dans l’application ;
+* par email.
+
+---
+
+## 5.8 Pièces jointes
+
+### 5.8.1 Pièces jointes sur ticket
+
+Les utilisateurs autorisés doivent pouvoir joindre des fichiers à un ticket ou à un message.
+
+### 5.8.2 Pièces jointes reçues par email
+
+Les fichiers reçus dans un email doivent être :
+
+* extraits ;
+* stockés de manière sécurisée ;
+* liés au ticket concerné ;
+* liés au message concerné ;
+* visibles selon les droits d’accès.
+
+### 5.8.3 Pièces jointes envoyées par email
+
+L’agent doit pouvoir envoyer des fichiers depuis la plateforme dans le cadre d’une réponse email au client.
+
+### 5.8.4 Sécurité
+
+L’accès aux fichiers doit rester limité aux utilisateurs autorisés. Le système doit pouvoir restreindre certains types de fichiers ou appliquer des contrôles complémentaires.
+
+---
+
+## 5.9 Interface détail ticket et expérience utilisateur
+
+### 5.9.1 Chargement de la page détail discussion
+
+La page détail d’un ticket doit charger rapidement, même en présence :
+
+* d’un historique long ;
+* de plusieurs pièces jointes ;
+* de nombreux messages ;
+* de messages système ou événements divers.
+
+### 5.9.2 Objectif UX
+
+L’utilisateur et l’agent doivent accéder rapidement aux informations importantes sans latence excessive ni confusion visuelle.
+
+### 5.9.3 Navigation dans les longues discussions
+
+La page de discussion doit intégrer des actions permettant :
+
+* de revenir rapidement en haut du fil (**Back to top**) ;
+* de revenir rapidement en bas du fil (**Back to down** ou équivalent plus naturel côté interface).
+
+### 5.9.4 Lisibilité de la timeline
+
+La timeline doit être claire, hiérarchisée et facilement scannable. Elle doit permettre d’identifier rapidement :
+
+* les messages client ;
+* les réponses support ;
+* les messages email ;
+* les notes internes ;
+* les événements système.
+
+---
+
+## 5.10 Page de groupe
+
+### 5.10.1 Objectif
+
+La page de groupe liée au traitement collaboratif des tickets doit être revue visuellement.
+
+### 5.10.2 Attendus
+
+La refonte de cette page doit viser :
+
+* une meilleure esthétique ;
+* une meilleure hiérarchie de l’information ;
+* une meilleure lisibilité des échanges internes ;
+* une cohérence visuelle avec le reste du module ticketing.
+
+---
+
+## 6. Règles métier essentielles
+
+* Un ticket appartient à une seule entreprise.
+* Un ticket possède une source explicite.
+* Un ticket créé par email doit être marqué comme ticket email.
+* Un message email intégré à un ticket doit être traçable.
+* Le même utilisateur doit pouvoir retrouver dans la plateforme la discussion qu’il a alimentée par email.
+* Les messages d’un ticket doivent être regroupés dans un historique unique.
+* Les notes internes et discussions de groupe ne doivent jamais être visibles par le client. fileciteturn2file2
+* Les pièces jointes doivent respecter les droits d’accès.
+* Les notifications client ne doivent jamais exposer d’informations internes.
+* Les tickets fermés ne doivent plus être modifiables selon les règles métier définies, sauf exception autorisée. fileciteturn2file2
+
+---
+
+## 7. Exigences non fonctionnelles du ticketing
+
+### 7.1 Sécurité
+
+Le module ticketing doit garantir :
+
+* un contrôle d’accès strict ;
+* la protection des contenus internes ;
+* la sécurité des pièces jointes ;
+* la robustesse du traitement email ;
+* la journalisation des événements importants.
+
+### 7.2 Performance
+
+Le système doit assurer :
+
+* un chargement rapide de la page ticket ;
+* une bonne gestion des historiques longs ;
+* une gestion correcte des emails et pièces jointes sans ralentissement visible ;
+* une fluidité d’usage sur les actions principales. Les exigences de performance et de stabilité sont cohérentes avec les attentes déjà définies pour l’application. fileciteturn2file10
+
+### 7.3 Fiabilité
+
+Le système doit rester fiable lors :
+
+* du traitement des emails entrants ;
+* de l’envoi des notifications ;
+* de l’enregistrement des pièces jointes ;
+* de l’affichage de la timeline.
+
+### 7.4 Maintenabilité
+
+La refonte doit rester compatible avec l’architecture actuelle basée sur Laravel, Livewire, Filament, Alpine.js, Tailwind CSS et PostgreSQL, afin de préserver la cohérence technique et l’évolutivité du produit. fileciteturn2file7turn2file12
+
+---
+
+## 8. Critères d’acceptation
+
+Le module ticketing sera considéré comme conforme si :
+
+* un ticket créé par email est bien marqué avec la source email ;
+* un email entrant est correctement routé vers un ticket existant ou un nouveau ticket ;
+* les pièces jointes email sont visibles dans le ticket ;
+* un client peut répondre par email puis retrouver la même discussion en se connectant ;
+* l’agent voit clairement quels messages proviennent d’un email ;
+* les notes internes restent invisibles pour les utilisateurs externes ;
+* le client reçoit les notifications attendues sur les changements importants du ticket ;
+* la page détail ticket est plus fluide ;
+* les boutons de navigation dans les longues discussions sont disponibles ;
+* la page de groupe est revue visuellement.
+
+---
+
+## 9. Scénarios de test fonctionnels
+
+### Test 1 — Création d’un ticket par email
+
+* Un utilisateur envoie un email à l’adresse de support.
+* Le système crée un ticket.
+* Le ticket est marqué avec la source **email**.
+* Le corps du mail et les pièces jointes sont enregistrés.
+
+**Résultat attendu :** ticket visible dans MANEXO avec historique initial correct.
+
+### Test 2 — Réponse email sur ticket existant
+
+* Un ticket existe déjà.
+* Le client répond par email à une notification reçue.
+* Le système rattache le message au bon ticket.
+
+**Résultat attendu :** le nouveau message apparaît dans la timeline du ticket.
+
+### Test 3 — Continuité plateforme / email
+
+* Le client échange par email.
+* Il se connecte ensuite à la plateforme.
+
+**Résultat attendu :** il retrouve la même discussion dans son ticket.
+
+### Test 4 — Visibilité des notes internes
+
+* Un agent ajoute une note interne.
+* Le client consulte le ticket et reçoit des notifications.
+
+**Résultat attendu :** la note interne n’est visible nulle part côté client.
+
+### Test 5 — Notification sur changement de statut
+
+* L’agent change le statut du ticket.
+
+**Résultat attendu :** le client reçoit une notification adaptée, sans contenu interne.
+
+### Test 6 — Affichage de l’origine des messages
+
+* Le ticket contient des messages plateforme, email, système et internes.
+
+**Résultat attendu :** la timeline affiche clairement la nature de chaque message.
+
+### Test 7 — Navigation dans un long fil
+
+* Le ticket contient un historique important.
+
+**Résultat attendu :** l’utilisateur peut remonter et redescendre rapidement dans la discussion.
+
+### Test 8 — Performance de la page détail
+
+* Ouverture d’un ticket avec de nombreux messages et pièces jointes.
+
+**Résultat attendu :** la page reste fluide et exploitable.
+
+---
+
+## 10. Fonctionnalités et exigences complémentaires recommandées
+
+Afin de rendre le module Ticketing de MANEXO plus complet, plus robuste et plus professionnel en contexte réel d’exploitation, les fonctionnalités et exigences complémentaires suivantes sont recommandées.
+
+### 10.1 SLA et délais de traitement
+
+Le système doit intégrer une logique de SLA permettant de définir et suivre des engagements de service sur les tickets.
+
+#### 10.1.1 Délai de première réponse
+
+Le système doit permettre de définir un délai maximal de première réponse selon :
+
+* la priorité ;
+* la catégorie ;
+* le type de client ou d’organisation ;
+* les horaires ouvrés applicables.
+
+#### 10.1.2 Délai de résolution
+
+Le système doit permettre de définir un délai cible ou maximal de résolution selon les mêmes critères.
+
+#### 10.1.3 Calcul métier des délais
+
+Le calcul des délais doit pouvoir tenir compte :
+
+* des jours ouvrés ;
+* des horaires ouvrés ;
+* des périodes de pause éventuelles ;
+* des statuts suspendant le compteur, par exemple en attente client.
+
+#### 10.1.4 Dépassement de SLA
+
+Le système doit identifier clairement les tickets en dépassement de SLA et permettre leur mise en évidence dans les vues de traitement.
+
+### 10.2 Escalade et relance
+
+Le système doit prévoir des mécanismes d’escalade automatique ou assistée.
+
+#### 10.2.1 Escalade automatique
+
+Des règles doivent pouvoir être définies pour déclencher des alertes ou des changements d’état lorsque :
+
+* un ticket urgent n’est pas pris en charge dans le délai prévu ;
+* un ticket reste sans réponse ;
+* un ticket dépasse son SLA ;
+* un ticket reste trop longtemps dans un statut donné.
+
+#### 10.2.2 Escalade managériale
+
+Le système doit permettre de notifier un superviseur ou un administrateur lorsqu’un ticket devient critique.
+
+#### 10.2.3 Relance client ou agent
+
+Le système peut prévoir des relances automatiques ou semi-automatiques selon le contexte métier.
+
+### 10.3 Files de traitement et vues de travail
+
+Le module ticketing doit proposer des vues opérationnelles facilitant le travail quotidien des agents.
+
+Exemples de vues attendues :
+
+* mes tickets assignés ;
+* tickets non assignés ;
+* tickets urgents ;
+* tickets en retard ;
+* tickets en attente client ;
+* tickets récemment mis à jour ;
+* tickets sans réponse agent ;
+* tickets fermés récemment.
+
+### 10.4 Règles de transition de statut et réouverture
+
+Le système doit préciser les règles métier de changement de statut.
+
+#### 10.4.1 Transitions contrôlées
+
+Les transitions entre statuts doivent pouvoir être limitées selon le rôle ou le contexte.
+
+#### 10.4.2 Réouverture de ticket
+
+Le système doit définir :
+
+* si un ticket résolu ou fermé peut être rouvert ;
+* qui peut le rouvrir ;
+* dans quel délai ;
+* quel statut est appliqué après réouverture ;
+* quelles notifications sont envoyées.
+
+#### 10.4.3 Retour automatique après réponse client
+
+Lorsqu’un client répond à un ticket en attente ou résolu, le système peut automatiquement repositionner le ticket dans un statut actif selon les règles définies.
+
+### 10.5 Recherche avancée et filtrage
+
+Le système doit proposer une recherche avancée sur les tickets et leurs contenus.
+
+La recherche doit pouvoir porter au minimum sur :
+
+* l’identifiant public du ticket ;
+* le sujet ;
+* le contenu des messages ;
+* l’expéditeur email ;
+* la catégorie ;
+* la priorité ;
+* l’agent assigné ;
+* le statut ;
+* une plage de dates.
+
+### 10.6 Audit trail détaillé
+
+Le système doit conserver un historique détaillé et exploitable des actions sur les tickets.
+
+L’audit doit permettre de savoir :
+
+* qui a effectué l’action ;
+* quand elle a eu lieu ;
+* sur quel ticket ;
+* quelle valeur a changé ;
+* quelle était l’ancienne valeur ;
+* quelle est la nouvelle valeur.
+
+Cela concerne notamment :
+
+* changement de statut ;
+* changement de priorité ;
+* assignation et réassignation ;
+* suppression ou ajout de pièces jointes ;
+* réouverture ;
+* fusion éventuelle de tickets.
+
+### 10.7 Gestion des doublons, liens et fusion de tickets
+
+Le système doit permettre de mieux gérer les tickets liés entre eux.
+
+Fonctionnalités recommandées :
+
+* détection ou signalement de doublons ;
+* possibilité de lier plusieurs tickets ;
+* possibilité de fusionner des tickets ;
+* conservation de l’historique après fusion ;
+* indication claire du ticket principal et du ticket fusionné.
+
+### 10.8 Amélioration avancée de la gestion email
+
+Au-delà du socle déjà présent, la gestion email doit être enrichie sur plusieurs points.
+
+#### 10.8.1 Nettoyage du contenu email
+
+Le système doit pouvoir nettoyer les contenus reçus afin d’améliorer la lisibilité dans la timeline, notamment :
+
+* suppression ou réduction des signatures ;
+* réduction des citations d’anciens messages ;
+* traitement du HTML email ;
+* affichage cohérent du texte brut.
+
+#### 10.8.2 Gestion des copies (CC)
+
+Le système doit définir le comportement métier lié aux adresses en copie :
+
+* ajout éventuel comme participants ;
+* visibilité des participants ;
+* notifications liées ;
+* règles de sécurité selon l’entreprise.
+
+#### 10.8.3 Gestion des erreurs d’envoi
+
+Le système doit journaliser les échecs de livraison email, notamment :
+
+* adresse invalide ;
+* boîte pleine ;
+* rejet SMTP ;
+* bounce ;
+* indisponibilité du serveur.
+
+### 10.9 Permissions fines et règles de modification
+
+Le système doit préciser des permissions plus fines sur les actions sensibles.
+
+Exemples d’actions à contrôler :
+
+* assigner ou réassigner un ticket ;
+* modifier une priorité urgente ;
+* supprimer un message ;
+* modifier une note interne ;
+* supprimer une pièce jointe ;
+* répondre au nom du support ;
+* voir tous les tickets ou uniquement un sous-ensemble.
+
+Le système doit également préciser les règles d’édition et de suppression des contenus, avec conservation éventuelle d’un historique des modifications.
+
+### 10.10 Vues client enrichies
+
+L’espace client lié au ticketing doit offrir une expérience plus claire et plus exploitable.
+
+Éléments recommandés :
+
+* indicateurs visuels de statut et priorité ;
+* historique lisible ;
+* accès simple aux pièces jointes ;
+* visualisation claire du dernier message ;
+* possibilité de relancer ou répondre facilement ;
+* possibilité de confirmer la résolution ou de demander une réouverture selon les droits.
+
+### 10.11 Satisfaction client
+
+Le système peut intégrer un mécanisme de satisfaction après résolution ou clôture du ticket.
+
+Exemples :
+
+* note simple ;
+* commentaire facultatif ;
+* indicateur de satisfaction par agent ou catégorie ;
+* exploitation dans les statistiques.
+
+### 10.12 Mentions, abonnements et collaboration avancée
+
+Pour améliorer le travail interne, le système peut intégrer :
+
+* les mentions d’agents dans les discussions internes ;
+* les notifications ciblées liées aux mentions ;
+* l’abonnement à un ticket sans être assigné ;
+* la liste des observateurs ou participants internes.
+
+### 10.13 Actions de masse
+
+Pour les administrateurs et agents autorisés, le système peut proposer des actions de masse sur une sélection de tickets, par exemple :
+
+* assignation ;
+* changement de statut ;
+* changement de priorité ;
+* fermeture ;
+* export.
+
+### 10.14 Politique de conservation et archivage
+
+Le système doit définir des règles de conservation et, si nécessaire, d’archivage concernant :
+
+* les tickets ;
+* les messages ;
+* les emails entrants et sortants ;
+* les journaux ;
+* les pièces jointes.
+
+Ces règles peuvent inclure l’archivage, la suppression ou l’anonymisation selon les exigences de l’organisation.
+
+### 10.15 Alertes opérationnelles et pilotage
+
+Le système peut proposer des alertes opérationnelles pour les responsables, par exemple :
+
+* trop de tickets urgents non traités ;
+* trop de tickets en retard ;
+* surcharge sur un agent ;
+* échec du job de récupération email ;
+* volume anormal de messages rejetés.
+
+### 10.16 Indicateurs visuels renforcés dans l’interface
+
+Pour améliorer la lisibilité, l’interface peut intégrer des marqueurs visuels supplémentaires tels que :
+
+* badge de source du ticket ;
+* badge de priorité ;
+* indicateur de retard SLA ;
+* badge de nouveau message client ;
+* indicateur de présence de pièces jointes.
+
+---
+
+## 11. Livrables attendus pour la refonte Ticketing
+
+* module ticketing mis à jour ;
+* gestion email enrichie et stabilisée ;
+* interface détail ticket améliorée ;
+* timeline enrichie avec indicateurs d’origine des messages ;
+* système de notifications client enrichi ;
+* sécurisation renforcée des notes internes ;
+* documentation fonctionnelle mise à jour ;
+* cas de tests de validation du ticketing.
+
+---
+
+## 11. Conclusion
+
+La refonte du module Ticketing de MANEXO doit transformer le système actuel en un espace de traitement de support plus lisible, plus fluide et plus robuste. Le point central de cette évolution est l’unification complète entre les échanges email et la discussion du ticket, sans compromis sur la sécurité, la traçabilité et la séparation entre contenus client et contenus internes.
+
+Ce cahier des charges constitue une base de travail claire pour cadrer le développement du ticketing et valider les évolutions attendues à partir du socle déjà en place. Il s’appuie sur le fonctionnement existant du système de tickets et de discussions de MANEXO. fileciteturn2file2 fileciteturn2file10
+
+
+
+
+

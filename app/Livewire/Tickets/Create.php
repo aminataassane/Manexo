@@ -6,6 +6,7 @@ use App\Enums\FormStatus;
 use App\Enums\Permission;
 use App\Enums\TicketSource;
 use App\Enums\TicketStatus;
+use App\Events\UserNotificationReceived;
 use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\Ticket;
@@ -14,6 +15,7 @@ use App\Models\TicketChecklistItem;
 use App\Models\TicketGroup;
 use App\Models\TicketPriority;
 use App\Models\User;
+use App\Notifications\TicketCreatedNotification;
 use App\Services\ApprovalService;
 use App\Services\AutomationService;
 use App\Services\SlaService;
@@ -339,10 +341,7 @@ class Create extends Component
         if (! empty($assigneeIds)) {
             $validCount = User::query()
                 ->whereIn('id', $assigneeIds)
-                ->whereHas('organizations', function ($q) use ($orgId) {
-                    $q->where('organization_memberships.organization_id', $orgId)
-                        ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
-                })
+                ->assignableInOrganization($orgId)
                 ->count();
 
             if ($validCount !== count($assigneeIds)) {
@@ -363,10 +362,7 @@ class Create extends Component
         if (! empty($checklistAssigneeIds)) {
             $validChecklistAssignees = User::query()
                 ->whereIn('id', $checklistAssigneeIds)
-                ->whereHas('organizations', function ($q) use ($orgId) {
-                    $q->where('organization_memberships.organization_id', $orgId)
-                        ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
-                })
+                ->assignableInOrganization($orgId)
                 ->count();
 
             if ($validChecklistAssignees !== count($checklistAssigneeIds)) {
@@ -494,6 +490,18 @@ class Create extends Component
             'ticket' => (new \App\Http\Resources\Api\V1\TicketResource($ticket))->resolve(),
         ]);
 
+        // Notify the ticket creator with a confirmation email
+        $orgName = $ticket->organization?->name ?? config('app.name', 'Support');
+        $user->notify(new TicketCreatedNotification(
+            ticketId: $ticket->id,
+            ticketPublicId: $ticket->public_id,
+            ticketReference: $ticket->shortReference(),
+            ticketSubject: $ticket->subject,
+            organizationId: $orgId,
+            organizationName: $orgName,
+        ));
+        event(new UserNotificationReceived((int) $user->id, 'ticket_created'));
+
         $this->redirectRoute('tickets.index');
     }
 
@@ -576,7 +584,6 @@ class Create extends Component
             })
             : collect();
 
-
         $priorities = $orgId
             ? Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
                 return TicketPriority::query()
@@ -590,10 +597,7 @@ class Create extends Component
         $assignees = ($this->canAssignAtCreate && $orgId)
             ? Cache::remember("create_ticket_assignees_staff:{$orgId}", CacheHelper::TTL, function () use ($orgId) {
                 return User::query()
-                    ->whereHas('organizations', function ($q) use ($orgId) {
-                        $q->where('organization_memberships.organization_id', $orgId)
-                            ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
-                    })
+                    ->assignableInOrganization($orgId)
                     ->orderBy('name')
                     ->get(['id', 'name', 'email']);
             })

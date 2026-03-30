@@ -1,0 +1,1 @@
+dd-opt-<?php echo e($keyBase); ?>-<?php echo e($index); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/fd5c8ad487b5857e07ac4595f0aa82eb.blade.php ENDPATH**/ ?>

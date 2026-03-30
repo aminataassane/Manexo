@@ -1,0 +1,6 @@
+{
+  "intelephense.files.exclude": [
+    "**/storage/test_*.php",
+    "**/storage/framework/views/**"
+  ]
+}

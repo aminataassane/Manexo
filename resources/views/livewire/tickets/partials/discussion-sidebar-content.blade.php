@@ -1,17 +1,49 @@
 {{-- Panneau "Infos" (design dédié, pas un dump de détails) --}}
 @php
     use App\Enums\TicketStatus;
+    use App\Models\OrganizationFunction;
+    use App\Models\TicketPriority;
+    use App\Models\User;
+
+    /** @var iterable<int, TicketPriority> $sidebarOrgPriorities */
+    $sidebarOrgPriorities = $orgPriorities ?? [];
+    /** @var iterable<int, User> $sidebarStaffUsers */
+    $sidebarStaffUsers = $staffUsers ?? [];
+    /** @var iterable<int, OrganizationFunction> $sidebarOrgFunctions */
+    $sidebarOrgFunctions = $organizationFunctions ?? [];
+
     $roleLabels = [
         'owner' => __('Admin'),
         'admin' => __('Admin'),
         'agent' => __('Agent'),
         'member' => __('Membre'),
     ];
-    /** @var \App\Models\Ticket $ticket */
-    /** @var \Illuminate\Support\Collection<int, \App\Models\TicketPriority>|array $orgPriorities */
-    /** @var \Illuminate\Support\Collection<int, \App\Models\User>|array $orgUsers */
-    /** @var \Illuminate\Support\Collection<int, \App\Models\OrganizationFunction>|array $organizationFunctions */
-    /** @var \Illuminate\Support\Collection<int, \App\Models\TicketGroup>|array $ticketGroups */
+    $priorityDotClass = [1 => 'bg-slate-400', 2 => 'bg-blue-500', 3 => 'bg-amber-500', 4 => 'bg-red-500'];
+    $priorityLevel = optional($ticket->priority)->level ?? 2;
+    $priorityDot = $priorityDotClass[$priorityLevel] ?? 'bg-slate-400';
+    $statusLabels = [
+        'open' => __('tickets.status.open'),
+        'in_progress' => __('tickets.status.in_progress'),
+        'pending' => __('tickets.status.pending'),
+        'resolved' => __('tickets.status.resolved'),
+        'closed' => __('tickets.status.closed'),
+    ];
+    $sidebarStatusOptions = collect(TicketStatus::cases())->map(fn ($s) => [
+        'value' => $s->value,
+        'label' => __('tickets.status.'.$s->value),
+    ])->all();
+    $sidebarPriorityOptions = collect($sidebarOrgPriorities)->map(fn ($p) => [
+        'value' => $p->id,
+        'label' => $p->name,
+    ])->all();
+    $sidebarGroupOptions = [['value' => '', 'label' => __('— Aucun groupe')]];
+    foreach (($ticketGroups ?? collect()) as $tg) {
+        $sidebarGroupOptions[] = ['value' => (string) $tg->id, 'label' => $tg->name];
+    }
+    $sidebarFunctionOptions = [['value' => '', 'label' => __('— Aucune —')]];
+    foreach ($sidebarOrgFunctions as $fn) {
+        $sidebarFunctionOptions[] = ['value' => (string) $fn->id, 'label' => $fn->name];
+    }
 @endphp
 <div class="flex flex-col h-full gap-4 min-w-0">
     {{-- Lock banner --}}
@@ -52,11 +84,16 @@
                     <span wire:loading wire:target="changeStatus" class="inline-block h-3 w-3 rounded-full border-2 border-slate-300 border-t-transparent animate-spin align-middle ml-1"></span>
                 </div>
                 @if($canAssignTicket ?? false)
-                    <select wire:change="changeStatus($event.target.value)" wire:loading.class="opacity-50" wire:target="changeStatus" class="w-full min-w-0 rounded-lg border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-800 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
-                        @foreach(TicketStatus::cases() as $s)
-                            <option value="{{ $s->value }}" @selected($ticket->status === $s)>{{ __('tickets.status.' . $s->value) }}</option>
-                        @endforeach
-                    </select>
+                    <x-dropdown-select
+                        :options="$sidebarStatusOptions"
+                        :label="$statusLabels[$ticket->status->value] ?? $ticket->status->value"
+                        :selected-value="$ticket->status->value"
+                        wire-method="changeStatus"
+                        instance-key="sidebar-status"
+                        :disabled="($isLocked ?? false) && !($canBypassLock ?? false)"
+                        wire:loading.class="opacity-50"
+                        wire:target="changeStatus"
+                    />
                 @else
                     <div class="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-[var(--accent-soft)] px-3 py-2.5 text-sm font-bold text-[var(--accent)]">
                         <iconify-icon icon="solar:bolt-circle-bold-duotone" width="14"></iconify-icon>
@@ -71,11 +108,16 @@
                     <span wire:loading wire:target="changePriority" class="inline-block h-3 w-3 rounded-full border-2 border-slate-300 border-t-transparent animate-spin align-middle ml-1"></span>
                 </div>
                 @if($canAssignTicket ?? false)
-                    <select x-on:change="$wire.changePriority(Number($event.target.value))" wire:loading.class="opacity-50" wire:target="changePriority" class="w-full min-w-0 rounded-lg border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-800 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
-                        @foreach($orgPriorities ?? [] as $p)
-                            <option value="{{ $p->id }}" @selected($ticket->ticket_priority_id === $p->id)>{{ $p->name }}</option>
-                        @endforeach
-                    </select>
+                    <x-dropdown-select
+                        :options="$sidebarPriorityOptions"
+                        :label="optional($ticket->priority)->name ?? '—'"
+                        :selected-value="$ticket->ticket_priority_id"
+                        wire-method="changePriority"
+                        instance-key="sidebar-priority"
+                        :disabled="($isLocked ?? false) && !($canBypassLock ?? false)"
+                        wire:loading.class="opacity-50"
+                        wire:target="changePriority"
+                    />
                 @else
                     <div class="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-white px-2.5 py-2 text-xs font-bold text-slate-700 border border-slate-200">
                         <span class="h-1.5 w-1.5 rounded-full {{ $priorityDot }}"></span>
@@ -99,18 +141,24 @@
                         <span wire:loading wire:target="changeGroup" class="inline-block h-3 w-3 rounded-full border-2 border-slate-300 border-t-transparent animate-spin align-middle ml-1"></span>
                     </div>
                     @if($canAssignTicket ?? false)
-                        <select wire:change="changeGroup($event.target.value)" wire:loading.class="opacity-50" wire:target="changeGroup" class="w-full min-w-0 rounded-lg border-slate-200 py-2.5 pl-3 pr-8 text-sm font-medium shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" style="background-color: {{ optional($ticket->group)->color ? optional($ticket->group)->color . '15' : '#ffffff' }}; color: {{ optional($ticket->group)->color ?? '#334155' }};" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
-                            <option value="" @selected(!$ticket->ticket_group_id) style="color:#334155">{{ __('— Aucun groupe') }}</option>
-                            @foreach($ticketGroups as $tg)
-                                <option value="{{ $tg->id }}" @selected($ticket->ticket_group_id === $tg->id) style="color:#334155">{{ $tg->name }}</option>
-                            @endforeach
-                        </select>
+                        <x-dropdown-select
+                            :options="$sidebarGroupOptions"
+                            :label="$ticket->group?->name ?? __('— Aucun groupe')"
+                            :selected-value="$ticket->ticket_group_id !== null ? (string) $ticket->ticket_group_id : ''"
+                            wire-method="changeGroup"
+                            instance-key="sidebar-group"
+                            :disabled="($isLocked ?? false) && !($canBypassLock ?? false)"
+                            wire:loading.class="opacity-50"
+                            wire:target="changeGroup"
+                        />
                     @else
                         <div class="inline-flex max-w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold border" style="background-color: {{ $ticket->group?->color ?? '#f8fafc' }}15; color: {{ $ticket->group?->color ?? '#334155' }}; border-color: {{ $ticket->group?->color ?? '#e2e8f0' }}33;">
                             <iconify-icon icon="solar:widget-5-bold-duotone" width="14"></iconify-icon>
                             <span class="min-w-0 break-words leading-snug">{{ $ticket->group?->name ?? __('— Aucun groupe') }}</span>
                         </div>
                     @endif
+
+                    {{-- Group members moved to Assignés section below --}}
                 </div>
             @endif
         </div>
@@ -161,6 +209,33 @@
                     @else
                         <span class="text-sm text-slate-400 italic">—</span>
                     @endif
+
+                    {{-- Group members (shown when ticket is assigned to a group) --}}
+                    @if(($groupMembers ?? collect())->isNotEmpty())
+                        <div class="mt-2 pt-2 border-t border-slate-200/60">
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                                {{ __('Équipe') }} · {{ $ticket->group?->name }}
+                            </div>
+                            @foreach($groupMembers as $gm)
+                                @php
+                                    $isAlreadyAssigned = $ticket->assignees->contains('id', $gm->id);
+                                @endphp
+                                <div class="flex items-center gap-2 min-w-0 py-1 {{ $isAlreadyAssigned ? 'opacity-40' : '' }}">
+                                    <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style="background: {{ $ticket->group?->color ?? 'var(--accent)' }}20; color: {{ $ticket->group?->color ?? 'var(--accent)' }};">
+                                        {{ strtoupper(mb_substr($gm->name, 0, 1)) }}
+                                    </div>
+                                    <span class="text-sm text-slate-700 truncate flex-1 min-w-0">{{ $gm->name }}</span>
+                                    @if($isAlreadyAssigned)
+                                        <span class="text-[9px] text-slate-400 shrink-0">{{ __('assigné') }}</span>
+                                    @elseif(($canAssignTicket ?? false) && !($isLocked ?? false))
+                                        <button type="button" wire:click="addAssignee({{ $gm->id }})" class="shrink-0 text-[10px] font-semibold text-[var(--accent)] hover:underline">
+                                            {{ __('Assigner') }}
+                                        </button>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                     @if(($canAssignTicket ?? false) && !($isLocked ?? false))
                         <div class="space-y-2.5 pt-1">
                             @if($ticket->assignees->isEmpty() || (auth()->id() && !$ticket->assignees->contains('id', auth()->id())))
@@ -171,12 +246,12 @@
                             @endif
                             <div class="space-y-2" x-data="{ selectedAssignee: 0 }">
                                 <label for="sidebar-add-assignee" class="sr-only">{{ __('Assigner à…') }}</label>
-                                <select id="sidebar-add-assignee" name="sidebar_add_assignee" class="w-full min-w-0 rounded-lg border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-800 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" x-model.number="selectedAssignee">
+                                <x-select-input id="sidebar-add-assignee" name="sidebar_add_assignee" x-model.number="selectedAssignee">
                                     <option value="0">{{ __('Assigner à…') }}</option>
-                                    @foreach($orgUsers ?? [] as $u)
+                                    @foreach($sidebarStaffUsers as $u)
                                         <option value="{{ $u->id }}">{{ $u->name }}</option>
                                     @endforeach
-                                </select>
+                                </x-select-input>
                                 <button type="button" class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :disabled="selectedAssignee <= 0" @click="$wire.addAssignee(Number(selectedAssignee)); selectedAssignee = 0;">
                                     {{ __('Ajouter') }}
                                 </button>
@@ -188,12 +263,14 @@
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{{ __('Fonction') }}</div>
                 @if($canSeeInternalNotes ?? false)
-                    <select id="ticket_assigned_function" name="ticket_assigned_function" class="mt-0 w-full min-w-0 rounded-lg border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-medium text-slate-800 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] disabled:opacity-50 disabled:cursor-not-allowed" wire:change="setAssignedToFunction($event.target.value)" @disabled(($isLocked ?? false) && !($canBypassLock ?? false))>
-                        <option value="">{{ __('— Aucune —') }}</option>
-                        @foreach($organizationFunctions ?? [] as $fn)
-                            <option value="{{ $fn->id }}" @selected($ticket->assigned_to_function_id === $fn->id)>{{ $fn->name }}</option>
-                        @endforeach
-                    </select>
+                    <x-dropdown-select
+                        :options="$sidebarFunctionOptions"
+                        :label="$ticket->assignedToFunction?->name ?? __('— Aucune —')"
+                        :selected-value="$ticket->assigned_to_function_id !== null ? (string) $ticket->assigned_to_function_id : ''"
+                        wire-method="setAssignedToFunction"
+                        instance-key="sidebar-function"
+                        :disabled="($isLocked ?? false) && !($canBypassLock ?? false)"
+                    />
                 @else
                     <div class="mt-1 min-w-0">
                         @if($ticket->assignedToFunction ?? null)
@@ -201,6 +278,29 @@
                         @else
                             <span class="text-sm text-slate-400 italic">—</span>
                         @endif
+                    </div>
+                @endif
+                @if(($functionMembers ?? collect())->isNotEmpty())
+                    <div class="mt-2 pt-2 border-t border-slate-200/60">
+                        <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                            {{ __('Membres') }} · {{ $ticket->assignedToFunction?->name }}
+                        </div>
+                        @foreach($functionMembers as $fm)
+                            @php $isAlreadyAssigned = $ticket->assignees->contains('id', $fm->id); @endphp
+                            <div class="flex items-center gap-2 min-w-0 py-1 {{ $isAlreadyAssigned ? 'opacity-40' : '' }}">
+                                <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 bg-[var(--accent-soft)] text-[var(--accent)]">
+                                    {{ strtoupper(mb_substr($fm->name, 0, 1)) }}
+                                </div>
+                                <span class="text-sm text-slate-700 truncate flex-1 min-w-0">{{ $fm->name }}</span>
+                                @if($isAlreadyAssigned)
+                                    <span class="text-[9px] text-slate-400 shrink-0">{{ __('assigné') }}</span>
+                                @elseif(($canAssignTicket ?? false) && !($isLocked ?? false))
+                                    <button type="button" wire:click="addAssignee({{ $fm->id }})" class="shrink-0 text-[10px] font-semibold text-[var(--accent)] hover:underline">
+                                        {{ __('Assigner') }}
+                                    </button>
+                                @endif
+                            </div>
+                        @endforeach
                     </div>
                 @endif
             </div>
@@ -461,13 +561,13 @@
                                         + {{ __('Assigner') }}
                                     </button>
                                     <div x-show="open" x-cloak class="mt-1">
-                                        <select class="w-full rounded-lg border-slate-200 bg-white py-1 px-2 text-[11px] text-slate-700 focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                        <x-select-input
                                                 x-on:change="if ($event.target.value > 0) { $wire.addChecklistItemAssignee({{ $item->id }}, Number($event.target.value)); $event.target.selectedIndex = 0; open = false; }">
                                             <option value="0">{{ __('Assigner à…') }}</option>
-                                            @foreach($orgUsers ?? [] as $u)
+                                            @foreach($sidebarStaffUsers as $u)
                                                 <option value="{{ $u->id }}">{{ $u->name }}</option>
                                             @endforeach
-                                        </select>
+                                        </x-select-input>
                                     </div>
                                 </div>
                             @endif
@@ -521,20 +621,20 @@
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <template x-if="assignMode === 'user'">
-                            <select wire:model="newChecklistAssignedTo" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                            <x-select-input wire:model="newChecklistAssignedTo">
                                 <option value="">{{ __('— Responsable') }}</option>
-                                @foreach($orgUsers ?? [] as $u)
-                                    <option value="{{ (int) optional($u)->id }}">{{ optional($u)->name ?? '—' }}</option>
+                                @foreach($sidebarStaffUsers as $u)
+                                    <option value="{{ (int) $u->id }}">{{ $u->name }}</option>
                                 @endforeach
-                            </select>
+                            </x-select-input>
                         </template>
                         <template x-if="assignMode === 'function'">
-                            <select wire:model="newChecklistAssignedToFunction" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+                            <x-select-input wire:model="newChecklistAssignedToFunction">
                                 <option value="">{{ __('— Fonction') }}</option>
-                                @foreach($organizationFunctions ?? [] as $fn)
+                                @foreach($sidebarOrgFunctions as $fn)
                                     <option value="{{ $fn->id }}">{{ $fn->name }}</option>
                                 @endforeach
-                            </select>
+                            </x-select-input>
                         </template>
                         <input type="date" wire:model="newChecklistDueDate" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" />
                     </div>

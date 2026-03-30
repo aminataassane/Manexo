@@ -10,7 +10,7 @@
     };
 @endphp
 
-<div class="w-full max-w-full min-w-0 mx-auto">
+<div class="w-full max-w-full min-w-0 mx-auto" x-data="{ activeTab: 'internal' }">
 
     {{-- ═══ HEADER ═══ --}}
     <div class="page-header">
@@ -104,7 +104,7 @@
 
             <div class="divide-y divide-orange-100">
                 @foreach($pendingInvitations as $inv)
-                    @php($ib = $roleBadge($inv->role))
+                    @php $ib = $roleBadge($inv->role); @endphp
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 hover:bg-orange-50/40 transition-colors">
                         <div class="flex items-center gap-4 min-w-0">
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
@@ -159,124 +159,259 @@
         </div>
     @endif
 
-    {{-- ═══ MEMBERS LIST ═══ --}}
-    <div class="content-card">
-        {{-- Toolbar --}}
-        <div class="filter-bar">
-            <div class="filter-bar-row">
-                <div class="flex-1 relative">
-                    <iconify-icon icon="solar:magnifer-linear" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" width="18"></iconify-icon>
-                    <input
-                        type="text"
-                        class="filter-search"
-                        placeholder="{{ __('pages.team.search_placeholder') }}"
-                        wire:model.live="search"
-                    />
-                </div>
-                <div class="filter-controls">
-                    <div class="w-40">
-                        <x-select-input wire:model.live="role">
-                            <option value="">{{ __('pages.team.all_roles') }}</option>
-                            @foreach ($roles as $r)
-                                <option value="{{ $r->slug }}">{{ $r->name }}</option>
-                            @endforeach
-                        </x-select-input>
+    {{-- ═══ TABS NAVIGATION ═══ --}}
+    <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 mb-5 w-fit">
+        <button
+            type="button"
+            @click="activeTab = 'internal'"
+            :class="activeTab === 'internal'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+        >
+            <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="18"></iconify-icon>
+            {{ __('pages.team.tab_internal') }}
+            <span
+                :class="activeTab === 'internal' ? 'bg-[var(--accent)] text-white' : 'bg-slate-200 text-slate-600'"
+                class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold transition-colors"
+            >{{ $stats['total'] ?? 0 }}</span>
+        </button>
+        <button
+            type="button"
+            @click="activeTab = 'external'"
+            :class="activeTab === 'external'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+        >
+            <iconify-icon icon="solar:mailbox-bold-duotone" width="18"></iconify-icon>
+            {{ __('pages.team.tab_external') }}
+            <span
+                :class="activeTab === 'external' ? 'bg-[var(--accent)] text-white' : 'bg-slate-200 text-slate-600'"
+                class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold transition-colors"
+            >{{ $stats['external'] ?? 0 }}</span>
+        </button>
+    </div>
+
+    {{-- ═══ TAB: INTERNAL MEMBERS ═══ --}}
+    <div x-show="activeTab === 'internal'" x-cloak>
+        <div class="content-card">
+            @php
+                $roleFilterOptions = array_merge(
+                    [['value' => '', 'label' => __('pages.team.all_roles')]],
+                    $roles->map(fn ($r) => ['value' => $r->slug, 'label' => $r->name])->all()
+                );
+                $roleFilterLabel = $role === '' ? __('pages.team.all_roles') : ($roles->firstWhere('slug', $role)?->name ?? $role);
+                $perPageOptions = [
+                    ['value' => 10, 'label' => '10'],
+                    ['value' => 25, 'label' => '25'],
+                    ['value' => 50, 'label' => '50'],
+                ];
+                $functionRowOptions = array_merge(
+                    [['value' => '', 'label' => __('pages.team.no_function')]],
+                    $organizationFunctions->map(fn ($fn) => ['value' => (string) $fn->id, 'label' => $fn->name])->all()
+                );
+                $memberRoleOptions = $roles->map(fn ($r) => ['value' => $r->slug, 'label' => $r->name])->all();
+                $inviteRoleDropdownOptions = $roles
+                    ->filter(fn ($r) => $r->slug !== 'owner')
+                    ->map(fn ($r) => ['value' => $r->slug, 'label' => $r->name])
+                    ->values()
+                    ->all();
+                $inviteRoleLabel = $roles->firstWhere('slug', $inviteRole)?->name ?? __('pages.team.role');
+            @endphp
+            {{-- Toolbar — listes HTML (pas de panneau OS) pour rôle / taille de page --}}
+            <div class="filter-bar">
+                <div class="filter-bar-row">
+                    <div class="flex-1 relative">
+                        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" width="18"></iconify-icon>
+                        <input
+                            type="text"
+                            class="filter-search"
+                            placeholder="{{ __('pages.team.search_placeholder') }}"
+                            wire:model.live="search"
+                        />
                     </div>
-                    <div class="w-24">
-                        <x-select-input wire:model.live="perPage">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </x-select-input>
+                    <div class="filter-controls">
+                        <div class="w-44 min-w-[10rem]">
+                            <x-dropdown-select
+                                :options="$roleFilterOptions"
+                                :label="$roleFilterLabel"
+                                :selected-value="$role"
+                                model-name="role"
+                            />
+                        </div>
+                        <div class="w-24 min-w-[5.5rem]">
+                            <x-dropdown-select
+                                :options="$perPageOptions"
+                                :label="(string) $perPage"
+                                :selected-value="$perPage"
+                                model-name="perPage"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        {{-- Table --}}
-        <div class="overflow-x-auto">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>{{ __('pages.team.member') }}</th>
-                        <th>{{ __('pages.team.role') }}</th>
-                        <th>{{ __('pages.team.business_function') }}</th>
-                        <th class="text-right">{{ __('pages.team.actions') }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($memberships as $m)
-                        @php($b = $roleBadge($m->role))
-                        <tr class="group">
-                            <td>
-                                <div class="flex items-center gap-4">
-                                    <x-avatar :name="$m->user?->name ?? 'U'" size="h-10 w-10" class="ring-2 ring-white shadow-sm" />
-                                    <div>
-                                        <div class="text-sm font-bold text-slate-900">{{ $m->user?->name ?? __('pages.team.unknown_user') }}</div>
-                                        <div class="text-xs text-slate-500 mt-0.5">{{ $m->user?->email ?? '' }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="pill-badge {{ $b['bg'] }} {{ $b['text'] }} {{ $b['border'] }}">
-                                    <iconify-icon icon="{{ $b['icon'] }}" width="14"></iconify-icon>
-                                    {{ $b['label_key'] ? __($b['label_key']) : ($b['label'] ?? $m->role) }}
-                                </span>
-                            </td>
-                            <td>
-                                <select
-                                    class="h-8 min-w-[140px] rounded-lg bg-white text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] pl-2 pr-8"
-                                    style="border: 1px solid #e2e8f0;"
-                                    wire:change="updateFunction({{ (int) $m->id }}, $event.target.value)"
-                                >
-                                    <option value="">{{ __('pages.team.no_function') }}</option>
-                                    @foreach ($organizationFunctions as $fn)
-                                        <option value="{{ $fn->id }}" @selected($m->organization_function_id === $fn->id)>{{ $fn->name }}</option>
-                                    @endforeach
-                                </select>
-                            </td>
-                            <td class="text-right">
-                                <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <select
-                                        class="h-8 rounded-lg bg-white text-xs font-medium text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] pl-2 pr-8"
-                                        style="border: 1px solid #e2e8f0;"
-                                        wire:change="updateRole({{ (int) $m->id }}, $event.target.value)"
-                                    >
-                                        @foreach ($roles as $r)
-                                            <option value="{{ $r->slug }}" @selected($m->role === $r->slug)>{{ $r->name }}</option>
-                                        @endforeach
-                                    </select>
-
-                                    <button
-                                        type="button"
-                                        class="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                        @click="$dispatch('confirm-action', { title: 'Retirer', message: 'Retirer ce membre de l\u0027\u00e9quipe ?', confirmLabel: 'Retirer', variant: 'danger', onConfirm: () => $wire.removeMember({{ (int) $m->id }}) })"
-                                        title="{{ __('pages.team.remove_from_team') }}"
-                                    >
-                                        <iconify-icon icon="solar:trash-bin-trash-bold" width="16"></iconify-icon>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
+            {{-- Table --}}
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead>
                         <tr>
-                            <td colspan="4">
-                                <div class="empty-state">
-                                    <div class="empty-state-icon">
-                                        <iconify-icon icon="solar:users-group-rounded-linear" width="28" class="text-slate-300"></iconify-icon>
-                                    </div>
-                                    <p class="empty-state-title">{{ __('pages.team.no_members_found') }}</p>
-                                </div>
-                            </td>
+                            <th>{{ __('pages.team.member') }}</th>
+                            <th>{{ __('pages.team.role') }}</th>
+                            <th>{{ __('pages.team.business_function') }}</th>
+                            <th class="text-right">{{ __('pages.team.actions') }}</th>
                         </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @forelse ($memberships as $m)
+                            @php $b = $roleBadge($m->role); @endphp
+                            <tr class="group">
+                                <td>
+                                    <div class="flex items-center gap-4">
+                                        <x-avatar :name="$m->user?->name ?? 'U'" size="h-10 w-10" class="ring-2 ring-white shadow-sm" />
+                                        <div>
+                                            <div class="text-sm font-bold text-slate-900">{{ $m->user?->name ?? __('pages.team.unknown_user') }}</div>
+                                            <div class="text-xs text-slate-500 mt-0.5">{{ $m->user?->email ?? '' }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="pill-badge {{ $b['bg'] }} {{ $b['text'] }} {{ $b['border'] }}">
+                                        <iconify-icon icon="{{ $b['icon'] }}" width="14"></iconify-icon>
+                                        {{ $b['label_key'] ? __($b['label_key']) : ($b['label'] ?? $m->role) }}
+                                    </span>
+                                </td>
+                                <td class="min-w-[140px]">
+                                    <x-dropdown-select
+                                        :options="$functionRowOptions"
+                                        :label="$organizationFunctions->firstWhere('id', $m->organization_function_id)?->name ?? __('pages.team.no_function')"
+                                        :selected-value="$m->organization_function_id !== null ? (string) $m->organization_function_id : ''"
+                                        wire-method="updateFunction"
+                                        :wire-target-id="(int) $m->id"
+                                        :instance-key="'fn-' . $m->id"
+                                        compact
+                                    />
+                                </td>
+                                <td class="text-right">
+                                    <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div class="min-w-[8.5rem]">
+                                            <x-dropdown-select
+                                                :options="$memberRoleOptions"
+                                                :label="$roles->firstWhere('slug', $m->role)?->name ?? $m->role"
+                                                :selected-value="$m->role"
+                                                wire-method="updateRole"
+                                                :wire-target-id="(int) $m->id"
+                                                :instance-key="'role-' . $m->id"
+                                                compact
+                                            />
+                                        </div>
 
-        {{-- Pagination --}}
-        <div class="px-6 py-4 bg-slate-50/30" style="border-top: 1px solid #f1f5f9;">
-            {{ $memberships->links() }}
+                                        <button
+                                            type="button"
+                                            class="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                            @click="$dispatch('confirm-action', { title: 'Retirer', message: 'Retirer ce membre de l\u0027\u00e9quipe ?', confirmLabel: 'Retirer', variant: 'danger', onConfirm: () => $wire.removeMember({{ (int) $m->id }}) })"
+                                            title="{{ __('pages.team.remove_from_team') }}"
+                                        >
+                                            <iconify-icon icon="solar:trash-bin-trash-bold" width="16"></iconify-icon>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon">
+                                            <iconify-icon icon="solar:users-group-rounded-linear" width="28" class="text-slate-300"></iconify-icon>
+                                        </div>
+                                        <p class="empty-state-title">{{ __('pages.team.no_members_found') }}</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- Pagination --}}
+            <div class="px-6 py-4 bg-slate-50/30" style="border-top: 1px solid #f1f5f9;">
+                {{ $memberships->links() }}
+            </div>
+        </div>
+    </div>
+
+    {{-- ═══ TAB: EXTERNAL CONTACTS ═══ --}}
+    <div x-show="activeTab === 'external'" x-cloak>
+        <div class="content-card">
+            {{-- Toolbar --}}
+            <div class="filter-bar">
+                <div class="filter-bar-row">
+                    <div class="flex-1 relative">
+                        <iconify-icon icon="solar:magnifer-linear" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" width="18"></iconify-icon>
+                        <input
+                            type="text"
+                            class="filter-search"
+                            placeholder="{{ __('pages.team.search_external_placeholder') }}"
+                            wire:model.live="searchExternal"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {{-- Table --}}
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>{{ __('pages.team.member') }}</th>
+                            <th>{{ __('pages.team.external_col_source') }}</th>
+                            <th>{{ __('pages.team.external_col_first_contact') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($externalContacts as $ec)
+                            <tr>
+                                <td>
+                                    <div class="flex items-center gap-4">
+                                        <div class="relative">
+                                            <x-avatar :name="$ec->user?->name ?? 'U'" size="h-10 w-10" class="ring-2 ring-white shadow-sm" />
+                                            <div class="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-slate-100 flex items-center justify-center ring-2 ring-white">
+                                                <iconify-icon icon="solar:letter-bold" width="10" class="text-slate-400"></iconify-icon>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="text-sm font-bold text-slate-900">{{ $ec->user?->name ?? __('pages.team.unknown_user') }}</div>
+                                            <div class="text-xs text-slate-500 mt-0.5">{{ $ec->user?->email ?? '' }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="pill-badge bg-sky-50 text-sky-600 border-sky-100">
+                                        <iconify-icon icon="solar:letter-bold-duotone" width="14"></iconify-icon>
+                                        {{ __('pages.team.external_source') }}
+                                    </span>
+                                </td>
+                                <td class="text-sm text-slate-500">
+                                    {{ $ec->created_at?->format('d/m/Y') ?? '—' }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3">
+                                    <div class="empty-state">
+                                        <div class="empty-state-icon">
+                                            <iconify-icon icon="solar:mailbox-linear" width="28" class="text-slate-300"></iconify-icon>
+                                        </div>
+                                        <p class="empty-state-title">{{ __('pages.team.no_external_contacts') }}</p>
+                                        <p class="text-xs text-slate-400 mt-1">{{ __('pages.team.no_external_contacts_hint') }}</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -323,13 +458,13 @@
 
                 <div class="space-y-1.5">
                     <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.role') }}</label>
-                    <x-select-input wire:model.live="inviteRole">
-                        @foreach ($roles as $r)
-                            @if ($r->slug !== 'owner')
-                                <option value="{{ $r->slug }}">{{ $r->name }}</option>
-                            @endif
-                        @endforeach
-                    </x-select-input>
+                    <x-dropdown-select
+                        :options="$inviteRoleDropdownOptions"
+                        :label="$inviteRoleLabel"
+                        :selected-value="$inviteRole"
+                        model-name="inviteRole"
+                        instance-key="invite-role"
+                    />
                     <x-input-error :messages="$errors->get('inviteRole')" />
                 </div>
 

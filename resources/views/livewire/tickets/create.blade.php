@@ -3,6 +3,18 @@
     $field = 'block w-full rounded-md border-0 bg-slate-50 py-2 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200';
     $select = $field . ' appearance-none pr-9';
     $textarea = 'block w-full rounded-md border-0 bg-slate-50 p-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset focus:ring-[color:var(--accent)] text-sm transition-all duration-200';
+
+    $ticketCreateCategoryOptions = $categories->map(fn ($c) => ['value' => (string) $c->id, 'label' => $c->name])->all();
+    $ticketCreateCategoryLabel = $categories->firstWhere('id', (int) $ticket_category_id)?->name ?? '';
+    $ticketCreatePriorityOptions = $priorities->map(fn ($p) => ['value' => (string) $p->id, 'label' => $p->name])->all();
+    $ticketCreatePriorityLabel = $priorities->firstWhere('id', (int) $ticket_priority_id)?->name ?? '';
+    $ticketCreateGroupOptions = [['value' => '', 'label' => __('— Aucun groupe')]];
+    foreach ($ticketGroups ?? collect() as $tg) {
+        $ticketCreateGroupOptions[] = ['value' => (string) $tg->id, 'label' => $tg->name];
+    }
+    $ticketCreateGroupLabel = $ticket_group_id
+        ? (($ticketGroups ?? collect())->firstWhere('id', (int) $ticket_group_id)?->name ?? '')
+        : __('— Aucun groupe');
 @endphp
 
 <div class="mx-auto w-full min-w-0 max-w-7xl 2xl:max-w-[90rem] min-[1920px]:max-w-[110rem] py-4 sm:py-6 lg:py-8 px-3 sm:px-6 lg:px-8">
@@ -77,11 +89,13 @@
                         <div>
                             <x-input-label for="category" :value="__('Catégorie *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                             <div class="mt-1">
-                                <x-select-input id="category" wire:model.live="ticket_category_id">
-                                    @foreach ($categories as $c)
-                                        <option value="{{ (int) $c->id }}">{{ $c->name }}</option>
-                                    @endforeach
-                                </x-select-input>
+                                <x-select-input
+                                    id="category"
+                                    :options="$ticketCreateCategoryOptions"
+                                    :label="$ticketCreateCategoryLabel"
+                                    :selected-value="(string) $ticket_category_id"
+                                    wire:model.live="ticket_category_id"
+                                />
                             </div>
                             <x-input-error :messages="$errors->get('ticket_category_id')" class="mt-2" />
                         </div>
@@ -89,11 +103,13 @@
                         <div>
                             <x-input-label for="priority" :value="__('Priorité *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                             <div class="mt-1">
-                                <x-select-input id="priority" wire:model="ticket_priority_id">
-                                    @foreach ($priorities as $p)
-                                        <option value="{{ (int) $p->id }}">{{ $p->name }}</option>
-                                    @endforeach
-                                </x-select-input>
+                                <x-select-input
+                                    id="priority"
+                                    :options="$ticketCreatePriorityOptions"
+                                    :label="$ticketCreatePriorityLabel"
+                                    :selected-value="(string) $ticket_priority_id"
+                                    wire:model="ticket_priority_id"
+                                />
                             </div>
                             <x-input-error :messages="$errors->get('ticket_priority_id')" class="mt-2" />
                         </div>
@@ -103,12 +119,13 @@
                     <div>
                         <x-input-label for="ticket_group" :value="__('Groupe')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                         <div class="mt-1">
-                            <x-select-input id="ticket_group" wire:model="ticket_group_id">
-                                <option value="">{{ __('— Aucun groupe') }}</option>
-                                @foreach ($ticketGroups as $tg)
-                                    <option value="{{ (int) $tg->id }}">{{ $tg->name }}</option>
-                                @endforeach
-                            </x-select-input>
+                            <x-select-input
+                                id="ticket_group"
+                                :options="$ticketCreateGroupOptions"
+                                :label="$ticketCreateGroupLabel"
+                                :selected-value="$ticket_group_id !== null ? (string) $ticket_group_id : ''"
+                                wire:model="ticket_group_id"
+                            />
                         </div>
                         <x-input-error :messages="$errors->get('ticket_group_id')" class="mt-2" />
                     </div>

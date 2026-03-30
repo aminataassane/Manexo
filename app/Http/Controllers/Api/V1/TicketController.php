@@ -164,10 +164,7 @@ class TicketController extends Controller
         if (! empty($assigneeIds)) {
             $validAssignees = User::query()
                 ->whereIn('id', $assigneeIds)
-                ->whereHas('organizations', function ($q) use ($orgId) {
-                    $q->where('organization_memberships.organization_id', $orgId)
-                        ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
-                })
+                ->assignableInOrganization($orgId)
                 ->count();
 
             if ($validAssignees !== count($assigneeIds)) {
@@ -380,10 +377,7 @@ class TicketController extends Controller
         if (! empty($newAssigneeIds)) {
             $validAssignees = User::query()
                 ->whereIn('id', $newAssigneeIds)
-                ->whereHas('organizations', function ($q) use ($orgId) {
-                    $q->where('organization_memberships.organization_id', $orgId)
-                        ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
-                })
+                ->assignableInOrganization($orgId)
                 ->count();
 
             if ($validAssignees !== count($newAssigneeIds)) {

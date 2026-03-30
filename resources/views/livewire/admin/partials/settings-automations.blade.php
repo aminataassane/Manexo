@@ -210,13 +210,13 @@
                             <iconify-icon icon="solar:clock-circle-bold" width="18"></iconify-icon>
                             QUAND (declencheur)
                         </h4>
-                        <select wire:model.live="editingRule.trigger_type" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                        <x-select-input wire:model.live="editingRule.trigger_type">
                             <option value="ticket_created">Ticket cree</option>
                             <option value="status_changed">Statut modifie</option>
                             <option value="priority_changed">Priorite modifiee</option>
                             <option value="sla_at_risk">SLA a risque</option>
                             <option value="sla_breached">SLA depasse</option>
-                        </select>
+                        </x-select-input>
                     </div>
 
                     {{-- SI (conditions) --}}
@@ -228,50 +228,50 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-slate-600 mb-1">Categorie</label>
-                                <select wire:model="editingRule.conditions.category_id" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <x-select-input wire:model="editingRule.conditions.category_id">
                                     <option value="">— Toutes —</option>
                                     @foreach ($categories as $cat)
                                         <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                                     @endforeach
-                                </select>
+                                </x-select-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-600 mb-1">Priorite</label>
-                                <select wire:model="editingRule.conditions.priority_id" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <x-select-input wire:model="editingRule.conditions.priority_id">
                                     <option value="">— Toutes —</option>
                                     @foreach ($priorities as $prio)
                                         <option value="{{ $prio->id }}">{{ $prio->name }}</option>
                                     @endforeach
-                                </select>
+                                </x-select-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-600 mb-1">Groupe</label>
-                                <select wire:model="editingRule.conditions.group_id" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <x-select-input wire:model="editingRule.conditions.group_id">
                                     <option value="">— Tous —</option>
                                     @foreach ($ticketGroups as $grp)
                                         <option value="{{ $grp->id }}">{{ $grp->name }}</option>
                                     @endforeach
-                                </select>
+                                </x-select-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-600 mb-1">Source</label>
-                                <select wire:model="editingRule.conditions.source" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <x-select-input wire:model="editingRule.conditions.source">
                                     <option value="">— Toutes —</option>
                                     <option value="platform">Plateforme</option>
                                     <option value="form">Formulaire</option>
                                     <option value="email">Email</option>
-                                </select>
+                                </x-select-input>
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-600 mb-1">Statut</label>
-                                <select wire:model="editingRule.conditions.status" class="block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                <x-select-input wire:model="editingRule.conditions.status">
                                     <option value="">— Tous —</option>
                                     <option value="open">Ouvert</option>
                                     <option value="in_progress">En cours</option>
                                     <option value="pending">En attente</option>
                                     <option value="resolved">Resolu</option>
                                     <option value="closed">Ferme</option>
-                                </select>
+                                </x-select-input>
                             </div>
                             <div class="flex items-center gap-2 pt-5">
                                 <input type="checkbox" wire:model="editingRule.conditions.is_unassigned" id="cond_unassigned" class="h-4 w-4 rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]">
@@ -292,7 +292,7 @@
                                 <div class="flex items-start gap-2 bg-white rounded-xl border border-slate-200 p-3">
                                     <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                                         <div>
-                                            <select wire:model.live="editingRule.actions.{{ $idx }}.type" class="block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                            <x-select-input wire:model.live="editingRule.actions.{{ $idx }}.type">
                                                 <option value="">— Type d'action —</option>
                                                 <option value="assign_responsible">Assigner responsable</option>
                                                 <option value="add_collaborators">Ajouter collaborateurs</option>
@@ -301,45 +301,45 @@
                                                 <option value="change_group">Deplacer vers groupe</option>
                                                 <option value="notify_users">Notifier utilisateurs</option>
                                                 <option value="add_checklist">Ajouter checklist</option>
-                                            </select>
+                                            </x-select-input>
                                         </div>
                                         <div>
                                             @if (($act['type'] ?? '') === 'assign_responsible')
-                                                <select wire:model="editingRule.actions.{{ $idx }}.user_id" class="block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                                <x-select-input wire:model="editingRule.actions.{{ $idx }}.user_id">
                                                     <option value="">— Choisir —</option>
                                                     @foreach ($members as $m)
                                                         <option value="{{ $m->user?->id }}">{{ $m->user?->name }}</option>
                                                     @endforeach
-                                                </select>
+                                                </x-select-input>
                                             @elseif (($act['type'] ?? '') === 'add_collaborators' || ($act['type'] ?? '') === 'notify_users')
-                                                <select wire:model="editingRule.actions.{{ $idx }}.user_ids" multiple class="block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] min-h-[60px]">
+                                                <x-select-input wire:model="editingRule.actions.{{ $idx }}.user_ids" multiple>
                                                     @foreach ($members as $m)
                                                         <option value="{{ $m->user?->id }}">{{ $m->user?->name }}</option>
                                                     @endforeach
-                                                </select>
+                                                </x-select-input>
                                             @elseif (($act['type'] ?? '') === 'change_priority')
-                                                <select wire:model="editingRule.actions.{{ $idx }}.priority_id" class="block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                                <x-select-input wire:model="editingRule.actions.{{ $idx }}.priority_id">
                                                     <option value="">— Choisir —</option>
                                                     @foreach ($priorities as $prio)
                                                         <option value="{{ $prio->id }}">{{ $prio->name }}</option>
                                                     @endforeach
-                                                </select>
+                                                </x-select-input>
                                             @elseif (($act['type'] ?? '') === 'change_status')
-                                                <select wire:model="editingRule.actions.{{ $idx }}.status" class="block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                                <x-select-input wire:model="editingRule.actions.{{ $idx }}.status">
                                                     <option value="">— Choisir —</option>
                                                     <option value="open">Ouvert</option>
                                                     <option value="in_progress">En cours</option>
                                                     <option value="pending">En attente</option>
                                                     <option value="resolved">Resolu</option>
                                                     <option value="closed">Ferme</option>
-                                                </select>
+                                                </x-select-input>
                                             @elseif (($act['type'] ?? '') === 'change_group')
-                                                <select wire:model="editingRule.actions.{{ $idx }}.group_id" class="block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]">
+                                                <x-select-input wire:model="editingRule.actions.{{ $idx }}.group_id">
                                                     <option value="">— Choisir —</option>
                                                     @foreach ($ticketGroups as $grp)
                                                         <option value="{{ $grp->id }}">{{ $grp->name }}</option>
                                                     @endforeach
-                                                </select>
+                                                </x-select-input>
                                             @elseif (($act['type'] ?? '') === 'add_checklist')
                                                 <input type="text" wire:model="editingRule.actions.{{ $idx }}.items_text" class="block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" placeholder="Items separes par des virgules">
                                                 <p class="text-xs text-slate-400 mt-0.5">Ex: Verifier identite, Creer compte</p>

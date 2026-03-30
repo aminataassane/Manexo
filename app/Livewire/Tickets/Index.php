@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Tickets;
 
+use App\DataTransferObjects\ClientAssignmentClientScenario;
+use App\DataTransferObjects\ClientAssignmentContext;
 use App\Enums\Permission;
 use App\Enums\TicketMessageType;
 use App\Enums\TicketStatus;
@@ -11,10 +13,13 @@ use App\Models\TicketChecklistItem;
 use App\Models\TicketGroup;
 use App\Models\TicketMessage;
 use App\Models\TicketPriority;
+use App\Models\User;
+use App\Notifications\TicketReopenedNotification;
+use App\Notifications\TicketStatusChangedNotification;
 use App\Services\AutomationService;
 use App\Services\OrganizationAuditService;
 use App\Services\SlaService;
-use App\Notifications\TicketReopenedNotification;
+use App\Support\TicketClientRoutingNotifier;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -50,7 +55,7 @@ class Index extends Component
     public function mount(): void
     {
         $user = Auth::user();
-        abort_if(! $user instanceof \App\Models\User, 403);
+        abort_if(! $user instanceof User, 403);
 
         $orgId = (int) session('current_organization_id');
         abort_if(! $orgId, 403);
@@ -101,6 +106,16 @@ class Index extends Component
 
     #[Url(history: true)]
     public int $perPage = 10;
+
+    // Advanced search filters
+    #[Url(history: true)]
+    public string $dateFrom = '';
+
+    #[Url(history: true)]
+    public string $dateTo = '';
+
+    #[Url(history: true)]
+    public string $messageSearch = ''; // search inside message content
 
     public array $selected = [];
 
@@ -183,10 +198,203 @@ class Index extends Component
             ->all();
     }
 
+    public function updatedDateFrom(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedDateTo(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedMessageSearch(): void
+    {
+        $this->resetPage();
+    }
+
     public function resetFilters(): void
     {
-        $this->reset(['search', 'status', 'priority', 'assignee', 'source', 'group']);
+        $this->reset(['search', 'status', 'priority', 'assignee', 'source', 'group', 'dateFrom', 'dateTo', 'messageSearch']);
         $this->resetPage();
+    }
+
+    // ─── Bulk Actions ────────────────────────────────────────────────
+
+    /** Change status for all selected tickets. */
+    public function bulkChangeStatus(string $status): void
+    {
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            abort(403);
+        }
+        $newStatus = TicketStatus::tryFrom($status);
+        if (! $newStatus || empty($this->selected)) {
+            return;
+        }
+        $orgId = (int) session('current_organization_id');
+        $canChangeStatus = $user->hasPermission(Permission::TicketsChangeStatus);
+        if (! $canChangeStatus) {
+            abort(403);
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Ticket> $tickets */
+        $tickets = Ticket::where('organization_id', $orgId)
+            ->whereIn('id', $this->selected)
+            ->get();
+
+        $count = 0;
+        foreach ($tickets as $ticket) {
+            $oldStatus = $ticket->status;
+            if ($oldStatus === $newStatus) {
+                continue;
+            }
+            $isClosed = in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true);
+            $ticket->update([
+                'status' => $newStatus,
+                'closed_by' => $isClosed ? $user->id : null,
+                'closed_at' => $isClosed ? now() : null,
+            ]);
+            TicketMessage::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => null,
+                'type' => TicketMessageType::System,
+                'body' => __('tickets.status_changed', ['actor' => $user->name, 'old' => __('tickets.status.'.$oldStatus->value), 'new' => __('tickets.status.'.$newStatus->value)]),
+                'meta' => ['action' => 'status_changed', 'old' => $oldStatus->value, 'new' => $newStatus->value],
+            ]);
+
+            // Notify creator
+            if ($ticket->created_by && (int) $ticket->created_by !== (int) $user->id) {
+                $creator = $ticket->creator;
+                if ($creator) {
+                    $orgName = $ticket->organization?->name ?? config('app.name', 'Support');
+                    $creator->notify(new TicketStatusChangedNotification(
+                        ticketId: $ticket->id, ticketPublicId: $ticket->public_id, ticketReference: $ticket->shortReference(),
+                        ticketSubject: $ticket->subject, oldStatus: $oldStatus->value, newStatus: $newStatus->value,
+                        organizationId: $orgId, organizationName: $orgName,
+                    ));
+                }
+            }
+            $count++;
+        }
+
+        $this->selected = [];
+        $this->selectAll = false;
+        CacheHelper::invalidateDashboard($orgId);
+        CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
+        session()->flash('tickets_status', __(':count ticket(s) mis à jour.', ['count' => $count]));
+    }
+
+    /** Assign all selected tickets to a user. */
+    public function bulkAssign(int $userId): void
+    {
+        $user = Auth::user();
+        if (! $user instanceof User || ! $user->hasPermission(Permission::TicketsAssign)) {
+            abort(403);
+        }
+        $orgId = (int) session('current_organization_id');
+        if (empty($this->selected)) {
+            return;
+        }
+
+        $assignee = User::whereKey($userId)->assignableInOrganization($orgId)->firstOrFail();
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Ticket> $tickets */
+        $tickets = Ticket::where('organization_id', $orgId)
+            ->whereIn('id', $this->selected)
+            ->get();
+
+        $count = 0;
+        foreach ($tickets as $ticket) {
+            $previousResponsible = $ticket->assignees()->wherePivot('role', 'responsible')->first();
+            $ticket->assignees()->newPivotQuery()->where('role', 'responsible')->update(['role' => 'collaborator']);
+            if ($ticket->assignees()->where('users.id', $userId)->exists()) {
+                $ticket->assignees()->updateExistingPivot($userId, ['role' => 'responsible', 'assigned_by' => $user->id]);
+            } else {
+                $ticket->assignees()->attach($userId, ['assigned_by' => $user->id, 'role' => 'responsible']);
+            }
+            $ticket->update(['assigned_to' => $userId, 'assigned_by' => $user->id, 'assigned_at' => now()]);
+            $auditBody = $previousResponsible && (int) $previousResponsible->id !== $userId
+                ? __('tickets.assignment_audit.reassign_responsible', ['actor' => $user->name, 'target' => $assignee->name])
+                : __('tickets.assignment_audit.assign_user', ['actor' => $user->name, 'target' => $assignee->name]);
+            TicketMessage::create([
+                'ticket_id' => $ticket->id,
+                'user_id' => null,
+                'type' => TicketMessageType::System,
+                'body' => $auditBody,
+                'meta' => ['action' => 'bulk_assign', 'user_id' => $userId],
+            ]);
+            TicketClientRoutingNotifier::notify($ticket->fresh(), new ClientAssignmentContext(
+                ClientAssignmentClientScenario::PersonNamed,
+                $assignee->name,
+            ));
+            $count++;
+        }
+
+        $this->selected = [];
+        $this->selectAll = false;
+        CacheHelper::invalidateDashboard($orgId);
+        CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
+        session()->flash('tickets_status', __(':count ticket(s) assigné(s) à :name.', ['count' => $count, 'name' => $assignee->name]));
+    }
+
+    /** Change priority for all selected tickets. */
+    public function bulkChangePriority(int $priorityId): void
+    {
+        $user = Auth::user();
+        if (! $user instanceof User || ! $user->hasPermission(Permission::TicketsChangeStatus)) {
+            abort(403);
+        }
+        $orgId = (int) session('current_organization_id');
+        if (empty($this->selected)) {
+            return;
+        }
+
+        $priority = TicketPriority::where('organization_id', $orgId)->where('is_active', true)->whereKey($priorityId)->firstOrFail();
+
+        $count = Ticket::where('organization_id', $orgId)
+            ->whereIn('id', $this->selected)
+            ->update(['ticket_priority_id' => $priority->id]);
+
+        $this->selected = [];
+        $this->selectAll = false;
+        CacheHelper::invalidateDashboard($orgId);
+        CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
+        session()->flash('tickets_status', __(':count ticket(s) mis à jour.', ['count' => $count]));
+    }
+
+    /** Close all selected tickets. */
+    public function bulkClose(): void
+    {
+        $this->bulkChangeStatus(TicketStatus::Closed->value);
+    }
+
+    /** Archive all selected tickets. */
+    public function bulkArchive(): void
+    {
+        $user = Auth::user();
+        if (! $user instanceof User || ! $user->hasPermission(Permission::TicketsArchive)) {
+            abort(403);
+        }
+        $orgId = (int) session('current_organization_id');
+        if (empty($this->selected)) {
+            return;
+        }
+
+        $count = Ticket::where('organization_id', $orgId)
+            ->whereIn('id', $this->selected)
+            ->whereNull('archived_at')
+            ->update(['archived_at' => now()]);
+
+        $this->selected = [];
+        $this->selectAll = false;
+        CacheHelper::invalidateDashboard($orgId);
+        CacheHelper::invalidateReports($orgId);
+        CacheHelper::invalidateTicketCounts($orgId);
+        session()->flash('tickets_status', __(':count ticket(s) archivé(s).', ['count' => $count]));
     }
 
     public function setDisplayMode(string $mode): void
@@ -208,7 +416,7 @@ class Index extends Component
     private function processMoveTicket(int $ticketId, string $status): void
     {
         $user = Auth::user();
-        if (! $user instanceof \App\Models\User) {
+        if (! $user instanceof User) {
             abort(403);
         }
 
@@ -304,8 +512,8 @@ class Index extends Component
             return;
         }
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $recipients */
-        $recipients = \App\Models\User::query()->whereIn('id', $notifyUserIds)->get();
+        /** @var \Illuminate\Database\Eloquent\Collection<int, User> $recipients */
+        $recipients = User::query()->whereIn('id', $notifyUserIds)->get();
         foreach ($recipients as $recipient) {
             if ($ticket->hasDiscussionAccess((int) $recipient->id)) {
                 $recipient->notify(new TicketReopenedNotification($ticket, $actorId, $actorName));
@@ -349,7 +557,7 @@ class Index extends Component
     public function restoreFromTrash(int $ticketId): void
     {
         $user = Auth::user();
-        if (! $user instanceof \App\Models\User) {
+        if (! $user instanceof User) {
             abort(403);
         }
         $orgId = (int) session('current_organization_id');
@@ -379,7 +587,7 @@ class Index extends Component
     public function forceDeleteTicket(int $ticketId): void
     {
         $user = Auth::user();
-        if (! $user instanceof \App\Models\User) {
+        if (! $user instanceof User) {
             abort(403);
         }
         $orgId = (int) session('current_organization_id');
@@ -425,7 +633,7 @@ class Index extends Component
     private function buildTicketsIndexView()
     {
         $user = Auth::user();
-        if (! $user instanceof \App\Models\User) {
+        if (! $user instanceof User) {
             $user = null;
         }
         $orgId = (int) session('current_organization_id');
@@ -456,8 +664,8 @@ class Index extends Component
             : collect();
 
         $assignees = ($org && $orgId)
-            ? Cache::remember(CacheHelper::membersKey($orgId), CacheHelper::TTL, function () use ($org) {
-                return $org->users()->orderBy('name')->get(['users.id', 'users.name']);
+            ? Cache::remember("assignable_users:{$orgId}", CacheHelper::TTL, function () use ($orgId) {
+                return User::query()->assignableInOrganization($orgId)->orderBy('name')->get(['id', 'name']);
             })
             : collect();
 
@@ -606,7 +814,7 @@ class Index extends Component
         ]);
     }
 
-    private function buildStageTicketData(?\App\Models\User $user, int $orgId, bool $isStaff, string $viewKey): array
+    private function buildStageTicketData(?User $user, int $orgId, bool $isStaff, string $viewKey): array
     {
         if ($this->loadStage < 2) {
             return [
@@ -664,7 +872,7 @@ class Index extends Component
         return compact('tickets', 'kanbanTickets', 'statusColumns');
     }
 
-    private function applyTicketScopeFilters($query, ?\App\Models\User $user, bool $isStaff, string $viewKey)
+    private function applyTicketScopeFilters($query, ?User $user, bool $isStaff, string $viewKey)
     {
         if ($this->box === 'trash') {
             if (! $isStaff) {
@@ -730,6 +938,25 @@ class Index extends Component
                     ->orWhereHas('creator', fn ($u) => $u->where('name', 'ilike', "%{$search}%"))
                     ->orWhereHas('assignees', fn ($u) => $u->where('name', 'ilike', "%{$search}%"));
             });
+        }
+
+        // Deep search: search inside message content
+        $messageSearch = trim($this->messageSearch);
+        if ($messageSearch !== '') {
+            $query->whereExists(function ($sub) use ($messageSearch) {
+                $sub->selectRaw('1')
+                    ->from('ticket_messages')
+                    ->whereColumn('ticket_messages.ticket_id', 'tickets.id')
+                    ->where('ticket_messages.body', 'ilike', "%{$messageSearch}%");
+            });
+        }
+
+        // Date range filter
+        if ($this->dateFrom !== '') {
+            $query->where('tickets.created_at', '>=', $this->dateFrom.' 00:00:00');
+        }
+        if ($this->dateTo !== '') {
+            $query->where('tickets.created_at', '<=', $this->dateTo.' 23:59:59');
         }
 
         if ($this->status !== '') {

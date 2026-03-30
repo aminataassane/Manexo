@@ -18,6 +18,8 @@ class ParsedEmail
         public readonly array $headers,
         public readonly array $attachments,
         public readonly ?int $uid,
+        /** @var array<int, array{email: string, name: string|null}> */
+        public readonly array $cc = [],
     ) {}
 
     public function getCleanBody(): string
@@ -66,6 +68,21 @@ class EmailParser
             ?? self::getHeaderValue($headers, 'Subject');
         $subject = self::decodeMimeHeader($rawSubject);
 
+        // Extract CC addresses
+        $cc = [];
+        $ccAddresses = $message->getCc();
+        if ($ccAddresses) {
+            foreach ($ccAddresses as $ccAddr) {
+                $ccEmail = strtolower(trim($ccAddr->mail ?? ''));
+                if ($ccEmail !== '' && $ccEmail !== $fromEmail) {
+                    $cc[] = [
+                        'email' => $ccEmail,
+                        'name' => self::decodeMimeHeader(trim($ccAddr->personal ?? '')) ?: null,
+                    ];
+                }
+            }
+        }
+
         return new ParsedEmail(
             messageId: self::getHeaderValue($headers, 'Message-ID') ?? self::getHeaderValue($headers, 'Message-Id'),
             fromEmail: $fromEmail,
@@ -78,6 +95,7 @@ class EmailParser
             headers: $headers,
             attachments: $attachments,
             uid: $message->getUid(),
+            cc: $cc,
         );
     }
 
@@ -88,13 +106,21 @@ class EmailParser
     {
         $text = str_replace("\r\n", "\n", $text);
 
-        // Blocs typiques « réponse en dessous de cette ligne » (FR / EN / clients mail)
+        // Blocs « réponse / citation » (FR / EN / Gmail, Outlook…). Pas de /s sur .+ pour rester sur une ligne quand il faut.
         $cutPatterns = [
-            '/\n\s*Le .+ a écrit\s*:\s*\n/is',
-            '/\n\s*Le .+ a écrit\s*:\s*$/is',
-            '/\n\s*On .+ wrote:\s*\n/is',
-            '/\n\s*On .+ wrote:\s*$/is',
-            '/\n\s*Am .+ schrieb:\s*\n/is',
+            // Gmail FR : « … a » en fin de 1re ligne, « écrit : » sur la ligne suivante (.+ sans /s = pas de saut ligne)
+            '/(?:^|\n)\s*Le(.+)\s+a\s*\n\s*écrit\s*:\s*\n*/u',
+            // FR une ligne (« Le … a écrit : »)
+            '/\n\s*Le(.+)\s+a\s+écrit\s*:\s*\n/u',
+            '/\n\s*Le(.+)\s+a\s+écrit\s*:\s*$/u',
+            '/^\s*Le(.+)\s+a\s+écrit\s*:\s*\n/u',
+            '/^\s*Le(.+)\s+a\s+écrit\s*:\s*$/u',
+            // EN (Gmail / Apple)
+            '/\n\s*On(.+)wrote:\s*\n/u',
+            '/\n\s*On(.+)wrote:\s*$/u',
+            '/^\s*On(.+)wrote:\s*\n/u',
+            '/^\s*On(.+)wrote:\s*$/u',
+            '/\n\s*Am(.+)schrieb:\s*\n/u',
             '/\n\s*---------- Forwarded message ----------/i',
             '/\n\s*-----Original Message-----/i',
             '/\n\s*________________________________/s',
@@ -106,14 +132,39 @@ class EmailParser
         foreach ($cutPatterns as $p) {
             if (preg_match($p, $text, $m, PREG_OFFSET_CAPTURE)) {
                 $pos = $m[0][1];
-                if ($pos > 0 && $pos < $len) {
+                if ($pos >= 0 && $pos < $len) {
                     $len = $pos;
                 }
             }
         }
         $text = substr($text, 0, $len);
 
+        $text = self::stripPlainTextAngleQuoteLines($text);
+
         return trim(preg_replace("/\n{3,}/", "\n\n", $text));
+    }
+
+    /**
+     * Supprime à partir de la première ligne de citation type client mail (lignes commençant par >).
+     * Utilisé quand le délimiteur « Le … a écrit » n’a pas été reconnu ou après coupe partielle.
+     */
+    public static function stripPlainTextAngleQuoteLines(string $text): string
+    {
+        $text = str_replace("\r\n", "\n", $text);
+        $lines = explode("\n", $text);
+        $out = [];
+
+        foreach ($lines as $i => $line) {
+            $prev = $i > 0 ? $lines[$i - 1] : null;
+            $prevEmpty = $prev === null || trim((string) $prev) === '';
+
+            if ($prevEmpty && preg_match('/^\s*>/', $line)) {
+                break;
+            }
+            $out[] = $line;
+        }
+
+        return implode("\n", $out);
     }
 
     /**

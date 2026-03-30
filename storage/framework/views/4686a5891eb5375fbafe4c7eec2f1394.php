@@ -1,0 +1,1 @@
+paginator-<?php echo e($paginator->getPageName()); ?>-page<?php echo e($page); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/c04136f0ec1e2dea75ef010373030c34.blade.php ENDPATH**/ ?>

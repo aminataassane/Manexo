@@ -34,12 +34,13 @@ class SlaService
 
         $data = ['sla_policy_id' => $policy->id];
         $createdAt = $ticket->created_at ?? now();
+        $orgId = (int) $ticket->organization_id;
 
         if ($policy->first_response_minutes) {
-            $data['sla_first_response_deadline'] = $createdAt->copy()->addMinutes($policy->first_response_minutes);
+            $data['sla_first_response_deadline'] = BusinessHoursService::addBusinessMinutes($createdAt->copy(), $policy->first_response_minutes, $orgId);
         }
         if ($policy->resolution_minutes) {
-            $data['sla_resolution_deadline'] = $createdAt->copy()->addMinutes($policy->resolution_minutes);
+            $data['sla_resolution_deadline'] = BusinessHoursService::addBusinessMinutes($createdAt->copy(), $policy->resolution_minutes, $orgId);
         }
 
         $ticket->update($data);
@@ -72,10 +73,11 @@ class SlaService
 
         $data = ['sla_policy_id' => $newPolicy->id];
         $createdAt = $ticket->created_at ?? now();
+        $orgId = (int) $ticket->organization_id;
 
         // Recalculate first response deadline (if not already met)
         if (! $ticket->sla_first_response_met_at && $newPolicy->first_response_minutes) {
-            $data['sla_first_response_deadline'] = $createdAt->copy()->addMinutes($newPolicy->first_response_minutes);
+            $data['sla_first_response_deadline'] = BusinessHoursService::addBusinessMinutes($createdAt->copy(), $newPolicy->first_response_minutes, $orgId);
             $data['sla_first_response_breached'] = false;
         } elseif (! $newPolicy->first_response_minutes) {
             $data['sla_first_response_deadline'] = null;
@@ -84,8 +86,7 @@ class SlaService
         // Recalculate resolution deadline accounting for paused time
         if (! $ticket->sla_resolution_met_at && $newPolicy->resolution_minutes) {
             $pausedSeconds = (int) $ticket->sla_paused_seconds;
-            $data['sla_resolution_deadline'] = $createdAt->copy()
-                ->addMinutes($newPolicy->resolution_minutes)
+            $data['sla_resolution_deadline'] = BusinessHoursService::addBusinessMinutes($createdAt->copy(), $newPolicy->resolution_minutes, $orgId)
                 ->addSeconds($pausedSeconds);
             $data['sla_resolution_breached'] = false;
         } elseif (! $newPolicy->resolution_minutes) {

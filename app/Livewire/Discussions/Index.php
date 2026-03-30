@@ -184,15 +184,15 @@ class Index extends Component
         $existingThread = DiscussionThread::query()
             ->where('organization_id', $orgId)
             ->where('is_group', false)
-            ->whereHas('participants', fn($q) => $q->where('users.id', $user->id))
-            ->whereHas('participants', fn($q) => $q->where('users.id', $other->id))
-            ->whereDoesntHave('participants', fn($q) => $q->whereNotIn('users.id', [$user->id, $other->id]))
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $other->id))
+            ->whereDoesntHave('participants', fn ($q) => $q->whereNotIn('users.id', [$user->id, $other->id]))
             ->first();
 
         if ($existingThread) {
             $this->showNewDiscussionModal = false;
             $this->newDiscussionUserId = null;
-            $this->redirect(route('discussions.index', ['discussionParam' => 'd-' . $existingThread->id]), navigate: true);
+            $this->redirect(route('discussions.index', ['discussionParam' => 'd-'.$existingThread->id]), navigate: true);
 
             return;
         }
@@ -220,7 +220,7 @@ class Index extends Component
 
         $this->showNewDiscussionModal = false;
         $this->newDiscussionUserId = null;
-        $this->redirect(route('discussions.index', ['discussionParam' => 'd-' . $thread->id]), navigate: true);
+        $this->redirect(route('discussions.index', ['discussionParam' => 'd-'.$thread->id]), navigate: true);
     }
 
     public function createGroupDiscussion(): void
@@ -269,7 +269,7 @@ class Index extends Component
         $this->showNewGroupModal = false;
         $this->newGroupUserIds = [];
         $this->newGroupName = '';
-        $this->redirect(route('discussions.index', ['discussionParam' => 'd-' . $thread->id]), navigate: true);
+        $this->redirect(route('discussions.index', ['discussionParam' => 'd-'.$thread->id]), navigate: true);
     }
 
     /**
@@ -333,7 +333,7 @@ class Index extends Component
         $threadsQuery = DiscussionThread::query()
             ->where('organization_id', $orgId)
             ->whereNull('archived_at')
-            ->whereHas('participants', fn($q) => $q->where('users.id', $user->id));
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id));
 
         if ($this->viewKey === 'groups') {
             $threadsQuery->where('is_group', true);
@@ -343,7 +343,7 @@ class Index extends Component
 
         if ($search !== '') {
             $threadsQuery->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%');
             });
         }
 
@@ -407,8 +407,8 @@ class Index extends Component
 
         if ($search !== '') {
             $baseQuery->where(function ($q) use ($search) {
-                $q->where('subject', 'like', '%' . $search . '%')
-                    ->orWhere('description', 'like', '%' . $search . '%');
+                $q->where('subject', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
             });
         }
 
@@ -422,6 +422,7 @@ class Index extends Component
                 'ticket_category_id',
                 'ticket_priority_id',
                 'status',
+                'source',
                 'subject',
                 'description',
                 'updated_at',
@@ -481,7 +482,7 @@ class Index extends Component
         $threadRow = DiscussionThread::query()
             ->where('organization_id', $orgId)
             ->whereNull('archived_at')
-            ->whereHas('participants', fn($q) => $q->where('users.id', $user->id))
+            ->whereHas('participants', fn ($q) => $q->where('users.id', $user->id))
             ->selectRaw('count(*) as threads_all')
             ->selectRaw('count(*) filter (where is_group = false) as direct_count')
             ->selectRaw('count(*) filter (where is_group = true) as groups_count')
@@ -538,9 +539,9 @@ class Index extends Component
         $threadsData = $this->buildThreadsData($user, $orgId, $search);
         $ticketsData = $this->buildTicketsData($user, $orgId, $isStaff, $search);
         $viewCounts = Cache::remember(
-            "disc_view_counts:{$orgId}:{$user->id}:" . ($isStaff ? '1' : '0'),
+            "disc_view_counts:{$orgId}:{$user->id}:".($isStaff ? '1' : '0'),
             120,
-            fn() => $this->buildViewCounts($user, $orgId, $isStaff)
+            fn () => $this->buildViewCounts($user, $orgId, $isStaff)
         );
 
         // Load members list only when a "new discussion/group" modal is open.
@@ -550,7 +551,7 @@ class Index extends Component
             ? Cache::remember(
                 "disc_org_users:{$orgId}:{$user->id}",
                 300,
-                fn() => User::query()
+                fn () => User::query()
                     ->join('organization_memberships', 'users.id', '=', 'organization_memberships.user_id')
                     ->where('organization_memberships.organization_id', $orgId)
                     ->where('users.id', '!=', $user->id)
@@ -562,7 +563,7 @@ class Index extends Component
         $pendingMessagesCount = Cache::remember(
             "disc_pending_msg:{$user->id}",
             60,
-            fn() => $user->unreadNotifications()
+            fn () => $user->unreadNotifications()
                 ->where('type', TicketNewMessageNotification::class)
                 ->count()
         );
@@ -572,14 +573,14 @@ class Index extends Component
             ? Cache::remember(
                 "disc_unread_threads:{$user->id}",
                 60,
-                fn() => $user->unreadNotifications()
+                fn () => $user->unreadNotifications()
                     ->whereIn('type', [
                         DiscussionNewMessageNotification::class,
                         DiscussionInviteNotification::class,
                     ])
                     ->select('data')
                     ->get()
-                    ->groupBy(fn($n) => (int) ($n->data['thread_id'] ?? 0))
+                    ->groupBy(fn ($n) => (int) ($n->data['thread_id'] ?? 0))
                     ->map->count()
             )
             : collect();

@@ -35,7 +35,8 @@ class SlaBreachedNotification extends Notification implements ShouldQueue
             ->line("Le SLA de **{$typeLabel}** pour le ticket **{$this->ticketPublicId}** est en retard de **{$this->minutesOverdue} minute(s)**.")
             ->line("Ticket : {$this->ticketSubject}")
             ->action('Voir le ticket', $ticketUrl)
-            ->line('Veuillez traiter ce ticket au plus vite.');
+            ->line('Veuillez traiter ce ticket au plus vite.')
+            ->line(__('emails.reply_hint_sla'));
     }
 
     public function toArray(object $notifiable): array

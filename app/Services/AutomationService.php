@@ -162,10 +162,7 @@ class AutomationService
 
         $user = User::query()
             ->whereKey($userId)
-            ->whereHas('organizations', function ($q) use ($orgId) {
-                $q->where('organization_memberships.organization_id', $orgId)
-                    ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
-            })
+            ->assignableInOrganization($orgId)
             ->first();
 
         if (! $user) {
@@ -201,10 +198,7 @@ class AutomationService
 
         $users = User::query()
             ->whereIn('id', $userIds)
-            ->whereHas('organizations', function ($q) use ($orgId) {
-                $q->where('organization_memberships.organization_id', $orgId)
-                    ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
-            })
+            ->assignableInOrganization($orgId)
             ->get();
 
         if ($users->isEmpty()) {

@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd C:/Users/Aminata_an/OneDrive/Bureau/QUALITY_CENTER/Manexo/manexo && php -r \"\nrequire 'vendor/autoload.php';\n\\\\$app = require_once 'bootstrap/app.php';\n\\\\$app->make\\('Illuminate\\\\Contracts\\\\Console\\\\Kernel'\\)->bootstrap\\(\\);\n\\\\$job = \\\\Illuminate\\\\Support\\\\Facades\\\\DB::table\\('jobs'\\)->first\\(\\);\n\\\\$payload = json_decode\\(\\\\$job->payload, true\\);\necho 'displayName: ' . \\(\\\\$payload['displayName'] ?? 'N/A'\\) . PHP_EOL;\necho 'queue: ' . \\\\$job->queue . PHP_EOL;\necho 'connection: ' . \\(\\\\$payload['connection'] ?? 'N/A'\\) . PHP_EOL;\n\" 2>&1)"
+      "Bash(cd C:/Users/Aminata_an/OneDrive/Bureau/QUALITY_CENTER/Manexo/manexo && php -r \"\nrequire 'vendor/autoload.php';\n\\\\$app = require_once 'bootstrap/app.php';\n\\\\$app->make\\('Illuminate\\\\Contracts\\\\Console\\\\Kernel'\\)->bootstrap\\(\\);\n\\\\$job = \\\\Illuminate\\\\Support\\\\Facades\\\\DB::table\\('jobs'\\)->first\\(\\);\n\\\\$payload = json_decode\\(\\\\$job->payload, true\\);\necho 'displayName: ' . \\(\\\\$payload['displayName'] ?? 'N/A'\\) . PHP_EOL;\necho 'queue: ' . \\\\$job->queue . PHP_EOL;\necho 'connection: ' . \\(\\\\$payload['connection'] ?? 'N/A'\\) . PHP_EOL;\n\" 2>&1)",
+      "Bash(ls c:UsersAminata_anOneDriveBureauQUALITY_CENTERManexomanexoapp/Notifications/Ticket*)",
+      "Bash(php -l app/DataTransferObjects/TimelineItem.php)",
+      "Bash(php -l app/Notifications/TicketNewMessageNotification.php)",
+      "Bash(php -l database/migrations/2026_03_28_100000_add_ticketing_performance_indexes.php)",
+      "Bash(php -l app/Services/Email/EmailParser.php)",
+      "Bash(php -l app/Services/Email/InboundEmailService.php)",
+      "Bash(php -l app/Livewire/Tickets/Index.php)",
+      "Bash(php -l app/Livewire/Tickets/TicketSidebar.php)",
+      "Bash(php -l app/Models/TicketSatisfactionRating.php)"
     ]
   }
 }

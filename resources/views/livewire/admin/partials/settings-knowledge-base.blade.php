@@ -394,39 +394,36 @@
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <x-input-label for="kb_art_cat" value="Categorie *" />
-                                <select
+                                <x-select-input
                                     id="kb_art_cat"
                                     wire:model="kbArticleCategoryId"
-                                    class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 >
                                     <option value="">-- Choisir --</option>
                                     @foreach ($kbCategories as $kbCat)
                                         <option value="{{ $kbCat->id }}">{{ $kbCat->name }}</option>
                                     @endforeach
-                                </select>
+                                </x-select-input>
                                 <x-input-error :messages="$errors->get('kbArticleCategoryId')" class="mt-1" />
                             </div>
                             <div>
                                 <x-input-label for="kb_art_status" value="Statut" />
-                                <select
+                                <x-select-input
                                     id="kb_art_status"
                                     wire:model="kbArticleStatus"
-                                    class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 >
                                     <option value="draft">Brouillon</option>
                                     <option value="published">Publie</option>
-                                </select>
+                                </x-select-input>
                             </div>
                             <div>
                                 <x-input-label for="kb_art_vis" value="Visibilite" />
-                                <select
+                                <x-select-input
                                     id="kb_art_vis"
                                     wire:model="kbArticleVisibility"
-                                    class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 >
                                     <option value="internal">Interne</option>
                                     <option value="public">Public</option>
-                                </select>
+                                </x-select-input>
                             </div>
                         </div>
 

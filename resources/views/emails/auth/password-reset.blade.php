@@ -165,7 +165,7 @@
                                 </tr>
                                 <tr>
                                     <td align="center" style="padding-top:8px; font-size:11px; color:#d1d5db;">
-                                        Cet e-mail a été envoyé automatiquement, merci de ne pas y répondre.
+                                        {{ __('emails.reply_hint_no_reply') }}
                                     </td>
                                 </tr>
                             </table>

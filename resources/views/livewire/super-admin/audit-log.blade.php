@@ -1,3 +1,15 @@
+@php
+    $auditActionOptions = [['value' => '', 'label' => __('super_admin.audit.all_actions')]];
+    foreach ($actions as $action) {
+        $actionKey = 'super_admin.audit.action_' . str_replace('.', '_', $action);
+        $actionLabel = __($actionKey) !== $actionKey ? __($actionKey) : $action;
+        $auditActionOptions[] = ['value' => $action, 'label' => $actionLabel];
+    }
+    $auditTargetTypeOptions = [['value' => '', 'label' => __('super_admin.audit.all_targets')]];
+    foreach ($targetTypes as $type) {
+        $auditTargetTypeOptions[] = ['value' => $type, 'label' => class_basename($type)];
+    }
+@endphp
 <div class="space-y-6 pb-12">
     {{-- Header --}}
     <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -16,9 +28,8 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end flex-wrap">
             <div class="flex-1 min-w-[180px]">
                 <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{{ __('super_admin.audit.col_action') }}</label>
-                <select
+                <x-select-input
                     wire:model.live="actionFilter"
-                    class="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all"
                 >
                     <option value="">{{ __('super_admin.audit.all_actions') }}</option>
                     @foreach ($actions as $action)
@@ -28,19 +39,16 @@
                         @endphp
                         <option value="{{ $action }}">{{ $actionLabel }}</option>
                     @endforeach
-                </select>
+                </x-select-input>
             </div>
             <div class="min-w-[160px]">
                 <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{{ __('super_admin.audit.col_target') }}</label>
-                <select
+                <x-select-input
+                    :options="$auditTargetTypeOptions"
+                    :label="collect($auditTargetTypeOptions)->firstWhere('value', (string) ($targetTypeFilter ?? ''))['label'] ?? __('super_admin.audit.all_targets')"
+                    :selected-value="$targetTypeFilter ?? ''"
                     wire:model.live="targetTypeFilter"
-                    class="w-full rounded-xl border border-slate-200 bg-white py-2 px-3 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all"
-                >
-                    <option value="">{{ __('super_admin.audit.all_targets') }}</option>
-                    @foreach ($targetTypes as $type)
-                        <option value="{{ $type }}">{{ class_basename($type) }}</option>
-                    @endforeach
-                </select>
+                />
             </div>
             <div class="min-w-[150px]">
                 <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">{{ __('super_admin.audit.date_from') }}</label>

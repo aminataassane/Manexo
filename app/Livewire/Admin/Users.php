@@ -37,6 +37,8 @@ class Users extends Component
 
     public string $search = '';
 
+    public string $searchExternal = '';
+
     public string $role = '';
 
     public int $perPage = 10;
@@ -401,6 +403,7 @@ class Users extends Component
         $pendingInvitations = $this->pendingInvitations($orgId);
         $organizationFunctions = $this->organizationFunctions($orgId);
         $roles = $this->organizationRoles($orgId);
+        $externalContacts = $this->externalContacts($orgId);
 
         return view('livewire.admin.users', [
             'memberships' => $memberships,
@@ -409,6 +412,7 @@ class Users extends Component
             'organizationFunctions' => $organizationFunctions,
             'roles' => $roles,
             'pendingInvitations' => $pendingInvitations,
+            'externalContacts' => $externalContacts,
         ]);
     }
 
@@ -431,6 +435,7 @@ class Users extends Component
         return OrganizationMembership::query()
             ->with(['user', 'organizationFunction'])
             ->where('organization_id', $orgId)
+            ->whereHas('user', fn ($q) => $q->where('status', '!=', 'guest'))
             ->when($this->role !== '', fn ($q) => $q->where('role', $this->role))
             ->when($search !== '', function ($q) use ($search) {
                 $q->whereHas('user', function ($u) use ($search) {
@@ -448,6 +453,7 @@ class Users extends Component
         return Cache::remember("admin_users_stats:{$orgId}", 120, function () use ($orgId) {
             $statsRow = OrganizationMembership::query()
                 ->where('organization_id', $orgId)
+                ->whereHas('user', fn ($q) => $q->where('status', '!=', 'guest'))
                 ->selectRaw('count(*) as total')
                 ->selectRaw("count(*) filter (where role = 'owner') as owners")
                 ->selectRaw("count(*) filter (where role = 'admin') as admins")
@@ -455,12 +461,18 @@ class Users extends Component
                 ->selectRaw("count(*) filter (where role = 'member') as members")
                 ->first();
 
+            $externalCount = OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->whereHas('user', fn ($q) => $q->where('status', 'guest'))
+                ->count();
+
             return [
                 'total' => (int) ($statsRow?->total ?? 0),
                 'owners' => (int) ($statsRow?->owners ?? 0),
                 'admins' => (int) ($statsRow?->admins ?? 0),
                 'agents' => (int) ($statsRow?->agents ?? 0),
                 'members' => (int) ($statsRow?->members ?? 0),
+                'external' => $externalCount,
             ];
         });
     }
@@ -472,6 +484,24 @@ class Users extends Component
             ->where('organization_id', $orgId)
             ->where('status', 'pending')
             ->where('expires_at', '>', now())
+            ->orderByDesc('created_at')
+            ->get();
+    }
+
+    private function externalContacts(int $orgId)
+    {
+        $search = trim($this->searchExternal);
+
+        return OrganizationMembership::query()
+            ->with('user')
+            ->where('organization_id', $orgId)
+            ->whereHas('user', fn ($q) => $q->where('status', 'guest'))
+            ->when($search !== '', function ($q) use ($search) {
+                $q->whereHas('user', function ($u) use ($search) {
+                    $u->where('name', 'ilike', "%{$search}%")
+                        ->orWhere('email', 'ilike', "%{$search}%");
+                });
+            })
             ->orderByDesc('created_at')
             ->get();
     }

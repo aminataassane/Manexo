@@ -15,6 +15,7 @@ use App\Models\OrganizationMembership;
 use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\User;
+use App\Notifications\TicketCreatedNotification;
 use App\Notifications\TicketNewMessageNotification;
 use App\Services\SlaService;
 use Illuminate\Support\Facades\Log;
@@ -60,12 +61,17 @@ class InboundEmailService
                 }
             }
 
-            // 5. Invalidate caches
+            // 5. Add CC recipients as ticket participants
+            if (! empty($email->cc)) {
+                $this->addCcAsParticipants($ticket, $email->cc, $orgId, $user);
+            }
+
+            // 6. Invalidate caches
             CacheHelper::invalidateDashboard($orgId);
             CacheHelper::invalidateReports($orgId);
             CacheHelper::invalidateTicketCounts($orgId);
 
-            // 6. Log success
+            // 7. Log success
             $this->log($mailbox, $email, 'processed', $ticket->id, $message->id);
 
         } catch (\Throwable $e) {
@@ -242,6 +248,29 @@ class InboundEmailService
             'ticket' => (new \App\Http\Resources\Api\V1\TicketResource($ticket))->resolve(),
         ]);
 
+        // Auto-reply: send acknowledgement email to the ticket creator
+        $org = \App\Models\Organization::find($orgId);
+        $orgName = $org?->name ?? config('app.name', 'Support');
+        $autoReplyEnabled = is_array($org?->settings) ? ($org->settings['email']['auto_reply_enabled'] ?? true) : true;
+        if ($autoReplyEnabled) {
+            try {
+                $user->notify(new TicketCreatedNotification(
+                    ticketId: $ticket->id,
+                    ticketPublicId: $ticket->public_id,
+                    ticketReference: $ticket->shortReference(),
+                    ticketSubject: $ticket->subject,
+                    organizationId: $orgId,
+                    organizationName: $orgName,
+                ));
+                event(new UserNotificationReceived((int) $user->id, 'ticket_created'));
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send auto-reply for email ticket', [
+                    'ticket_id' => $ticket->public_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return [$ticket, $systemMessage];
     }
 
@@ -270,6 +299,53 @@ class InboundEmailService
         }
 
         return $saved;
+    }
+
+    /**
+     * Add CC email addresses as ticket participants (if they are org members).
+     *
+     * @param  array<int, array{email: string, name: string|null}>  $ccList
+     */
+    private function addCcAsParticipants(Ticket $ticket, array $ccList, int $orgId, User $sender): void
+    {
+        foreach ($ccList as $cc) {
+            $ccEmail = strtolower(trim($cc['email'] ?? ''));
+            if ($ccEmail === '') {
+                continue;
+            }
+
+            // Only add CC if they are an org member (don't auto-add external people)
+            $member = OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->whereHas('user', fn ($q) => $q->where('email', $ccEmail))
+                ->with('user')
+                ->first();
+
+            if (! $member || ! $member->user) {
+                continue;
+            }
+
+            $userId = (int) $member->user->id;
+
+            // Skip if already creator, assignee, or participant
+            if ($userId === (int) $ticket->created_by) {
+                continue;
+            }
+            if ($ticket->assignees()->where('users.id', $userId)->exists()) {
+                continue;
+            }
+            if ($ticket->participants()->where('users.id', $userId)->exists()) {
+                continue;
+            }
+
+            $ticket->participants()->attach($userId, ['added_by' => $sender->id]);
+
+            Log::info('CC added as participant', [
+                'ticket_id' => $ticket->public_id,
+                'cc_email' => $ccEmail,
+                'user_id' => $userId,
+            ]);
+        }
     }
 
     private function notifyParticipants(Ticket $ticket, TicketMessage $message, User $sender): void

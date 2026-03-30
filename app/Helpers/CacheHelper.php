@@ -279,6 +279,7 @@ class CacheHelper
     {
         Cache::forget(self::membersKey($orgId));
         Cache::forget(self::orgMemberRolesKey($orgId));
+        Cache::forget("staff_users:{$orgId}");
     }
 
     public static function invalidateOrgFunctions(int $orgId): void

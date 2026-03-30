@@ -64,6 +64,7 @@ class TicketCommentController extends Controller
             'user_id' => $user->id,
             'type' => $type,
             'body' => trim($validated['body']),
+            'meta' => ['source' => 'api'],
         ]);
 
         event(new TicketMessageSent($message));

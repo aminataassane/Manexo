@@ -16,6 +16,7 @@ return [
     'tickets.change_status' => 'Change status',
     'tickets.assign' => 'Assign tickets',
     'tickets.archive' => 'Archive tickets',
+    'tickets.approve' => 'Approve tickets',
     'tickets.view_trash' => 'View trash',
 
     // Team
@@ -36,6 +37,13 @@ return [
     'settings.manage_functions' => 'Manage business functions',
     'settings.manage_forms' => 'Manage forms',
     'settings.manage_roles' => 'Manage roles & permissions',
+    'settings.manage_email' => 'Manage inbound email',
+    'settings.manage_sla' => 'Manage SLAs',
+    'settings.manage_automations' => 'Manage automations',
+    'settings.manage_approvals' => 'Manage approvals',
+    'settings.manage_api' => 'Manage API',
+    'settings.manage_webhooks' => 'Manage webhooks',
+    'settings.manage_knowledge_base' => 'Manage knowledge base',
     'settings.delete_org' => 'Delete organization',
 
     // Reports

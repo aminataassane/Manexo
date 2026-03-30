@@ -65,15 +65,21 @@
                 class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all"
             />
         </div>
-        <select
+        @php
+            $orgStatusFilterOptions = [
+                ['value' => '', 'label' => __('super_admin.organizations.all_statuses')],
+                ['value' => 'active', 'label' => __('super_admin.organizations.status_active')],
+                ['value' => 'suspended', 'label' => __('super_admin.organizations.status_suspended')],
+                ['value' => 'disabled', 'label' => __('super_admin.organizations.status_disabled')],
+            ];
+            $orgStatusFilterLabel = collect($orgStatusFilterOptions)->firstWhere('value', (string) ($statusFilter ?? ''))['label'] ?? __('super_admin.organizations.all_statuses');
+        @endphp
+        <x-select-input
+            :options="$orgStatusFilterOptions"
+            :label="$orgStatusFilterLabel"
+            :selected-value="$statusFilter ?? ''"
             wire:model.live="statusFilter"
-            class="rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all min-w-[180px]"
-        >
-            <option value="">{{ __('super_admin.organizations.all_statuses') }}</option>
-            <option value="active">{{ __('super_admin.organizations.status_active') }}</option>
-            <option value="suspended">{{ __('super_admin.organizations.status_suspended') }}</option>
-            <option value="disabled">{{ __('super_admin.organizations.status_disabled') }}</option>
-        </select>
+        />
     </div>
 
     {{-- Organization cards --}}

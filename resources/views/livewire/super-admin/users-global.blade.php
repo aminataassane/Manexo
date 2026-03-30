@@ -69,6 +69,19 @@
         </div>
     @endif
 
+    @php
+        $globalUsersStatusOptions = [
+            ['value' => '', 'label' => __('super_admin.users.all_statuses')],
+            ['value' => 'active', 'label' => __('super_admin.users.status_active')],
+            ['value' => 'deactivated', 'label' => __('super_admin.users.status_deactivated')],
+        ];
+        $globalUsersStatusLabel = collect($globalUsersStatusOptions)->firstWhere('value', (string) ($statusFilter ?? ''))['label'] ?? __('super_admin.users.all_statuses');
+        $platformInviteRoleOptions = [
+            ['value' => 'platform_admin', 'label' => __('platform_invitations.role_platform_admin')],
+            ['value' => 'platform_observer', 'label' => __('platform_invitations.role_platform_observer')],
+        ];
+        $platformInviteRoleLabel = collect($platformInviteRoleOptions)->firstWhere('value', (string) ($inviteRole ?? ''))['label'] ?? '';
+    @endphp
     {{-- Toolbar --}}
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div class="relative flex-1">
@@ -80,14 +93,12 @@
                 class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-700 placeholder-slate-400 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all"
             />
         </div>
-        <select
+        <x-select-input
+            :options="$globalUsersStatusOptions"
+            :label="$globalUsersStatusLabel"
+            :selected-value="$statusFilter ?? ''"
             wire:model.live="statusFilter"
-            class="rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all min-w-[180px]"
-        >
-            <option value="">{{ __('super_admin.users.all_statuses') }}</option>
-            <option value="active">{{ __('super_admin.users.status_active') }}</option>
-            <option value="deactivated">{{ __('super_admin.users.status_deactivated') }}</option>
-        </select>
+        />
     </div>
 
     {{-- Table + expandable detail panel --}}
@@ -410,13 +421,12 @@
 
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">{{ __('platform_invitations.role_label') }}</label>
-                    <select
+                    <x-select-input
+                        :options="$platformInviteRoleOptions"
+                        :label="$platformInviteRoleLabel"
+                        :selected-value="$inviteRole"
                         wire:model="inviteRole"
-                        class="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-4 text-sm text-slate-700 shadow-sm focus:border-[#005F02] focus:ring-2 focus:ring-[#005F02]/20 outline-none transition-all"
-                    >
-                        <option value="platform_admin">{{ __('platform_invitations.role_platform_admin') }}</option>
-                        <option value="platform_observer">{{ __('platform_invitations.role_platform_observer') }}</option>
-                    </select>
+                    />
                 </div>
             </div>
 

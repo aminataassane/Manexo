@@ -203,4 +203,39 @@ class User extends Authenticatable implements MustVerifyEmail
             ->withPivot(['role'])
             ->withTimestamps();
     }
+
+    /**
+     * Check if the user is internal staff (owner, admin, or agent) in a given organization.
+     * Internal staff should receive in-app notifications only — no email by default.
+     */
+    public function isInternalStaff(int $organizationId): bool
+    {
+        return $this->status !== 'guest' && $this->organizations()
+            ->where('organization_id', $organizationId)
+            ->wherePivotIn('role', ['owner', 'admin', 'agent'])
+            ->exists();
+    }
+
+    /**
+     * Check if the user is an external participant (member, guest, or no internal role).
+     * External users receive email notifications.
+     */
+    public function isExternalParticipant(int $organizationId): bool
+    {
+        return ! $this->isInternalStaff($organizationId);
+    }
+
+    /**
+     * Scope: only active internal users assignable to tickets in a given organization.
+     * Excludes guests regardless of their org membership role.
+     */
+    public function scopeAssignableInOrganization($query, int $organizationId)
+    {
+        return $query
+            ->where('status', '!=', 'guest')
+            ->whereHas('organizations', function ($q) use ($organizationId) {
+                $q->where('organization_memberships.organization_id', $organizationId)
+                    ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+            });
+    }
 }

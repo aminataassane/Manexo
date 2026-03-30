@@ -293,13 +293,12 @@
                             <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
                                 <div class="flex-1 min-w-0">
                                     <label class="text-[11px] font-semibold text-slate-500 mb-1.5 block">{{ __('forms_builder.user') }}</label>
-                                    <select wire:model="assign_user_id"
-                                            class="input-builder w-full text-xs py-2.5">
+                                    <x-select-input wire:model="assign_user_id">
                                         <option value="">{{ __('forms_builder.choose') }}</option>
                                         @foreach($members as $m)
                                             <option value="{{ $m->user_id }}">{{ $m->user?->name ?? '—' }}</option>
                                         @endforeach
-                                    </select>
+                                    </x-select-input>
                                     <x-input-error :messages="$errors->get('assign_user_id')" />
                                 </div>
                                 <div class="shrink-0">
@@ -318,13 +317,12 @@
                             <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
                                 <div class="flex-1 min-w-0">
                                     <label class="text-[11px] font-semibold text-slate-500 mb-1.5 block">{{ __('forms_builder.or_function') }}</label>
-                                    <select wire:model="assign_function_id"
-                                            class="input-builder w-full text-xs py-2.5">
+                                    <x-select-input wire:model="assign_function_id">
                                         <option value="">{{ __('forms_builder.choose') }}</option>
                                         @foreach($organizationFunctions as $fn)
                                             <option value="{{ $fn->id }}">{{ $fn->name }}</option>
                                         @endforeach
-                                    </select>
+                                    </x-select-input>
                                     <x-input-error :messages="$errors->get('assign_function_id')" />
                                 </div>
                                 <div class="shrink-0">

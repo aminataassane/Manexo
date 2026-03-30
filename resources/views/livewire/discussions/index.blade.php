@@ -190,14 +190,29 @@
                             $pill = $statusPill[$statusKey] ?? $statusPill['open'];
                             $isSelected = $selectedTicket && (int) $selectedTicket->id === (int) $ticket->id;
                         @endphp
+                        @php
+                            $sourceVal = $ticket->source?->value ?? ($ticket->source ?? 'platform');
+                            $sourceIcon = match($sourceVal) {
+                                'email' => 'solar:letter-bold-duotone',
+                                'api' => 'solar:code-square-bold-duotone',
+                                'form' => 'solar:document-text-bold-duotone',
+                                default => 'solar:chat-round-dots-bold-duotone',
+                            };
+                            $sourceBg = match($sourceVal) {
+                                'email' => 'background: #eff6ff; color: #2563eb;',
+                                'api' => 'background: #f5f3ff; color: #7c3aed;',
+                                'form' => 'background: #fefce8; color: #ca8a04;',
+                                default => 'background: var(--accent-soft); color: var(--accent);',
+                            };
+                        @endphp
                         <a
                             href="{{ route('discussions.index', ['discussionParam' => $ticket->public_id]) }}"
                             wire:navigate
                             class="messaging-list-item {{ $isSelected ? 'active' : '' }}"
                         >
-                            <div class="shrink-0">
-                                <div class="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold" style="background: var(--accent-soft); color: var(--accent);">
-                                    <iconify-icon icon="solar:chat-round-dots-linear" width="20"></iconify-icon>
+                            <div class="shrink-0 relative">
+                                <div class="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold" style="{{ $sourceBg }}">
+                                    <iconify-icon icon="{{ $sourceIcon }}" width="20"></iconify-icon>
                                 </div>
                             </div>
                             <div class="min-w-0 flex-1">
@@ -210,6 +225,9 @@
                                 <div class="flex items-center gap-1.5 mt-0.5">
                                     <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium {{ $pill['bg'] }} {{ $pill['text'] }}">{{ $statusLabels[$statusKey] ?? $statusKey }}</span>
                                     <span class="text-[10px] font-mono text-[#9CA3AF]">{{ $ticket->shortReference() }}</span>
+                                    @if($sourceVal !== 'platform')
+                                        <span class="text-[9px] font-medium uppercase tracking-wide {{ match($sourceVal) { 'email' => 'text-blue-500', 'api' => 'text-violet-500', 'form' => 'text-yellow-600', default => 'text-slate-400' } }}">{{ $sourceVal }}</span>
+                                    @endif
                                 </div>
                                 @if($lastMsg)
                                     <p class="mt-0.5 text-[12px] text-[#6B7280] truncate">

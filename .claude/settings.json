@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -r \":*)",
+      "Bash(php -l app/Helpers/CacheHelper.php)",
+      "Bash(php -l app/Http/Controllers/Api/V1/TicketCommentController.php)",
+      "Bash(php -l app/Livewire/Discussions/Index.php)",
+      "Bash(php -l app/Models/TicketGroup.php)",
+      "Bash(rm -f storage/test_users.php storage/test_compiled.php storage/test_dd.php)",
+      "Bash(rm -f storage/framework/views/*.php)",
+      "Bash(find /c/Users/Aminata_an/OneDrive/Bureau/QUALITY_CENTER/Manexo/manexo/resources/views -name \"*.blade.php\" -exec grep -l \"wire:loading\" {})",
+      "Bash(find /c/Users/Aminata_an/OneDrive/Bureau/QUALITY_CENTER/Manexo/manexo/resources/views -name \"*.blade.php\" -exec grep -l \"wire:click\" {})",
+      "Bash(find /c/Users/Aminata_an/OneDrive/Bureau/QUALITY_CENTER/Manexo/manexo/resources/views -name \"*.blade.php\" -exec grep -l \"wire:submit\" {})",
+      "Bash(npx vite:*)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}

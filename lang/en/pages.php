@@ -325,5 +325,13 @@ return [
         'expires_in' => 'Expires in :days day(s)',
         'invited_by' => 'Invited by :name',
         'invited_on' => 'Invited on :date',
+        'tab_internal' => 'Internal members',
+        'tab_external' => 'External contacts',
+        'search_external_placeholder' => 'Search a contact...',
+        'no_external_contacts' => 'No external contacts',
+        'no_external_contacts_hint' => 'People who contact support via email will appear here.',
+        'external_col_source' => 'Source',
+        'external_col_first_contact' => 'First contact',
+        'external_source' => 'Via email support',
     ],
 ];

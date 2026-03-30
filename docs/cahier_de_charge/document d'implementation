@@ -1,0 +1,771 @@
+STRATEGIE D'IMPLEMENTATION — REFONTE TICKETING MANEXO
+1. DIAGNOSTIC GLOBAL
+Le module Ticketing de MANEXO est techniquement solide. Le socle email (IMAP, routing, threading, loop detection), le SLA, les automatisations, les participants et le temps réel sont en place et bien architecturés.
+
+Les vrais problèmes sont ailleurs :
+
+Discussion.php est un monolithe de 1800 lignes qui cumule : gestion des assignés, messages, checklist, pièces jointes, statuts, priorités, groupes, échéances, approbations, édition du ticket, suppression, archivage, mentions, participants. Chaque action Livewire provoque un render() complet qui recharge le ticket + ses relations + reconstruit toute la vue.
+
+La timeline charge tout d'un coup : 80 messages max avec ->limit(80), mais aucune pagination. Pour un ticket avec 200+ messages, soit on coupe (perte d'historique), soit on charge tout (lenteur).
+
+La page de groupe est une grille de cartes-compteurs sans aucune liste de tickets, sans agents, sans indicateurs d'urgence. Elle répond à "combien ?" mais pas à "que faire maintenant ?".
+
+Les badges de la timeline ne distinguent pas le canal : un message email et un message plateforme ont exactement le même rendu. L'unique distinction est $isCreator → "Client" vs "Support".
+
+2. LECTURE CRITIQUE DE L'EXISTANT
+Ce qui fonctionne bien (ne pas toucher)
+EmailTicketRouter, InboundEmailService, EmailParser, EmailLoopDetector — code propre, bien testé
+SlaService — architecture correcte avec pause/resume
+Le système de cache (CacheHelper) — cohérent et bien invalidé
+Le loadTicketForRender() avec select explicite de colonnes — bon réflexe
+Le skeleton loader au stage 1 — bonne base de performance perçue
+Le WebSocket avec onNewMessage() qui ignore le sender — correct
+Ce qui pose problème
+Discussion.php — Responsabilités
+
+Le composant fait tout. Conséquences :
+
+Chaque wire:click sur n'importe quelle action (checklist toggle, assignation, statut) déclenche render() → rechargement du ticket + relations + reconstruction de la vue entière
+Les getTicket() sont appelés dans presque chaque méthode publique, chacun faisant une requête distincte avec with(['participants', 'creator', 'assignees'])
+Les propriétés Livewire incluent des champs d'édition (editSubject, editDescription, editAttachmentFiles, approvalComment, newChecklistTitle, etc.) qui sont sérialisés/désérialisés à chaque requête
+Discussion.blade.php — Logique dans la vue
+
+Le bloc @php en tête de la vue Blade recalcule à chaque rendu :
+
+$notesCount via $ticket->messages->where(...) — itère toute la collection en mémoire
+$allAttachments via flatMap sur toute la collection messages
+$discussionUsers via merge/unique
+$messagesByDate via groupBy
+Ces opérations devraient être pré-calculées côté PHP, pas recalculées dans le template.
+
+Timeline — Absence de pagination
+
+
+->latest('id')->limit(80);
+Pas de "charger plus". Si un ticket a 300 messages, les 220 premiers sont perdus. Si on enlève la limite, on charge tout.
+
+Timeline — Pas de DTO
+
+Chaque timeline-item.blade.php recalcule :
+
+$isCreator, $isOwn, $roleLabel, $avatarUrl, $bodyEscaped, $bodyWithMentions, $bodyFormatted
+Pour 80 messages, c'est 80× la même logique de regex, d'escape et de formatting dans le template
+Appels getTicket() dupliqués
+
+La méthode getTicket() fait une requête DB à chaque appel. Elle est appelée dans : sendMessage, changeStatus, changePriority, setAssignee, addAssignee, removeAssignee, addParticipant, removeParticipant, archiveTicket, restoreTicket, deleteTicket, openEditTicketModal, updateSubject, updateDescription, addTicketAttachmentFile, addTicketAttachmentLink, removeTicketAttachment, toggleChecklistItem, claimChecklistItem, addChecklistItemToTicket, addChecklistItemAssignee, removeChecklistItemAssignee, updateDueDate, etc.
+
+C'est ~25 méthodes qui appellent chacune getTicket() indépendamment, même quand render() l'a déjà chargé.
+
+Page de groupe — Trop statique
+
+La page affiche uniquement des compteurs par statut. Aucune liste de tickets, aucun agent, aucun indicateur SLA, aucune notion d'urgence. L'utilisateur doit cliquer pour aller ailleurs comprendre ce qui se passe.
+
+3. STRATEGIE D'IMPLEMENTATION GENERALE
+Principes directeurs
+Découper sans casser — extraire des sous-composants Livewire de Discussion.php progressivement, en gardant le même rendu visuel
+Préparer les données côté PHP — la vue ne doit faire que de l'affichage
+Charger progressivement — premier rendu rapide, enrichissement ensuite
+Respecter Livewire — éviter les rerenders inutiles en isolant les zones réactives
+Architecture cible
+
+TicketPage (orchestrateur léger)
+├── TicketHeader          (ref ticket, statut, priorité, actions)
+├── TicketTimeline        (messages paginés, badges, scroll)
+├── TicketComposer        (zone de saisie, PJ, mentions)
+├── TicketSidebar         (infos, assignés, participants, checklist, SLA)
+└── TicketEditModal       (édition titre/desc/PJ — lazy)
+Chaque sous-composant est un composant Livewire isolé. Les événements entre composants passent par $dispatch / $on.
+
+4. PERFORMANCE / LATENCE
+4.1 Chargement initial — Ce qui doit être immédiat
+Premier rendu (< 200ms serveur) :
+
+Ticket : id, public_id, subject, status, description (tronquée), created_at
+Priorité : name, level
+Catégorie : name
+Groupe : name, color
+Créateur : name
+Assigné responsable : name
+SLA compact : sla_first_response_deadline, sla_resolution_deadline, sla_first_response_breached, sla_resolution_breached
+30 derniers messages (voir section timeline)
+Ce qui ne doit PAS être dans le premier rendu :
+
+Tous les membres de l'organisation (orgUsers — jusqu'à 300 users)
+La checklist complète avec ses sous-relations
+Les approbations
+Le formResponse
+Les fonctions de l'organisation
+Les pièces jointes détaillées du ticket (liste complète)
+4.2 Timeline — Structure et pagination
+DTO TimelineItem à créer dans app/DataTransferObjects/TimelineItem.php :
+
+
+final class TimelineItem
+{
+    public function __construct(
+        public readonly int $id,
+        public readonly string $type,        // 'message' | 'system' | 'internal_note'
+        public readonly string $channel,     // 'platform' | 'email_inbound' | 'email_outbound'
+        public readonly ?int $authorId,
+        public readonly ?string $authorName,
+        public readonly string $roleLabel,   // 'Client' | 'Support' | 'Système'
+        public readonly string $body,        // déjà formaté (mentions, nl2br, escape)
+        public readonly string $timeHuman,   // "il y a 2h"
+        public readonly string $timeShort,   // "14:32"
+        public readonly string $date,        // "2026-03-28"
+        public readonly bool $isOwn,
+        public readonly bool $isCreator,
+        public readonly bool $isInternal,
+        public readonly bool $isSystem,
+        public readonly bool $hasEmailOrigin,
+        public readonly ?string $emailFrom,  // adresse email source si pertinent
+        public readonly bool $hasAttachments,
+        public readonly int $attachmentCount,
+        public readonly array $attachments,
+        public readonly string $badgePrimary,   // 'Email reçu' | 'Email envoyé' | ''
+        public readonly ?string $badgeSecondary, // null ou label secondaire
+    ) {}
+
+    public static function fromMessage(TicketMessage $msg, int $ticketCreatorId, int $authUserId): self
+    {
+        // Toute la logique actuellement dans timeline-item.blade.php
+        // passe ici : détermination du canal, formatting, badges
+    }
+}
+Pagination curseur pour la timeline :
+
+
+// Dans TicketTimeline.php
+public int $oldestLoadedId = PHP_INT_MAX;
+public bool $hasMoreMessages = false;
+private const PAGE_SIZE = 30;
+
+public function loadMore(): void
+{
+    // Charge les 30 messages précédents
+    // Prepend au DOM via wire:key stable
+}
+Le premier rendu charge les 30 derniers messages. Un bouton "Charger les messages précédents" apparaît en haut si $hasMoreMessages est vrai. Chaque chargement ramène 30 messages supplémentaires.
+
+Requête optimisée pour les messages :
+
+
+$messages = TicketMessage::where('ticket_id', $ticketId)
+    ->when(!$canSeeInternalNotes, fn ($q) => $q->where('type', '!=', TicketMessageType::InternalNote))
+    ->when($this->oldestLoadedId < PHP_INT_MAX, fn ($q) => $q->where('id', '<', $this->oldestLoadedId))
+    ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
+    ->with('user:id,name,email')
+    ->orderByDesc('id')
+    ->limit(self::PAGE_SIZE + 1) // +1 pour détecter hasMore
+    ->get();
+
+$this->hasMoreMessages = $messages->count() > self::PAGE_SIZE;
+$items = $messages->take(self::PAGE_SIZE)
+    ->reverse()
+    ->map(fn ($m) => TimelineItem::fromMessage($m, $ticket->created_by, auth()->id()));
+Point critique : append intelligent des nouveaux messages
+
+Quand onNewMessage est reçu via WebSocket, ne pas faire $refresh. Au lieu de ça :
+
+
+public function onNewMessage(array $payload = []): void
+{
+    if (isset($payload['user_id']) && (int) $payload['user_id'] === auth()->id()) {
+        return;
+    }
+    // Charger uniquement le nouveau message
+    $msg = TicketMessage::with('user:id,name,email')
+        ->find($payload['message_id'] ?? 0);
+    if ($msg) {
+        $this->newItems[] = TimelineItem::fromMessage($msg, $this->ticketCreatorId, auth()->id());
+        // Livewire rend uniquement les nouveaux items grâce à wire:key
+    }
+}
+4.3 Requêtes — Relations et eager loading
+Relations à charger au mount (stage 1) :
+
+
+'creator:id,name,email',
+'priority:id,name,level',
+'category:id,name',
+'group:id,name,color',
+Relations à charger au stage 2 (après premier rendu) :
+
+
+'assignees:id,name,email,mention_tag',
+'participants:id,name,email',
+'checklistItems' => fn ($q) => $q->orderBy('sort_order')->with(['assignee:id,name', 'assignees:id,name']),
+Relations à NE PAS charger sauf demande explicite :
+
+approvals.approver, approvals.requester — charger uniquement si $ticket->requires_approval
+formResponse — charger uniquement au clic sur l'onglet
+messages — chargés indépendamment par le sous-composant Timeline
+Risques N+1 identifiés :
+
+$ticket->messages->where('type', ...) dans la vue — itère la collection mais les messages sont déjà chargés, donc pas de N+1 DB mais un gaspillage mémoire. Résolu par le DTO.
+$msg->user dans timeline-item.blade.php — protégé par with('user:id,name,email') ✓
+$this->getTicket() appelé dans chaque méthode action — vrai problème. Résolution : cacher le ticket dans une propriété calculée ou le passer en paramètre.
+Index SQL à vérifier/ajouter :
+
+
+-- Messages par ticket, triés par id desc (pagination curseur)
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket_id_id
+    ON ticket_messages (ticket_id, id DESC);
+
+-- Recherche de message par email_message_id (routage email)
+CREATE INDEX IF NOT EXISTS idx_ticket_messages_email_message_id
+    ON ticket_messages (email_message_id) WHERE email_message_id IS NOT NULL;
+
+-- Tickets par groupe + statut (page de groupe)
+CREATE INDEX IF NOT EXISTS idx_tickets_group_status
+    ON tickets (ticket_group_id, status) WHERE archived_at IS NULL AND deleted_at IS NULL;
+
+-- Tickets par organisation + statut (index principal)
+CREATE INDEX IF NOT EXISTS idx_tickets_org_status
+    ON tickets (organization_id, status) WHERE deleted_at IS NULL;
+4.4 Pièces jointes — Stratégie lazy
+Au rendu initial : afficher uniquement le compteur et le nom de fichier. Pas de preview, pas de téléchargement de miniature.
+
+
+<!-- Compact : juste le nom + icône type -->
+<span class="inline-flex items-center gap-1 text-xs text-slate-500">
+    <iconify-icon icon="solar:paperclip-linear" width="12"></iconify-icon>
+    {{ $item->attachmentCount }} fichier(s)
+</span>
+Au clic sur le message ou sur un bouton "voir les fichiers" : expansion avec noms, tailles, liens de téléchargement.
+
+Miniatures : pas de génération à la volée. Si nécessaire plus tard, utiliser un job asynchrone GenerateThumbnail déclenché au moment du stockage de la PJ, qui génère une miniature dans ticket-attachments/thumbs/.
+
+4.5 Synchrone vs Asynchrone
+Action	Mode	Raison
+Affichage ticket + timeline	Synchrone	Feedback instantané
+Envoi message	Synchrone (insert DB)	L'utilisateur voit son message immédiatement
+Notification email après message	Asynchrone (queue)	Déjà le cas via ShouldQueue
+Changement de statut	Synchrone (update DB)	Feedback immédiat
+Notification statut → client	Asynchrone (queue)
+SLA recordFirstResponse / recordResolution	Synchrone	Calcul rapide, donnée critique
+CheckSlaBreaches	Asynchrone (cron)	Déjà le cas
+AutomationService::evaluate	Synchrone	Rapide si bien indexé
+WebhookService::dispatch	Asynchrone (queue)	Ne doit pas bloquer l'UI
+CacheHelper::invalidate*	Synchrone	Rapide (suppression clé)
+Génération miniature PJ	Asynchrone (job)
+Email sortant agent → client	Asynchrone (queue)	Déjà le cas
+OrganizationAuditService::log	Synchrone	Insert simple
+4.6 Découpage technique de Discussion.php
+Composant TicketTimeline — ~300 lignes
+
+Responsabilité : charger, paginer et afficher les messages
+Données propres : $items (collection de TimelineItem), $oldestLoadedId, $hasMoreMessages
+Méthodes : loadMore(), onNewMessage()
+Écoute WebSocket : echo-private:ticket.{id},.message.sent
+Ne connaît PAS le ticket complet, seulement $ticketId et $ticketCreatorId
+Communication parent → enfant : aucune donnée partagée à pousser
+Communication enfant → parent : $dispatch('message-sent') après envoi réussi
+Composant TicketComposer — ~200 lignes
+
+Responsabilité : saisie message, toggle note interne, PJ, mentions, envoi
+Données propres : $body, $asInternalNote, $attachmentFiles, $attachments
+Méthodes : sendMessage(), setAsInternalNote(), extractMentions, storeDiscussionAttachments
+Reçoit du parent : $ticketId, $canWriteInternalNotes, $mentionableUsers, $isLocked
+Communication enfant → parent : $dispatch('message-sent') pour que Timeline ajoute le message
+Composant TicketSidebar — ~400 lignes
+
+Responsabilité : infos ticket, assignés, participants, checklist, SLA, dates, catégorie, groupe, approbation
+Méthodes : setAssignee(), addAssignee(), removeAssignee(), addParticipant(), removeParticipant(), changeStatus(), changePriority(), changeGroup(), updateDueDate(), toggleChecklistItem(), addChecklistItemToTicket(), etc.
+Reçoit du parent : $ticketId
+Communication enfant → parent : $dispatch('ticket-updated') pour mettre à jour le header
+Composant TicketHeader — ~50 lignes
+
+Responsabilité : barre de titre, breadcrumb, boutons actions principales (refresh, edit, sidebar toggle)
+Données : $publicId, $subject, $status, $priority, $isLocked
+Léger, presque statique
+Composant orchestrateur TicketPage — ~100 lignes
+
+Mount : charge le ticket une seule fois, distribue les IDs aux enfants
+render() minimal : layout + inclusion des sous-composants
+Écoute ticket-updated et message-sent pour orchestrer si nécessaire
+Comment éviter les rerenders globaux :
+
+Chaque sous-composant a son propre cycle render(). Quand l'agent toggle un checklist item dans TicketSidebar, seul TicketSidebar re-render. La timeline ne bouge pas. Le header ne bouge pas.
+
+Comment gérer l'actualisation temps réel :
+
+
+// TicketTimeline écoute les messages
+"echo-private:ticket.{$this->ticketPublicId},.message.sent" => 'onNewMessage'
+
+// TicketSidebar écoute les changements d'assignation
+"echo-private:ticket.{$this->ticketPublicId},.assignee.changed" => 'refreshAssignees'
+
+// TicketHeader écoute un événement custom pour les changements de statut
+"echo-private:ticket.{$this->ticketPublicId},.status.changed" => 'refreshStatus'
+4.7 Performance perçue
+Skeleton loaders — Déjà en place pour le stage 1, c'est bien. Les garder.
+
+Scroll stable au chargement de messages anciens :
+
+
+// Alpine.js sur le conteneur de scroll
+loadMore() {
+    const container = this.$refs.messageScroll;
+    const previousHeight = container.scrollHeight;
+    await $wire.loadMore();
+    this.$nextTick(() => {
+        const newHeight = container.scrollHeight;
+        container.scrollTop = newHeight - previousHeight;
+    });
+}
+Feedback immédiat après envoi de message :
+
+Quand l'utilisateur clique "Envoyer", ajouter immédiatement le message en local (optimistic UI) avec un indicateur "envoi en cours", puis confirmer ou annuler quand le serveur répond. Cela se fait naturellement avec Livewire si processSendMessage() crée le message et que le DOM se met à jour au retour.
+
+Header toujours visible : déjà le cas avec sticky top-0 z-20. Correct.
+
+Boutons de navigation :
+
+
+<!-- Bouton "Revenir en bas" — affiché quand scrollé vers le haut -->
+<button
+    x-show="!isAtBottom" x-cloak
+    @click="$refs.messageScroll.scrollTo({ top: $refs.messageScroll.scrollHeight, behavior: 'smooth' })"
+    class="fixed bottom-20 right-6 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-200 shadow-lg text-slate-600 hover:bg-slate-50 transition-all"
+>
+    <iconify-icon icon="solar:arrow-down-linear" width="18"></iconify-icon>
+</button>
+Le tracking se fait via Alpine :
+
+
+x-data="{
+    isAtBottom: true,
+    onScroll() {
+        const el = this.$refs.messageScroll;
+        this.isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+    }
+}"
+x-on:scroll="onScroll()"
+5. REFONTE DE LA PAGE DE GROUPE
+5.1 Diagnostic de l'existant
+La page actuelle est une grille de cartes identiques avec 4 compteurs par carte. Chaque carte est un lien vers tickets.index?group=X. C'est un écran de transit, pas un écran de travail.
+
+Problèmes :
+
+Toutes les cartes ont le même poids visuel — impossible de scanner rapidement "quel groupe a un problème"
+Pas de tickets visibles — on doit cliquer pour savoir ce qui se passe
+Pas d'agents — on ne sait pas qui travaille sur quoi
+Pas d'urgence visible — un groupe avec 50 tickets urgents non assignés ressemble à un groupe calme avec 50 tickets fermés
+5.2 Structure proposée
+La page de groupe devient une page de pilotage opérationnel.
+
+Layout : deux colonnes sur desktop. Colonne principale (2/3) + colonne secondaire (1/3).
+
+Header de page
+
+┌─────────────────────────────────────────────────────────────┐
+│  Groupes                                        [Tickets]   │
+│  Vue d'ensemble des files de traitement                     │
+└─────────────────────────────────────────────────────────────┘
+Sobre. Titre + sous-titre + lien retour vers la liste tickets. Pas de stat cards en haut — elles ne servent à rien ici car les stats sont déjà dans chaque groupe.
+
+Colonne principale — Liste des groupes
+Chaque groupe est un bloc compact (pas une carte flottante). Structure :
+
+
+┌─────────────────────────────────────────────────────────────┐
+│ ● Support Technique                           12 ouverts    │
+│   3 urgents · 2 non assignés · 1 en retard SLA             │
+├─────────────────────────────────────────────────────────────┤
+│ TCK-412  Problème connexion API    ●Urgent  ○Non assigné  2h│
+│ TCK-408  Erreur import CSV         ●Haute   Alice D.      1j│
+│ TCK-405  Timeout récurrent         ●Haute   ⚠SLA at risk  3j│
+│                                                             │
+│                          Voir tous les tickets →            │
+└─────────────────────────────────────────────────────────────┘
+En-tête de groupe :
+
+Pastille couleur du groupe + nom (gras, 14px)
+Compteur tickets ouverts (discret, à droite)
+Ligne secondaire : compteurs d'alerte UNIQUEMENT s'ils sont > 0 : urgents, non assignés, en retard SLA. Si tout va bien, cette ligne est absente. L'absence d'alerte EST l'information positive.
+Corps du groupe :
+
+Les 3-5 tickets les plus urgents ou nécessitant une action (triés par : urgence SLA > priorité haute > non assigné > dernière activité)
+Chaque ligne = ID · sujet (tronqué) · priorité · assigné ou "Non assigné" · âge
+Un lien "Voir tous les tickets →" en bas
+Groupes sans problème :
+
+Si un groupe n'a aucun ticket ouvert, il apparaît en version réduite :
+
+┌─────────────────────────────────────────────────────────────┐
+│ ● Facturation                                  0 ouvert     │
+└─────────────────────────────────────────────────────────────┘
+Une seule ligne. Pas de détail. Pas de carte. Il ne consomme presque pas d'espace.
+
+Colonne secondaire — Contexte
+Bloc Équipe (si le groupe a des agents assignés) :
+
+
+┌──────────────────────────┐
+│ Équipe                   │
+├──────────────────────────┤
+│ AD  Alice Dupont    3    │
+│ MR  Marc Renaud     5    │
+│ SL  Sophie Laurent  1    │
+│     Non assignés    2    │
+└──────────────────────────┘
+Initiales · Nom · Nombre de tickets actifs. Trié par charge décroissante. Le "Non assignés" est en dernière ligne, en rouge discret si > 0.
+
+Bloc Alertes (si des problèmes existent) :
+
+
+┌──────────────────────────┐
+│ Alertes                  │
+├──────────────────────────┤
+│ ⚠ 3 tickets SLA at risk │
+│ ● 2 urgents sans agent   │
+│ ○ 1 en attente > 48h     │
+└──────────────────────────┘
+Affiché uniquement s'il y a des problèmes. Si tout va bien, ce bloc n'apparaît pas.
+
+5.3 Liste de tickets dans le groupe — Hiérarchie visuelle
+Chaque ligne de ticket dans le bloc groupe :
+
+
+TCK-412  Problème connexion API     ●Urgent   ○Non assigné   2h
+[mono]   [semibold, slate-900]      [badge]   [badge]        [muted]
+Hiérarchie typographique :
+
+ID : font-mono text-xs text-slate-400 — discret, référence rapide
+Sujet : text-sm font-medium text-slate-900 truncate — l'information principale, la plus lisible
+Priorité : pastille couleur + texte uniquement pour Haute et Urgente. Les priorités normales/basses ne sont pas badgées (réduction du bruit)
+Assigné : text-xs text-slate-500 — nom court ou "Non assigné" en text-red-500
+Âge : text-xs text-slate-400 — "2h", "1j", "3j" — humain et compact
+Badges — Logique de discrétion :
+
+Priorité urgente : bg-red-50 text-red-700 border border-red-200 — visible sans être criard
+Priorité haute : bg-amber-50 text-amber-700 border border-amber-200
+SLA at risk : text-amber-600 avec icône ⚠
+SLA breached : text-red-600 font-medium
+Non assigné : text-red-500 — le rouge est justifié car c'est une anomalie opérationnelle
+Ce qui doit être discret :
+
+L'ID ticket (gris clair)
+L'âge du ticket (gris clair)
+La catégorie (pas affichée dans cette vue — déjà implicite par le groupe)
+Ce qui doit être mis en avant :
+
+Le sujet (c'est ce qu'on lit en premier)
+Les indicateurs de problème (non assigné, SLA, urgence)
+5.4 Style visuel
+Fond : bg-slate-50 pour la page, bg-white pour les blocs
+Bordures : border border-slate-200 — 1px, pas d'ombre ou ombre minimale shadow-sm
+Arrondis : rounded-xl — cohérent avec le reste de l'app
+Couleur accent : uniquement sur les éléments cliquables actifs ou les compteurs critiques
+Espacement : gap-4 entre les blocs de groupe, py-2 entre les lignes de tickets
+Pas de : ombres portées multiples, gradients, animations de hover, compteurs en grand format, icônes décoratives
+
+5.5 Ce qu'il faut bannir
+Pas de grille de cards uniformes — c'est le problème actuel. Un groupe critique doit prendre plus de place qu'un groupe vide
+Pas de compteurs en gros chiffres — ils sont visuellement impressionnants mais inutiles pour l'action
+Pas de progress bars ou graphes — c'est un écran d'action, pas un dashboard analytique
+Pas d'icônes décoratives par statut — les mots suffisent
+Pas de hover avec slide — le hover:-translate-y-0.5 actuel est décoratif sans valeur métier
+6. TIMELINE — BADGES ET LISIBILITE
+6.1 Logique de détermination du canal
+Le canal d'un message se déduit des données existantes :
+
+
+private static function resolveChannel(TicketMessage $msg, int $ticketCreatorId): string
+{
+    if ($msg->isSystem()) return 'system';
+    if ($msg->isInternalNote()) return 'internal';
+
+    // Message avec email_message_id = vient d'un email
+    if ($msg->email_message_id) {
+        // Si l'auteur est le créateur du ticket → email reçu (client a répondu par email)
+        if ((int) $msg->user_id === $ticketCreatorId) {
+            return 'email_inbound';
+        }
+        // Sinon → email envoyé (réponse agent envoyée par email)
+        return 'email_outbound';
+    }
+
+    // Message avec meta indiquant un envoi email
+    $meta = is_array($msg->meta) ? $msg->meta : [];
+    if (!empty($meta['email_sent'])) {
+        return 'email_outbound';
+    }
+
+    return 'platform';
+}
+Point technique important : pour tracer les messages envoyés par email depuis la plateforme, il faut que TicketNewMessageNotification::toMail() écrive l'email_message_id sur le TicketMessage après envoi, ou qu'un flag email_sent soit ajouté dans meta. Actuellement, seuls les messages reçus par email ont un email_message_id. Il faut enrichir la notification pour tracer les envois.
+
+6.2 Stratégie de badges
+Principe : un badge principal par message, jamais deux.
+
+Canal	Badge	Style
+Email reçu (client)	Reçu par email	bg-blue-50 text-blue-600 border-blue-200 + icône envelope
+Email envoyé (agent)	Envoyé par email	bg-emerald-50 text-emerald-600 border-emerald-200 + icône envelope
+Plateforme (client)	Client	bg-slate-100 text-slate-600 border-slate-200
+Plateforme (support)	Support	bg-slate-700/10 text-slate-600
+Note interne	Note interne	déjà bien fait — bg-amber-50 text-amber-800
+Système	pas de badge, ligne séparatrice	déjà bien fait
+Le badge remplace le $roleLabel actuel pour les messages email. Pour les messages plateforme, il reste "Client" ou "Support".
+
+Adresse email d'origine :
+
+Quand le badge est "Reçu par email", afficher l'adresse en dessous du nom de l'auteur, en petit :
+
+
+<span class="text-xs font-semibold text-slate-800">Jean Dupont</span>
+<span class="text-[10px] text-slate-400">via jean.dupont@example.com</span>
+L'adresse email est stockée dans meta du message (ou récupérable via l'InboundEmailLog). Si elle n'est pas disponible, ne rien afficher — pas de fallback artificiel.
+
+6.3 Logique visuelle uniforme
+Structure de chaque message non-système :
+
+
+[Avatar] [Nom auteur]  [Badge canal]  [Heure]
+         [Corps du message]
+         [Pièces jointes si présentes]
+Changements par rapport à l'existant :
+
+Le badge $roleLabel actuel (Client/Support) est remplacé par le badge canal quand c'est un email
+L'avatar reste identique
+Les messages "propres" (mes messages) restent à droite, les messages reçus à gauche — c'est déjà le cas et c'est bien
+Le badge email est un petit tag inline, pas un bandeau
+Anti-surcharge :
+
+Un seul badge par message
+Pas de double indication (pas "Support" ET "Envoyé par email" — juste "Envoyé par email")
+L'icône d'email est minuscule (12-14px), intégrée au tag
+Les messages système restent en pill centrée — ne pas les alourdir
+6.4 Template timeline-item mis à jour (concept)
+
+@if($item->isSystem)
+    {{-- Inchangé : pill centrée --}}
+@elseif($item->isInternal)
+    {{-- Inchangé : style amber avec lock --}}
+@else
+    <div class="message-row flex {{ $item->isOwn ? 'justify-end' : '' }} py-3">
+        <div class="flex items-end gap-3 max-w-[85%] {{ $item->isOwn ? 'flex-row-reverse' : '' }}">
+            <img src="{{ $item->avatarUrl }}" class="w-9 h-9 rounded-full ring-2 ring-white shadow-md">
+            <div class="{{ $item->isOwn ? 'items-end' : '' }} flex flex-col min-w-0">
+                <div class="flex items-center gap-2 mb-1.5 {{ $item->isOwn ? 'flex-row-reverse' : '' }}">
+                    <span class="text-xs font-semibold text-slate-800">{{ $item->authorName }}</span>
+
+                    @if($item->hasEmailOrigin)
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium
+                            {{ $item->channel === 'email_inbound'
+                                ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200' }}">
+                            <iconify-icon icon="solar:letter-linear" width="10"></iconify-icon>
+                            {{ $item->badgePrimary }}
+                        </span>
+                    @else
+                        <span class="px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-medium text-slate-600 border border-slate-200/80">
+                            {{ $item->roleLabel }}
+                        </span>
+                    @endif
+
+                    <span class="text-[10px] text-slate-400">{{ $item->timeHuman }}</span>
+                </div>
+
+                @if($item->hasEmailOrigin && $item->emailFrom)
+                    <span class="text-[10px] text-slate-400 mb-1">via {{ $item->emailFrom }}</span>
+                @endif
+
+                <div class="message-bubble rounded-2xl px-4 py-3 text-sm leading-relaxed ...">
+                    {!! $item->body !!}
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+7. NOTIFICATIONS CLIENT
+7.1 Architecture
+Créer une notification unifiée TicketStatusNotification qui couvre tous les événements de cycle de vie, et enrichir les notifications existantes pour le canal email.
+
+Notifications à créer/enrichir :
+
+Événement	Classe	Canaux	Existe ?
+Nouvelle réponse agent	TicketNewMessageNotification	database + mail	✅ Existe
+Assignation	TicketAssigneeNotification	database + mail	⚠ DB only
+Changement statut	TicketStatusChangedNotification	database + mail	❌ À créer
+Changement priorité	TicketPriorityChangedNotification	database + mail	❌ À créer
+Création ticket (accusé)	TicketCreatedNotification	database + mail	❌ À créer
+Clôture	via TicketStatusChangedNotification	database + mail	—
+Réouverture	TicketReopenedNotification	database + mail	⚠ DB only
+7.2 Déclencheurs
+
+// Dans Discussion.php → processChangeStatus()
+// Après la mise à jour du statut et les traitements SLA
+if ($newStatus !== $oldStatus) {
+    $this->notifyStatusChanged($ticket, $oldStatus, $newStatus, $user);
+}
+
+// Dans Discussion.php → changePriority()
+// Après la mise à jour de la priorité
+$this->notifyPriorityChanged($ticket, $oldPriority, $newPriority, $user);
+7.3 Garde-fous anti-fuite
+Règle absolue, déjà respectée mais à formaliser :
+
+
+// Dans chaque notification qui envoie un email au client
+public function toMail(object $notifiable): MailMessage
+{
+    // JAMAIS de contenu interne dans les emails client
+    // Le body du mail ne contient que :
+    // - le sujet du ticket
+    // - l'action réalisée (changement statut, nouvelle réponse)
+    // - un lien vers le ticket
+    // JAMAIS le contenu du message, des notes internes, ou des noms d'agents internes
+}
+Pour TicketStatusChangedNotification :
+
+
+// Le mail dit "Le statut de votre ticket TCK-412 a été mis à jour : En cours"
+// Il ne dit PAS "Marc (agent) a changé le statut"
+// Il ne dit PAS le contenu de la dernière note interne
+7.4 Anti-doublons
+Problème potentiel : quand un agent répond ET change le statut en même temps, le client pourrait recevoir 2 notifications (réponse + statut).
+
+Solution : regrouper les notifications dans une fenêtre de 30 secondes :
+
+
+// Utiliser une clé de throttle par ticket + utilisateur
+$throttleKey = "ticket_notify:{$ticket->id}:{$notifiable->id}";
+if (Cache::has($throttleKey)) {
+    // Enrichir la notification existante plutôt qu'en envoyer une nouvelle
+    return;
+}
+Cache::put($throttleKey, true, 30);
+7.5 Wording des notifications
+Événement	Titre email	Corps
+Création	Ticket TCK-412 créé	"Votre demande a bien été enregistrée. Nous reviendrons vers vous rapidement."
+Assignation	Ticket TCK-412 pris en charge	"Votre demande est prise en charge par notre équipe."
+Statut → En cours	Ticket TCK-412 en cours de traitement	"Votre demande est en cours de traitement."
+Statut → Résolu	Ticket TCK-412 résolu	"Votre demande a été traitée. Si le problème persiste, vous pouvez répondre à ce message."
+Statut → Fermé	Ticket TCK-412 clôturé	"Ce ticket a été clôturé."
+Priorité changée	—	Pas de notification client (information interne)
+Réouverture	Ticket TCK-412 rouvert	"Votre ticket a été rouvert suite à votre réponse."
+Note : le changement de priorité NE doit PAS notifier le client. C'est une information interne de gestion. Seuls les événements qui changent l'état perçu par le client justifient une notification.
+
+8. DECOUPE TECHNIQUE RECOMMANDEE
+Migration progressive (pas de big bang)
+Étape 1 — Créer le DTO TimelineItem et l'utiliser dans la vue existante
+
+Aucun changement de composant
+Le @php en tête de discussion.blade.php appelle TimelineItem::fromMessage()
+timeline-item.blade.php reçoit un TimelineItem au lieu d'un TicketMessage
+Impact visuel : zéro (le rendu est identique)
+Bénéfice : la logique sort du template
+Étape 2 — Extraire TicketComposer en sous-composant
+
+Le plus simple à extraire car il a peu de dépendances
+Le textarea, les PJ, les mentions, le bouton envoyer deviennent un composant isolé
+Communication : $dispatch('message-sent', ['message_id' => $msg->id])
+Étape 3 — Extraire TicketTimeline en sous-composant
+
+La pagination curseur est ajoutée
+Le WebSocket est déplacé ici
+Les boutons haut/bas sont ajoutés
+Étape 4 — Extraire TicketSidebar en sous-composant
+
+Toutes les actions métier (assignation, statut, priorité, checklist) migrent ici
+C'est l'extraction la plus volumineuse mais aussi la plus impactante pour la perf
+Étape 5 — Discussion.php devient TicketPage, un orchestrateur léger
+
+9. ROADMAP PAR PHASES
+Phase 1 — Fondations (2-3 semaines)
+Objectifs : poser les bases techniques sans casser le visuel
+
+Livrable	Impact technique	Impact UX
+DTO TimelineItem	Logique hors des templates	Zéro (invisible)
+Badges canal email dans la timeline	Ajout de resolveChannel() dans le DTO	Les agents voient enfin d'où vient un message
+Boutons navigation haut/bas	Alpine.js pur, pas de backend	Navigation dans les longs fils
+Migration index SQL	4 index à créer	Requêtes plus rapides
+TicketStatusChangedNotification	Nouvelle notification	Le client est informé des changements
+TicketCreatedNotification	Nouvelle notification	Accusé de réception
+Enrichir les notifs existantes (email)	Ajouter canal mail à Assignee et Reopened	Le client reçoit des emails
+Dépendances : aucune dépendance externe
+Risques : faibles — ajouts purs, pas de modification destructive
+Critère de validation : les 8 tests fonctionnels du cahier des charges (section 9) passent
+
+Phase 2 — Performance et découpage (3-4 semaines)
+Objectifs : rendre la page ticket rapide et maintenable
+
+Livrable	Impact technique	Impact UX
+Extraction TicketComposer	-200 lignes de Discussion.php	Zéro (invisible)
+Extraction TicketTimeline avec pagination curseur	Pagination des messages	Chargement rapide même avec 500 messages
+Extraction TicketSidebar	-400 lignes de Discussion.php	Rerenders isolés
+Discussion.php → orchestrateur léger	~100 lignes restantes	Maintenance simplifiée
+Lazy loading des PJ	Compteur → détail au clic	Rendu initial plus rapide
+Refonte page de groupe	Nouveau composant + vue	Pilotage opérationnel réel
+Dépendances : Phase 1 terminée (le DTO est nécessaire pour la Timeline)
+Risques :
+
+Le découpage peut introduire des régressions sur les actions (assignation, statut). Mitigation : tester chaque action après extraction.
+La page de groupe nécessite une requête SQL enrichie (top tickets par groupe). Mitigation : utiliser un CTE PostgreSQL unique, caché. Critère de validation : page ticket < 300ms au premier rendu, pagination fonctionnelle, page de groupe opérationnelle
+Phase 3 — Enrichissements (4+ semaines, priorisable)
+Livrable	Priorité
+Actions de masse (bulk status, assign, close)	Haute
+Recherche avancée (contenu messages, dates)	Haute
+Auto-réponse email de réception	Moyenne
+Gestion CC emails	Moyenne
+Satisfaction client (CSAT)	Moyenne
+SLA business hours	Basse
+Fusion de tickets	Basse
+Détection doublons	Basse
+Dépendances : Phase 2 terminée
+Risques : scope creep — chaque fonctionnalité est indépendante, traiter comme des mini-projets séparés
+
+10. RISQUES ET ANTI-PATTERNS
+Anti-patterns Livewire
+Anti-pattern	Pourquoi c'est un problème	Quoi faire
+$refresh comme réponse universelle	Re-render complet du composant + toutes ses données	Utiliser des événements ciblés ou des mises à jour de propriétés
+Stocker des collections Eloquent dans les propriétés publiques	Sérialisé/désérialisé à chaque requête → lent	Stocker des IDs ou des DTOs, requêter dans render()
+wire:model sur des champs non utilisés	Chaque keystroke envoie une requête	Utiliser wire:model.blur ou wire:model.live.debounce.500ms
+Un seul gros composant	Chaque action déclenche le render de tout	Découper en sous-composants
+getTicket() appelé 25 fois	25 requêtes DB avec 3 relations chacune	Cacher le ticket dans le cycle de vie ou passer en paramètre
+Anti-patterns SQL
+Anti-pattern	Quoi faire
+$ticket->messages->where('type', ...) dans Blade	Filtrer en requête, pas en collection
+COUNT(*) avec conditions complexes dans GROUP BY	Utiliser FILTER (WHERE ...) comme c'est déjà fait ✓
+Pas d'index sur ticket_messages(ticket_id, id DESC)	Ajouter l'index composite
+User::whereKey($userId)->whereHas(...) en boucle	Batch avec whereIn quand possible
+Erreurs de design
+Erreur	Alternative
+Toutes les cartes au même poids visuel	Les éléments critiques prennent plus de place, les éléments OK sont compacts
+Compteurs géants sans contexte	Compteurs inline dans le contexte de ce qu'ils mesurent
+Badges sur tous les messages	Badges uniquement quand l'information n'est pas évidente
+Trop de couleurs de badges	3 couleurs max pour les badges : bleu (email in), vert (email out), amber (interne)
+Graphes/progress bars sur un écran d'action	Les graphes vont dans les rapports, pas dans les écrans de travail
+Animations décoratives	Animations uniquement pour le feedback utilisateur (loading, transition)
+Erreurs sur la timeline
+Erreur	Alternative
+Double badge (canal + rôle)	Un seul badge par message
+Afficher l'adresse email systématiquement	Uniquement pour les messages email entrants, et en petit
+Re-render de toute la timeline à chaque message	Append intelligent via wire:key
+Pas de séparateur de date	Déjà fait ✓ — garder
+Messages système trop proéminents	Déjà bien en pill discrète ✓
+Erreurs sur les notifications
+Erreur	Alternative
+Envoyer le contenu du message dans la notification email	Envoyer uniquement "Nouvelle réponse sur votre ticket" + lien
+Notifier à chaque micro-changement	Throttle 30s, regrouper les actions proches
+Notifier le changement de priorité au client	C'est une info interne — ne pas notifier
+Oublier de filtrer les notes internes	Vérifier $message->type !== InternalNote avant tout envoi externe
+11. RECOMMANDATIONS FINALES
+Commencer par le DTO TimelineItem. C'est le changement le plus petit, le plus sûr, et il débloque tout le reste. Il peut être livré en une journée sans impact visuel.
+
+Ajouter les notifications manquantes tôt. Ce sont des fichiers indépendants qui n'interfèrent avec rien. Créer TicketStatusChangedNotification et TicketCreatedNotification peut se faire en parallèle du travail sur la timeline.
+
+Ne pas refondre la page de groupe avant d'avoir la requête SQL. Écrire d'abord la requête qui ramène les top tickets par groupe avec leurs indicateurs SLA, puis construire l'UI dessus. La requête est la fondation.
+
+Tracer les emails sortants. Quand un agent répond et que la notification part par email, écrire le email_message_id généré dans le meta du TicketMessage. Sans ça, le badge "Envoyé par email" ne peut pas fonctionner. C'est un changement de 5 lignes dans TicketNewMessageNotification.
+
+Ne pas faire le découpage de Discussion.php d'un coup. Extraire un composant par semaine, tester, merger. Le composer d'abord, puis la timeline, puis la sidebar.
+
+Mesurer avant et après. Utiliser Laravel Debugbar ou DB::getQueryLog() pour compter les requêtes et le temps de render() de Discussion.php avant le découpage, puis après chaque extraction.
+
+Les index SQL en premier. Ils ne cassent rien, ne nécessitent pas de code, et améliorent tout. Les créer dans une migration dès maintenant.
+
+Ce document est un cadre de travail. Chaque section peut devenir un ticket de développement autonome. Dis-moi par quel chantier tu veux commencer, et on attaque le code.
