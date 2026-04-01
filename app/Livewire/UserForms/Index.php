@@ -7,6 +7,7 @@ use App\Enums\FormStatus;
 use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\FormAssignment;
+use App\Models\OrganizationMembership;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
@@ -28,6 +29,19 @@ class Index extends Component
 
     public string $tab = 'pending'; // pending | overdue | submitted | expired | all
 
+    public function setTab(string $tab): void
+    {
+        $allowed = ['pending', 'overdue', 'submitted', 'expired', 'all'];
+        if (! in_array($tab, $allowed, true)) {
+            return;
+        }
+        if ($this->tab === $tab) {
+            return;
+        }
+
+        $this->tab = $tab;
+    }
+
     #[Computed]
     public function orgId(): ?int
     {
@@ -47,8 +61,7 @@ class Index extends Component
             CacheHelper::userFormsAssignmentsKey($orgId, $userId, $this->tab),
             CacheHelper::TTL,
             function () use ($userId, $orgId) {
-                $query = FormAssignment::query()
-                    ->forUser($userId, $orgId)
+                $query = $this->baseAssignmentsQuery($userId, $orgId)
                     ->where('organization_id', $orgId)
                     ->with(['form:id,name,description,status', 'assignedBy:id,name']);
 
@@ -62,7 +75,21 @@ class Index extends Component
                     $query->where('status', FormAssignmentStatus::Expired);
                 }
 
-                return $query->latest()->limit(self::ASSIGNMENTS_LIST_LIMIT)->get();
+                return $query
+                    ->latest()
+                    ->limit(self::ASSIGNMENTS_LIST_LIMIT)
+                    ->get([
+                        'id',
+                        'public_id',
+                        'organization_id',
+                        'form_id',
+                        'assigned_by',
+                        'status',
+                        'due_date',
+                        'expires_at',
+                        'submitted_at',
+                        'created_at',
+                    ]);
             }
         );
     }
@@ -97,8 +124,7 @@ class Index extends Component
         }
 
         return Cache::remember(CacheHelper::userFormsStatsKey($orgId, $userId), CacheHelper::TTL, function () use ($userId, $orgId) {
-            $counts = FormAssignment::query()
-                ->forUser($userId, $orgId)
+            $counts = $this->baseAssignmentsQuery($userId, $orgId)
                 ->where('organization_id', $orgId)
                 ->selectRaw('status, count(*) as c')
                 ->groupBy('status')
@@ -117,6 +143,37 @@ class Index extends Component
                 'total' => $pending + $overdue + $expired + $submitted,
             ];
         });
+    }
+
+    private function assignmentFunctionIds(int $userId, int $orgId): array
+    {
+        return Cache::remember("org_member_functions:{$orgId}:{$userId}", CacheHelper::TTL, function () use ($userId, $orgId) {
+            return OrganizationMembership::query()
+                ->where('user_id', $userId)
+                ->where('organization_id', $orgId)
+                ->whereNotNull('organization_function_id')
+                ->pluck('organization_function_id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        });
+    }
+
+    private function baseAssignmentsQuery(int $userId, int $orgId)
+    {
+        $functionIds = $this->assignmentFunctionIds($userId, $orgId);
+
+        return FormAssignment::query()
+            ->where(function ($q) use ($userId, $functionIds) {
+                $q->where('user_id', $userId);
+
+                if ($functionIds !== []) {
+                    $q->orWhere(function ($sub) use ($functionIds) {
+                        $sub->whereNull('user_id')
+                            ->whereIn('organization_function_id', $functionIds);
+                    });
+                }
+            });
     }
 
     public function render()

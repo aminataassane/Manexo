@@ -43,7 +43,9 @@
             @foreach($tabs as $t)
                 <button
                     type="button"
-                    wire:click="$set('tab', '{{ $t['key'] }}')"
+                    wire:click="setTab('{{ $t['key'] }}')"
+                    wire:loading.attr="disabled"
+                    wire:target="setTab"
                     class="relative px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors {{ $tab === $t['key'] ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700' }}"
                 >
                     {{ $t['label'] }}
@@ -66,6 +68,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 @foreach($this->teamForms as $teamForm)
                     <a href="{{ $teamForm->slug ? route('forms.fill-team-by-slug', $teamForm->slug) : route('forms.fill-team', $teamForm) }}"
+                       wire:navigate.hover
                        class="group flex items-center gap-3.5 rounded-xl border border-slate-200 bg-white px-4 py-3.5 hover:border-slate-300 hover:shadow-sm transition-all">
                         <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-500">
                             <iconify-icon icon="solar:users-group-rounded-bold" width="16"></iconify-icon>
@@ -142,6 +145,7 @@
                 {{-- Action --}}
                 @if($isActionable)
                     <a href="{{ route('forms.fill', $a) }}"
+                       wire:navigate.hover
                        class="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg transition-colors text-white hover:opacity-90"
                        style="background: var(--accent);">
                         {{ __('pages.forms.fill') }}
@@ -176,7 +180,7 @@
                     @endif
                 </p>
                 @if($tab !== 'all')
-                    <button type="button" wire:click="$set('tab', 'all')" class="mt-4 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors underline underline-offset-2">
+                    <button type="button" wire:click="setTab('all')" wire:loading.attr="disabled" wire:target="setTab" class="mt-4 text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors underline underline-offset-2">
                         {{ __('pages.forms.see_all') }}
                     </button>
                 @endif

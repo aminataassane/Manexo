@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use App\Enums\OrganizationRole;
 use App\Enums\Permission;
 use App\Events\UserNotificationReceived;
+use App\Helpers\CacheHelper;
 use App\Models\Organization;
 use App\Models\OrganizationFunction;
 use App\Models\OrganizationInvitation;
@@ -64,6 +65,11 @@ class Users extends Component
         $this->resetPage();
     }
 
+    public function updatedSearchExternal(): void
+    {
+        $this->resetPage('externalPage');
+    }
+
     private function orgId(): int
     {
         return (int) session('current_organization_id');
@@ -78,7 +84,19 @@ class Users extends Component
             return OrganizationRole::Member->value;
         }
 
-        return (string) ($user->organizations()->whereKey($orgId)->first()?->pivot?->role ?? OrganizationRole::Member->value);
+        return (string) Cache::remember("admin_users_current_role:{$orgId}:{$user->id}", 120, function () use ($user, $orgId) {
+            return (string) ($user->organizations()->whereKey($orgId)->first()?->pivot?->role ?? OrganizationRole::Member->value);
+        });
+    }
+
+    private function allowedRoleSlugs(int $orgId): array
+    {
+        return Cache::remember("org_role_slugs:{$orgId}", CacheHelper::TTL_CONFIG, function () use ($orgId) {
+            return RoleDefinition::query()
+                ->where('organization_id', $orgId)
+                ->pluck('slug')
+                ->all();
+        });
     }
 
     public function openInviteModal(): void
@@ -112,10 +130,7 @@ class Users extends Component
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
 
-        $allowedRoles = RoleDefinition::query()
-            ->where('organization_id', $orgId)
-            ->pluck('slug')
-            ->all();
+        $allowedRoles = $this->allowedRoleSlugs($orgId);
 
         $validated = $this->validate([
             'inviteEmail' => ['required', 'email', 'max:255'],
@@ -171,7 +186,7 @@ class Users extends Component
             'expires_at' => now()->addDays(OrganizationInvitation::EXPIRY_DAYS),
         ]);
 
-        $org = Organization::find($orgId);
+        $org = Cache::remember("org_name:{$orgId}", CacheHelper::TTL_CONFIG, fn () => Organization::query()->find($orgId));
 
         OrganizationAuditService::log('team.invitation_sent', 'User', null, [
             'email' => $email,
@@ -201,6 +216,7 @@ class Users extends Component
         $this->inviteEmail = '';
         $this->inviteRole = OrganizationRole::Member->value;
         $this->resetPage();
+        Cache::forget("admin_users_pending_invites:{$orgId}");
     }
 
     public function resendInvitation(int $invitationId): void
@@ -224,7 +240,7 @@ class Users extends Component
             'expires_at' => now()->addDays(OrganizationInvitation::EXPIRY_DAYS),
         ]);
 
-        $org = Organization::find($orgId);
+        $org = Cache::remember("org_name:{$orgId}", CacheHelper::TTL_CONFIG, fn () => Organization::query()->find($orgId));
         $notification = new OrganizationInvitationNotification($invitation, $org);
         $existingUser = User::query()->where('email', $invitation->email)->first();
 
@@ -244,6 +260,8 @@ class Users extends Component
             ]);
             $this->dispatch('toast', type: 'warning', message: __('pages.team.invitation_resent_email_failed'));
         }
+
+        Cache::forget("admin_users_pending_invites:{$orgId}");
     }
 
     public function cancelInvitation(int $invitationId): void
@@ -268,6 +286,7 @@ class Users extends Component
         ]);
 
         $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_cancelled'));
+        Cache::forget("admin_users_pending_invites:{$orgId}");
     }
 
     public function updateRole(int $membershipId, string $newRole): void
@@ -335,6 +354,8 @@ class Users extends Component
             'user_name' => $membership->user?->name,
         ]);
         $this->dispatch('toast', type: 'success', message: 'Rôle mis à jour.');
+        Cache::forget("admin_users_current_role:{$orgId}:{$membership->user_id}");
+        Cache::forget("admin_users_stats:{$orgId}");
     }
 
     public function removeMember(int $membershipId): void
@@ -378,9 +399,12 @@ class Users extends Component
             'user_name' => $membership->user?->name,
             'role' => $membership->role,
         ]);
+        $removedUserId = (int) $membership->user_id;
         $membership->delete();
         $this->dispatch('toast', type: 'success', message: 'Membre retiré.');
         $this->resetPage();
+        Cache::forget("admin_users_current_role:{$orgId}:{$removedUserId}");
+        Cache::forget("admin_users_stats:{$orgId}");
     }
 
     public function render()
@@ -479,13 +503,15 @@ class Users extends Component
 
     private function pendingInvitations(int $orgId)
     {
-        return OrganizationInvitation::query()
-            ->with('inviter')
-            ->where('organization_id', $orgId)
-            ->where('status', 'pending')
-            ->where('expires_at', '>', now())
-            ->orderByDesc('created_at')
-            ->get();
+        return Cache::remember("admin_users_pending_invites:{$orgId}", 60, function () use ($orgId) {
+            return OrganizationInvitation::query()
+                ->with('inviter')
+                ->where('organization_id', $orgId)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->orderByDesc('created_at')
+                ->get();
+        });
     }
 
     private function externalContacts(int $orgId)
@@ -503,12 +529,12 @@ class Users extends Component
                 });
             })
             ->orderByDesc('created_at')
-            ->get();
+            ->paginate($this->perPage, ['*'], 'externalPage');
     }
 
     private function organizationFunctions(int $orgId)
     {
-        return Cache::remember("org_functions:{$orgId}", 300, fn () => OrganizationFunction::query()
+        return Cache::remember("org_functions:{$orgId}", CacheHelper::TTL_CONFIG, fn () => OrganizationFunction::query()
             ->where('organization_id', $orgId)
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -518,7 +544,7 @@ class Users extends Component
 
     private function organizationRoles(int $orgId)
     {
-        return Cache::remember("org_roles:{$orgId}", 300, fn () => RoleDefinition::query()
+        return Cache::remember("org_roles:{$orgId}", CacheHelper::TTL_CONFIG, fn () => RoleDefinition::query()
             ->where('organization_id', $orgId)
             ->orderByRaw("case slug when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 when 'member' then 3 else 4 end")
             ->get()

@@ -1,4 +1,4 @@
-<div class="w-full max-w-full min-w-0 mx-auto" x-data="{ tab: 'branding' }">
+<div class="w-full max-w-full min-w-0 mx-auto" x-data="{ tab: $wire.entangle('activeTab').live }">
     {{-- ═══ HEADER ═══ --}}
     <div class="page-header">
         <div class="min-w-0">
@@ -68,6 +68,7 @@
             <div class="flex gap-1.5 px-1 pb-1 min-w-max">
                 @foreach ($navItems as $nav)
                     <button type="button"
+                        wire:click="setActiveTab('{{ $nav['key'] }}')"
                         @click="tab = '{{ $nav['key'] }}'; $nextTick(() => $el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }))"
                         class="shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-all"
                         :class="tab === '{{ $nav['key'] }}'
@@ -94,7 +95,7 @@
                     @foreach ($navItems as $nav)
                         @if ($nav['key'] === 'danger')
                             <div class="pt-3 mt-3" style="border-top: 1px solid #f1f5f9;">
-                                <button type="button" @click="tab = 'danger'"
+                                <button type="button" wire:click="setActiveTab('danger')" @click="tab = 'danger'"
                                     class="sidebar-item" :class="tab === 'danger' ? 'bg-red-50 text-red-700' : 'text-slate-600 hover:bg-red-50 hover:text-red-700'">
                                     <span class="flex items-center gap-2.5">
                                         <iconify-icon icon="solar:danger-triangle-bold-duotone" width="18" :class="tab === 'danger' ? 'text-red-600' : 'text-slate-400'" class="shrink-0"></iconify-icon>
@@ -103,7 +104,7 @@
                                 </button>
                             </div>
                         @else
-                            <button type="button" @click="tab = '{{ $nav['key'] }}'"
+                            <button type="button" wire:click="setActiveTab('{{ $nav['key'] }}')" @click="tab = '{{ $nav['key'] }}'"
                                 class="sidebar-item" :class="tab === '{{ $nav['key'] }}' ? 'sidebar-item-active' : 'sidebar-item-default'">
                                 <span class="flex items-center gap-2.5">
                                     <iconify-icon icon="{{ $nav['icon'] }}" width="18" :class="tab === '{{ $nav['key'] }}' ? 'text-[var(--accent)]' : 'text-slate-400'" class="shrink-0"></iconify-icon>
@@ -112,6 +113,10 @@
                             </button>
                         @endif
                     @endforeach
+                </div>
+                <div wire:loading.flex wire:target="setActiveTab" class="items-center justify-center gap-2 px-3 py-2 text-xs text-slate-500">
+                    <iconify-icon icon="solar:refresh-linear" class="animate-spin" width="14"></iconify-icon>
+                    Chargement...
                 </div>
             </div>
 
@@ -153,7 +158,8 @@
             @endif
 
             <!-- BRANDING TAB -->
-            <div x-show="tab === 'branding'" class="content-card">
+            @if ($activeTab === 'branding')
+            <div class="content-card">
                 <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.branding_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.branding_subtitle') }}</p>
@@ -206,7 +212,7 @@
                             <input
                                 id="org_name"
                                 type="text"
-                                wire:model="name"
+                                wire:model.blur="name"
                                 required
                                 @disabled(! $canManage)
                                 class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all disabled:bg-slate-50 disabled:text-slate-500"
@@ -217,7 +223,7 @@
                             <x-input-label for="org_slug" :value="__('settings.space_slug')" />
                             <div class="mt-1 flex rounded-xl shadow-sm">
                                 <span class="inline-flex items-center rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">manexo.io/</span>
-                                <input type="text" id="org_slug" wire:model="slug" class="block w-full min-w-0 flex-1 rounded-none rounded-r-xl border-slate-200 focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm" @disabled(! $canManage)>
+                                <input type="text" id="org_slug" wire:model.blur="slug" class="block w-full min-w-0 flex-1 rounded-none rounded-r-xl border-slate-200 focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm" @disabled(! $canManage)>
                             </div>
                             <x-input-error :messages="$errors->get('slug')" class="mt-1" />
                         </div>
@@ -228,7 +234,7 @@
                         <x-input-label for="primary_color" :value="__('settings.primary_color')" />
                         <div class="mt-2 flex items-center gap-4">
                             <div class="relative group cursor-pointer">
-                                <input type="color" id="color-picker" class="absolute inset-0 h-full w-full opacity-0 cursor-pointer z-10" wire:model.live="primary_color" @disabled(! $canManage)>
+                                <input type="color" id="color-picker" class="absolute inset-0 h-full w-full opacity-0 cursor-pointer z-10" wire:model.debounce.300ms="primary_color" @disabled(! $canManage)>
                                 <div class="h-11 w-11 rounded-xl shadow-sm border border-slate-200 flex items-center justify-center transition-transform group-hover:scale-105" style="background-color: {{ $primary_color ?? '#005F02' }};">
                                     <iconify-icon icon="solar:pen-new-square-linear" class="text-white opacity-50"></iconify-icon>
                                 </div>
@@ -238,7 +244,7 @@
                                     id="primary_color"
                                     type="text"
                                     class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm font-mono uppercase focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all disabled:bg-slate-50 disabled:text-slate-500"
-                                    wire:model.live="primary_color"
+                                    wire:model.debounce.300ms="primary_color"
                                     maxlength="7"
                                     @disabled(! $canManage)
                                     placeholder="#000000"
@@ -250,16 +256,17 @@
                     </div>
 
                     <div class="pt-4 flex justify-end">
-                        <button type="submit" class="btn-primary" @disabled(! $canManage)>
-                            <span wire:loading.remove>{{ __('settings.save_changes') }}</span>
-                            <span wire:loading><iconify-icon icon="solar:refresh-linear" class="animate-spin"></iconify-icon></span>
-                        </button>
+                        <x-manexo.action-button type="submit" wire-target="save" variant="primary" class="btn-primary" :loading-label="__('ui.action.saving')" :disabled="! $canManage">
+                            {{ __('settings.save_changes') }}
+                        </x-manexo.action-button>
                     </div>
                 </form>
             </div>
+            @endif
 
             <!-- TICKETS TAB -->
-            <div x-show="tab === 'tickets'" x-cloak class="content-card">
+            @if ($activeTab === 'tickets')
+            <div class="content-card">
                 <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.tickets_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.tickets_subtitle') }}</p>
@@ -351,15 +358,17 @@
                     </div>
 
                     <div class="pt-4 flex justify-end">
-                        <button type="submit" class="btn-primary" @disabled(! $canManage)>
+                        <x-manexo.action-button type="submit" wire-target="save" variant="primary" class="btn-primary" :loading-label="__('ui.action.saving')" :disabled="! $canManage">
                             {{ __('settings.save') }}
-                        </button>
+                        </x-manexo.action-button>
                     </div>
                 </form>
             </div>
+            @endif
 
             <!-- CATEGORIES TAB -->
-            <div x-show="tab === 'categories'" x-cloak class="content-card">
+            @if ($activeTab === 'categories')
+            <div class="content-card">
                 <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.categories_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.categories_subtitle') }}</p>
@@ -375,16 +384,16 @@
                                     <input
                                         id="new_cat_name"
                                         type="text"
-                                        wire:model="newCategoryName"
+                                        wire:model.blur="newCategoryName"
                                         placeholder="{{ __('settings.category_placeholder') }}"
                                         class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                     />
                                     <x-input-error :messages="$errors->get('newCategoryName')" class="mt-1" />
                                 </div>
-                                <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                                <x-manexo.action-button type="submit" wire-target="createCategory" variant="primary" class="shrink-0 !font-semibold">
                                     <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
                                     {{ __('settings.add') }}
-                                </button>
+                                </x-manexo.action-button>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
@@ -409,14 +418,14 @@
                             {{-- Approval config --}}
                             <div class="mt-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3 space-y-3">
                                 <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" wire:model.live="newCategoryRequiresApproval" class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]" />
+                                    <input type="checkbox" wire:model="newCategoryRequiresApproval" class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]" />
                                     <span class="text-sm font-medium text-slate-700">Nécessite une approbation</span>
                                 </label>
                                 @if($newCategoryRequiresApproval)
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <x-input-label value="Type d'approbateur" />
-                                            <x-select-input wire:model.live="newCategoryApprovalType" class="mt-1">
+                                            <x-select-input wire:model="newCategoryApprovalType" class="mt-1">
                                                 <option value="">Choisir...</option>
                                                 <option value="user">Utilisateur spécifique</option>
                                                 <option value="role">Rôle</option>
@@ -470,13 +479,13 @@
                                             <div class="flex items-center gap-3">
                                                 <input
                                                     type="text"
-                                                    wire:model="editingCategoryName"
+                                                    wire:model.blur="editingCategoryName"
                                                     class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                                     autofocus
                                                 />
-                                                <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
+                                                <x-manexo.action-button type="submit" wire-target="updateCategory" variant="ghost" icon-only class="!p-1 text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}" :loading-label="__('settings.save')">
                                                     <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
-                                                </button>
+                                                </x-manexo.action-button>
                                                 <button type="button" wire:click="cancelEditCategory" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
                                                     <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                                 </button>
@@ -498,12 +507,12 @@
                                             {{-- Approval config (edit) --}}
                                             <div class="mt-2 rounded-lg border border-slate-100 bg-slate-50/50 p-2.5 space-y-2">
                                                 <label class="flex items-center gap-2 cursor-pointer">
-                                                    <input type="checkbox" wire:model.live="editingCategoryRequiresApproval" class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]" />
+                                                    <input type="checkbox" wire:model="editingCategoryRequiresApproval" class="rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]" />
                                                     <span class="text-xs font-medium text-slate-700">Nécessite une approbation</span>
                                                 </label>
                                                 @if($editingCategoryRequiresApproval)
                                                     <div class="grid grid-cols-2 gap-2">
-                                                        <x-select-input wire:model.live="editingCategoryApprovalType" class="text-xs">
+                                                        <x-select-input wire:model="editingCategoryApprovalType" class="text-xs">
                                                             <option value="">Type...</option>
                                                             <option value="user">Utilisateur</option>
                                                             <option value="role">Rôle</option>
@@ -590,9 +599,11 @@
                     @endif
                 </div>
             </div>
+            @endif
 
             <!-- GROUPS TAB -->
-            <div x-show="tab === 'groups'" x-cloak class="content-card">
+            @if ($activeTab === 'groups')
+            <div class="content-card">
                 <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.groups_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.groups_subtitle') }}</p>
@@ -607,7 +618,7 @@
                                 <input
                                     id="new_group_name"
                                     type="text"
-                                    wire:model="newGroupName"
+                                    wire:model.blur="newGroupName"
                                     placeholder="{{ __('settings.group_placeholder') }}"
                                     class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 />
@@ -619,10 +630,10 @@
                                     <input type="color" id="new_group_color" wire:model="newGroupColor" class="h-[42px] w-full rounded-xl border border-slate-200 cursor-pointer" />
                                 </div>
                             </div>
-                            <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                            <x-manexo.action-button type="submit" wire-target="createGroup" variant="primary" class="shrink-0 !font-semibold">
                                 <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
                                 {{ __('settings.add') }}
-                            </button>
+                            </x-manexo.action-button>
                         </form>
                         <hr class="border-slate-100">
                     @endif
@@ -645,7 +656,7 @@
                                         <form wire:submit.prevent="updateGroup" class="flex-1 flex items-center gap-3">
                                             <input
                                                 type="text"
-                                                wire:model="editingGroupName"
+                                                wire:model.blur="editingGroupName"
                                                 class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                                 autofocus
                                             />
@@ -654,9 +665,9 @@
                                                 wire:model="editingGroupColor"
                                                 class="h-8 w-10 rounded border border-slate-200 cursor-pointer"
                                             />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
+                                            <x-manexo.action-button type="submit" wire-target="updateGroup" variant="ghost" icon-only class="!p-1 text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}" :loading-label="__('settings.save')">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
-                                            </button>
+                                            </x-manexo.action-button>
                                             <button type="button" wire:click="cancelEditGroup" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
@@ -700,9 +711,11 @@
                     @endif
                 </div>
             </div>
+            @endif
 
             <!-- PRIORITIES TAB -->
-            <div x-show="tab === 'priorities'" x-cloak class="content-card">
+            @if ($activeTab === 'priorities')
+            <div class="content-card">
                 <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.priorities_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.priorities_subtitle') }}</p>
@@ -717,7 +730,7 @@
                                 <input
                                     id="new_prio_name"
                                     type="text"
-                                    wire:model="newPriorityName"
+                                    wire:model.blur="newPriorityName"
                                     placeholder="{{ __('settings.priority_placeholder') }}"
                                     class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                 />
@@ -735,10 +748,10 @@
                                 />
                                 <x-input-error :messages="$errors->get('newPriorityLevel')" class="mt-1" />
                             </div>
-                            <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                            <x-manexo.action-button type="submit" wire-target="createPriority" variant="primary" class="shrink-0 !font-semibold">
                                 <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
                                 {{ __('settings.add') }}
-                            </button>
+                            </x-manexo.action-button>
                         </form>
                         <hr class="border-slate-100">
                     @endif
@@ -761,7 +774,7 @@
                                         <form wire:submit.prevent="updatePriority" class="flex-1 flex items-center gap-3">
                                             <input
                                                 type="text"
-                                                wire:model="editingPriorityName"
+                                                wire:model.blur="editingPriorityName"
                                                 class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                                 autofocus
                                             />
@@ -771,9 +784,9 @@
                                                 min="0"
                                                 class="w-20 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                             />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
+                                            <x-manexo.action-button type="submit" wire-target="updatePriority" variant="ghost" icon-only class="!p-1 text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}" :loading-label="__('settings.save')">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
-                                            </button>
+                                            </x-manexo.action-button>
                                             <button type="button" wire:click="cancelEditPriority" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
@@ -815,9 +828,11 @@
                     @endif
                 </div>
             </div>
+            @endif
 
             <!-- FONCTIONS MÉTIER TAB -->
-            <div x-show="tab === 'functions'" x-cloak class="content-card">
+            @if ($activeTab === 'functions')
+            <div class="content-card">
                 <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.functions_title') }}</h2>
                     <p class="text-sm text-slate-500">{{ __('settings.functions_subtitle') }}</p>
@@ -827,13 +842,13 @@
                         <form wire:submit.prevent="createFunction" class="flex items-end gap-3">
                             <div class="flex-1">
                                 <x-input-label for="new_function_name" :value="__('settings.function_name')" />
-                                <input id="new_function_name" type="text" wire:model="newFunctionName" placeholder="{{ __('settings.function_placeholder') }}" class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all" />
+                                <input id="new_function_name" type="text" wire:model.blur="newFunctionName" placeholder="{{ __('settings.function_placeholder') }}" class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all" />
                                 <x-input-error :messages="$errors->get('newFunctionName')" class="mt-1" />
                             </div>
-                            <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                            <x-manexo.action-button type="submit" wire-target="createFunction" variant="primary" class="shrink-0 !font-semibold">
                                 <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
                                 {{ __('settings.add') }}
-                            </button>
+                            </x-manexo.action-button>
                         </form>
                         <hr class="border-slate-100">
                     @endif
@@ -850,10 +865,10 @@
                                 <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors group" wire:key="fn-{{ $fn->id }}">
                                     @if ($editingFunctionId === $fn->id)
                                         <form wire:submit.prevent="updateFunction" class="flex-1 flex items-center gap-3">
-                                            <input type="text" wire:model="editingFunctionName" class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" autofocus />
-                                            <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
+                                            <input type="text" wire:model.blur="editingFunctionName" class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" autofocus />
+                                            <x-manexo.action-button type="submit" wire-target="updateFunction" variant="ghost" icon-only class="!p-1 text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}" :loading-label="__('settings.save')">
                                                 <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
-                                            </button>
+                                            </x-manexo.action-button>
                                             <button type="button" wire:click="cancelEditFunction" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
                                                 <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                             </button>
@@ -876,8 +891,10 @@
                     @endif
                 </div>
             </div>
+            @endif
 
-            <div x-show="tab === 'forms'" x-cloak class="content-card">
+            @if ($activeTab === 'forms')
+            <div class="content-card">
                 <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
                     <h2 class="text-lg font-bold text-slate-900">{{ __('settings.forms_editor_title') }}</h2>
                     <p class="text-sm text-slate-500 mt-1">{{ __('settings.forms_editor_subtitle') }}</p>
@@ -886,13 +903,13 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label for="forms_default_due_days" class="block text-sm font-semibold text-slate-700 mb-1.5">{{ __('settings.forms_default_due_days') }}</label>
-                            <input type="number" id="forms_default_due_days" name="forms_default_due_days" wire:model="forms_default_due_days" min="1" max="365" placeholder="7"
+                            <input type="number" id="forms_default_due_days" name="forms_default_due_days" wire:model.blur="forms_default_due_days" min="1" max="365" placeholder="7"
                                    class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm">
                             <p class="mt-1 text-xs text-slate-500">{{ __('settings.forms_default_due_days_help') }}</p>
                         </div>
                         <div>
                             <label for="forms_default_expiry_days" class="block text-sm font-semibold text-slate-700 mb-1.5">{{ __('settings.forms_default_expiry_days') }}</label>
-                            <input type="number" id="forms_default_expiry_days" name="forms_default_expiry_days" wire:model="forms_default_expiry_days" min="1" max="365" placeholder="30"
+                            <input type="number" id="forms_default_expiry_days" name="forms_default_expiry_days" wire:model.blur="forms_default_expiry_days" min="1" max="365" placeholder="30"
                                    class="block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm">
                             <p class="mt-1 text-xs text-slate-500">{{ __('settings.forms_default_expiry_days_help') }}</p>
                         </div>
@@ -906,10 +923,10 @@
                         </div>
                     </div>
                     <div class="flex flex-wrap items-center gap-3 pt-2">
-                        <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                        <x-manexo.action-button type="submit" wire-target="saveFormsSettings" variant="primary" class="!font-semibold">
                             <iconify-icon icon="solar:check-circle-bold" width="18"></iconify-icon>
                             {{ __('settings.save') }}
-                        </button>
+                        </x-manexo.action-button>
                         <a href="{{ route('admin.forms') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
                             <iconify-icon icon="solar:magic-stick-3-bold-duotone" width="18"></iconify-icon>
                             {{ __('settings.open_builder') }}
@@ -917,19 +934,31 @@
                     </div>
                 </form>
             </div>
+            @endif
 
-            @include('livewire.admin.partials.settings-email')
+            @if ($activeTab === 'email')
+                @include('livewire.admin.partials.settings-email')
+            @endif
 
-            @include('livewire.admin.partials.settings-sla')
+            @if ($activeTab === 'sla')
+                @include('livewire.admin.partials.settings-sla')
+            @endif
 
-            @include('livewire.admin.partials.settings-automations')
+            @if ($activeTab === 'automations')
+                @include('livewire.admin.partials.settings-automations')
+            @endif
 
-            @include('livewire.admin.partials.settings-knowledge-base')
+            @if ($activeTab === 'knowledge_base')
+                @include('livewire.admin.partials.settings-knowledge-base')
+            @endif
 
-            @include('livewire.admin.partials.settings-api')
+            @if ($activeTab === 'api')
+                @include('livewire.admin.partials.settings-api')
+            @endif
 
             <!-- ROLES & PERMISSIONS TAB -->
-            <div x-show="tab === 'roles'" x-cloak class="space-y-6">
+            @if ($activeTab === 'roles')
+            <div class="space-y-6">
                 {{-- Card 1: Role Management --}}
                 <div class="content-card">
                     <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
@@ -946,7 +975,7 @@
                                     <input
                                         id="new_role_name"
                                         type="text"
-                                        wire:model="newRoleName"
+                                        wire:model.blur="newRoleName"
                                         placeholder="{{ __('settings.role_placeholder') }}"
                                         class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                                     />
@@ -963,10 +992,10 @@
                                         @endforeach
                                     </x-select-input>
                                 </div>
-                                <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                                <x-manexo.action-button type="submit" wire-target="createRole" variant="primary" class="shrink-0 !font-semibold">
                                     <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
                                     {{ __('settings.add') }}
-                                </button>
+                                </x-manexo.action-button>
                             </form>
                             <hr class="border-slate-100">
                         @endif
@@ -992,13 +1021,13 @@
                                             <form wire:submit.prevent="updateRoleName" class="flex-1 flex items-center gap-3" @click.stop>
                                                 <input
                                                     type="text"
-                                                    wire:model="editingRoleName"
+                                                    wire:model.blur="editingRoleName"
                                                     class="flex-1 rounded-lg border-slate-200 py-1.5 px-2.5 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                                     autofocus
                                                 />
-                                                <button type="submit" class="text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}">
+                                                <x-manexo.action-button type="submit" wire-target="updateRoleName" variant="ghost" icon-only class="!p-1 text-[var(--accent)] hover:opacity-80" title="{{ __('settings.save') }}" :loading-label="__('settings.save')">
                                                     <iconify-icon icon="solar:check-circle-bold" width="20"></iconify-icon>
-                                                </button>
+                                                </x-manexo.action-button>
                                                 <button type="button" wire:click.stop="cancelEditRole" class="text-slate-400 hover:text-slate-600" title="{{ __('settings.cancel') }}">
                                                     <iconify-icon icon="solar:close-circle-bold" width="20"></iconify-icon>
                                                 </button>
@@ -1150,9 +1179,11 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <!-- MAINTENANCE TAB -->
-            <div x-show="tab === 'maintenance'" x-cloak class="space-y-6">
+            @if ($activeTab === 'maintenance')
+            <div class="space-y-6">
                 {{-- Org Info Card --}}
                 <div class="content-card">
                     <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
@@ -1269,9 +1300,11 @@
                     </div>
                 </div>
             </div>
+            @endif
 
             <!-- DANGER ZONE -->
-            <div x-show="tab === 'danger'" x-cloak class="rounded-xl sm:rounded-2xl bg-red-50 overflow-hidden" style="border: 1px solid #fecaca;">
+            @if ($activeTab === 'danger')
+            <div class="rounded-xl sm:rounded-2xl bg-red-50 overflow-hidden" style="border: 1px solid #fecaca;">
                 <div class="px-6 py-5 bg-red-100/50" style="border-bottom: 1px solid #fecaca;">
                     <h2 class="text-lg font-bold text-red-900">{{ __('settings.danger_title') }}</h2>
                     <p class="text-sm text-red-700">{{ __('settings.danger_subtitle') }}</p>
@@ -1284,7 +1317,7 @@
                         <div class="flex items-end gap-4">
                             <div class="flex-1">
                                 <x-input-label for="confirm_delete" :value="__('settings.confirm_delete_label')" />
-                                <x-text-input id="confirm_delete" type="text" class="mt-1 w-full" wire:model="dangerConfirmName" placeholder="{{ $org?->name }}" :disabled="! $isOwner" />
+                                <x-text-input id="confirm_delete" type="text" class="mt-1 w-full" wire:model.blur="dangerConfirmName" placeholder="{{ $org?->name }}" :disabled="! $isOwner" />
                             </div>
                             <button
                                 type="button"
@@ -1301,6 +1334,7 @@
                     </div>
                 </div>
             </div>
+            @endif
         @endif
         </div>
     </div>

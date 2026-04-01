@@ -4,11 +4,13 @@ namespace App\Livewire\UserForms;
 
 use App\Enums\FormStatus;
 use App\Events\UserNotificationReceived;
+use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\FormResponse;
 use App\Models\User;
 use App\Notifications\FormResponseNotification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -28,6 +30,20 @@ class FillTeam extends Component
 
     public array $answers = [];
     public array $fileUploads = [];
+
+    private function teamAdminRecipients(int $orgId, int $excludeUserId)
+    {
+        $admins = Cache::remember("org_admin_recipients:{$orgId}", CacheHelper::TTL_SHORT, function () use ($orgId) {
+            return User::query()
+                ->whereHas('organizationMemberships', function ($q) use ($orgId) {
+                    $q->where('organization_id', $orgId)
+                        ->whereIn('role', ['owner', 'admin']);
+                })
+                ->get(['id', 'name', 'email']);
+        });
+
+        return $admins->where('id', '!=', $excludeUserId)->values();
+    }
 
     public function loadFormFields(): void
     {
@@ -63,7 +79,13 @@ class FillTeam extends Component
     {
         $user = Auth::user();
         abort_if(! $user, 403);
+        $orgId = (int) session('current_organization_id');
+        abort_if(! $orgId, 403);
 
+        $this->form->refresh();
+        abort_if((int) $this->form->organization_id !== $orgId, 403);
+        abort_if($this->form->status !== FormStatus::Published, 404);
+        abort_if($this->form->target_user_id !== null, 403, 'This form is not a team form.');
         $this->form->loadMissing('fields');
         $fields = $this->form->fields->where('type', '!=', 'section');
 
@@ -143,8 +165,6 @@ class FillTeam extends Component
             $responses[$key] = $val;
         }
 
-        $orgId = (int) session('current_organization_id');
-
         $response = FormResponse::create([
             'form_id' => $this->form->id,
             'user_id' => $user->id,
@@ -174,13 +194,7 @@ class FillTeam extends Component
         }
 
         // Notify admins/owners of the organization
-        $admins = User::query()
-            ->whereHas('organizationMemberships', function ($q) use ($orgId) {
-                $q->where('organization_id', $orgId)
-                    ->whereIn('role', ['owner', 'admin']);
-            })
-            ->where('id', '!=', $user->id)
-            ->get();
+        $admins = $this->teamAdminRecipients($orgId, (int) $user->id);
 
         foreach ($admins as $admin) {
             $admin->notify(new FormResponseNotification(

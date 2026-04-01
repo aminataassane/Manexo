@@ -46,21 +46,21 @@
             }
         })"
     >
-        <div class="discussion-chat-stream mx-auto w-full max-w-4xl px-3 py-3 sm:px-5 sm:py-5" style="padding-left: max(0.75rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right));">
+        <div class="discussion-chat-stream mx-auto w-full max-w-4xl px-2 py-2 sm:px-5 sm:py-5" style="padding-left: max(0.5rem, env(safe-area-inset-left)); padding-right: max(0.5rem, env(safe-area-inset-right));">
 
             <!-- Tabs -->
-            <div class="mb-4 w-full max-w-full">
-                <div class="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                <button type="button" @click="tab = 'discussion'" class="rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all touch-manipulation min-h-[36px]" :class="tab === 'discussion' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+            <div class="mb-3 sm:mb-4 w-full max-w-full overflow-x-auto scrollbar-hide">
+                <div class="inline-flex items-center gap-0.5 sm:gap-1 rounded-xl border border-slate-200 bg-white p-0.5 sm:p-1 shadow-sm">
+                <button type="button" @click="tab = 'discussion'" class="rounded-lg px-2.5 sm:px-4 py-1.5 text-[11px] sm:text-sm font-semibold transition-all touch-manipulation min-h-[34px] sm:min-h-[36px] whitespace-nowrap" :class="tab === 'discussion' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
                     <?php echo e(__('Discussion')); ?>
 
                 </button>
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($canSeeInternalNotes): ?>
-                    <button type="button" @click="tab = 'notes'" class="flex items-center gap-1.5 rounded-lg px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all touch-manipulation min-h-[36px]" :class="tab === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
+                    <button type="button" @click="tab = 'notes'" class="flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-4 py-1.5 text-[11px] sm:text-sm font-semibold transition-all touch-manipulation min-h-[34px] sm:min-h-[36px] whitespace-nowrap" :class="tab === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'">
                         <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="14"></iconify-icon>
-                        <span class="whitespace-nowrap"><?php echo e(__('Notes internes')); ?></span>
+                        <span><?php echo e(__('Notes internes')); ?></span>
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($notesCount > 0): ?>
-                            <span class="ml-1 px-1.5 py-0.5 rounded-full bg-slate-200 text-[10px]"><?php echo e($notesCount); ?></span>
+                            <span class="ml-0.5 sm:ml-1 px-1.5 py-0.5 rounded-full bg-slate-200 text-[10px]"><?php echo e($notesCount); ?></span>
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </button>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -91,12 +91,12 @@
                     </div>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-                <div class="discussion-thread relative min-w-0 overflow-hidden space-y-6" data-timeline="discussion">
+                <div class="discussion-thread relative min-w-0 overflow-hidden space-y-4 sm:space-y-6" data-timeline="discussion">
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $itemsByDate; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $date => $items): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                        <div class="flex flex-col gap-4">
-                            <div class="flex items-center gap-3 my-2 first:mt-0">
+                        <div class="flex flex-col gap-3 sm:gap-4">
+                            <div class="flex items-center gap-2 sm:gap-3 my-1 sm:my-2 first:mt-0">
                                 <span class="flex-1 h-px bg-slate-200" aria-hidden="true"></span>
-                                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest"><?php echo e(\Carbon\Carbon::parse($date)->translatedFormat('l d F')); ?></span>
+                                <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap"><?php echo e(\Carbon\Carbon::parse($date)->translatedFormat('l d F')); ?></span>
                                 <span class="flex-1 h-px bg-slate-200" aria-hidden="true"></span>
                             </div>
                             <div class="space-y-1">
@@ -106,12 +106,13 @@
                             </div>
                         </div>
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
-                        <div data-empty-discussion class="py-14 sm:py-16 text-center">
-                            <div class="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4">
-                                <iconify-icon icon="solar:chat-round-dots-linear" width="28"></iconify-icon>
+                        <div data-empty-discussion class="py-10 sm:py-16 text-center px-4">
+                            <div class="inline-flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-3 sm:mb-4">
+                                <iconify-icon icon="solar:chat-round-dots-linear" width="24" class="sm:hidden"></iconify-icon>
+                                <iconify-icon icon="solar:chat-round-dots-linear" width="28" class="hidden sm:block"></iconify-icon>
                             </div>
-                            <p class="text-base font-semibold text-slate-700"><?php echo e(__('La discussion commence ici.')); ?></p>
-                            <p class="mt-2 text-sm text-slate-500"><?php echo e(__('Utilisez le formulaire ci-dessous pour envoyer un message.')); ?></p>
+                            <p class="text-sm sm:text-base font-semibold text-slate-700"><?php echo e(__('La discussion commence ici.')); ?></p>
+                            <p class="mt-1.5 sm:mt-2 text-xs sm:text-sm text-slate-500"><?php echo e(__('Utilisez le formulaire ci-dessous pour envoyer un message.')); ?></p>
                         </div>
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>

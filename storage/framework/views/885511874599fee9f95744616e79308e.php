@@ -40,7 +40,11 @@
 
 <div
     class="w-full max-w-full min-w-0 mx-auto"
-    x-data="{ dragId: null, viewsOpen: window.innerWidth >= 1024, mobileFilters: false }"
+    x-data="{
+        dragId: null,
+        mobileFilters: false,
+        sidebarOpen: <?php if ((object) ('sidebarOpen') instanceof \Livewire\WireDirective) : ?>window.Livewire.find('<?php echo e($__livewire->getId()); ?>').entangle('<?php echo e('sidebarOpen'->value()); ?>')<?php echo e('sidebarOpen'->hasModifier('live') ? '.live' : ''); ?><?php else : ?>window.Livewire.find('<?php echo e($__livewire->getId()); ?>').entangle('<?php echo e('sidebarOpen'); ?>')<?php endif; ?>.live,
+    }"
     x-effect="document.body.classList.toggle('overflow-hidden', mobileFilters)"
     x-init="window.addEventListener('resize', () => { if (window.innerWidth >= 1024) mobileFilters = false })"
     x-on:livewire:navigating.window="mobileFilters = false"
@@ -67,11 +71,11 @@
             
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($boxKey !== 'trash'): ?>
                 <div class="view-toggle">
-                    <button type="button" wire:click="setDisplayMode('list')"
+                    <button type="button" wire:click="setDisplayMode('list')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
                         class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'list' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
                         <iconify-icon icon="solar:list-bold" width="16"></iconify-icon>
                     </button>
-                    <button type="button" wire:click="setDisplayMode('kanban')"
+                    <button type="button" wire:click="setDisplayMode('kanban')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
                         class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'kanban' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
                         <iconify-icon icon="solar:widget-4-bold" width="16"></iconify-icon>
                     </button>
@@ -81,7 +85,7 @@
             
             <button type="button"
                 class="hidden lg:inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all"
-                @click="viewsOpen = !viewsOpen">
+                @click="sidebarOpen = ! sidebarOpen">
                 <iconify-icon icon="solar:sidebar-minimalistic-bold-duotone" width="18"></iconify-icon>
             </button>
 
@@ -122,21 +126,21 @@
                 </button>
                 <div x-show="open" @click.away="open = false" x-transition
                      class="absolute left-0 top-full mt-1 w-48 rounded-xl border border-slate-100 bg-white shadow-lg z-50 py-1">
-                    <button type="button" wire:click="$set('group', '')" @click="open = false"
+                    <button type="button" wire:click="$set('group', '')" wire:loading.attr="disabled" wire:target="group" @click="open = false"
                             class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:layers-bold-duotone" width="14"></iconify-icon>
                         <?php echo e(__('pages.tickets.all_groups')); ?>
 
                     </button>
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = collect($ticketGroups ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $tg): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                        <button type="button" wire:click="$set('group', '<?php echo e($tg->id); ?>')" @click="open = false"
+                        <button type="button" wire:click="$set('group', '<?php echo e($tg->id); ?>')" wire:loading.attr="disabled" wire:target="group" @click="open = false"
                                 class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                             <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: <?php echo e($tg->color ?? 'var(--accent)'); ?>;"></span>
                             <?php echo e($tg->name); ?>
 
                         </button>
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
-                    <button type="button" wire:click="$set('group', 'none')" @click="open = false"
+                    <button type="button" wire:click="$set('group', 'none')" wire:loading.attr="disabled" wire:target="group" @click="open = false"
                             class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:minus-circle-bold-duotone" width="14" class="text-slate-400"></iconify-icon>
                         <?php echo e(__('pages.tickets.no_group')); ?>
@@ -205,7 +209,7 @@
 
         
         <div class="hidden lg:block shrink-0 transition-all duration-300"
-             x-show="viewsOpen" x-cloak
+             x-show="sidebarOpen" x-cloak
              x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 -translate-x-4 w-0"
              x-transition:enter-end="opacity-100 translate-x-0 w-[16rem]"
@@ -218,14 +222,14 @@
                 <div class="sidebar-panel">
                     <div class="p-2">
                         <div class="tab-bar">
-                            <button type="button" wire:click="setBox('active')"
+                            <button type="button" wire:click="setBox('active')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                                 class="tab-bar-item <?php echo e($boxKey === 'active' ? 'tab-bar-item-active' : 'tab-bar-item-default'); ?>">
                                 <span class="inline-flex items-center gap-1.5 justify-center w-full truncate">
                                     <iconify-icon icon="solar:ticket-bold-duotone" width="15" class="shrink-0"></iconify-icon>
                                     <span class="truncate"><?php echo e(__('pages.tickets.active')); ?></span>
                                 </span>
                             </button>
-                            <button type="button" wire:click="setBox('archived')"
+                            <button type="button" wire:click="setBox('archived')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                                 class="tab-bar-item <?php echo e($boxKey === 'archived' ? 'tab-bar-item-active' : 'tab-bar-item-default'); ?>">
                                 <span class="inline-flex items-center gap-1.5 justify-center w-full truncate">
                                     <iconify-icon icon="solar:archive-bold-duotone" width="15" class="shrink-0"></iconify-icon>
@@ -233,7 +237,7 @@
                                 </span>
                             </button>
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isStaff ?? false): ?>
-                            <button type="button" wire:click="setBox('trash')"
+                            <button type="button" wire:click="setBox('trash')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                                 class="tab-bar-item <?php echo e($boxKey === 'trash' ? 'tab-bar-item-active' : 'tab-bar-item-default'); ?>">
                                 <span class="inline-flex items-center gap-1.5 justify-center w-full truncate">
                                     <iconify-icon icon="solar:trash-bin-trash-bold-duotone" width="15" class="shrink-0"></iconify-icon>
@@ -251,7 +255,7 @@
                         <h3><?php echo e(__('pages.tickets.quick_views')); ?></h3>
                     </div>
                     <div class="sidebar-panel-body">
-                        <button type="button" wire:click="setView('all')"
+                        <button type="button" wire:click="setView('all')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                             class="sidebar-item <?php echo e($isActive('all') ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:layers-bold-duotone" width="17"></iconify-icon>
@@ -260,7 +264,7 @@
                             </span>
                             <span class="sidebar-badge <?php echo e($isActive('all') ? 'sidebar-badge-active' : 'sidebar-badge-default'); ?>"><?php echo e($viewCounts['all'] ?? 0); ?></span>
                         </button>
-                        <button type="button" wire:click="setView('created_by_me')"
+                        <button type="button" wire:click="setView('created_by_me')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                             class="sidebar-item <?php echo e($isActive('created_by_me') ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:pen-bold-duotone" width="17"></iconify-icon>
@@ -269,7 +273,7 @@
                             </span>
                             <span class="sidebar-badge <?php echo e($isActive('created_by_me') ? 'sidebar-badge-active' : 'sidebar-badge-default'); ?>"><?php echo e($viewCounts['created_by_me'] ?? 0); ?></span>
                         </button>
-                        <button type="button" wire:click="setView('assigned_to_me')"
+                        <button type="button" wire:click="setView('assigned_to_me')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                             class="sidebar-item <?php echo e($isActive('assigned_to_me') ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:user-check-bold-duotone" width="17"></iconify-icon>
@@ -278,7 +282,7 @@
                             </span>
                             <span class="sidebar-badge <?php echo e($isActive('assigned_to_me') ? 'sidebar-badge-active' : 'sidebar-badge-default'); ?>"><?php echo e($viewCounts['assigned_to_me'] ?? 0); ?></span>
                         </button>
-                        <button type="button" wire:click="setView('high_priority')"
+                        <button type="button" wire:click="setView('high_priority')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                             class="sidebar-item <?php echo e($isActive('high_priority') ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:danger-triangle-bold-duotone" width="17"></iconify-icon>
@@ -296,7 +300,7 @@
                         <h3><?php echo e(__('pages.tickets.source')); ?></h3>
                     </div>
                     <div class="sidebar-panel-body">
-                        <button type="button" wire:click="setSource('all')"
+                        <button type="button" wire:click="setSource('all')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                             class="sidebar-item <?php echo e(($source ?? 'all') === 'all' ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:layers-bold-duotone" width="17"></iconify-icon>
@@ -305,7 +309,7 @@
                             </span>
                             <span class="sidebar-badge <?php echo e(($source ?? 'all') === 'all' ? 'sidebar-badge-active' : 'sidebar-badge-default'); ?>"><?php echo e(($viewCounts['all'] ?? 0)); ?></span>
                         </button>
-                        <button type="button" wire:click="setSource('from_form')"
+                        <button type="button" wire:click="setSource('from_form')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                             class="sidebar-item <?php echo e(($source ?? 'all') === 'from_form' ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:document-text-bold-duotone" width="17"></iconify-icon>
@@ -314,7 +318,7 @@
                             </span>
                             <span class="sidebar-badge <?php echo e(($source ?? 'all') === 'from_form' ? 'sidebar-badge-active' : 'sidebar-badge-default'); ?>"><?php echo e($viewCounts['from_form'] ?? 0); ?></span>
                         </button>
-                        <button type="button" wire:click="setSource('from_platform')"
+                        <button type="button" wire:click="setSource('from_platform')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group,search,status,priority,resetFilters"
                             class="sidebar-item <?php echo e(($source ?? 'all') === 'from_platform' ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:pen-new-square-bold-duotone" width="17"></iconify-icon>
@@ -378,8 +382,13 @@
                         <h2 class="text-sm font-bold text-slate-900"><?php echo e(__('pages.tickets.kanban_board')); ?></h2>
                         <div class="text-xs text-slate-400 hidden sm:block"><?php echo e(__('pages.tickets.drag_to_change_status')); ?></div>
                     </div>
+                    <div wire:loading.flex wire:target="moveTicket,setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters" class="shrink-0 px-4 py-2 text-xs text-slate-500 items-center gap-2 border-b border-slate-50 bg-white/70">
+                        <iconify-icon icon="solar:refresh-linear" width="14" class="animate-spin"></iconify-icon>
+                        <?php echo e(__('Chargement...')); ?>
+
+                    </div>
                     <div class="flex-1 min-h-0 min-w-0 p-3 sm:p-4 overflow-x-auto overflow-y-hidden custom-scrollbar scroll-touch">
-                        <div class="flex gap-3 sm:gap-4 h-full min-w-max pb-2">
+                        <div wire:loading.class="opacity-60 pointer-events-none" wire:target="moveTicket,setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters" class="flex gap-3 sm:gap-4 h-full min-w-max pb-2 transition-opacity duration-150">
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = ($statusColumns ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $colStatus): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                 <?php
                                     [$colLabel, $colIcon] = $statusLabel($colStatus);
@@ -388,7 +397,7 @@
                                 ?>
                                 <div class="w-[272px] sm:w-[300px] kanban-column"
                                     @dragover.prevent
-                                    @drop.prevent="if (dragId) { $wire.moveTicket(dragId, '<?php echo e($colStatus); ?>'); dragId = null; }">
+                                    @drop.prevent="if ($root.dragId) { $wire.moveTicket($root.dragId, '<?php echo e($colStatus); ?>'); $root.dragId = null; }">
                                     <div class="kanban-column-header">
                                         <span class="pill-badge <?php echo e($colPill['bg']); ?> <?php echo e($colPill['text']); ?> <?php echo e($colPill['border']); ?>">
                                             <?php echo e($colLabel); ?>
@@ -409,8 +418,8 @@
                                                 @mousedown="dragging = false"
                                                 @mousemove="dragging = true"
                                                 @click="if (!dragging) Livewire.navigate('<?php echo e($t->public_id ? url('/tickets/' . e($t->public_id)) : '#'); ?>')"
-                                                @dragstart="dragId = <?php echo e((int) $t->id); ?>"
-                                                @dragend="dragId = null">
+                                                @dragstart="$root.dragId = <?php echo e((int) $t->id); ?>"
+                                                @dragend="$root.dragId = null">
                                                 <div class="flex justify-between items-start mb-2">
                                                     <span class="text-[11px] font-mono font-bold text-slate-400"><?php echo e($t->shortReference()); ?></span>
                                                     <span class="h-2 w-2 rounded-full <?php echo e($prio['dot']); ?>" title="<?php echo e($prio['label']); ?>"></span>
@@ -562,20 +571,22 @@
                                 <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" width="18"></iconify-icon>
                                 <input type="text" class="filter-search"
                                     placeholder="<?php echo e(__('pages.tickets.search_placeholder')); ?>"
-                                    wire:model.live="search" />
+                                    wire:model.live.debounce.500ms="search"
+                                    wire:loading.attr="disabled"
+                                    wire:target="search,status,priority,resetFilters" />
                             </div>
                             <div class="filter-controls">
                                 <div class="w-full min-w-0 sm:w-36 flex-1 sm:flex-none">
                                     <?php if (isset($component)) { $__componentOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.select-input','data' => ['options' => $ticketStatusFilterOptions,'label' => $ticketStatusFilterLabel,'selectedValue' => $status,'wire:model.live' => 'status']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.select-input','data' => ['options' => $ticketStatusFilterOptions,'label' => $ticketStatusFilterLabel,'selectedValue' => $status,'wire:model' => 'status','wire:loading.attr' => 'disabled','wire:target' => 'search,status,priority,resetFilters']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('select-input'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['options' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($ticketStatusFilterOptions),'label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($ticketStatusFilterLabel),'selected-value' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($status),'wire:model.live' => 'status']); ?>
+<?php $component->withAttributes(['options' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($ticketStatusFilterOptions),'label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($ticketStatusFilterLabel),'selected-value' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($status),'wire:model' => 'status','wire:loading.attr' => 'disabled','wire:target' => 'search,status,priority,resetFilters']); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
 <?php echo $__env->renderComponent(); ?>
@@ -592,14 +603,14 @@
                                 <div class="w-full min-w-0 sm:w-36 flex-1 sm:flex-none">
                                     <?php if (isset($component)) { $__componentOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.select-input','data' => ['options' => $ticketPriorityFilterOptions,'label' => $ticketPriorityFilterLabel,'selectedValue' => $priority,'wire:model.live' => 'priority']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.select-input','data' => ['options' => $ticketPriorityFilterOptions,'label' => $ticketPriorityFilterLabel,'selectedValue' => $priority,'wire:model' => 'priority','wire:loading.attr' => 'disabled','wire:target' => 'search,status,priority,resetFilters']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('select-input'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['options' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($ticketPriorityFilterOptions),'label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($ticketPriorityFilterLabel),'selected-value' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($priority),'wire:model.live' => 'priority']); ?>
+<?php $component->withAttributes(['options' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($ticketPriorityFilterOptions),'label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($ticketPriorityFilterLabel),'selected-value' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($priority),'wire:model' => 'priority','wire:loading.attr' => 'disabled','wire:target' => 'search,status,priority,resetFilters']); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
 <?php echo $__env->renderComponent(); ?>
@@ -613,15 +624,21 @@
 <?php unset($__componentOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36); ?>
 <?php endif; ?>
                                 </div>
-                                <button wire:click="resetFilters" class="filter-reset touch-target sm:min-h-0">
+                                <button wire:click="resetFilters" wire:loading.attr="disabled" wire:target="resetFilters,search,status,priority" class="filter-reset touch-target sm:min-h-0">
                                     <iconify-icon icon="solar:restart-linear" width="16" class="text-slate-400"></iconify-icon>
                                 </button>
                             </div>
                         </div>
                     </div>
 
+                    <div wire:loading.flex wire:target="search,status,priority,resetFilters,setDisplayMode,setBox,setView,setSource,group,nextPage,previousPage,gotoPage,setPage" class="px-4 py-2 text-xs text-slate-500 items-center gap-2 border-t border-slate-50 bg-white/70">
+                        <iconify-icon icon="solar:refresh-linear" width="14" class="animate-spin"></iconify-icon>
+                        <?php echo e(__('Chargement...')); ?>
+
+                    </div>
+
                     
-                    <div class="responsive-table-wrap scroll-touch">
+                    <div wire:loading.class="opacity-60 pointer-events-none" wire:target="search,status,priority,resetFilters,setDisplayMode,setBox,setView,setSource,group,nextPage,previousPage,gotoPage,setPage,restoreFromTrash,forceDeleteTicket" class="responsive-table-wrap scroll-touch transition-opacity duration-150">
                         <table class="data-table min-w-[680px] sm:min-w-[760px]">
                             <thead>
                                 <tr>
@@ -774,11 +791,31 @@
                                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($boxKey === 'trash'): ?>
                                             <td class="text-right whitespace-nowrap">
                                                 <div class="flex items-center justify-end gap-2">
-                                                    <button type="button" wire:click="restoreFromTrash(<?php echo e($t->id); ?>)" data-restore class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors touch-manipulation">
+                                                    <?php if (isset($component)) { $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.action-button','data' => ['type' => 'button','wire:click' => 'restoreFromTrash('.e($t->id).')','wireTarget' => 'restoreFromTrash','variant' => 'secondary','spinnerSize' => 'sm','dataRestore' => true,'class' => 'min-h-[44px] sm:min-h-0 sm:py-1.5 !rounded-lg border border-slate-200 text-xs touch-manipulation','loadingLabel' => __('ui.tickets.restoring')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('manexo.action-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['type' => 'button','wire:click' => 'restoreFromTrash('.e($t->id).')','wire-target' => 'restoreFromTrash','variant' => 'secondary','spinner-size' => 'sm','data-restore' => true,'class' => 'min-h-[44px] sm:min-h-0 sm:py-1.5 !rounded-lg border border-slate-200 text-xs touch-manipulation','loading-label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('ui.tickets.restoring'))]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                                                         <iconify-icon icon="solar:restart-bold-duotone" width="14"></iconify-icon>
                                                         <?php echo e(__('pages.tickets.restore')); ?>
 
-                                                    </button>
+                                                     <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $attributes = $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $component = $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
                                                     <button type="button" @click="$dispatch('confirm-action', { title: '<?php echo e(__('pages.tickets.force_delete')); ?>', message: '<?php echo e(__('pages.tickets.force_delete_confirm')); ?>', confirmLabel: '<?php echo e(__('pages.tickets.force_delete')); ?>', variant: 'danger', onConfirm: () => $wire.forceDeleteTicket(<?php echo e($t->id); ?>) })" class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 min-h-[44px] sm:min-h-0 sm:py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors touch-manipulation">
                                                         <iconify-icon icon="solar:trash-bin-trash-bold" width="14"></iconify-icon>
                                                         <?php echo e(__('pages.tickets.force_delete')); ?>
@@ -872,18 +909,18 @@
             <div class="flex-1 overflow-y-auto overscroll-contain custom-scrollbar p-4 space-y-4" @touchmove.stop>
                 
                 <div class="tab-bar">
-                    <button type="button" wire:click="setBox('active')" @click="mobileFilters = false"
+                    <button type="button" wire:click="setBox('active')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group" @click="mobileFilters = false"
                         class="tab-bar-item <?php echo e($boxKey === 'active' ? 'tab-bar-item-active' : 'tab-bar-item-default'); ?>">
                         <?php echo e(__('pages.tickets.active')); ?>
 
                     </button>
-                    <button type="button" wire:click="setBox('archived')" @click="mobileFilters = false"
+                    <button type="button" wire:click="setBox('archived')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group" @click="mobileFilters = false"
                         class="tab-bar-item <?php echo e($boxKey === 'archived' ? 'tab-bar-item-active' : 'tab-bar-item-default'); ?>">
                         <?php echo e(__('pages.tickets.archived')); ?>
 
                     </button>
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isStaff ?? false): ?>
-                    <button type="button" wire:click="setBox('trash')" @click="mobileFilters = false"
+                    <button type="button" wire:click="setBox('trash')" wire:loading.attr="disabled" wire:target="setBox,setView,setSource,group" @click="mobileFilters = false"
                         class="tab-bar-item <?php echo e($boxKey === 'trash' ? 'tab-bar-item-active' : 'tab-bar-item-default'); ?>">
                         <?php echo e(__('pages.tickets.trash')); ?>
 
@@ -896,7 +933,7 @@
                     <h3 class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 mb-2 px-1"><?php echo e(__('pages.tickets.quick_views')); ?></h3>
                     <div class="space-y-0.5">
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = ['all' => __('Tous les tickets'), 'created_by_me' => __('Créés par moi'), 'assigned_to_me' => __('Assignés à moi'), 'high_priority' => __('Haute priorité')]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $vk => $vl): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                            <button type="button" wire:click="setView('<?php echo e($vk); ?>')" @click="mobileFilters = false"
+                            <button type="button" wire:click="setView('<?php echo e($vk); ?>')" wire:loading.attr="disabled" wire:target="setView,setBox,setSource,group" @click="mobileFilters = false"
                                 class="sidebar-item <?php echo e($isActive($vk) ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                                 <span><?php echo e($vl); ?></span>
                                 <span class="sidebar-badge <?php echo e($isActive($vk) ? 'sidebar-badge-active' : 'sidebar-badge-default'); ?>"><?php echo e($viewCounts[$vk] ?? 0); ?></span>
@@ -910,7 +947,7 @@
                     <h3 class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 mb-2 px-1"><?php echo e(__('pages.tickets.source')); ?></h3>
                     <div class="space-y-0.5">
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = ['all' => __('pages.tickets.source_all'), 'from_form' => __('pages.tickets.source_from_form'), 'from_platform' => __('pages.tickets.source_from_platform')]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $sk => $sl): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                            <button type="button" wire:click="setSource('<?php echo e($sk); ?>')" @click="mobileFilters = false"
+                            <button type="button" wire:click="setSource('<?php echo e($sk); ?>')" wire:loading.attr="disabled" wire:target="setSource,setView,setBox,group" @click="mobileFilters = false"
                                 class="sidebar-item <?php echo e(($source ?? 'all') === $sk ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                                 <span><?php echo e($sl); ?></span>
                             </button>
@@ -923,13 +960,13 @@
                 <div>
                     <h3 class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 mb-2 px-1"><?php echo e(__('pages.tickets.groups')); ?></h3>
                     <div class="space-y-0.5">
-                        <button type="button" wire:click="$set('group', '')" @click="mobileFilters = false"
+                        <button type="button" wire:click="$set('group', '')" wire:loading.attr="disabled" wire:target="group" @click="mobileFilters = false"
                             class="sidebar-item <?php echo e(($group ?? '') === '' ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                             <?php echo e(__('pages.tickets.all_groups')); ?>
 
                         </button>
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $ticketGroups; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $tg): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                            <button type="button" wire:click="$set('group', '<?php echo e($tg->id); ?>')" @click="mobileFilters = false"
+                            <button type="button" wire:click="$set('group', '<?php echo e($tg->id); ?>')" wire:loading.attr="disabled" wire:target="group" @click="mobileFilters = false"
                                 class="sidebar-item <?php echo e(($group ?? '') === (string) $tg->id ? 'sidebar-item-active' : 'sidebar-item-default'); ?>">
                                 <span class="flex items-center gap-2">
                                     <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background-color: <?php echo e($tg->color ?? 'var(--accent)'); ?>;"></span>

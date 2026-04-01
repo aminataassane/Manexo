@@ -1,5 +1,8 @@
 {{-- Un seul élément racine pour Livewire (évite "Snapshot missing" / "Component not found") --}}
 <div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadReportBody">
+@php
+    $closedByCategoryTotal = max(1, array_sum(array_column($stats['byCategoryClosed'] ?? [], 'count')));
+@endphp
 
 {{-- =====================================================================
      STAFF VIEW: même layout que Tickets — largeur pleine, titre gauche, actions droite
@@ -21,10 +24,10 @@
         </div>
         <div class="page-actions">
             <div class="view-toggle flex-shrink-0">
-                <button wire:click="setPeriod('today')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'today' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.today') }}</button>
-                <button wire:click="setPeriod('week')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'week' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_week') }}</button>
-                <button wire:click="setPeriod('month')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'month' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_month') }}</button>
-                <button wire:click="setPeriod('custom')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'custom' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.custom') }}</button>
+                <button wire:click="setPeriod('today')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'today' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.today') }}</button>
+                <button wire:click="setPeriod('week')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'week' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_week') }}</button>
+                <button wire:click="setPeriod('month')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'month' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_month') }}</button>
+                <button wire:click="setPeriod('custom')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'custom' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.custom') }}</button>
             </div>
             <x-dropdown align="right" width="48" contentClasses="py-1 bg-white rounded-xl shadow-xl border border-slate-200">
                 <x-slot name="trigger">
@@ -48,7 +51,7 @@
                     </a>
                     @if($canShare)
                         <div class="border-t border-slate-100 my-1"></div>
-                        <button wire:click="$set('showShareModal', true)" type="button" class="block w-full px-4 py-2.5 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 rounded-lg mx-1">
+                        <button wire:click="openShareModal" wire:loading.attr="disabled" wire:target="openShareModal" type="button" class="block w-full px-4 py-2.5 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 rounded-lg mx-1">
                             <iconify-icon icon="solar:share-bold-duotone" width="16"></iconify-icon>
                             {{ __('task_report.share') }}
                         </button>
@@ -69,14 +72,14 @@
             <div class="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
                 <div class="flex-1 min-w-0">
                     <label for="dateFrom" class="block text-xs font-medium uppercase tracking-wider text-slate-500 mb-1.5">{{ __('task_report.from') }}</label>
-                    <input type="date" id="dateFrom" name="date_from" wire:model.live="dateFrom" class="block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors" />
+                    <input type="date" id="dateFrom" name="date_from" wire:model.blur="dateFrom" wire:loading.attr="disabled" wire:target="dateFrom,dateTo,setPeriod,period" class="block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors" />
                 </div>
                 <div class="hidden sm:flex items-center pb-2.5 text-slate-300 shrink-0" aria-hidden="true">
                     <iconify-icon icon="solar:arrow-right-linear" width="20"></iconify-icon>
                 </div>
                 <div class="flex-1 min-w-0">
                     <label for="dateTo" class="block text-xs font-medium uppercase tracking-wider text-slate-500 mb-1.5">{{ __('task_report.to') }}</label>
-                    <input type="date" id="dateTo" name="date_to" wire:model.live="dateTo" class="block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors" />
+                    <input type="date" id="dateTo" name="date_to" wire:model.blur="dateTo" wire:loading.attr="disabled" wire:target="dateFrom,dateTo,setPeriod,period" class="block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors" />
                 </div>
             </div>
         </div>
@@ -131,7 +134,7 @@
             </div>
             <div class="p-4 sm:p-6 space-y-5">
                     @forelse($stats['byCategoryClosed'] ?? [] as $cat)
-                        @php $total = array_sum(array_column($stats['byCategoryClosed'] ?? [], 'count')) ?: 1; $pct = round(($cat['count'] / $total) * 100); @endphp
+                        @php $pct = round(($cat['count'] / $closedByCategoryTotal) * 100); @endphp
                         <div>
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm font-medium text-slate-700">{{ $cat['name'] }}</span>
@@ -158,7 +161,9 @@
                                 <tr class="hover:bg-slate-50/50 transition-colors">
                                     <td class="px-4 sm:px-6 py-3">
                                         <div class="flex items-center gap-3 min-w-0">
-                                            <img src="https://ui-avatars.com/api/?name={{ urlencode($row['name']) }}&background=random&color=fff&size=36" class="h-8 w-8 rounded-full shrink-0 ring-2 ring-white shadow" alt="">
+                                            <span class="h-8 w-8 rounded-full shrink-0 ring-2 ring-white shadow bg-slate-100 text-slate-700 inline-flex items-center justify-center text-xs font-semibold">
+                                                {{ \Illuminate\Support\Str::of($row['name'] ?? 'U')->explode(' ')->take(2)->map(fn ($p) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p, 0, 1)))->implode('') }}
+                                            </span>
                                             <span class="text-sm font-medium text-slate-900 truncate">{{ $row['name'] }}</span>
                                         </div>
                                     </td>
@@ -180,7 +185,10 @@
     </div>
 
     {{-- Tableau : Tickets clôturés — pleine largeur, style Tickets --}}
-    <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden min-w-0">
+    <div class="relative rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden min-w-0">
+        <div wire:loading.flex wire:target="setPeriod,period,dateFrom,dateTo,nextPage,previousPage,gotoPage,setPage" class="absolute inset-0 z-10 items-center justify-center bg-white/60 backdrop-blur-[1px] text-xs text-slate-500">
+            {{ __('reports.menu_refresh') }}...
+        </div>
         <div class="px-4 sm:px-6 py-4 border-b border-slate-50 bg-slate-50/50">
             <h3 class="text-base font-bold text-slate-900">{{ __('task_report.closed_tickets') }}</h3>
             @if(($stats['closedTicketsCount'] ?? 0) > 0)
@@ -239,15 +247,15 @@
     </div>
 
     @if($canShare && $showShareModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-data @keydown.escape.window="$wire.set('showShareModal', false)">
-            <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6" @click.outside="$wire.set('showShareModal', false)">
-                    <button type="button" wire:click="$set('showShareModal', false)" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors rounded-lg p-1">
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" x-data @keydown.escape.window="$wire.closeShareModal()">
+            <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6" @click.outside="$wire.closeShareModal()">
+                    <button type="button" wire:click="closeShareModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors rounded-lg p-1">
                         <iconify-icon icon="solar:close-circle-linear" width="24"></iconify-icon>
                     </button>
                     <h3 class="text-lg font-bold text-slate-900 mb-1">{{ __('task_report.share') }}</h3>
                     <p class="text-sm text-slate-500 mb-6">{{ __('task_report.link_valid_7_days') }}</p>
                     @if(!$lastSignedUrl)
-                        <button wire:click="generateSignedUrl" type="button" class="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-medium text-white shadow-lg hover:opacity-90 transition-opacity">
+                        <button wire:click="generateSignedUrl" wire:loading.attr="disabled" wire:target="generateSignedUrl" type="button" class="w-full rounded-xl bg-[var(--accent)] px-4 py-3 text-sm font-medium text-white shadow-lg hover:opacity-90 transition-opacity">
                             <iconify-icon icon="solar:link-bold" width="16" class="mr-1 align-text-bottom"></iconify-icon>
                             {{ __('task_report.generate_link') }}
                         </button>
@@ -270,7 +278,7 @@
                                     <option value="{{ $member->id }}">{{ $member->name }}</option>
                                 @endforeach
                             </x-select-input>
-                            <button wire:click="sendShareNotification" type="button" class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 transition-colors disabled:opacity-50" {{ !$shareUserId ? 'disabled' : '' }}>
+                            <button wire:click="sendShareNotification" wire:loading.attr="disabled" wire:target="sendShareNotification" type="button" class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 transition-colors disabled:opacity-50" {{ !$shareUserId ? 'disabled' : '' }}>
                                 <iconify-icon icon="solar:plain-bold" width="16" class="mr-1 align-text-bottom"></iconify-icon>
                                 {{ __('task_report.send_notification') }}
                             </button>
@@ -297,9 +305,9 @@
         </div>
         <div class="page-actions">
             <div class="view-toggle flex-shrink-0">
-                <button wire:click="setPeriod('week')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'week' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_week') }}</button>
-                <button wire:click="setPeriod('month')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'month' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_month') }}</button>
-                <button wire:click="setPeriod('custom')" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'custom' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.custom') }}</button>
+                <button wire:click="setPeriod('week')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'week' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_week') }}</button>
+                <button wire:click="setPeriod('month')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'month' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_month') }}</button>
+                <button wire:click="setPeriod('custom')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'custom' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.custom') }}</button>
             </div>
             <x-dropdown align="right" width="48" contentClasses="py-1 bg-white rounded-xl shadow-xl border border-slate-200">
                 <x-slot name="trigger">
@@ -337,14 +345,14 @@
             <div class="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
                 <div class="flex-1 min-w-0">
                     <label for="dateFromMember" class="block text-xs font-medium uppercase tracking-wider text-slate-500 mb-1.5">{{ __('task_report.from') }}</label>
-                    <input type="date" id="dateFromMember" name="date_from_member" wire:model.live="dateFrom" class="block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors" />
+                    <input type="date" id="dateFromMember" name="date_from_member" wire:model.blur="dateFrom" wire:loading.attr="disabled" wire:target="dateFrom,dateTo,setPeriod,period" class="block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors" />
                 </div>
                 <div class="hidden sm:flex items-center pb-2.5 text-slate-300 shrink-0" aria-hidden="true">
                     <iconify-icon icon="solar:arrow-right-linear" width="20"></iconify-icon>
                 </div>
                 <div class="flex-1 min-w-0">
                     <label for="dateToMember" class="block text-xs font-medium uppercase tracking-wider text-slate-500 mb-1.5">{{ __('task_report.to') }}</label>
-                    <input type="date" id="dateToMember" name="date_to_member" wire:model.live="dateTo" class="block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors" />
+                    <input type="date" id="dateToMember" name="date_to_member" wire:model.blur="dateTo" wire:loading.attr="disabled" wire:target="dateFrom,dateTo,setPeriod,period" class="block w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors" />
                 </div>
             </div>
         </div>
@@ -379,7 +387,10 @@
     <p class="text-xs text-slate-500 mb-5 mt-0">{{ __('task_report.period_label', ['from' => $from->format('d/m'), 'to' => $to->format('d/m')]) }}</p>
 
     {{-- Tableau : Tickets clôturés — pleine largeur, style Tickets --}}
-    <div class="rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden min-w-0">
+    <div class="relative rounded-xl sm:rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden min-w-0">
+        <div wire:loading.flex wire:target="setPeriod,period,dateFrom,dateTo,nextPage,previousPage,gotoPage,setPage" class="absolute inset-0 z-10 items-center justify-center bg-white/60 backdrop-blur-[1px] text-xs text-slate-500">
+            {{ __('reports.menu_refresh') }}...
+        </div>
         <div class="px-4 sm:px-6 py-4 border-b border-slate-50 bg-slate-50/50">
             <h3 class="text-base font-bold text-slate-900">{{ __('task_report.closed_tickets') }}</h3>
             @if(($stats['closedTicketsCount'] ?? 0) > 0)

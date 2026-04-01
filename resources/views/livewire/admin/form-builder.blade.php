@@ -194,14 +194,14 @@
         @if($fb_selected_form_id)
         <nav class="px-3 sm:px-5 lg:px-6" aria-label="{{ __('forms_builder.tabs_label') }}">
             <div class="flex gap-0">
-                <button type="button" wire:click="$set('activeTab', 'champs')"
+                <button type="button" wire:click="setActiveTab('champs')" wire:loading.attr="disabled" wire:target="setActiveTab"
                         class="relative px-3 py-2.5 text-xs font-semibold transition-colors {{ $activeTab === 'champs' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
                     {{ __('forms_builder.fields_tab') }}
                     @if($activeTab === 'champs')
                         <span class="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style="background: var(--accent);"></span>
                     @endif
                 </button>
-                <button type="button" wire:click="$set('activeTab', 'assignations')"
+                <button type="button" wire:click="setActiveTab('assignations')" wire:loading.attr="disabled" wire:target="setActiveTab"
                         class="relative px-3 py-2.5 text-xs font-semibold transition-colors flex items-center gap-1.5 {{ $activeTab === 'assignations' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
                     {{ __('forms_builder.assignments_tab') }}
                     @if($assignments->where('status.value', 'pending')->count() > 0)
@@ -211,7 +211,7 @@
                         <span class="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style="background: var(--accent);"></span>
                     @endif
                 </button>
-                <button type="button" wire:click="$set('activeTab', 'reponses')"
+                <button type="button" wire:click="setActiveTab('reponses')" wire:loading.attr="disabled" wire:target="setActiveTab"
                         class="relative px-3 py-2.5 text-xs font-semibold transition-colors {{ $activeTab === 'reponses' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
                     {{ __('forms_builder.responses_tab') }}
                     @if($activeTab === 'reponses')
@@ -293,7 +293,7 @@
                             <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
                                 <div class="flex-1 min-w-0">
                                     <label class="text-[11px] font-semibold text-slate-500 mb-1.5 block">{{ __('forms_builder.user') }}</label>
-                                    <x-select-input wire:model="assign_user_id">
+                                    <x-select-input wire:model.defer="assign_user_id" wire:loading.attr="disabled" wire:target="assignForm">
                                         <option value="">{{ __('forms_builder.choose') }}</option>
                                         @foreach($members as $m)
                                             <option value="{{ $m->user_id }}">{{ $m->user?->name ?? '—' }}</option>
@@ -302,7 +302,7 @@
                                     <x-input-error :messages="$errors->get('assign_user_id')" />
                                 </div>
                                 <div class="shrink-0">
-                                    <button type="button" wire:click="assignForm"
+                                    <button type="button" wire:click="assignForm" wire:loading.attr="disabled" wire:target="assignForm"
                                             class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all"
                                             style="background: var(--accent);">
                                         <iconify-icon icon="solar:user-plus-bold" width="16"></iconify-icon>
@@ -317,7 +317,7 @@
                             <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
                                 <div class="flex-1 min-w-0">
                                     <label class="text-[11px] font-semibold text-slate-500 mb-1.5 block">{{ __('forms_builder.or_function') }}</label>
-                                    <x-select-input wire:model="assign_function_id">
+                                    <x-select-input wire:model.defer="assign_function_id" wire:loading.attr="disabled" wire:target="assignForm">
                                         <option value="">{{ __('forms_builder.choose') }}</option>
                                         @foreach($organizationFunctions as $fn)
                                             <option value="{{ $fn->id }}">{{ $fn->name }}</option>
@@ -326,7 +326,7 @@
                                     <x-input-error :messages="$errors->get('assign_function_id')" />
                                 </div>
                                 <div class="shrink-0">
-                                    <button type="button" wire:click="assignForm"
+                                    <button type="button" wire:click="assignForm" wire:loading.attr="disabled" wire:target="assignForm"
                                             class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all"
                                             style="background: var(--accent);">
                                         <iconify-icon icon="solar:users-group-rounded-bold" width="16"></iconify-icon>

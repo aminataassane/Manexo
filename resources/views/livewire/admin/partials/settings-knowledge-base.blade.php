@@ -79,10 +79,10 @@
                 </div>
 
                 <div class="flex justify-end">
-                    <button type="submit" class="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                    <x-manexo.action-button type="submit" wire-target="addKbCategory" variant="primary" class="shrink-0 !font-semibold !px-5">
                         <iconify-icon icon="solar:add-circle-linear" width="18"></iconify-icon>
                         Ajouter la categorie
-                    </button>
+                    </x-manexo.action-button>
                 </div>
             </form>
 
@@ -140,10 +140,10 @@
                                         <button type="button" wire:click="$set('editingKbCategoryId', null)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
                                             Annuler
                                         </button>
-                                        <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent)] text-xs font-semibold text-white hover:opacity-90 transition-all">
+                                        <x-manexo.action-button type="submit" wire-target="updateKbCategory" variant="primary-sm" class="!px-3 !font-semibold">
                                             <iconify-icon icon="solar:check-circle-bold" width="14"></iconify-icon>
                                             Enregistrer
-                                        </button>
+                                        </x-manexo.action-button>
                                     </div>
                                     <x-input-error :messages="$errors->get('editingKbCategoryName')" class="mt-1" />
                                 </form>
@@ -531,13 +531,10 @@
                         <button type="button" wire:click="$set('showKbArticleModal', false)" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
                             Annuler
                         </button>
-                        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
-                            <span wire:loading.remove wire:target="saveArticle">
-                                <iconify-icon icon="{{ $editingKbArticleId ? 'solar:pen-2-bold' : 'solar:add-circle-bold' }}" width="18"></iconify-icon>
-                            </span>
-                            <iconify-icon icon="solar:refresh-circle-bold-duotone" width="18" class="animate-spin" wire:loading wire:target="saveArticle"></iconify-icon>
+                        <x-manexo.action-button type="submit" wire-target="saveArticle" variant="primary" class="!px-5 !font-semibold" :loading-label="__('ui.action.saving')">
+                            <iconify-icon icon="{{ $editingKbArticleId ? 'solar:pen-2-bold' : 'solar:add-circle-bold' }}" width="18"></iconify-icon>
                             {{ $editingKbArticleId ? 'Mettre a jour' : 'Creer l\'article' }}
-                        </button>
+                        </x-manexo.action-button>
                     </div>
                 </form>
             </div>

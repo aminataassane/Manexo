@@ -18,15 +18,17 @@
             <input
                 type="password"
                 id="disablePassword"
-                wire:model="disablePassword"
+                wire:model.defer="disablePassword"
+                wire:loading.attr="disabled"
+                wire:target="disable"
                 class="w-full px-3 py-2 border rounded-lg"
                 placeholder="{{ __('Mot de passe') }}"
                 autocomplete="current-password"
             >
             @error('disablePassword') <p class="text-red-600 text-sm">{{ $message }}</p> @enderror
-            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+            <x-manexo.action-button type="submit" wire-target="disable" variant="danger-solid" class="!rounded-lg">
                 {{ __('Désactiver 2FA') }}
-            </button>
+            </x-manexo.action-button>
         </form>
     @elseif ($showRecoveryCodes)
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
@@ -46,7 +48,15 @@
             <p class="text-gray-700 mb-4">{{ __('Scannez le QR code ci-dessous avec votre application d\'authentification (Google Authenticator, Authy, etc.)') }}</p>
 
             <div class="flex justify-center mb-4">
-                {!! QrCode::size(200)->generate($qrCodeUrl) !!}
+                <img
+                    src="https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl={{ urlencode($qrCodeUrl) }}"
+                    alt="{{ __('QR code') }}"
+                    width="200"
+                    height="200"
+                    class="mx-auto"
+                    loading="eager"
+                    decoding="async"
+                />
             </div>
 
             <div class="text-center text-sm text-gray-500 mb-4">
@@ -62,7 +72,9 @@
             <input
                 type="text"
                 id="code"
-                wire:model="code"
+                wire:model.defer="code"
+                wire:loading.attr="disabled"
+                wire:target="confirm"
                 maxlength="6"
                 inputmode="numeric"
                 autocomplete="one-time-code"
@@ -71,9 +83,9 @@
             >
             @error('code') <p class="text-red-600 text-sm mb-2">{{ $message }}</p> @enderror
 
-            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <x-manexo.action-button type="submit" wire-target="confirm" variant="primary" class="!w-full !rounded-lg !bg-blue-600 hover:!bg-blue-700" :loading-label="__('ui.action.loading')">
                 {{ __('Vérifier et activer') }}
-            </button>
+            </x-manexo.action-button>
         </form>
     @endif
 </div>

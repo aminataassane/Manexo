@@ -1,3 +1,7 @@
+@php
+    /** @var \Illuminate\Pagination\LengthAwarePaginator<int, \App\Models\User> $users */
+    $users = get_defined_vars()['users'] ?? new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
+@endphp
 <div class="space-y-6 pb-12">
     {{-- Header --}}
     <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -6,10 +10,10 @@
             <p class="mt-1 text-sm text-slate-500">{{ __('super_admin.users.subtitle') }}</p>
         </div>
         @if(auth()->user()->canPlatformAdminister())
-            <button wire:click="openInviteModal" class="sa-btn-primary self-start">
+            <x-manexo.action-button wire:click="openInviteModal" wire-target="openInviteModal" variant="super" class="self-start">
                 <iconify-icon icon="solar:letter-bold" width="16"></iconify-icon>
                 {{ __('platform_invitations.invite_button') }}
-            </button>
+            </x-manexo.action-button>
         @endif
     </header>
 
@@ -434,10 +438,10 @@
                 <button @click="open = false" class="sa-btn-secondary">
                     {{ __('super_admin.cancel') }}
                 </button>
-                <button wire:click="sendInvitation" class="sa-btn-primary">
+                <x-manexo.action-button wire:click="sendInvitation" wire-target="sendInvitation" variant="super">
                     <iconify-icon icon="solar:plain-bold" width="16"></iconify-icon>
                     {{ __('platform_invitations.send_button') }}
-                </button>
+                </x-manexo.action-button>
             </div>
         </div>
     </div>

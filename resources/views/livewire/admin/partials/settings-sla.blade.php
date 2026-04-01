@@ -146,16 +146,10 @@
 
         {{-- Save button --}}
         <div class="flex justify-end mt-6">
-            <button
-                type="submit"
-                class="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
-                wire:loading.attr="disabled"
-                wire:loading.class="opacity-50 cursor-wait"
-            >
-                <iconify-icon icon="solar:diskette-bold" width="18" wire:loading.remove wire:target="saveSlaSettings"></iconify-icon>
-                <iconify-icon icon="solar:refresh-bold" width="18" class="animate-spin" wire:loading wire:target="saveSlaSettings"></iconify-icon>
+            <x-manexo.action-button type="submit" wire-target="saveSlaSettings" variant="primary" class="!px-6 !font-semibold" :loading-label="__('ui.action.saving')">
+                <iconify-icon icon="solar:diskette-bold" width="18"></iconify-icon>
                 Enregistrer les paramètres SLA
-            </button>
+            </x-manexo.action-button>
         </div>
     </form>
 </div>

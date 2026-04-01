@@ -1,4 +1,4 @@
-{{-- Dashboard : KPI cards chargés en premier, panneaux secondaires en lazy --}}
+{{-- Dashboard : tout en eager — données en cache ; le lazy ajoutait N requêtes Livewire sans gain réel --}}
 @php
     $user = Auth::user();
     $org = $this->organization;
@@ -33,32 +33,32 @@
     </div>
 
     @if ($this->isAdminView)
-        <livewire:dashboard.admin-kpi-cards lazy />
+        <livewire:dashboard.admin-kpi-cards />
 
         <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3 min-[1920px]:gap-8">
             <div class="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0">
-                <livewire:dashboard.activity-chart lazy />
-                <livewire:dashboard.priority-tickets-table lazy />
+                <livewire:dashboard.activity-chart />
+                <livewire:dashboard.priority-tickets-table />
             </div>
 
             <div class="space-y-4 sm:space-y-6 min-w-0">
-                <livewire:dashboard.discussions-panel lazy />
-                <livewire:dashboard.pending-forms-panel lazy />
-                <livewire:dashboard.recent-activity-panel lazy />
+                <livewire:dashboard.discussions-panel />
+                <livewire:dashboard.pending-forms-panel />
+                <livewire:dashboard.recent-activity-panel />
             </div>
         </div>
     @else
-        <livewire:dashboard.member-kpi-cards lazy />
+        <livewire:dashboard.member-kpi-cards />
 
         <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
             <div class="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0">
-                <livewire:dashboard.my-recent-tickets-table lazy />
+                <livewire:dashboard.my-recent-tickets-table />
             </div>
 
             <div class="space-y-4 sm:space-y-6 min-w-0">
-                <livewire:dashboard.pending-forms-panel lazy />
-                <livewire:dashboard.discussions-panel lazy />
-                <livewire:dashboard.recent-activity-panel lazy />
+                <livewire:dashboard.pending-forms-panel />
+                <livewire:dashboard.discussions-panel />
+                <livewire:dashboard.recent-activity-panel />
             </div>
         </div>
     @endif

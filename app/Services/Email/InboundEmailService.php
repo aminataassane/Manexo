@@ -13,6 +13,7 @@ use App\Models\InboundEmailLog;
 use App\Models\OrganizationMailbox;
 use App\Models\OrganizationMembership;
 use App\Models\Ticket;
+use App\Models\TicketGroup;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Notifications\TicketCreatedNotification;
@@ -211,12 +212,25 @@ class InboundEmailService
         $subject = preg_replace('/\[(?:REF|MANEXO)-[A-Z0-9-]+\]\s*/i', '', $subject);
         $subject = Str::limit(trim($subject), 255);
 
+        $groupId = $mailbox->default_group_id
+            ?? TicketGroup::query()
+                ->where('organization_id', $orgId)
+                ->where('slug', 'support')
+                ->value('id')
+            ?? TicketGroup::query()->create([
+                'organization_id' => $orgId,
+                'name' => 'Support',
+                'slug' => 'support',
+                'is_active' => true,
+                'sort_order' => 0,
+            ])->id;
+
         $ticket = Ticket::query()->create([
             'organization_id' => $orgId,
             'created_by' => $user->id,
             'ticket_category_id' => $mailbox->default_category_id,
             'ticket_priority_id' => $mailbox->default_priority_id,
-            'ticket_group_id' => $mailbox->default_group_id,
+            'ticket_group_id' => $groupId,
             'status' => $isKnown ? TicketStatus::Open : TicketStatus::Pending,
             'source' => TicketSource::Email,
             'subject' => $subject,

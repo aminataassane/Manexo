@@ -16,6 +16,10 @@
         ['value' => 'yearly', 'label' => __('reports.this_year')],
     ];
     $reportPeriodChartLabel = collect($reportPeriodChartOptions)->firstWhere('value', $period ?? 'default')['label'] ?? ($period ?? 'default');
+    $topCategoriesTotal = max(1, array_sum(array_column($topCategories ?? [], 'count')));
+    $volumePointCount = count($volumeSeries);
+    $needsWideVolumeChart = in_array(($period ?? 'default'), ['monthly', 'yearly'], true);
+    $volumeChartMinWidth = $needsWideVolumeChart ? max(1200, $volumePointCount * 52) : 0;
 @endphp
 
 <div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadReportBody">
@@ -27,9 +31,9 @@
         </div>
         <div class="page-actions">
             <div class="view-toggle flex-shrink-0">
-                <button wire:click="$set('period', 'default')" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? 'default') === 'default' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.view_default') }}</button>
-                <button wire:click="$set('period', 'monthly')" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? '') === 'monthly' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.monthly') }}</button>
-                <button wire:click="$set('period', 'yearly')" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? '') === 'yearly' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.yearly') }}</button>
+                <button wire:click="setPeriod('default')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? 'default') === 'default' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.view_default') }}</button>
+                <button wire:click="setPeriod('monthly')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? '') === 'monthly' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.monthly') }}</button>
+                <button wire:click="setPeriod('yearly')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? '') === 'yearly' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.yearly') }}</button>
             </div>
             <x-dropdown align="right" width="56" contentClasses="py-1 bg-white rounded-xl shadow-xl border border-slate-200">
                 <x-slot name="trigger">
@@ -40,13 +44,13 @@
                 </x-slot>
                 <x-slot name="content">
                     <p class="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">{{ __('reports.menu_chart_period') }}</p>
-                    <button wire:click="$set('period', 'default')" type="button" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 rounded-t {{ ($period ?? 'default') === 'default' ? 'bg-slate-100 font-medium text-slate-900' : '' }}">
+                    <button wire:click="setPeriod('default')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 rounded-t {{ ($period ?? 'default') === 'default' ? 'bg-slate-100 font-medium text-slate-900' : '' }}">
                         {{ __('reports.view_default') }}
                     </button>
-                    <button wire:click="$set('period', 'monthly')" type="button" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 {{ ($period ?? '') === 'monthly' ? 'bg-slate-100 font-medium text-slate-900' : '' }}">
+                    <button wire:click="setPeriod('monthly')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-2 {{ ($period ?? '') === 'monthly' ? 'bg-slate-100 font-medium text-slate-900' : '' }}">
                         {{ __('reports.this_month') }}
                     </button>
-                    <button wire:click="$set('period', 'yearly')" type="button" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-b-lg flex items-center gap-2 {{ ($period ?? '') === 'yearly' ? 'bg-slate-100 font-medium text-slate-900' : '' }}">
+                    <button wire:click="setPeriod('yearly')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-b-lg flex items-center gap-2 {{ ($period ?? '') === 'yearly' ? 'bg-slate-100 font-medium text-slate-900' : '' }}">
                         {{ __('reports.this_year') }}
                     </button>
                 </x-slot>
@@ -109,7 +113,7 @@
                 'yearly' => __('reports.new_year'),
                 default => __('reports.new_30d'),
             };
-            $newCount = ($period ?? 'default') === 'default' ? array_sum(array_column($createdLast30d ?? [], 'count')) : ($createdInPeriod ?? 0);
+            $newCount = (int) ($createdInPeriod ?? 0);
             $newTrend = ($period ?? 'default') === 'default' ? ($trendNew30d ?? ['dir' => 'up', 'val' => 0]) : ($trendNewInPeriod ?? ['dir' => 'up', 'val' => 0]);
         @endphp
         <div class="stat-card !p-6 !rounded-2xl">
@@ -190,51 +194,60 @@
                         :options="$reportPeriodChartOptions"
                         :label="$reportPeriodChartLabel"
                         :selected-value="$period ?? 'default'"
-                        wire:model.live="period"
+                        wire:model="period"
+                        wire:loading.attr="disabled"
+                        wire:target="setPeriod,period"
                     />
                 </div>
             </div>
 
             <!-- CSS Bar Chart (period-aware: default 14d, monthly by day, yearly by month) -->
-            <div class="relative h-64 w-full">
-                @if (empty($volumeSeries))
-                    <div class="absolute inset-0 flex items-center justify-center text-sm text-slate-400">{{ __('reports.no_data') }}</div>
-                @else
-                    @php $step = $isYearly ? 1 : (count($volumeSeries) > 20 ? 2 : 1); @endphp
-                    <div class="flex items-end justify-between h-full gap-2 sm:gap-3">
-                        @foreach ($volumeSeries as $index => $p)
-                            @if($index % $step === 0)
-                                @php
-                                    $h = max(4, (int) round(((int) ($p['count'] ?? 0) / $maxVolume) * 100));
-                                    $isMax = $h > 80;
-                                    $dateLabel = $isYearly ? \Illuminate\Support\Carbon::createFromFormat('Y-m', $p['date'])->translatedFormat('M Y') : \Illuminate\Support\Carbon::parse($p['date'])->format('d M');
-                                @endphp
-                                <div class="flex-1 flex flex-col justify-end group h-full relative">
-                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                                        <div class="bg-slate-900 text-white text-[10px] py-1 px-2 rounded shadow-lg whitespace-nowrap">
-                                            {{ $p['count'] ?? 0 }} {{ __('reports.tickets') }}<br>
-                                            <span class="text-slate-400">{{ $dateLabel }}</span>
+            <div class="relative w-full">
+                <div wire:loading.flex wire:target="setPeriod,period" class="absolute inset-0 z-10 items-center justify-center bg-white/60 backdrop-blur-[1px] text-xs text-slate-500">
+                    {{ __('reports.menu_refresh') }}...
+                </div>
+                <div class="overflow-x-auto overflow-y-hidden pb-2 [touch-action:pan-x]">
+                    <div class="w-full" @if($needsWideVolumeChart) style="width: {{ $volumeChartMinWidth }}px;" @endif>
+                        @if (empty($volumeSeries))
+                            <div class="h-64 flex items-center justify-center text-sm text-slate-400">{{ __('reports.no_data') }}</div>
+                        @else
+                            @php $step = $isYearly ? 1 : (count($volumeSeries) > 20 ? 2 : 1); @endphp
+                            <div class="flex items-end justify-between h-64 gap-2 sm:gap-3 min-w-max">
+                                @foreach ($volumeSeries as $index => $p)
+                                    @if($index % $step === 0)
+                                        @php
+                                            $h = max(4, (int) round(((int) ($p['count'] ?? 0) / $maxVolume) * 100));
+                                            $isMax = $h > 80;
+                                            $dateLabel = $isYearly ? \Illuminate\Support\Carbon::createFromFormat('Y-m', $p['date'])->translatedFormat('M Y') : \Illuminate\Support\Carbon::parse($p['date'])->format('d M');
+                                        @endphp
+                                        <div class="flex-1 flex flex-col justify-end group h-full relative min-w-[18px]">
+                                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                                                <div class="bg-slate-900 text-white text-[10px] py-1 px-2 rounded shadow-lg whitespace-nowrap">
+                                                    {{ $p['count'] ?? 0 }} {{ __('reports.tickets') }}<br>
+                                                    <span class="text-slate-400">{{ $dateLabel }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="w-full rounded-t-md transition-all duration-300 relative {{ $isMax ? 'bg-[var(--accent)]' : 'bg-slate-100 hover:bg-slate-200' }}"
+                                                 style="height: {{ $h }}%;">
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="w-full rounded-t-md transition-all duration-300 relative {{ $isMax ? 'bg-[var(--accent)]' : 'bg-slate-100 hover:bg-slate-200' }}"
-                                         style="height: {{ $h }}%;">
-                                    </div>
-                                </div>
-                            @endif
-                        @endforeach
+                                    @endif
+                                @endforeach
+                            </div>
+                            @php
+                                $first = $volumeSeries[0]['date'] ?? null;
+                                $mid = $volumeSeries[(int) floor(count($volumeSeries) / 2)]['date'] ?? null;
+                                $last = $volumeSeries[count($volumeSeries) - 1]['date'] ?? null;
+                                $fmt = $isYearly ? fn($d) => \Illuminate\Support\Carbon::createFromFormat('Y-m', $d)->translatedFormat('M y') : fn($d) => \Illuminate\Support\Carbon::parse($d)->format('d M');
+                            @endphp
+                            <div class="flex justify-between mt-4 text-[10px] text-slate-400 uppercase font-medium tracking-wider">
+                                <span>{{ $first ? $fmt($first) : '—' }}</span>
+                                <span>{{ $mid ? $fmt($mid) : '—' }}</span>
+                                <span>{{ $last ? $fmt($last) : '—' }}</span>
+                            </div>
+                        @endif
                     </div>
-                    @php
-                        $first = $volumeSeries[0]['date'] ?? null;
-                        $mid = $volumeSeries[(int) floor(count($volumeSeries) / 2)]['date'] ?? null;
-                        $last = $volumeSeries[count($volumeSeries) - 1]['date'] ?? null;
-                        $fmt = $isYearly ? fn($d) => \Illuminate\Support\Carbon::createFromFormat('Y-m', $d)->translatedFormat('M y') : fn($d) => \Illuminate\Support\Carbon::parse($d)->format('d M');
-                    @endphp
-                    <div class="flex justify-between mt-4 text-[10px] text-slate-400 uppercase font-medium tracking-wider">
-                        <span>{{ $first ? $fmt($first) : '—' }}</span>
-                        <span>{{ $mid ? $fmt($mid) : '—' }}</span>
-                        <span>{{ $last ? $fmt($last) : '—' }}</span>
-                    </div>
-                @endif
+                </div>
             </div>
         </div>
 
@@ -350,7 +363,9 @@
                             <tr class="hover:bg-slate-50/50 transition-colors">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-3">
-                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($agent['name']) }}&background=random&color=fff" class="h-8 w-8 rounded-full" alt="">
+                                        <span class="h-8 w-8 rounded-full bg-slate-100 text-slate-700 inline-flex items-center justify-center text-xs font-semibold">
+                                            {{ \Illuminate\Support\Str::of($agent['name'] ?? 'U')->explode(' ')->take(2)->map(fn ($p) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p, 0, 1)))->implode('') }}
+                                        </span>
                                         <span class="text-sm font-medium text-slate-900">{{ $agent['name'] }}</span>
                                     </div>
                                 </td>
@@ -398,10 +413,7 @@
             </div>
             <div class="p-6 space-y-5">
                 @forelse($topCategories as $cat)
-                    @php
-                        $total = array_sum(array_column($topCategories, 'count')) ?: 1;
-                        $pct = round(($cat['count'] / $total) * 100);
-                    @endphp
+                    @php $pct = round(($cat['count'] / $topCategoriesTotal) * 100); @endphp
                     <div>
                         <div class="flex justify-between items-center mb-1.5">
                             <span class="text-sm font-medium text-slate-700">{{ $cat['name'] }}</span>

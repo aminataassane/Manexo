@@ -54,7 +54,7 @@ class SecurityHeaders
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com".$viteDev,
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https://ui-avatars.com",
-            "connect-src 'self' https://api.iconify.design".$wsConnect.$viteDev,
+            "connect-src 'self' https://api.iconify.design https://api.simplesvg.com".$wsConnect.$viteDev,
             $isPublicForm ? 'frame-ancestors *' : "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",

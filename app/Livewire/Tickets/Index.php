@@ -36,8 +36,19 @@ class Index extends Component
 {
     use WithPagination;
 
+    /** Max tickets per Kanban column (one query per status). */
+    private const KANBAN_PER_COLUMN = 50;
+
     /** Fast path: render list directly without extra init request. */
     public int $loadStage = 2;
+
+    /** Desktop tickets sidebar (quick views / filters). Kept on Livewire to survive morph + Alpine scope issues. */
+    public bool $sidebarOpen = true;
+
+    public function toggleSidebar(): void
+    {
+        $this->sidebarOpen = ! $this->sidebarOpen;
+    }
 
     public function loadPage(): void
     {
@@ -241,6 +252,7 @@ class Index extends Component
         /** @var \Illuminate\Database\Eloquent\Collection<int, Ticket> $tickets */
         $tickets = Ticket::where('organization_id', $orgId)
             ->whereIn('id', $this->selected)
+            ->with(['creator:id,name,email', 'organization:id,name'])
             ->get();
 
         $count = 0;
@@ -303,11 +315,12 @@ class Index extends Component
         /** @var \Illuminate\Database\Eloquent\Collection<int, Ticket> $tickets */
         $tickets = Ticket::where('organization_id', $orgId)
             ->whereIn('id', $this->selected)
+            ->with(['assignees:id,name'])
             ->get();
 
         $count = 0;
         foreach ($tickets as $ticket) {
-            $previousResponsible = $ticket->assignees()->wherePivot('role', 'responsible')->first();
+            $previousResponsible = $ticket->assignees->firstWhere('pivot.role', 'responsible');
             $ticket->assignees()->newPivotQuery()->where('role', 'responsible')->update(['role' => 'collaborator']);
             if ($ticket->assignees()->where('users.id', $userId)->exists()) {
                 $ticket->assignees()->updateExistingPivot($userId, ['role' => 'responsible', 'assigned_by' => $user->id]);
@@ -325,7 +338,7 @@ class Index extends Component
                 'body' => $auditBody,
                 'meta' => ['action' => 'bulk_assign', 'user_id' => $userId],
             ]);
-            TicketClientRoutingNotifier::notify($ticket->fresh(), new ClientAssignmentContext(
+            TicketClientRoutingNotifier::notify($ticket, new ClientAssignmentContext(
                 ClientAssignmentClientScenario::PersonNamed,
                 $assignee->name,
             ));
@@ -399,7 +412,11 @@ class Index extends Component
 
     public function setDisplayMode(string $mode): void
     {
-        $this->displayMode = in_array($mode, ['list', 'kanban'], true) ? $mode : 'list';
+        $nextMode = in_array($mode, ['list', 'kanban'], true) ? $mode : 'list';
+        if ($nextMode === $this->displayMode) {
+            return;
+        }
+        $this->displayMode = $nextMode;
         $this->resetPage();
     }
 
@@ -534,6 +551,10 @@ class Index extends Component
             $key = 'all';
         }
 
+        if ($key === $this->viewKey) {
+            return;
+        }
+
         $this->viewKey = $key;
         $this->reset(['search', 'status', 'priority', 'assignee']);
         $this->resetPage();
@@ -541,7 +562,11 @@ class Index extends Component
 
     public function setBox(string $box): void
     {
-        $this->box = in_array($box, ['active', 'archived', 'trash'], true) ? $box : 'active';
+        $nextBox = in_array($box, ['active', 'archived', 'trash'], true) ? $box : 'active';
+        if ($nextBox === $this->box) {
+            return;
+        }
+        $this->box = $nextBox;
         $this->selected = [];
         $this->selectAll = false;
         $this->resetPage();
@@ -549,7 +574,11 @@ class Index extends Component
 
     public function setSource(string $source): void
     {
-        $this->source = in_array($source, ['all', 'from_form', 'from_platform'], true) ? $source : 'all';
+        $nextSource = in_array($source, ['all', 'from_form', 'from_platform'], true) ? $source : 'all';
+        if ($nextSource === $this->source) {
+            return;
+        }
+        $this->source = $nextSource;
         $this->resetPage();
     }
 
@@ -783,11 +812,15 @@ class Index extends Component
         }
         $checklistProgress = collect();
         if (! empty($ticketIds)) {
-            $rows = TicketChecklistItem::query()
-                ->selectRaw('ticket_id, count(*) as total, sum(case when is_done then 1 else 0 end) as done')
-                ->whereIn('ticket_id', $ticketIds)
-                ->groupBy('ticket_id')
-                ->get();
+            sort($ticketIds);
+            $checklistCacheKey = sprintf('tickets:checklist_progress:%d:%s', (int) $orgId, md5(implode(',', $ticketIds)));
+            $rows = Cache::remember($checklistCacheKey, 60, function () use ($ticketIds) {
+                return TicketChecklistItem::query()
+                    ->selectRaw('ticket_id, count(*) as total, sum(case when is_done then 1 else 0 end) as done')
+                    ->whereIn('ticket_id', $ticketIds)
+                    ->groupBy('ticket_id')
+                    ->get();
+            });
             $checklistProgress = $rows->keyBy('ticket_id');
         }
 
@@ -814,16 +847,11 @@ class Index extends Component
         ]);
     }
 
-    private function buildStageTicketData(?User $user, int $orgId, bool $isStaff, string $viewKey): array
+    /**
+     * Shared filtered query for the tickets index (list and/or Kanban). Caller must clone before ordering/limit.
+     */
+    private function buildTicketIndexQuery(?User $user, int $orgId, bool $isStaff, string $viewKey)
     {
-        if ($this->loadStage < 2) {
-            return [
-                'tickets' => new LengthAwarePaginator([], 0, $this->perPage),
-                'kanbanTickets' => [],
-                'statusColumns' => [],
-            ];
-        }
-
         $query = Ticket::query()
             ->select([
                 'tickets.id',
@@ -836,7 +864,6 @@ class Index extends Component
                 'tickets.assigned_to',
                 'tickets.status',
                 'tickets.subject',
-                'tickets.description',
                 'tickets.start_date',
                 'tickets.due_date',
                 'tickets.created_at',
@@ -852,12 +879,21 @@ class Index extends Component
                 'assignees:id,name',
             ])
             ->where('tickets.organization_id', $orgId);
-        $query = $this->applyTicketScopeFilters($query, $user, $isStaff, $viewKey);
-        $query = $this->applyTicketSearchAndAttributeFilters($query);
 
-        $tickets = ($user && $orgId)
-            ? $query->orderByDesc($this->box === 'trash' ? 'tickets.deleted_at' : 'tickets.updated_at')->paginate($this->perPage)
-            : new LengthAwarePaginator([], 0, $this->perPage);
+        $query = $this->applyTicketScopeFilters($query, $user, $isStaff, $viewKey);
+
+        return $this->applyTicketSearchAndAttributeFilters($query);
+    }
+
+    private function buildStageTicketData(?User $user, int $orgId, bool $isStaff, string $viewKey): array
+    {
+        if ($this->loadStage < 2) {
+            return [
+                'tickets' => new LengthAwarePaginator([], 0, $this->perPage),
+                'kanbanTickets' => [],
+                'statusColumns' => [],
+            ];
+        }
 
         $statusColumns = [
             TicketStatus::Open->value,
@@ -867,9 +903,55 @@ class Index extends Component
             TicketStatus::Closed->value,
         ];
 
-        $kanbanTickets = $this->buildKanbanTickets($query, $statusColumns, (bool) $user, $orgId);
+        $showKanban = $this->displayMode === 'kanban'
+            && $this->box !== 'trash'
+            && $user
+            && $orgId;
+
+        $baseQuery = $this->buildTicketIndexQuery($user, $orgId, $isStaff, $viewKey);
+
+        if ($showKanban) {
+            $kanbanCacheKey = sprintf(
+                'tickets:kanban:%d:%d:%s',
+                $orgId,
+                (int) ($user?->id ?? 0),
+                md5($this->filterStateHash($viewKey))
+            );
+            $kanbanTickets = Cache::remember($kanbanCacheKey, 60, fn () => $this->buildKanbanTicketsPerStatus($baseQuery, $statusColumns));
+            $tickets = new LengthAwarePaginator(
+                [],
+                0,
+                max(1, $this->perPage),
+                null,
+                ['path' => LengthAwarePaginator::resolveCurrentPath(), 'query' => request()->query()]
+            );
+        } else {
+            $tickets = ($user && $orgId)
+                ? (clone $baseQuery)->orderByDesc($this->box === 'trash' ? 'tickets.deleted_at' : 'tickets.updated_at')->paginate($this->perPage)
+                : new LengthAwarePaginator([], 0, $this->perPage);
+            $kanbanTickets = [];
+        }
 
         return compact('tickets', 'kanbanTickets', 'statusColumns');
+    }
+
+    private function filterStateHash(string $viewKey): string
+    {
+        return implode(':', [
+            $this->box,
+            $this->displayMode,
+            $viewKey,
+            trim($this->search),
+            $this->status,
+            $this->priority,
+            $this->assignee,
+            $this->group,
+            $this->source,
+            $this->dateFrom,
+            $this->dateTo,
+            trim($this->messageSearch),
+            (string) $this->perPage,
+        ]);
     }
 
     private function applyTicketScopeFilters($query, ?User $user, bool $isStaff, string $viewKey)
@@ -940,14 +1022,15 @@ class Index extends Component
             });
         }
 
-        // Deep search: search inside message content
+        // Deep search: search inside message content (idx_ticket_messages_body_trgm when pg_trgm is enabled)
         $messageSearch = trim($this->messageSearch);
         if ($messageSearch !== '') {
-            $query->whereExists(function ($sub) use ($messageSearch) {
+            $term = '%'.$messageSearch.'%';
+            $query->whereExists(function ($sub) use ($term) {
                 $sub->selectRaw('1')
                     ->from('ticket_messages')
                     ->whereColumn('ticket_messages.ticket_id', 'tickets.id')
-                    ->where('ticket_messages.body', 'ilike', "%{$messageSearch}%");
+                    ->whereRaw('ticket_messages.body ILIKE ?', [$term]);
             });
         }
 
@@ -976,26 +1059,20 @@ class Index extends Component
         return $query;
     }
 
-    private function buildKanbanTickets($query, array $statusColumns, bool $hasUser, int $orgId): array
+    /**
+     * One query per status column (up to KANBAN_PER_COLUMN rows each), same filters as the list.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Ticket>  $baseQuery
+     */
+    private function buildKanbanTicketsPerStatus($baseQuery, array $statusColumns): array
     {
         $kanbanTickets = [];
-        if ($this->displayMode !== 'kanban' || ! $hasUser || ! $orgId) {
-            return $kanbanTickets;
-        }
-
-        foreach ($statusColumns as $s) {
-            $kanbanTickets[$s] = [];
-        }
-        $allKanban = (clone $query)
-            ->whereIn('tickets.status', $statusColumns)
-            ->orderByDesc('tickets.updated_at')
-            ->limit(250)
-            ->get();
-        foreach ($allKanban as $t) {
-            $s = $t->status instanceof TicketStatus ? $t->status->value : (string) $t->status;
-            if (isset($kanbanTickets[$s]) && count($kanbanTickets[$s]) < 50) {
-                $kanbanTickets[$s][] = $t;
-            }
+        foreach ($statusColumns as $status) {
+            $kanbanTickets[$status] = (clone $baseQuery)
+                ->where('tickets.status', $status)
+                ->orderByDesc('tickets.updated_at')
+                ->limit(self::KANBAN_PER_COLUMN)
+                ->get();
         }
 
         return $kanbanTickets;

@@ -32,17 +32,18 @@
                 <iconify-icon icon="solar:arrow-left-linear" width="16"></iconify-icon>
                 {{ __('Retour') }}
             </a>
-            <button
+            <x-manexo.action-button
                 type="submit"
                 form="ticket-create-form"
-                wire:loading.attr="disabled"
-                wire:target="submit"
-                class="min-h-[44px] sm:min-h-0 h-10 px-4 text-white text-[13px] font-semibold rounded-xl shadow-sm transition-colors inline-flex items-center justify-center gap-2 bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] disabled:opacity-70 disabled:cursor-not-allowed"
+                wire-target="submit"
+                variant="primary"
+                spinner-size="sm"
+                class="min-h-[44px] sm:min-h-0 h-10 px-4 text-[13px] font-semibold !rounded-xl bg-[color:var(--accent)] hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
+                :loading-label="__('ui.tickets.sending_ticket')"
             >
-                <span wire:loading.remove wire:target="submit"><iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon></span>
-                <span wire:loading wire:target="submit" class="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                <span wire:loading.remove wire:target="submit">{{ __('Envoyer') }}</span>
-            </button>
+                <iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon>
+                {{ __('Envoyer') }}
+            </x-manexo.action-button>
         </div>
     </div>
 
@@ -94,7 +95,9 @@
                                     :options="$ticketCreateCategoryOptions"
                                     :label="$ticketCreateCategoryLabel"
                                     :selected-value="(string) $ticket_category_id"
-                                    wire:model.live="ticket_category_id"
+                                    wire:model="ticket_category_id"
+                                    wire:loading.attr="disabled"
+                                    wire:target="ticket_category_id"
                                 />
                             </div>
                             <x-input-error :messages="$errors->get('ticket_category_id')" class="mt-2" />
@@ -103,12 +106,14 @@
                         <div>
                             <x-input-label for="priority" :value="__('Priorité *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                             <div class="mt-1">
-                                <x-select-input
+                            <x-select-input
                                     id="priority"
                                     :options="$ticketCreatePriorityOptions"
                                     :label="$ticketCreatePriorityLabel"
                                     :selected-value="(string) $ticket_priority_id"
                                     wire:model="ticket_priority_id"
+                                wire:loading.attr="disabled"
+                                wire:target="ticket_priority_id"
                                 />
                             </div>
                             <x-input-error :messages="$errors->get('ticket_priority_id')" class="mt-2" />
@@ -125,6 +130,8 @@
                                 :label="$ticketCreateGroupLabel"
                                 :selected-value="$ticket_group_id !== null ? (string) $ticket_group_id : ''"
                                 wire:model="ticket_group_id"
+                                wire:loading.attr="disabled"
+                                wire:target="ticket_group_id"
                             />
                         </div>
                         <x-input-error :messages="$errors->get('ticket_group_id')" class="mt-2" />
@@ -136,7 +143,9 @@
                         <input
                             id="subject"
                             type="text"
-                            wire:model.live.debounce.500ms="subject"
+                            wire:model.live.debounce.700ms="subject"
+                            wire:loading.attr="disabled"
+                            wire:target="subject"
                             @input="saveDraft()"
                             required
                             class="mt-1 {{ $field }}"
@@ -183,6 +192,8 @@
                             <button
                                 type="button"
                                 wire:click="openKbBrowser"
+                                wire:loading.attr="disabled"
+                                wire:target="openKbBrowser"
                                 class="inline-flex items-center gap-1.5 text-xs font-medium text-[color:var(--accent)] hover:underline transition-colors"
                             >
                                 <iconify-icon icon="solar:book-2-linear" width="14"></iconify-icon>
@@ -255,7 +266,7 @@
                                             </label>
                                             <textarea
                                                 rows="4"
-                                                wire:model="custom.{{ $key }}"
+                                                wire:model.blur="custom.{{ $key }}"
                                                 class="mt-1 {{ $textarea }}"
                                                 placeholder="{{ $placeholder }}"
                                             ></textarea>
@@ -425,7 +436,7 @@
                                             @endphp
                                             <input
                                                 type="{{ $inputType }}"
-                                                wire:model="custom.{{ $key }}"
+                                                wire:model.blur="custom.{{ $key }}"
                                                 class="mt-1 {{ $field }}"
                                                 placeholder="{{ $placeholder }}"
                                             >
@@ -450,6 +461,8 @@
                             <button
                                 type="button"
                                 wire:click="addChecklistItem"
+                                wire:loading.attr="disabled"
+                                wire:target="addChecklistItem"
                                 class="cursor-pointer h-9 px-3 rounded-lg border border-[#E5E7EB] bg-white text-[13px] font-medium text-[#111827] hover:bg-[#F9FAFB] transition inline-flex items-center gap-1.5"
                             >
                                 <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
@@ -464,7 +477,7 @@
                                             <div class="md:col-span-2">
                                                 <input
                                                     type="text"
-                                                    wire:model="checklistItems.{{ $idx }}.title"
+                                                    wire:model.blur="checklistItems.{{ $idx }}.title"
                                                     class="{{ $field }}"
                                                     placeholder="{{ __('Intitulé de l’étape') }}"
                                                 />
@@ -480,19 +493,19 @@
                                             <div class="md:col-span-2">
                                                 <input
                                                     type="date"
-                                                    wire:model="checklistItems.{{ $idx }}.due_date"
+                                                    wire:model.blur="checklistItems.{{ $idx }}.due_date"
                                                     class="{{ $field }}"
                                                 />
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-1 shrink-0">
-                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-white hover:text-[color:var(--accent)] transition flex items-center justify-center" wire:click="moveChecklistItemUp({{ $idx }})" title="{{ __('Monter') }}" @if($idx === 0) disabled @endif>
+                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-white hover:text-[color:var(--accent)] transition flex items-center justify-center" wire:click="moveChecklistItemUp({{ $idx }})" wire:loading.attr="disabled" wire:target="moveChecklistItemUp({{ $idx }})" title="{{ __('Monter') }}" @if($idx === 0) disabled @endif>
                                                 <iconify-icon icon="solar:alt-arrow-up-linear" width="14"></iconify-icon>
                                             </button>
-                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-white hover:text-[color:var(--accent)] transition flex items-center justify-center" wire:click="moveChecklistItemDown({{ $idx }})" title="{{ __('Descendre') }}" @if($idx === count($checklistItems) - 1) disabled @endif>
+                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-[#6B7280] hover:bg-white hover:text-[color:var(--accent)] transition flex items-center justify-center" wire:click="moveChecklistItemDown({{ $idx }})" wire:loading.attr="disabled" wire:target="moveChecklistItemDown({{ $idx }})" title="{{ __('Descendre') }}" @if($idx === count($checklistItems) - 1) disabled @endif>
                                                 <iconify-icon icon="solar:alt-arrow-down-linear" width="14"></iconify-icon>
                                             </button>
-                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-red-600 hover:bg-red-50 transition flex items-center justify-center" wire:click="removeChecklistItem({{ $idx }})" title="{{ __('Supprimer') }}">
+                                            <button type="button" class="cursor-pointer h-8 w-8 rounded-lg border border-[#E5E7EB] bg-white text-red-600 hover:bg-red-50 transition flex items-center justify-center" wire:click="removeChecklistItem({{ $idx }})" wire:loading.attr="disabled" wire:target="removeChecklistItem({{ $idx }})" title="{{ __('Supprimer') }}">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear" width="14"></iconify-icon>
                                             </button>
                                         </div>
@@ -531,6 +544,10 @@
                             <x-input-error :messages="$errors->get('files.*')" />
                         </div>
 
+                        <div class="mt-2 text-[11px] text-[#9CA3AF]" wire:loading wire:target="files">
+                            {{ __('Téléversement en cours…') }}
+                        </div>
+
                         @if (!empty($files))
                             <div class="mt-3 space-y-2">
                                 @foreach ($files as $i => $f)
@@ -552,7 +569,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <button type="button" class="h-8 w-8 rounded-md border border-[#E5E7EB] bg-white hover:bg-red-50 hover:border-red-200 text-[#6B7280] hover:text-red-700 transition flex items-center justify-center" wire:click="removeFile({{ $i }})" title="{{ __('Supprimer') }}">
+                                        <button type="button" class="h-8 w-8 rounded-md border border-[#E5E7EB] bg-white hover:bg-red-50 hover:border-red-200 text-[#6B7280] hover:text-red-700 transition flex items-center justify-center" wire:click="removeFile({{ $i }})" wire:loading.attr="disabled" wire:target="removeFile({{ $i }})" title="{{ __('Supprimer') }}">
                                             <iconify-icon icon="solar:trash-bin-minimalistic-linear" width="16"></iconify-icon>
                                         </button>
                                     </div>
@@ -571,12 +588,14 @@
                                 type="url"
                                 class="flex-1 {{ $field }}"
                                 placeholder="https://..."
-                                wire:model.defer="linkUrl"
+                                wire:model.blur="linkUrl"
                             />
                             <button
                                 type="button"
                                 class="h-10 w-10 rounded-md border border-[#E5E7EB] bg-white text-[#6B7280] hover:text-[color:var(--accent)] hover:bg-[color:var(--accent-soft)] hover:border-[color:var(--accent-soft-2)] transition flex items-center justify-center"
                                 wire:click="addLink"
+                                wire:loading.attr="disabled"
+                                wire:target="addLink"
                                 title="{{ __('Ajouter') }}"
                             >
                                 <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
@@ -598,7 +617,7 @@
                                                 {{ $url }}
                                             </a>
                                         </div>
-                                        <button type="button" class="h-8 w-8 rounded-md border border-[#E5E7EB] bg-white hover:bg-red-50 hover:border-red-200 text-[#6B7280] hover:text-red-700 transition flex items-center justify-center" wire:click="removeLink({{ $i }})" title="{{ __('Supprimer') }}">
+                                        <button type="button" class="h-8 w-8 rounded-md border border-[#E5E7EB] bg-white hover:bg-red-50 hover:border-red-200 text-[#6B7280] hover:text-red-700 transition flex items-center justify-center" wire:click="removeLink({{ $i }})" wire:loading.attr="disabled" wire:target="removeLink({{ $i }})" title="{{ __('Supprimer') }}">
                                             <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
                                         </button>
                                     </div>
@@ -659,6 +678,8 @@
                                                 type="checkbox"
                                                 value="{{ $u->id }}"
                                                 wire:model="assigned_to_ids"
+                                                wire:loading.attr="disabled"
+                                                wire:target="assigned_to_ids"
                                                 class="h-4 w-4 rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]"
                                             />
                                             <div class="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
@@ -688,7 +709,7 @@
                             <input
                                 id="start_date"
                                 type="date"
-                                wire:model="start_date"
+                                wire:model.blur="start_date"
                                 class="mt-1 {{ $field }}"
                             />
                             <x-input-error :messages="$errors->get('start_date')" class="mt-2" />
@@ -698,7 +719,7 @@
                             <input
                                 id="due_date"
                                 type="date"
-                                wire:model="due_date"
+                                wire:model.blur="due_date"
                                 class="mt-1 {{ $field }}"
                             />
                             <x-input-error :messages="$errors->get('due_date')" class="mt-2" />
@@ -758,7 +779,7 @@
                         <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="16"></iconify-icon>
                         <input
                             type="text"
-                            wire:model.live.debounce.400ms="kbSearchTerm"
+                            wire:model.live.debounce.600ms="kbSearchTerm"
                             wire:keydown.enter="searchKbArticles"
                             class="w-full rounded-xl border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[var(--accent)] focus:ring-[var(--accent)] transition-all"
                             placeholder="{{ __('Rechercher dans les articles...') }}"
@@ -835,4 +856,7 @@
         </div>
     @endif
     {{-- end KB browser --}}
+</div>
+<div class="fixed inset-0 z-40 pointer-events-none" wire:loading.flex wire:target="submit">
+    <div class="absolute inset-0 bg-slate-900/20"></div>
 </div>

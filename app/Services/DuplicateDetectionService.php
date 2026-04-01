@@ -121,18 +121,12 @@ class DuplicateDetectionService
         $results = $query->orderByDesc('created_at')->limit(self::MAX_RESULTS * 2)->get();
 
         // Score by counting matching words
-        return $results->map(function ($ticket) use ($words) {
+        $wordCount = count($words);
+
+        return $results->map(function ($ticket) use ($words, $wordCount) {
             $ticketWords = preg_split('/[\s\-_:,;.!?()]+/', mb_strtolower($ticket->subject));
-            $matches = 0;
-            foreach ($words as $word) {
-                foreach ($ticketWords as $tw) {
-                    if (str_contains($tw, $word) || str_contains($word, $tw)) {
-                        $matches++;
-                        break;
-                    }
-                }
-            }
-            $ticket->similarity = count($words) > 0 ? round($matches / count($words), 2) : 0;
+            $matches = count(array_intersect($words, $ticketWords));
+            $ticket->similarity = $wordCount > 0 ? round($matches / $wordCount, 2) : 0;
 
             return $ticket;
         })

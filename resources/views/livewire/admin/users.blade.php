@@ -22,6 +22,8 @@
             <button
                 type="button"
                 wire:click="openInviteModal"
+                wire:loading.attr="disabled"
+                wire:target="openInviteModal"
                 class="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-3 sm:py-2.5 text-sm font-bold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0 w-full sm:w-auto"
             >
                 <iconify-icon icon="solar:user-plus-bold" width="18"></iconify-icon>
@@ -135,6 +137,8 @@
                             <button
                                 type="button"
                                 wire:click="resendInvitation({{ $inv->id }})"
+                                wire:loading.attr="disabled"
+                                wire:target="resendInvitation({{ $inv->id }})"
                                 class="h-8 px-3 rounded-lg bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
                                 style="border: 1px solid #e2e8f0;"
                                 title="{{ __('pages.team.resend') }}"
@@ -145,6 +149,8 @@
                             <button
                                 type="button"
                                 @click="$dispatch('confirm-action', { title: 'Annuler', message: 'Annuler cette invitation ?', confirmLabel: 'Annuler', variant: 'danger', onConfirm: () => $wire.cancelInvitation({{ $inv->id }}) })"
+                                wire:loading.attr="disabled"
+                                wire:target="cancelInvitation({{ $inv->id }})"
                                 class="h-8 px-3 rounded-lg bg-white text-xs font-semibold text-red-600 hover:bg-red-50 transition inline-flex items-center gap-1.5"
                                 style="border: 1px solid #fecaca;"
                                 title="{{ __('pages.team.cancel_invitation') }}"
@@ -228,7 +234,9 @@
                             type="text"
                             class="filter-search"
                             placeholder="{{ __('pages.team.search_placeholder') }}"
-                            wire:model.live="search"
+                            wire:model.live.debounce.500ms="search"
+                            wire:loading.attr="disabled"
+                            wire:target="search"
                         />
                     </div>
                     <div class="filter-controls">
@@ -353,7 +361,9 @@
                             type="text"
                             class="filter-search"
                             placeholder="{{ __('pages.team.search_external_placeholder') }}"
-                            wire:model.live="searchExternal"
+                            wire:model.live.debounce.500ms="searchExternal"
+                            wire:loading.attr="disabled"
+                            wire:target="searchExternal"
                         />
                     </div>
                 </div>
@@ -412,6 +422,11 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- Pagination --}}
+            <div class="px-6 py-4 bg-slate-50/30" style="border-top: 1px solid #f1f5f9;">
+                {{ $externalContacts->links() }}
+            </div>
         </div>
     </div>
 
@@ -447,7 +462,7 @@
                     <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.email') }}</label>
                     <input
                         type="email"
-                        wire:model.live.debounce.200ms="inviteEmail"
+                        wire:model.blur="inviteEmail"
                         class="block w-full rounded-xl bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                         style="border: 1px solid #e2e8f0;"
                         placeholder="{{ __('pages.team.email_placeholder') }}"
@@ -472,10 +487,15 @@
                     <button type="button" wire:click="closeInviteModal" class="h-10 px-4 rounded-xl bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition" style="border: 1px solid #e2e8f0;">
                         {{ __('pages.team.cancel') }}
                     </button>
-                    <button type="submit" class="h-10 px-4 rounded-xl bg-[var(--accent)] text-white text-sm font-extrabold shadow-sm hover:opacity-90 transition inline-flex items-center gap-2">
-                        <span wire:loading.remove wire:target="sendInvite">{{ __('pages.team.send') }}</span>
-                        <span wire:loading wire:target="sendInvite">{{ __('pages.team.sending') }}</span>
-                    </button>
+                    <x-manexo.action-button
+                        type="submit"
+                        variant="primary"
+                        wire-target="sendInvite"
+                        :loading-label="__('pages.team.sending')"
+                        class="h-10 px-4 rounded-xl text-sm font-extrabold shadow-sm"
+                    >
+                        {{ __('pages.team.send') }}
+                    </x-manexo.action-button>
                 </div>
             </form>
         </div>

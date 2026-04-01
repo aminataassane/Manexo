@@ -42,7 +42,7 @@
                             type="text"
                             id="fb_selected_field_key"
                             name="fb_selected_field_key"
-                            wire:model.live.debounce.150ms="fb_selected_field_key"
+                            wire:model.blur="fb_selected_field_key"
                             @disabled(! $canManageForms)
                             class="input-builder font-mono text-xs"
                             placeholder="{{ __('forms_builder.key_placeholder') }}"
@@ -53,7 +53,7 @@
 
                     <div class="space-y-2">
                         <label for="fb_selected_field_label" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.label') }}</label>
-                        <input type="text" id="fb_selected_field_label" name="fb_selected_field_label" wire:model.live.debounce.150ms="fb_selected_field_label" @disabled(! $canManageForms)
+                        <input type="text" id="fb_selected_field_label" name="fb_selected_field_label" wire:model.blur="fb_selected_field_label" @disabled(! $canManageForms)
                                class="input-builder text-xs">
                         <x-input-error :messages="$errors->get('fb_selected_field_label')" />
                     </div>
@@ -65,7 +65,7 @@
                             type="text"
                             id="fb_selected_field_placeholder"
                             name="fb_selected_field_placeholder"
-                            wire:model.live.debounce.150ms="fb_selected_field_placeholder"
+                            wire:model.blur="fb_selected_field_placeholder"
                             @disabled(! $canManageForms)
                             class="input-builder text-xs"
                             placeholder="{{ __('forms_builder.placeholder_example') }}"
@@ -79,7 +79,7 @@
                         <textarea
                             id="fb_selected_field_help_text"
                             name="fb_selected_field_help_text"
-                            wire:model.live.debounce.150ms="fb_selected_field_help_text"
+                            wire:model.blur="fb_selected_field_help_text"
                             rows="2"
                             @disabled(! $canManageForms)
                             class="input-builder text-xs"
@@ -104,7 +104,7 @@
                                         <input type="text"
                                                id="fb_selected_field_option_{{ $idx }}"
                                                name="fb_selected_field_option_{{ $idx }}"
-                                               wire:model.live.debounce.200ms="fb_selected_field_options_list.{{ $idx }}"
+                                               wire:model.blur="fb_selected_field_options_list.{{ $idx }}"
                                                @disabled(! $canManageForms)
                                                class="input-builder flex-1 py-2 text-xs"
                                                placeholder="{{ __('forms_builder.option_label', ['num' => $idx + 1]) }}">
@@ -270,21 +270,21 @@
                 <div class="space-y-5 pt-5 pb-6">
                     <div class="space-y-2">
                         <label for="fb_selected_form_name" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.name') }}</label>
-                        <input type="text" id="fb_selected_form_name" name="fb_selected_form_name" wire:model="fb_selected_form_name" @disabled(! $canManageForms)
+                        <input type="text" id="fb_selected_form_name" name="fb_selected_form_name" wire:model.blur="fb_selected_form_name" @disabled(! $canManageForms)
                                class="input-builder text-xs">
                         <x-input-error :messages="$errors->get('fb_selected_form_name')" />
                     </div>
 
                     <div class="space-y-2">
                         <label for="fb_selected_form_description" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.description_optional') }}</label>
-                        <textarea id="fb_selected_form_description" name="fb_selected_form_description" wire:model="fb_selected_form_description" rows="2" @disabled(! $canManageForms)
+                        <textarea id="fb_selected_form_description" name="fb_selected_form_description" wire:model.blur="fb_selected_form_description" rows="2" @disabled(! $canManageForms)
                                   class="input-builder text-xs"
                                   placeholder="{{ __('forms_builder.description_placeholder') }}"></textarea>
                     </div>
 
                     <div class="space-y-2">
                         <label class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.category') }}</label>
-                        <x-select-input wire:model="fb_selected_form_category_id" :disabled="! $canManageForms">
+                        <x-select-input wire:model="fb_selected_form_category_id" wire:loading.attr="disabled" wire:target="saveSelectedForm" :disabled="! $canManageForms">
                             <option value="">{{ __('forms_builder.all_categories') }}</option>
                             @foreach ($categories as $c)
                                 <option value="{{ $c->id }}">{{ $c->name }}</option>
@@ -295,7 +295,7 @@
 
                     <div class="space-y-2">
                         <label class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.target_who') }}</label>
-                        <x-select-input wire:model="fb_selected_form_target_user_id" :disabled="! $canManageForms">
+                        <x-select-input wire:model="fb_selected_form_target_user_id" wire:loading.attr="disabled" wire:target="saveSelectedForm" :disabled="! $canManageForms">
                             <option value="">{{ __('forms_builder.target_team') }}</option>
                             <optgroup label="{{ __('forms_builder.target_one_person') }}">
                             @foreach ($members as $m)
@@ -313,14 +313,14 @@
                             <div class="text-[10px] text-slate-300 mt-0.5">{{ __('forms_builder.creates_ticket_help') }}</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
-                            <input type="checkbox" id="fb_selected_form_creates_ticket" name="fb_selected_form_creates_ticket" wire:model="fb_selected_form_creates_ticket" class="sr-only peer" @disabled(! $canManageForms)>
+                            <input type="checkbox" id="fb_selected_form_creates_ticket" name="fb_selected_form_creates_ticket" wire:model.defer="fb_selected_form_creates_ticket" class="sr-only peer" @disabled(! $canManageForms)>
                             <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--accent)]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--accent)]"></div>
                         </label>
                     </div>
 
                     <div class="space-y-2">
                         <label for="fb_selected_form_due_date" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.due_date') }}</label>
-                        <input type="date" id="fb_selected_form_due_date" name="fb_selected_form_due_date" wire:model="fb_selected_form_due_date" @disabled(! $canManageForms)
+                        <input type="date" id="fb_selected_form_due_date" name="fb_selected_form_due_date" wire:model.blur="fb_selected_form_due_date" @disabled(! $canManageForms)
                                class="input-builder text-xs">
                         <p class="text-[10px] text-slate-300 leading-relaxed">{{ __('forms_builder.form_due_date_help') }}</p>
                         <x-input-error :messages="$errors->get('fb_selected_form_due_date')" />
@@ -328,7 +328,7 @@
 
                     <div class="space-y-2">
                         <label for="fb_selected_form_expires_at" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.assign_expires_at') }}</label>
-                        <input type="datetime-local" id="fb_selected_form_expires_at" name="fb_selected_form_expires_at" wire:model="fb_selected_form_expires_at" @disabled(! $canManageForms)
+                        <input type="datetime-local" id="fb_selected_form_expires_at" name="fb_selected_form_expires_at" wire:model.blur="fb_selected_form_expires_at" @disabled(! $canManageForms)
                                class="input-builder text-xs">
                         <p class="text-[10px] text-slate-300 leading-relaxed">{{ __('forms_builder.assign_expires_at_help') }}</p>
                         <x-input-error :messages="$errors->get('fb_selected_form_expires_at')" />
@@ -368,7 +368,7 @@
                             <div class="text-[10px] text-slate-300 mt-0.5">{{ __('forms_builder.public_link_help') }}</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
-                            <input type="checkbox" id="fb_selected_form_public" name="fb_selected_form_public" wire:model="fb_selected_form_public" class="sr-only peer" @disabled(! $canManageForms)>
+                            <input type="checkbox" id="fb_selected_form_public" name="fb_selected_form_public" wire:model.defer="fb_selected_form_public" class="sr-only peer" @disabled(! $canManageForms)>
                             <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--accent)]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--accent)]"></div>
                         </label>
                     </div>
@@ -376,7 +376,7 @@
                     <div class="space-y-2">
                         <label for="fb_selected_form_slug" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.public_slug') }}</label>
                         <div class="flex items-center gap-2">
-                            <input type="text" id="fb_selected_form_slug" name="fb_selected_form_slug" wire:model="fb_selected_form_slug" @disabled(! $canManageForms)
+                        <input type="text" id="fb_selected_form_slug" name="fb_selected_form_slug" wire:model.blur="fb_selected_form_slug" @disabled(! $canManageForms)
                                    placeholder="{{ __('forms_builder.slug_placeholder') }}"
                                    class="input-builder text-xs">
                             <button type="button" wire:click="generatePublicSlug" @disabled(! $canManageForms)
@@ -434,19 +434,19 @@
 
                     <div class="space-y-2">
                         <label for="fb_selected_form_public_title" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.public_title_optional') }}</label>
-                        <input type="text" id="fb_selected_form_public_title" name="fb_selected_form_public_title" wire:model="fb_selected_form_public_title" @disabled(! $canManageForms)
+                        <input type="text" id="fb_selected_form_public_title" name="fb_selected_form_public_title" wire:model.blur="fb_selected_form_public_title" @disabled(! $canManageForms)
                                class="input-builder text-xs">
                     </div>
 
                     <div class="space-y-2">
                         <label for="fb_selected_form_public_description" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.public_description_optional') }}</label>
-                        <textarea id="fb_selected_form_public_description" name="fb_selected_form_public_description" wire:model="fb_selected_form_public_description" rows="3" @disabled(! $canManageForms)
+                        <textarea id="fb_selected_form_public_description" name="fb_selected_form_public_description" wire:model.blur="fb_selected_form_public_description" rows="3" @disabled(! $canManageForms)
                                   class="input-builder text-xs"></textarea>
                     </div>
 
                     <div class="space-y-2">
                         <label for="fb_selected_form_public_thank_you" class="text-[11px] font-semibold text-slate-400">{{ __('forms_builder.thank_you_optional') }}</label>
-                        <textarea id="fb_selected_form_public_thank_you" name="fb_selected_form_public_thank_you" wire:model="fb_selected_form_public_thank_you" rows="3" @disabled(! $canManageForms)
+                        <textarea id="fb_selected_form_public_thank_you" name="fb_selected_form_public_thank_you" wire:model.blur="fb_selected_form_public_thank_you" rows="3" @disabled(! $canManageForms)
                                   class="input-builder text-xs"
                                   placeholder="{{ __('forms_builder.thank_you_placeholder') }}"></textarea>
                     </div>

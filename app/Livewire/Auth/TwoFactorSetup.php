@@ -61,7 +61,7 @@ class TwoFactorSetup extends Component
         ]);
 
         $google2fa = new Google2FA();
-        $valid = $google2fa->verifyKey($this->secret, $this->code);
+        $valid = $google2fa->verifyKey($this->secret, trim($this->code));
 
         if (! $valid) {
             $this->addError('code', __('Code invalide. Veuillez réessayer.'));

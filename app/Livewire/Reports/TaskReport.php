@@ -11,6 +11,7 @@ use App\Notifications\TaskReportSharedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Livewire\Attributes\Computed;
@@ -73,14 +74,25 @@ class TaskReport extends Component
 
     public function setPeriod(string $value): void
     {
+        if (! in_array($value, ['today', 'week', 'month', 'custom'], true)) {
+            return;
+        }
+        if ($value === $this->period) {
+            return;
+        }
+
         $this->period = $value;
         $this->resetPage();
         $this->resetPage('closed_page');
         $this->lastSignedUrl = '';
     }
 
-    public function updatedPeriod(): void
+    public function updatedPeriod(string $value): void
     {
+        if (! in_array($value, ['today', 'week', 'month', 'custom'], true)) {
+            $this->period = 'week';
+        }
+
         $this->resetPage();
         $this->resetPage('closed_page');
         $this->lastSignedUrl = '';
@@ -98,14 +110,34 @@ class TaskReport extends Component
         $this->resetPage('closed_page');
     }
 
+    public function openShareModal(): void
+    {
+        if (! $this->canShare()) {
+            return;
+        }
+
+        $this->showShareModal = true;
+    }
+
+    public function closeShareModal(): void
+    {
+        $this->showShareModal = false;
+    }
+
     /** @return array{Carbon, Carbon} */
     private function dateRange(): array
     {
         if ($this->period === 'custom' && $this->dateFrom && $this->dateTo) {
-            return [
-                Carbon::parse($this->dateFrom)->startOfDay(),
-                Carbon::parse($this->dateTo)->endOfDay(),
-            ];
+            try {
+                $from = Carbon::parse($this->dateFrom)->startOfDay();
+                $to = Carbon::parse($this->dateTo)->endOfDay();
+
+                if ($from->lte($to)) {
+                    return [$from, $to];
+                }
+            } catch (\Throwable) {
+                // Fallback to default range below on malformed custom dates.
+            }
         }
 
         $now = Carbon::now();
@@ -127,14 +159,22 @@ class TaskReport extends Component
             ->where('tickets.organization_id', $this->orgId())
             ->where('ticket_checklist_items.is_done', true)
             ->whereBetween('ticket_checklist_items.done_at', [$from, $to])
-            ->select('ticket_checklist_items.*');
+            ->select([
+                'ticket_checklist_items.id',
+                'ticket_checklist_items.ticket_id',
+                'ticket_checklist_items.title',
+                'ticket_checklist_items.assigned_to',
+                'ticket_checklist_items.done_by',
+                'ticket_checklist_items.done_at',
+                'ticket_checklist_items.due_date',
+            ]);
 
         // Without ReportsView: only their own tasks (assigned to them or completed by them)
         if (! $this->canViewAll()) {
             $userId = Auth::id();
             $query->where(function ($q) use ($userId) {
                 $q->where('ticket_checklist_items.assigned_to', $userId)
-                  ->orWhere('ticket_checklist_items.done_by', $userId);
+                    ->orWhere('ticket_checklist_items.done_by', $userId);
             });
         }
 
@@ -151,13 +191,22 @@ class TaskReport extends Component
         $query = Ticket::query()
             ->where('tickets.organization_id', $this->orgId())
             ->whereIn('tickets.status', [TicketStatus::Resolved, TicketStatus::Closed])
-            ->whereBetween('tickets.updated_at', [$from, $to]);
+            ->whereBetween('tickets.updated_at', [$from, $to])
+            ->select([
+                'tickets.id',
+                'tickets.public_id',
+                'tickets.subject',
+                'tickets.ticket_category_id',
+                'tickets.created_by',
+                'tickets.closed_by',
+                'tickets.updated_at',
+            ]);
 
         if (! $this->canViewAll()) {
             $userId = Auth::id();
             $query->where(function ($q) use ($userId) {
                 $q->where('tickets.created_by', $userId)
-                    ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $userId));
+                    ->orWhereHas('assignees', fn($a) => $a->where('users.id', $userId));
             });
         }
 
@@ -174,17 +223,19 @@ class TaskReport extends Component
 
         // Primary: répartition des tickets clôturés par catégorie
         $byCategoryClosed = (clone $closedQuery)
+            ->select([])
             ->selectRaw('ticket_categories.name as category_name, count(tickets.id) as count')
             ->leftJoin('ticket_categories', 'tickets.ticket_category_id', '=', 'ticket_categories.id')
             ->groupBy('ticket_categories.name')
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn ($r) => ['name' => $r->category_name ?? __('task_report.no_category'), 'count' => (int) $r->count])
+            ->map(fn($r) => ['name' => $r->category_name ?? __('task_report.no_category'), 'count' => (int) $r->count])
             ->all();
 
         // Primary: répartition par qui a clôturé (closed_by), avec repli sur créateur (created_by) si closed_by vide (anciens tickets)
         $byUserClosed = (clone $closedQuery)
+            ->select([])
             ->selectRaw('COALESCE(closed_by_user.name, creator_user.name) as user_name, count(tickets.id) as count')
             ->leftJoin('users as closed_by_user', 'tickets.closed_by', '=', 'closed_by_user.id')
             ->leftJoin('users as creator_user', 'tickets.created_by', '=', 'creator_user.id')
@@ -192,7 +243,7 @@ class TaskReport extends Component
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn ($r) => ['name' => $r->user_name ?? __('task_report.not_assigned'), 'count' => (int) $r->count])
+            ->map(fn($r) => ['name' => $r->user_name ?? __('task_report.not_assigned'), 'count' => (int) $r->count])
             ->all();
 
         $topCategoryClosed = $byCategoryClosed[0] ?? null;
@@ -210,7 +261,7 @@ class TaskReport extends Component
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn ($r) => ['name' => $r->user_name ?? __('task_report.not_assigned'), 'count' => (int) $r->count])
+            ->map(fn($r) => ['name' => $r->user_name ?? __('task_report.not_assigned'), 'count' => (int) $r->count])
             ->all();
 
         $byCategoryTasks = (clone $base)
@@ -221,7 +272,7 @@ class TaskReport extends Component
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn ($r) => ['name' => $r->category_name ?? __('task_report.no_category'), 'count' => (int) $r->count])
+            ->map(fn($r) => ['name' => $r->category_name ?? __('task_report.no_category'), 'count' => (int) $r->count])
             ->all();
 
         $topUserTasks = $byUserTasks[0] ?? null;
@@ -270,7 +321,7 @@ class TaskReport extends Component
         return $this->closedTicketsQuery($from, $to)
             ->with(['category:id,name', 'creator:id,name', 'assignees:id,name', 'closedByUser:id,name'])
             ->withCount('checklistItems')
-            ->withCount(['checklistItems as checklist_done_count' => fn ($q) => $q->where('is_done', true)])
+            ->withCount(['checklistItems as checklist_done_count' => fn($q) => $q->where('is_done', true)])
             ->orderByDesc('updated_at')
             ->paginate(20, ['*'], 'closed_page');
     }
@@ -419,7 +470,7 @@ class TaskReport extends Component
         ])->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn () => print $pdf->output(),
+            fn() => print $pdf->output(),
             'rapport-taches-' . now()->format('Y-m-d') . '.pdf',
             ['Content-Type' => 'application/pdf'],
         );
@@ -499,9 +550,22 @@ class TaskReport extends Component
         }
 
         [$from, $to] = $this->dateRange();
-        $stats = $this->loadStage < 2
-            ? self::emptyTaskReportStats()
-            : $this->computeStats($from, $to);
+        if ($this->loadStage < 2) {
+            $stats = self::emptyTaskReportStats();
+        } else {
+            $scope = $this->canViewAll() ? 'all' : 'self';
+            $viewerId = (int) Auth::id();
+            $statsKey = sprintf(
+                'reports:tasks:stats:%d:%s:%s:%s:%s:%d',
+                $this->orgId(),
+                $this->period,
+                $from->toDateString(),
+                $to->toDateString(),
+                $scope,
+                $viewerId
+            );
+            $stats = Cache::remember($statsKey, 120, fn () => $this->computeStats($from, $to));
+        }
 
         return view('livewire.reports.task-report', [
             'stats' => $stats,

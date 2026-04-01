@@ -286,14 +286,10 @@
 
         {{-- Submit --}}
         <div class="flex items-center gap-4">
-            <button type="submit" class="sa-btn-primary px-8 py-3">
+            <x-manexo.action-button type="submit" wire-target="save" variant="super" class="px-8 py-3" :loading-label="__('ui.action.saving')">
                 <iconify-icon icon="solar:shield-check-bold" width="18" class="mr-1"></iconify-icon>
                 {{ __('super_admin.save') }}
-            </button>
-            <span wire:loading wire:target="save" class="text-sm text-slate-400 flex items-center gap-2">
-                <iconify-icon icon="solar:refresh-bold" width="16" class="animate-spin"></iconify-icon>
-                {{ __('super_admin.security.saved') }}...
-            </span>
+            </x-manexo.action-button>
         </div>
     </form>
 </div>

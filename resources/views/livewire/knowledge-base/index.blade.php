@@ -14,13 +14,15 @@
             <iconify-icon icon="solar:magnifer-linear" width="18" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></iconify-icon>
             <input
                 type="search"
-                wire:model.live.debounce.400ms="search"
+                wire:model.live.debounce.600ms="search"
+                wire:loading.attr="disabled"
+                wire:target="search"
                 placeholder="{{ __('Rechercher un article...') }}"
                 autocomplete="off"
                 class="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/15 transition-all"
             />
             @if($search)
-                <button type="button" wire:click="$set('search', '')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" aria-label="{{ __('Effacer') }}">
+                <button type="button" wire:click="$set('search', '')" wire:loading.attr="disabled" wire:target="search" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors" aria-label="{{ __('Effacer') }}">
                     <iconify-icon icon="solar:close-circle-bold" width="18"></iconify-icon>
                 </button>
             @endif
@@ -30,7 +32,7 @@
     @if($viewingArticle)
         {{-- ═══ ARTICLE DETAIL ═══ --}}
         <div class="mb-6">
-            <button wire:click="closeArticle" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
+            <button wire:click="closeArticle" wire:loading.attr="disabled" wire:target="closeArticle" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
                 <iconify-icon icon="solar:arrow-left-linear" width="16"></iconify-icon>
                 {{ __('Retour aux articles') }}
             </button>
@@ -96,6 +98,8 @@
                     <div class="p-2">
                         <button
                             wire:click="filterByCategory(null)"
+                            wire:loading.attr="disabled"
+                            wire:target="filterByCategory"
                             class="w-full flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-sm transition-all {{ !$categoryId ? 'bg-[var(--accent-soft)] text-slate-900 font-semibold' : 'text-slate-600 hover:bg-slate-50' }}"
                         >
                             <span class="flex items-center gap-2.5">
@@ -108,6 +112,8 @@
                         @foreach($categories as $cat)
                             <button
                                 wire:click="filterByCategory({{ $cat->id }})"
+                                wire:loading.attr="disabled"
+                                wire:target="filterByCategory"
                                 class="w-full flex items-center justify-between gap-2 rounded-xl px-3.5 py-2.5 text-sm transition-all {{ $categoryId === $cat->id ? 'bg-[var(--accent-soft)] text-slate-900 font-semibold' : 'text-slate-600 hover:bg-slate-50' }}"
                             >
                                 <span class="flex items-center gap-2.5 min-w-0">
@@ -142,6 +148,8 @@
                         @foreach($articles as $article)
                             <button
                                 wire:click="viewArticle({{ $article->id }})"
+                                wire:loading.attr="disabled"
+                                wire:target="viewArticle"
                                 class="group flex flex-col rounded-2xl border border-slate-200 bg-white text-left transition-all duration-200 hover:border-slate-300 hover:shadow-md"
                             >
                                 {{-- Card body --}}

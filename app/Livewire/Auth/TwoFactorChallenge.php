@@ -31,6 +31,7 @@ class TwoFactorChallenge extends Component
     {
         $user = Auth::user();
         abort_if(! $user, 403);
+        abort_if(! session('2fa_pending'), 403);
 
         if ($this->useRecoveryCode) {
             $this->verifyRecoveryCode($user);
@@ -40,6 +41,11 @@ class TwoFactorChallenge extends Component
         $this->validate([
             'code' => 'required|string|digits:6',
         ]);
+
+        if (! $user->two_factor_secret) {
+            $this->addError('code', __('2FA non configuré pour ce compte.'));
+            return;
+        }
 
         $secret = Crypt::decryptString($user->two_factor_secret);
         $google2fa = new Google2FA();
@@ -55,6 +61,11 @@ class TwoFactorChallenge extends Component
 
     private function verifyRecoveryCode($user): void
     {
+        if (! $user->two_factor_recovery_codes) {
+            $this->addError('recoveryCode', __('Code de récupération invalide.'));
+            return;
+        }
+
         $this->validate([
             'recoveryCode' => 'required|string|min:5',
         ]);
@@ -86,6 +97,8 @@ class TwoFactorChallenge extends Component
     public function toggleRecoveryMode(): void
     {
         $this->useRecoveryCode = ! $this->useRecoveryCode;
+        $this->code = '';
+        $this->recoveryCode = '';
         $this->resetErrorBag();
     }
 

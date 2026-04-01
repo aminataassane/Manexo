@@ -15,6 +15,7 @@ use App\Notifications\DiscussionNewMessageNotification;
 use App\Notifications\TicketNewMessageNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -113,13 +114,20 @@ class Index extends Component
         if (! in_array($key, $allowed, true)) {
             $key = 'all';
         }
+        if ($key === $this->viewKey) {
+            return;
+        }
         $this->viewKey = $key;
         $this->resetPage();
     }
 
     public function setScope(string $scope): void
     {
-        $this->scope = in_array($scope, ['threads', 'tickets'], true) ? $scope : 'tickets';
+        $nextScope = in_array($scope, ['threads', 'tickets'], true) ? $scope : 'tickets';
+        if ($nextScope === $this->scope && $this->viewKey === 'all') {
+            return;
+        }
+        $this->scope = $nextScope;
         $this->viewKey = 'all';
         $this->resetPage();
     }
@@ -389,13 +397,14 @@ class Index extends Component
             ->whereUserParticipates((int) $user->id)
             ->where('organization_id', $orgId)
             ->whereNull('archived_at')
-            ->whereHas('messages', function ($q) use ($isStaff) {
-                $types = [TicketMessageType::Message->value];
-                if ($isStaff) {
-                    $types[] = TicketMessageType::InternalNote->value;
-                }
-                $q->whereIn('type', $types);
-            });
+            ->whereRaw(
+                $isStaff
+                    ? 'exists (select 1 from ticket_messages where ticket_messages.ticket_id = tickets.id and ticket_messages.type in (?, ?))'
+                    : 'exists (select 1 from ticket_messages where ticket_messages.ticket_id = tickets.id and ticket_messages.type = ?)',
+                $isStaff
+                    ? [TicketMessageType::Message->value, TicketMessageType::InternalNote->value]
+                    : [TicketMessageType::Message->value]
+            );
 
         if ($this->viewKey === 'created_by_me') {
             $baseQuery->where('created_by', $user->id);
@@ -499,6 +508,67 @@ class Index extends Component
         ];
     }
 
+    private function pendingMessagesCountForOrg(User $user, int $orgId): int
+    {
+        $driver = DB::connection()->getDriverName();
+
+        $query = DB::table('notifications')
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', $user->id)
+            ->whereNull('read_at')
+            ->where('type', TicketNewMessageNotification::class);
+
+        if ($driver === 'pgsql') {
+            $query->whereExists(function ($sub) use ($orgId) {
+                $sub->selectRaw('1')
+                    ->from('tickets')
+                    ->whereRaw("tickets.id = ((notifications.data::jsonb)->>'ticket_id')::bigint")
+                    ->where('tickets.organization_id', $orgId);
+            });
+        } else {
+            $query->whereExists(function ($sub) use ($orgId) {
+                $sub->selectRaw('1')
+                    ->from('tickets')
+                    ->whereRaw("tickets.id = CAST(JSON_UNQUOTE(JSON_EXTRACT(notifications.data, '$.ticket_id')) AS UNSIGNED)")
+                    ->where('tickets.organization_id', $orgId);
+            });
+        }
+
+        return (int) $query->count();
+    }
+
+    private function unreadCountByThreadIdForOrg(User $user, int $orgId)
+    {
+        $driver = DB::connection()->getDriverName();
+        $base = $user->unreadNotifications()
+            ->whereIn('type', [
+                DiscussionNewMessageNotification::class,
+                DiscussionInviteNotification::class,
+            ]);
+
+        if ($driver === 'pgsql') {
+            $base->whereExists(function ($sub) use ($orgId) {
+                $sub->selectRaw('1')
+                    ->from('discussion_threads')
+                    ->whereRaw("discussion_threads.id = ((notifications.data::jsonb)->>'thread_id')::bigint")
+                    ->where('discussion_threads.organization_id', $orgId);
+            });
+        } else {
+            $base->whereExists(function ($sub) use ($orgId) {
+                $sub->selectRaw('1')
+                    ->from('discussion_threads')
+                    ->whereRaw("discussion_threads.id = CAST(JSON_UNQUOTE(JSON_EXTRACT(notifications.data, '$.thread_id')) AS UNSIGNED)")
+                    ->where('discussion_threads.organization_id', $orgId);
+            });
+        }
+
+        return $base
+            ->select('data')
+            ->get()
+            ->groupBy(fn ($n) => (int) ($n->data['thread_id'] ?? 0))
+            ->map->count();
+    }
+
     /** @return \Illuminate\Contracts\View\View */
     public function render()
     {
@@ -538,7 +608,15 @@ class Index extends Component
 
         $threadsData = $this->buildThreadsData($user, $orgId, $search);
         $ticketsData = $this->buildTicketsData($user, $orgId, $isStaff, $search);
-        $viewCounts = Cache::remember(
+        $safeCacheRemember = function (string $key, int $ttl, \Closure $callback) {
+            try {
+                return Cache::remember($key, $ttl, $callback);
+            } catch (\Throwable) {
+                return $callback();
+            }
+        };
+
+        $viewCounts = $safeCacheRemember(
             "disc_view_counts:{$orgId}:{$user->id}:".($isStaff ? '1' : '0'),
             120,
             fn () => $this->buildViewCounts($user, $orgId, $isStaff)
@@ -548,7 +626,7 @@ class Index extends Component
         // This avoids a heavy query on every Discussions page render.
         $shouldLoadOrgUsers = $this->showNewDiscussionModal || $this->showNewGroupModal;
         $orgUsers = $shouldLoadOrgUsers
-            ? Cache::remember(
+            ? $safeCacheRemember(
                 "disc_org_users:{$orgId}:{$user->id}",
                 300,
                 fn () => User::query()
@@ -560,28 +638,18 @@ class Index extends Component
             )
             : collect();
 
-        $pendingMessagesCount = Cache::remember(
-            "disc_pending_msg:{$user->id}",
+        $pendingMessagesCount = $safeCacheRemember(
+            "disc_pending_msg:{$orgId}:{$user->id}",
             60,
-            fn () => $user->unreadNotifications()
-                ->where('type', TicketNewMessageNotification::class)
-                ->count()
+            fn () => $this->pendingMessagesCountForOrg($user, $orgId)
         );
 
         // Unread-by-thread badges are only needed on conversations scope.
         $unreadCountByThreadId = $this->scope === 'threads'
-            ? Cache::remember(
+            ? $safeCacheRemember(
                 "disc_unread_threads:{$user->id}",
                 60,
-                fn () => $user->unreadNotifications()
-                    ->whereIn('type', [
-                        DiscussionNewMessageNotification::class,
-                        DiscussionInviteNotification::class,
-                    ])
-                    ->select('data')
-                    ->get()
-                    ->groupBy(fn ($n) => (int) ($n->data['thread_id'] ?? 0))
-                    ->map->count()
+                fn () => $this->unreadCountByThreadIdForOrg($user, $orgId)
             )
             : collect();
 

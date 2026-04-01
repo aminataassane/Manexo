@@ -111,7 +111,9 @@
                             @php $isActive = $type === $key; @endphp
                             <button
                                 type="button"
-                                wire:click="$set('type', '{{ $key }}')"
+                                wire:click="setType('{{ $key }}')"
+                                wire:loading.attr="disabled"
+                                wire:target="setType"
                                 class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all {{ $isActive ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900' }}"
                             >{{ $label }}</button>
                         @endforeach
@@ -126,7 +128,7 @@
                                 $label = $eventType === 'tickets' ? __('pages.history.label_ticket_created') : ($eventType === 'assignations' ? __('pages.history.label_ticket_assigned') : __('pages.history.label_form_submitted'));
                                 $href = $e->ticket_id ? route('tickets.discussion', $e->ticket_id) : route('forms.index');
                             @endphp
-                            <a href="{{ $href }}" class="relative pl-6 block group">
+                            <a href="{{ $href }}" wire:navigate.hover class="relative pl-6 block group">
                                 <div class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white shadow-sm transition-transform group-hover:scale-110" style="background-color: var(--accent);"></div>
                                 <p class="text-sm font-medium text-slate-900 group-hover:text-[var(--accent)] transition-colors">
                                     {{ $label }}

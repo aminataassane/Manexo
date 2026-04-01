@@ -1,5 +1,5 @@
 <div
-    wire:init="loadFormFields"
+    @if(isset($assignment) && $assignment) wire:init="loadFormFields" @endif
     class="flex flex-col w-full max-w-3xl mx-auto min-w-0 px-0 sm:px-2 pb-6 sm:pb-8"
     style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0));"
 >
@@ -127,7 +127,7 @@
     @endif
 
     {{-- Formulaire : page scroll normale (pas de scroll interne) --}}
-    <form wire:submit="submit" class="flex flex-col bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-visible">
+    <form wire:submit="submit" wire:loading.class="opacity-90 pointer-events-none" wire:target="submit" class="flex flex-col bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-visible">
         <div class="p-5 sm:p-6 lg:p-8 space-y-6">
             @foreach($steps as $stepIndex => $stepData)
                 <div x-show="{{ $hasStepper ? 'step === ' . $stepIndex : 'true' }}"
@@ -164,16 +164,22 @@
                             </label>
 
                             @if($type === 'textarea')
-                                <textarea wire:model="answers.{{ $key }}" rows="4"
+                                <textarea wire:model.blur="answers.{{ $key }}" rows="4"
                                           placeholder="{{ $placeholder ?: $field->label }}"
                                           class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] resize-y min-h-[100px]"></textarea>
                             @elseif($type === 'select')
-                                <x-select-input wire:model="answers.{{ $key }}">
-                                    <option value="">{{ $placeholder ?: __('Sélectionnez...') }}</option>
-                                    @foreach((array) $options as $opt)
-                                        <option value="{{ $opt }}">{{ $opt }}</option>
-                                    @endforeach
-                                </x-select-input>
+                                <div class="relative group/select">
+                                    <select wire:model="answers.{{ $key }}"
+                                            class="select-manexo-inset block w-full text-[13px] font-medium text-slate-800 transition-colors duration-200">
+                                        <option value="">{{ $placeholder ?: __('Sélectionnez...') }}</option>
+                                        @foreach((array) $options as $opt)
+                                            <option value="{{ $opt }}">{{ $opt }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition-colors duration-200 group-hover/select:text-slate-600">
+                                        <iconify-icon icon="solar:alt-arrow-down-linear" width="16" class="opacity-90"></iconify-icon>
+                                    </div>
+                                </div>
                             @elseif($type === 'radio')
                                 <div class="{{ $displayMode === 'inline' ? 'flex flex-wrap gap-2.5' : ($displayMode === 'grid' ? 'grid grid-cols-2 gap-2.5' : ($displayMode === 'card' ? 'space-y-2.5' : 'space-y-2')) }}">
                                     @foreach((array) $options as $opt)
@@ -216,16 +222,16 @@
                                 <input type="datetime-local" wire:model="answers.{{ $key }}"
                                        class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
                             @elseif($type === 'number')
-                                <input type="number" wire:model="answers.{{ $key }}" placeholder="{{ $placeholder ?: $field->label }}"
+                                <input type="number" wire:model.blur="answers.{{ $key }}" placeholder="{{ $placeholder ?: $field->label }}"
                                        class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
                             @elseif($type === 'email')
-                                <input type="email" wire:model="answers.{{ $key }}" placeholder="{{ $placeholder ?: $field->label }}"
+                                <input type="email" wire:model.blur="answers.{{ $key }}" placeholder="{{ $placeholder ?: $field->label }}"
                                        class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
                             @elseif($type === 'file')
                                 <input type="file" wire:model="fileUploads.{{ $key }}"
                                        class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[var(--accent-soft)] file:text-[var(--accent)] hover:file:opacity-90 transition-opacity">
                             @else
-                                <input type="text" wire:model="answers.{{ $key }}" placeholder="{{ $placeholder ?: $field->label }}"
+                                <input type="text" wire:model.blur="answers.{{ $key }}" placeholder="{{ $placeholder ?: $field->label }}"
                                        class="input-manexo w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)]">
                             @endif
 
@@ -265,30 +271,30 @@
                         </button>
                     </template>
                     <template x-if="isLastStep">
-                        <button type="submit"
-                                class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-lg shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70"
-                                style="background-color: var(--accent);"
-                                wire:loading.attr="disabled">
-                            <span wire:loading.remove wire:target="submit">{{ __('Soumettre') }}</span>
-                            <span wire:loading wire:target="submit" class="inline-flex items-center gap-2">
-                                <span class="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                                {{ __('Envoi...') }}
-                            </span>
-                            <iconify-icon icon="solar:plain-bold" width="16" wire:loading.remove wire:target="submit"></iconify-icon>
-                        </button>
+                        <x-manexo.action-button
+                            type="submit"
+                            wire-target="submit"
+                            variant="primary"
+                            class="!rounded-lg !px-5 touch-manipulation !font-bold"
+                            style="background-color: var(--accent);"
+                            :loading-label="__('Envoi...')"
+                        >
+                            {{ __('Soumettre') }}
+                            <iconify-icon icon="solar:plain-bold" width="16"></iconify-icon>
+                        </x-manexo.action-button>
                     </template>
                 @else
-                    <button type="submit"
-                            class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-lg shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70"
-                            style="background-color: var(--accent);"
-                            wire:loading.attr="disabled">
-                        <span wire:loading.remove wire:target="submit">{{ __('Soumettre') }}</span>
-                        <span wire:loading wire:target="submit" class="inline-flex items-center gap-2">
-                            <span class="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                            {{ __('Envoi...') }}
-                        </span>
-                        <iconify-icon icon="solar:plain-bold" width="16" wire:loading.remove wire:target="submit"></iconify-icon>
-                    </button>
+                    <x-manexo.action-button
+                        type="submit"
+                        wire-target="submit"
+                        variant="primary"
+                        class="!rounded-lg !px-5 touch-manipulation !font-bold"
+                        style="background-color: var(--accent);"
+                        :loading-label="__('Envoi...')"
+                    >
+                        {{ __('Soumettre') }}
+                        <iconify-icon icon="solar:plain-bold" width="16"></iconify-icon>
+                    </x-manexo.action-button>
                 @endif
             </div>
         </div>

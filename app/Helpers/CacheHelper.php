@@ -7,11 +7,14 @@ use Illuminate\Support\Facades\Cache;
 
 class CacheHelper
 {
-    /** Cache TTL in seconds (30 minutes). */
+    /** Cache TTL in seconds (30 minutes) — general data. */
     public const TTL = 1800;
 
     /** Short TTL for notification counts (1 minute). */
     public const TTL_SHORT = 60;
+
+    /** Long TTL for config-like data that rarely changes (1 hour). */
+    public const TTL_CONFIG = 3600;
 
     // ─── Key generators ──────────────────────────────────────────────
 
@@ -104,6 +107,12 @@ class CacheHelper
     public static function kbArticlesKey(int $orgId): string
     {
         return "kb_articles:{$orgId}";
+    }
+
+    /** Categories + article list for KB index default view (single cache round-trip). */
+    public static function kbIndexDefaultKey(int $orgId): string
+    {
+        return "kb_index_default:{$orgId}";
     }
 
     public static function slaPoliciesKey(int $orgId): string
@@ -309,6 +318,7 @@ class CacheHelper
     {
         Cache::forget(self::kbCategoriesKey($orgId));
         Cache::forget(self::kbArticlesKey($orgId));
+        Cache::forget(self::kbIndexDefaultKey($orgId));
         Cache::forget(self::settingsKbCategoriesAdminKey($orgId));
         Cache::forget(self::settingsKbArticlesAdminKey($orgId));
     }

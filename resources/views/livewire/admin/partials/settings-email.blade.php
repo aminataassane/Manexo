@@ -27,7 +27,7 @@
                         <input
                             id="mailbox_email"
                             type="email"
-                            wire:model="mailboxEmail"
+                            wire:model.blur="mailboxEmail"
                             required
                             placeholder="support@exemple.com"
                             class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
@@ -40,7 +40,7 @@
                         <input
                             id="mailbox_display_name"
                             type="text"
-                            wire:model="mailboxDisplayName"
+                            wire:model.blur="mailboxDisplayName"
                             placeholder="Support Entreprise"
                             class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                             @disabled(! $canManage)
@@ -60,7 +60,7 @@
                         <input
                             id="mailbox_imap_host"
                             type="text"
-                            wire:model="mailboxImapHost"
+                            wire:model.blur="mailboxImapHost"
                             required
                             placeholder="imap.gmail.com"
                             class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
@@ -74,7 +74,7 @@
                             <input
                                 id="mailbox_imap_port"
                                 type="number"
-                                wire:model="mailboxImapPort"
+                                wire:model.blur="mailboxImapPort"
                                 required
                                 min="1"
                                 max="65535"
@@ -85,7 +85,7 @@
                         </div>
                         <div>
                             <x-input-label for="mailbox_imap_encryption" value="Chiffrement *" />
-                            <x-select-input id="mailbox_imap_encryption" wire:model="mailboxImapEncryption" class="mt-1" :disabled="! $canManage">
+                            <x-select-input id="mailbox_imap_encryption" wire:model.blur="mailboxImapEncryption" class="mt-1" :disabled="! $canManage">
                                 <option value="ssl">SSL</option>
                                 <option value="tls">TLS</option>
                                 <option value="none">Aucun</option>
@@ -100,7 +100,7 @@
                         <input
                             id="mailbox_imap_username"
                             type="text"
-                            wire:model="mailboxImapUsername"
+                            wire:model.blur="mailboxImapUsername"
                             required
                             placeholder="support@exemple.com"
                             class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
@@ -113,7 +113,7 @@
                         <input
                             id="mailbox_imap_password"
                             type="password"
-                            wire:model="mailboxImapPassword"
+                            wire:model.blur="mailboxImapPassword"
                             placeholder="Laisser vide pour conserver l'existant"
                             class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                             @disabled(! $canManage)
@@ -127,7 +127,7 @@
                     <input
                         id="mailbox_imap_folder"
                         type="text"
-                        wire:model="mailboxImapFolder"
+                        wire:model.blur="mailboxImapFolder"
                         placeholder="INBOX"
                         class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                         @disabled(! $canManage)
@@ -162,7 +162,7 @@
                         <input
                             id="mailbox_smtp_host"
                             type="text"
-                            wire:model="mailboxSmtpHost"
+                            wire:model.blur="mailboxSmtpHost"
                             placeholder="smtp.gmail.com"
                             class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                             @disabled(! $canManage)
@@ -175,7 +175,7 @@
                             <input
                                 id="mailbox_smtp_port"
                                 type="number"
-                                wire:model="mailboxSmtpPort"
+                                wire:model.blur="mailboxSmtpPort"
                                 min="1"
                                 max="65535"
                                 placeholder="587"
@@ -186,7 +186,7 @@
                         </div>
                         <div>
                             <x-input-label for="mailbox_smtp_encryption" value="Chiffrement" />
-                            <x-select-input id="mailbox_smtp_encryption" wire:model="mailboxSmtpEncryption" class="mt-1" :disabled="! $canManage">
+                            <x-select-input id="mailbox_smtp_encryption" wire:model.blur="mailboxSmtpEncryption" class="mt-1" :disabled="! $canManage">
                                 <option value="tls">TLS</option>
                                 <option value="ssl">SSL</option>
                                 <option value="none">Aucun</option>
@@ -201,7 +201,7 @@
                         <input
                             id="mailbox_smtp_username"
                             type="text"
-                            wire:model="mailboxSmtpUsername"
+                            wire:model.blur="mailboxSmtpUsername"
                             placeholder="Vide = identifiant IMAP"
                             class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                             @disabled(! $canManage)
@@ -213,7 +213,7 @@
                         <input
                             id="mailbox_smtp_password"
                             type="password"
-                            wire:model="mailboxSmtpPassword"
+                            wire:model.blur="mailboxSmtpPassword"
                             placeholder="Vide = mot de passe IMAP"
                             class="mt-1 block w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] sm:text-sm transition-all"
                             @disabled(! $canManage)
@@ -264,7 +264,7 @@
                 <div class="grid gap-4 sm:grid-cols-3">
                     <div>
                         <x-input-label value="Catégorie" />
-                        <x-select-input wire:model="mailboxDefaultCategoryId" class="mt-1" :disabled="! $canManage">
+                        <x-select-input wire:model.blur="mailboxDefaultCategoryId" class="mt-1" :disabled="! $canManage">
                             <option value="">Aucune</option>
                             @foreach ($categories as $c)
                                 @if ($c->is_active)
@@ -275,7 +275,7 @@
                     </div>
                     <div>
                         <x-input-label value="Priorité" />
-                        <x-select-input wire:model="mailboxDefaultPriorityId" class="mt-1" :disabled="! $canManage">
+                        <x-select-input wire:model.blur="mailboxDefaultPriorityId" class="mt-1" :disabled="! $canManage">
                             <option value="">Aucune</option>
                             @foreach ($priorities as $p)
                                 @if ($p->is_active)
@@ -286,7 +286,7 @@
                     </div>
                     <div>
                         <x-input-label value="Groupe" />
-                        <x-select-input wire:model="mailboxDefaultGroupId" class="mt-1" :disabled="! $canManage">
+                        <x-select-input wire:model.blur="mailboxDefaultGroupId" class="mt-1" :disabled="! $canManage">
                             <option value="">Aucun</option>
                             @foreach ($ticketGroups as $g)
                                 @if ($g->is_active)
@@ -302,26 +302,22 @@
 
             {{-- Actions --}}
             <div class="flex flex-wrap items-center gap-3">
-                <button type="submit" class="btn-primary" @disabled(! $canManage)>
-                    <span wire:loading.remove wire:target="saveMailbox">Enregistrer</span>
-                    <span wire:loading wire:target="saveMailbox"><iconify-icon icon="solar:refresh-linear" class="animate-spin"></iconify-icon></span>
-                </button>
+                <x-manexo.action-button type="submit" wire-target="saveMailbox" variant="primary" class="btn-primary" :loading-label="__('ui.action.saving')" @disabled(! $canManage)>
+                    Enregistrer
+                </x-manexo.action-button>
 
-                <button
+                <x-manexo.action-button
                     type="button"
                     wire:click="testMailboxConnection"
-                    class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all"
+                    wire-target="testMailboxConnection"
+                    variant="secondary"
+                    class="!font-semibold"
+                    :loading-label="'Test en cours…'"
                     @disabled(! $canManage)
                 >
-                    <span wire:loading.remove wire:target="testMailboxConnection">
-                        <iconify-icon icon="solar:plug-circle-bolt-linear" width="18"></iconify-icon>
-                        Tester la connexion
-                    </span>
-                    <span wire:loading wire:target="testMailboxConnection">
-                        <iconify-icon icon="solar:refresh-linear" class="animate-spin" width="18"></iconify-icon>
-                        Test en cours...
-                    </span>
-                </button>
+                    <iconify-icon icon="solar:plug-circle-bolt-linear" width="18"></iconify-icon>
+                    Tester la connexion
+                </x-manexo.action-button>
 
                 @if ($mailboxIsActive)
                 <button

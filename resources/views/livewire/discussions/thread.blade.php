@@ -48,13 +48,29 @@
             {{-- Chat scroll area --}}
             <div id="thread-messages" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar overscroll-contain messaging-chat-scroll">
                 <div class="mx-auto w-full max-w-3xl px-4 py-6" style="padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right));">
+                    @if(($hasMoreMessages ?? false))
+                        <div class="mb-4 flex justify-center">
+                            <button
+                                type="button"
+                                wire:click="loadMoreMessages"
+                                wire:loading.attr="disabled"
+                                wire:target="loadMoreMessages"
+                                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                            >
+                                <iconify-icon icon="solar:alt-arrow-up-linear" width="14"></iconify-icon>
+                                {{ __('Charger les messages plus anciens') }}
+                            </button>
+                        </div>
+                    @endif
                     <div id="thread-timeline" class="space-y-3">
                         @forelse($thread->messages as $msg)
                         @php
                             $isOwn = $msg->user_id && (int) $msg->user_id === (int) auth()->id();
-                            $avatarUrl = $msg->user
-                                ? 'https://ui-avatars.com/api/?name=' . urlencode($msg->user->name) . '&size=32&background=e2e8f0&color=475569'
-                                : 'https://ui-avatars.com/api/?name=U&size=32&background=e2e8f0&color=475569';
+                            $avatarInitials = \Illuminate\Support\Str::of($msg->user?->name ?? 'U')
+                                ->explode(' ')
+                                ->take(2)
+                                ->map(fn ($p) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p, 0, 1)))
+                                ->implode('');
                             $time = $msg->created_at->diffForHumans();
                             $bodyEscaped = e($msg->body);
                             $bodyFormatted = nl2br($bodyEscaped);
@@ -82,7 +98,9 @@
                             </div>
                         @else
                             <div class="flex items-end gap-2">
-                                <img src="{{ $avatarUrl }}" class="w-7 h-7 rounded-full border border-slate-100 bg-white shrink-0" alt="">
+                                <span class="w-7 h-7 rounded-full border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0">
+                                    {{ $avatarInitials }}
+                                </span>
                                 <div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0">
                                     <div class="flex items-center gap-2 mb-1">
                                         <span class="text-[11px] font-semibold text-slate-600">{{ $msg->user?->name ?? '—' }}</span>
@@ -140,7 +158,15 @@
                                 el.style.height = Math.min(el.scrollHeight, 128) + 'px';
                             }
                         }"
-                        x-on:submit="localStorage.removeItem('discussion-draft-{{ $thread->id }}')"
+                        x-on:submit="
+                            const txt = ($wire.get('body') || '').trim();
+                            if (txt.length > 0) {
+                                window.dispatchEvent(new CustomEvent('discussion:pending-send', {
+                                    detail: { body: txt, userName: '{{ addslashes(auth()->user()?->name ?? '') }}' }
+                                }));
+                            }
+                            localStorage.removeItem('discussion-draft-{{ $thread->id }}');
+                        "
                     >
                         {{-- Paperclip --}}
                         <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="thread-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
@@ -165,9 +191,18 @@
                         @endif
 
                         {{-- Send button --}}
-                        <button type="submit" x-ref="submitBtn" class="shrink-0 h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-white inline-flex items-center justify-center shadow-sm hover:opacity-90 transition-all" style="background-color: var(--accent);">
+                        <x-manexo.action-button
+                            type="submit"
+                            wire-target="sendMessage"
+                            variant="primary"
+                            icon-only
+                            x-ref="submitBtn"
+                            class="!rounded-xl shrink-0 h-10 w-10 sm:h-9 sm:w-9 p-0 !px-0"
+                            style="background-color: var(--accent);"
+                            :loading-label="__('ui.action.sending')"
+                        >
                             <iconify-icon icon="solar:plain-bold" width="16"></iconify-icon>
-                        </button>
+                        </x-manexo.action-button>
                     </form>
                     <x-input-error :messages="$errors->get('body')" class="mt-1.5" />
                 </div>
@@ -346,6 +381,12 @@
         threadId,
         currentUserId,
         init() {
+            window.addEventListener('discussion:pending-send', (evt) => {
+                const body = evt?.detail?.body || '';
+                const userName = evt?.detail?.userName || '';
+                if (body) this.appendPendingMessage(body, userName);
+            });
+
             const tryConnect = () => {
                 if (typeof window.Echo !== 'undefined') {
                     window.Echo.private('discussion.' + this.threadId)
@@ -364,6 +405,10 @@
             const scroll = document.getElementById('thread-messages');
             if (!timeline || !scroll) return;
 
+            // Replace one optimistic pending bubble by the confirmed message.
+            const pending = timeline.querySelector('[data-pending-own="1"]');
+            if (pending) pending.remove();
+
             const empty = timeline.querySelector('[data-empty-thread]');
             if (empty) empty.remove();
 
@@ -371,7 +416,12 @@
             const time = e.created_at ? new Date(e.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
             const name = this.escapeHtml(e.user_name || '');
             const body = this.escapeHtml(e.body || '').replace(/\n/g, '<br>');
-            const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'U') + '&size=32&background=e2e8f0&color=475569';
+            const initials = (name || 'U')
+                .split(' ')
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part.charAt(0).toUpperCase())
+                .join('') || 'U';
 
             const attachments = Array.isArray(e.attachments) ? e.attachments : [];
             const attachmentsHtml = attachments.length
@@ -386,7 +436,25 @@
 
             const html = isOwn
                 ? `<div class="flex justify-end"><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center justify-end gap-2 mb-1"><span class="text-[10px] text-slate-400">${time}</span><span class="text-[11px] font-semibold text-slate-600">${name}</span></div><div class="messaging-bubble-own rounded-2xl rounded-br-sm px-4 py-2.5 text-[0.88rem] leading-relaxed text-white" style="background-color: var(--accent);">${body}${attachmentsHtml}</div></div></div>`
-                : `<div class="flex items-end gap-2"><img src="${avatarUrl}" class="w-7 h-7 rounded-full border border-slate-100 bg-white shrink-0" alt=""><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center gap-2 mb-1"><span class="text-[11px] font-semibold text-slate-600">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">${body}${attachmentsHtml}</div></div></div>`;
+                : `<div class="flex items-end gap-2"><span class="w-7 h-7 rounded-full border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0">${this.escapeHtml(initials)}</span><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center gap-2 mb-1"><span class="text-[11px] font-semibold text-slate-600">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">${body}${attachmentsHtml}</div></div></div>`;
+
+            const div = document.createElement('div');
+            div.className = 'animate-enter';
+            div.innerHTML = html;
+            timeline.appendChild(div);
+            scroll.scrollTop = scroll.scrollHeight;
+        },
+        appendPendingMessage(rawBody, rawName) {
+            const timeline = document.getElementById('thread-timeline');
+            const scroll = document.getElementById('thread-messages');
+            if (!timeline || !scroll) return;
+
+            const empty = timeline.querySelector('[data-empty-thread]');
+            if (empty) empty.remove();
+
+            const body = this.escapeHtml(rawBody || '').replace(/\n/g, '<br>');
+            const name = this.escapeHtml(rawName || '');
+            const html = `<div data-pending-own="1" class="flex justify-end opacity-70"><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center justify-end gap-2 mb-1"><span class="text-[10px] text-slate-400">{{ __('ui.action.sending') }}</span><span class="text-[11px] font-semibold text-slate-600">${name}</span></div><div class="messaging-bubble-own rounded-2xl rounded-br-sm px-4 py-2.5 text-[0.88rem] leading-relaxed text-white" style="background-color: var(--accent);">${body}</div></div></div>`;
 
             const div = document.createElement('div');
             div.className = 'animate-enter';

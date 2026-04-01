@@ -99,15 +99,16 @@ new class extends Component
         </div>
 
         <div class="flex flex-wrap items-center gap-4 pt-1">
-            <button
+            <x-manexo.action-button
                 type="submit"
-                wire:loading.attr="disabled"
-                class="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-lg text-white text-sm font-semibold shadow-sm transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005F02] active:scale-[0.98] disabled:opacity-70"
+                wire-target="updateProfileInformation"
+                variant="primary"
+                class="!h-10 !rounded-lg !px-5 !font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005F02] active:scale-[0.98]"
                 style="background-color: var(--accent, #005F02);"
+                :loading-label="__('ui.action.saving')"
             >
-                <span wire:loading.remove wire:target="updateProfileInformation">{{ __('Enregistrer') }}</span>
-                <span wire:loading wire:target="updateProfileInformation" class="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-            </button>
+                {{ __('Enregistrer') }}
+            </x-manexo.action-button>
 
             <x-action-message class="text-sm text-emerald-600 font-medium" on="profile-updated">
                 {{ __('Saved.') }}

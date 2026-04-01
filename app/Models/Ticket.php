@@ -401,16 +401,10 @@ class Ticket extends Model
     {
         return $query->where(function ($q) use ($userId) {
             $q->where('created_by', $userId)
-                ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $userId))
-                ->orWhereHas('participants', fn ($p) => $p->where('user_id', $userId))
-                ->orWhereHas('assignedToFunction', fn ($f) => $f->whereHas('memberships', fn ($m) => $m->where('user_id', $userId)))
-                ->orWhereExists(function ($sub) use ($userId) {
-                    $sub->selectRaw('1')
-                        ->from('ticket_messages')
-                        ->whereColumn('ticket_messages.ticket_id', 'tickets.id')
-                        ->where('ticket_messages.user_id', $userId)
-                        ->where('ticket_messages.type', '!=', 'system');
-                });
+                ->orWhereRaw('exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?)', [$userId])
+                ->orWhereRaw('exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)', [$userId])
+                ->orWhereRaw('exists (select 1 from organization_memberships where organization_memberships.organization_function_id = tickets.assigned_to_function_id and organization_memberships.user_id = ? and organization_memberships.organization_function_id is not null)', [$userId])
+                ->orWhereRaw('exists (select 1 from ticket_messages where ticket_messages.ticket_id = tickets.id and ticket_messages.user_id = ? and ticket_messages.type != ?)', [$userId, 'system']);
         });
     }
 

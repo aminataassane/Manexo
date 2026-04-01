@@ -11,10 +11,10 @@
                 {{ now()->translatedFormat('d F Y') }}
             </span>
             @if(auth()->user()->canPlatformManage())
-            <button wire:click="openCreateModal" class="sa-btn-primary inline-flex items-center gap-2">
+            <x-manexo.action-button wire:click="openCreateModal" wire-target="openCreateModal" variant="super" class="inline-flex items-center gap-2">
                 <iconify-icon icon="solar:add-circle-bold" width="18"></iconify-icon>
                 {{ __('super_admin.organizations.create') }}
-            </button>
+            </x-manexo.action-button>
             @endif
         </div>
     </header>
@@ -271,7 +271,7 @@
             </div>
             <div class="flex justify-end gap-2">
                 <button @click="open = false" class="sa-btn-secondary">{{ __('super_admin.cancel') }}</button>
-                <button wire:click="confirmCreate" class="sa-btn-primary">{{ __('super_admin.organizations.create') }}</button>
+                <x-manexo.action-button wire:click="confirmCreate" wire-target="confirmCreate" variant="super">{{ __('super_admin.organizations.create') }}</x-manexo.action-button>
             </div>
         </div>
     </div>
@@ -289,7 +289,7 @@
             <p class="text-sm text-slate-500 mb-4">{{ __('super_admin.organizations.archive_desc') }}</p>
             <div class="flex justify-end gap-2">
                 <button @click="open = false" class="sa-btn-secondary">{{ __('super_admin.cancel') }}</button>
-                <button wire:click="confirmArchive" class="rounded-xl bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors">{{ __('super_admin.organizations.confirm_archive') }}</button>
+                <x-manexo.action-button wire:click="confirmArchive" wire-target="confirmArchive" variant="neutral">{{ __('super_admin.organizations.confirm_archive') }}</x-manexo.action-button>
             </div>
         </div>
     </div>
@@ -311,7 +311,7 @@
             </div>
             <div class="flex justify-end gap-2">
                 <button @click="open = false" class="sa-btn-secondary">{{ __('super_admin.cancel') }}</button>
-                <button wire:click="confirmSuspend" class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 transition-colors">{{ __('super_admin.organizations.confirm_suspend') }}</button>
+                <x-manexo.action-button wire:click="confirmSuspend" wire-target="confirmSuspend" variant="warning">{{ __('super_admin.organizations.confirm_suspend') }}</x-manexo.action-button>
             </div>
         </div>
     </div>
@@ -329,7 +329,7 @@
             <p class="text-sm text-slate-500 mb-4">{{ __('super_admin.organizations.confirm_enter') }}</p>
             <div class="flex justify-end gap-2">
                 <button @click="open = false" class="sa-btn-secondary">{{ __('super_admin.cancel') }}</button>
-                <button wire:click="confirmEnter" class="sa-btn-primary">{{ __('super_admin.organizations.enter') }}</button>
+                <x-manexo.action-button wire:click="confirmEnter" wire-target="confirmEnter" variant="super">{{ __('super_admin.organizations.enter') }}</x-manexo.action-button>
             </div>
         </div>
     </div>
@@ -347,7 +347,7 @@
             <p class="text-sm text-slate-500 mb-4">{{ __('super_admin.organizations.confirm_activate') }}</p>
             <div class="flex justify-end gap-2">
                 <button @click="open = false" class="sa-btn-secondary">{{ __('super_admin.cancel') }}</button>
-                <button wire:click="confirmActivate" class="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 transition-colors">{{ __('super_admin.organizations.activate') }}</button>
+                <x-manexo.action-button wire:click="confirmActivate" wire-target="confirmActivate" variant="success">{{ __('super_admin.organizations.activate') }}</x-manexo.action-button>
             </div>
         </div>
     </div>
@@ -365,7 +365,7 @@
             <p class="text-sm text-slate-500 mb-4">{{ __('super_admin.organizations.confirm_disable') }}</p>
             <div class="flex justify-end gap-2">
                 <button @click="open = false" class="sa-btn-secondary">{{ __('super_admin.cancel') }}</button>
-                <button wire:click="confirmDisable" class="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600 transition-colors">{{ __('super_admin.organizations.disable') }}</button>
+                <x-manexo.action-button wire:click="confirmDisable" wire-target="confirmDisable" variant="danger-solid">{{ __('super_admin.organizations.disable') }}</x-manexo.action-button>
             </div>
         </div>
     </div>

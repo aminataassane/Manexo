@@ -39,6 +39,7 @@ class FormBuilder extends Component
 
     // Active tab: champs | assignations | reponses
     public string $activeTab = 'champs';
+    private const ALLOWED_TABS = ['champs', 'assignations', 'reponses'];
 
     // Form selection
     public ?int $fb_selected_form_id = null;
@@ -175,8 +176,20 @@ class FormBuilder extends Component
 
     public function selectForm(int $formId): void
     {
+        if ($this->fb_selected_form_id === $formId) {
+            return;
+        }
         $this->fb_selected_form_id = $formId;
         $this->loadSelectedForm();
+    }
+
+    public function setActiveTab(string $tab): void
+    {
+        if (! in_array($tab, self::ALLOWED_TABS, true) || $this->activeTab === $tab) {
+            return;
+        }
+
+        $this->activeTab = $tab;
     }
 
     public function selectField(int $fieldId): void
@@ -664,9 +677,17 @@ class FormBuilder extends Component
         }
         array_splice($ids, $index, 0, [$movedFieldId]);
 
+        $sortOrderById = [];
         foreach ($ids as $i => $id) {
-            FormField::query()->whereKey($id)->update(['sort_order' => ($i + 1) * 10]);
+            $sortOrderById[(int) $id] = ($i + 1) * 10;
         }
+
+        $idsSql = implode(',', array_keys($sortOrderById));
+        $cases = collect($sortOrderById)
+            ->map(fn (int $sort, int $id) => "WHEN {$id} THEN {$sort}")
+            ->implode(' ');
+
+        DB::statement("UPDATE form_fields SET sort_order = CASE id {$cases} END WHERE id IN ({$idsSql})");
         $this->dispatch('toast', type: 'success', message: __('forms_builder.field_reordered'));
     }
 
@@ -738,13 +759,18 @@ class FormBuilder extends Component
             $memberIds = OrganizationMembership::query()
                 ->where('organization_id', $orgId)
                 ->where('organization_function_id', (int) $validated['assign_function_id'])
-                ->pluck('user_id');
-            foreach ($memberIds as $memberId) {
-                if ((int) $memberId === (int) $user->id) {
-                    continue;
-                }
-                $member = \App\Models\User::find($memberId);
-                if ($member) {
+                ->pluck('user_id')
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn (int $id) => $id !== (int) $user->id)
+                ->values();
+
+            if ($memberIds->isNotEmpty()) {
+                $members = \App\Models\User::query()
+                    ->whereIn('id', $memberIds->all())
+                    ->get(['id', 'name', 'email']);
+
+                /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $members */
+                foreach ($members as $member) {
                     $member->notify(new FormAssignmentNotification(
                         formId: $form->id,
                         formName: $form->name,
@@ -754,11 +780,12 @@ class FormBuilder extends Component
                         dueDate: $form->due_date !== null ? \Carbon\Carbon::parse($form->due_date)->toDateString() : null,
                         assignmentPublicId: $assignment->public_id,
                     ));
-                    event(new UserNotificationReceived(userId: (int) $memberId, notificationType: 'form_assignment'));
+                    event(new UserNotificationReceived(userId: (int) $member->id, notificationType: 'form_assignment'));
                 }
-            }
-            foreach ($memberIds as $memberId) {
-                CacheHelper::invalidateUserFormsCache($orgId, (int) $memberId);
+
+                foreach ($memberIds as $memberId) {
+                    CacheHelper::invalidateUserFormsCache($orgId, (int) $memberId);
+                }
             }
         }
 
@@ -855,7 +882,17 @@ class FormBuilder extends Component
                 $selectedFormQuery->with(['fields' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')]);
             }
 
-            $selectedForm = $selectedFormQuery->first();
+            $selectedForm = $selectedFormQuery->first([
+                'id',
+                'organization_id',
+                'name',
+                'description',
+                'status',
+                'ticket_category_id',
+                'target_user_id',
+                'slug',
+                'current_version',
+            ]);
         }
 
         $assignments = collect();
@@ -863,7 +900,7 @@ class FormBuilder extends Component
         if ($orgId && $this->fb_selected_form_id && $this->activeTab === 'assignations') {
             $assignments = FormAssignment::query()
                 ->where('form_id', (int) $this->fb_selected_form_id)
-                ->with(['user:id,name,email', 'assignedBy:id,name', 'organizationFunction:id,name', 'response'])
+                ->with(['user:id,name,email', 'assignedBy:id,name', 'organizationFunction:id,name'])
                 ->latest()
                 ->get();
             $organizationFunctions = Cache::remember(CacheHelper::orgFunctionsKey($orgId), CacheHelper::TTL, function () use ($orgId) {

@@ -111,6 +111,7 @@ class TicketComposer extends Component
 
         // Send mention-specific notifications
         if (! empty($mentions)) {
+            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $mentionedUsers */
             $mentionedUsers = User::whereIn('id', $mentions)
                 ->where('id', '!=', $user->id)
                 ->get();
@@ -199,6 +200,7 @@ class TicketComposer extends Component
             });
         }
 
+        /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $recipients */
         $recipients = $recipientsQuery->get();
         foreach ($recipients as $recipient) {
             if ($ticket->hasDiscussionAccess((int) $recipient->id)) {
@@ -224,30 +226,128 @@ class TicketComposer extends Component
             return [];
         }
 
-        $ids = [];
-        $baseQuery = User::query()->whereHas('organizations', fn ($q) => $q->where('organization_id', $organizationId));
-
+        $parts = [];
         foreach ($m[1] as $part) {
             $part = trim($part);
-            if ($part === '') {
+            if ($part !== '') {
+                $parts[] = $part;
+            }
+        }
+        if ($parts === []) {
+            return [];
+        }
+
+        // Fast path: resolve against already-loaded mentionable users from parent component.
+        $mentionables = collect($this->mentionableUsers ?? [])
+            ->filter(fn ($u) => is_array($u) && isset($u['id']))
+            ->values();
+        $tagToId = [];
+        $names = [];
+        foreach ($mentionables as $u) {
+            $id = (int) ($u['id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+            $tag = trim((string) ($u['tag'] ?? ''));
+            $name = trim((string) ($u['name'] ?? ''));
+            if ($tag !== '') {
+                $tagToId[mb_strtolower($tag)] = $id;
+            }
+            if ($name !== '') {
+                $names[] = ['id' => $id, 'name' => mb_strtolower($name)];
+            }
+        }
+
+        $resolvedIds = [];
+        $remainingParts = [];
+        foreach ($parts as $part) {
+            $partLower = mb_strtolower($part);
+            if (preg_match('/^[\p{L}\p{N}_]+$/u', $part) && isset($tagToId[$partLower])) {
+                $resolvedIds[] = $tagToId[$partLower];
                 continue;
             }
 
-            if (preg_match('/^[\p{L}\p{N}_]+$/u', $part)) {
-                $byTag = (clone $baseQuery)
-                    ->whereNotNull('mention_tag')
-                    ->whereRaw('LOWER(mention_tag) = ?', [mb_strtolower($part)])
-                    ->first();
-                if ($byTag) {
-                    $ids[] = (int) $byTag->id;
-
-                    continue;
+            $matched = false;
+            foreach ($names as $candidate) {
+                if (mb_stripos($candidate['name'], $partLower) !== false) {
+                    $resolvedIds[] = (int) $candidate['id'];
+                    $matched = true;
+                    break;
                 }
             }
+            if (! $matched) {
+                $remainingParts[] = $part;
+            }
+        }
 
-            $byName = (clone $baseQuery)->where('name', 'ilike', '%'.$part.'%')->first();
-            if ($byName) {
-                $ids[] = (int) $byName->id;
+        if ($remainingParts === []) {
+            return array_values(array_unique($resolvedIds));
+        }
+
+        $baseQuery = User::query()->whereHas('organizations', fn ($q) => $q->where('organization_id', $organizationId));
+
+        $tagKeys = [];
+        foreach ($remainingParts as $part) {
+            if (preg_match('/^[\p{L}\p{N}_]+$/u', $part)) {
+                $tagKeys[mb_strtolower($part)] = true;
+            }
+        }
+
+        $tagMap = [];
+        if ($tagKeys !== []) {
+            $tagUsers = (clone $baseQuery)
+                ->whereNotNull('mention_tag')
+                ->where(function ($q) use ($tagKeys) {
+                    foreach (array_keys($tagKeys) as $lower) {
+                        $q->orWhereRaw('LOWER(mention_tag) = ?', [$lower]);
+                    }
+                })
+                ->get(['id', 'mention_tag']);
+            foreach ($tagUsers as $u) {
+                $k = mb_strtolower((string) $u->mention_tag);
+                if (! isset($tagMap[$k])) {
+                    $tagMap[$k] = (int) $u->id;
+                }
+            }
+        }
+
+        $uniqueNameParts = [];
+        foreach ($remainingParts as $part) {
+            if (preg_match('/^[\p{L}\p{N}_]+$/u', $part) && isset($tagMap[mb_strtolower($part)])) {
+                continue;
+            }
+            $uniqueNameParts[$part] = true;
+        }
+        $uniqueNameParts = array_keys($uniqueNameParts);
+
+        $nameMatchByPart = [];
+        if ($uniqueNameParts !== []) {
+            $nameUsers = (clone $baseQuery)
+                ->where(function ($q) use ($uniqueNameParts) {
+                    foreach ($uniqueNameParts as $p) {
+                        $q->orWhere('name', 'ilike', '%'.$p.'%');
+                    }
+                })
+                ->orderBy('id')
+                ->get(['id', 'name']);
+
+            foreach ($uniqueNameParts as $p) {
+                $nameMatchByPart[$p] = $nameUsers->first(function ($u) use ($p) {
+                    return $u->name !== null && mb_stripos($u->name, $p) !== false;
+                });
+            }
+        }
+
+        $ids = $resolvedIds;
+        foreach ($remainingParts as $part) {
+            if (preg_match('/^[\p{L}\p{N}_]+$/u', $part) && isset($tagMap[mb_strtolower($part)])) {
+                $ids[] = $tagMap[mb_strtolower($part)];
+
+                continue;
+            }
+            $match = $nameMatchByPart[$part] ?? null;
+            if ($match) {
+                $ids[] = (int) $match->id;
             }
         }
 

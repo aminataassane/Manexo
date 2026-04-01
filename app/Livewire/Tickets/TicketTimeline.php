@@ -6,6 +6,7 @@ use App\DataTransferObjects\TimelineItem;
 use App\Enums\TicketMessageType;
 use App\Models\TicketMessage;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
 class TicketTimeline extends Component
@@ -18,8 +19,13 @@ class TicketTimeline extends Component
 
     public bool $canSeeInternalNotes = false;
 
-    /** Oldest loaded message ID — used for cursor-based pagination. */
-    public int $oldestLoadedId = PHP_INT_MAX;
+    /**
+     * IDs of messages currently shown, sorted ascending (chronological).
+     * Loaded incrementally: newest batch first, then older batches prepended on loadMore.
+     *
+     * @var list<int>
+     */
+    public array $loadedMessageIds = [];
 
     /** Whether there are older messages to load. */
     public bool $hasMoreMessages = false;
@@ -29,6 +35,9 @@ class TicketTimeline extends Component
 
     /** Number of currently loaded messages. */
     public int $loadedCount = 0;
+
+    /** Cached notes count (null = needs refresh). */
+    public ?int $notesCount = null;
 
     private const PAGE_SIZE = 30;
 
@@ -48,7 +57,6 @@ class TicketTimeline extends Component
         $this->ticketCreatorId = $ticketCreatorId;
         $this->canSeeInternalNotes = $canSeeInternalNotes;
 
-        // Count total messages
         $this->totalCount = $this->baseQuery()->count();
     }
 
@@ -57,8 +65,11 @@ class TicketTimeline extends Component
      */
     public function onMessageSent(int $messageId = 0): void
     {
-        // Just re-render — the new message will appear via the query
-        $this->totalCount = $this->baseQuery()->count();
+        $this->totalCount++;
+        $this->notesCount = null;
+        if ($messageId > 0) {
+            $this->appendLoadedMessageId($messageId);
+        }
     }
 
     /**
@@ -66,12 +77,16 @@ class TicketTimeline extends Component
      */
     public function onNewMessage(array $payload = []): void
     {
-        $currentUserId = auth()->id();
+        $currentUserId = Auth::user()?->id;
         if (isset($payload['user_id']) && (int) $payload['user_id'] === (int) $currentUserId) {
             return;
         }
 
-        $this->totalCount = $this->baseQuery()->count();
+        $this->totalCount++;
+        $this->notesCount = null;
+        if (isset($payload['id'])) {
+            $this->appendLoadedMessageId((int) $payload['id']);
+        }
         $this->dispatch('new-message-received');
     }
 
@@ -80,7 +95,38 @@ class TicketTimeline extends Component
      */
     public function loadMore(): void
     {
-        // Will be picked up by render() which always queries from oldestLoadedId
+        if (! $this->hasMoreMessages || $this->loadedMessageIds === []) {
+            return;
+        }
+
+        $minId = min($this->loadedMessageIds);
+        $batch = $this->baseQuery()
+            ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
+            ->with('user:id,name,email')
+            ->where('id', '<', $minId)
+            ->orderByDesc('id')
+            ->limit(self::PAGE_SIZE + 1)
+            ->get();
+
+        $this->hasMoreMessages = $batch->count() > self::PAGE_SIZE;
+        $page = $batch->take(self::PAGE_SIZE);
+        if ($page->isEmpty()) {
+            $this->hasMoreMessages = false;
+
+            return;
+        }
+
+        $newIds = $page->sortBy('id')->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+        $this->loadedMessageIds = array_values(array_merge($newIds, $this->loadedMessageIds));
+    }
+
+    private function appendLoadedMessageId(int $messageId): void
+    {
+        if ($messageId <= 0 || in_array($messageId, $this->loadedMessageIds, true)) {
+            return;
+        }
+        $this->loadedMessageIds[] = $messageId;
+        sort($this->loadedMessageIds);
     }
 
     private function baseQuery()
@@ -90,74 +136,49 @@ class TicketTimeline extends Component
     }
 
     /**
-     * Fetch messages for the current page.
-     *
-     * @return Collection<int, TimelineItem>
+     * First batch: most recent PAGE_SIZE messages (newest at the end of the list).
      */
-    private function fetchMessages(): Collection
+    private function bootstrapInitialBatchIfNeeded(): void
     {
-        $query = $this->baseQuery()
-            ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
-            ->with('user:id,name,email')
-            ->orderByDesc('id');
-
-        // If we have an oldest boundary, fetch from there
-        if ($this->oldestLoadedId < PHP_INT_MAX) {
-            $query->where('id', '<', $this->oldestLoadedId);
+        if ($this->loadedMessageIds !== []) {
+            return;
         }
 
-        $messages = $query->limit(self::PAGE_SIZE + 1)->get();
+        $messages = $this->baseQuery()
+            ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
+            ->with('user:id,name,email')
+            ->orderByDesc('id')
+            ->limit(self::PAGE_SIZE + 1)
+            ->get();
 
         $this->hasMoreMessages = $messages->count() > self::PAGE_SIZE;
         $page = $messages->take(self::PAGE_SIZE);
-
-        if ($page->isNotEmpty()) {
-            $this->oldestLoadedId = (int) $page->last()->id;
+        if ($page->isEmpty()) {
+            return;
         }
 
-        $authUserId = (int) (auth()->id() ?? 0);
-
-        return $page->reverse()->values()->map(
-            fn (TicketMessage $m) => TimelineItem::fromMessage($m, $this->ticketCreatorId, $authUserId)
-        );
+        $this->loadedMessageIds = $page->sortBy('id')->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
     }
 
     /**
-     * Fetch ALL currently visible messages (from oldest loaded to newest).
-     * This is used for the full render to show all loaded messages.
-     *
      * @return Collection<int, TimelineItem>
      */
-    private function fetchAllLoaded(): Collection
+    private function buildTimelineItems(): Collection
     {
-        $query = $this->baseQuery()
-            ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
-            ->with('user:id,name,email');
+        $this->bootstrapInitialBatchIfNeeded();
 
-        // If we've loaded more (oldestLoadedId was pushed back), get everything from there
-        if ($this->oldestLoadedId < PHP_INT_MAX) {
-            $query->where('id', '>=', $this->oldestLoadedId);
-        } else {
-            // Initial load: get the last PAGE_SIZE + 1 to detect hasMore
-            $messages = $query->orderByDesc('id')->limit(self::PAGE_SIZE + 1)->get();
-            $this->hasMoreMessages = $messages->count() > self::PAGE_SIZE;
-            $page = $messages->take(self::PAGE_SIZE);
-
-            if ($page->isNotEmpty()) {
-                $this->oldestLoadedId = (int) $page->last()->id; // last() is oldest since ordered DESC
-            }
-
-            $this->loadedCount = $page->count();
-            $authUserId = (int) (auth()->id() ?? 0);
-
-            return $page->reverse()->values()->map(
-                fn (TicketMessage $m) => TimelineItem::fromMessage($m, $this->ticketCreatorId, $authUserId)
-            );
+        if ($this->loadedMessageIds === []) {
+            return collect();
         }
 
-        $messages = $query->orderBy('id')->get();
-        $this->loadedCount = $messages->count();
-        $authUserId = (int) (auth()->id() ?? 0);
+        $messages = TicketMessage::query()
+            ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
+            ->with('user:id,name,email')
+            ->whereIn('id', $this->loadedMessageIds)
+            ->orderBy('id')
+            ->get();
+
+        $authUserId = (int) (Auth::user()?->id ?? 0);
 
         return $messages->map(
             fn (TicketMessage $m) => TimelineItem::fromMessage($m, $this->ticketCreatorId, $authUserId)
@@ -166,17 +187,18 @@ class TicketTimeline extends Component
 
     public function render()
     {
-        $items = $this->fetchAllLoaded();
+        $items = $this->buildTimelineItems();
+        $this->loadedCount = $items->count();
 
-        // Group by date for display
         $itemsByDate = $items->groupBy('date');
-
-        // Separate notes for the notes tab
         $noteItems = $items->filter(fn (TimelineItem $i) => $i->isInternal)->groupBy('date');
 
-        $notesCount = $this->canSeeInternalNotes
-            ? $this->baseQuery()->where('type', TicketMessageType::InternalNote)->count()
-            : 0;
+        if ($this->notesCount === null) {
+            $this->notesCount = $this->canSeeInternalNotes
+                ? $this->baseQuery()->where('type', TicketMessageType::InternalNote)->count()
+                : 0;
+        }
+        $notesCount = $this->notesCount;
 
         return view('livewire.tickets.partials.ticket-timeline', [
             'itemsByDate' => $itemsByDate,

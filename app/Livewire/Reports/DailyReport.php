@@ -57,10 +57,50 @@ class DailyReport extends Component
         return (int) session('current_organization_id');
     }
 
+    private function reportScopeHash(): string
+    {
+        return implode(':', [
+            $this->date,
+            $this->filterGroup !== '' ? (string) (int) $this->filterGroup : '',
+            $this->filterAgent !== '' ? (string) (int) $this->filterAgent : '',
+            $this->filterCategory !== '' ? (string) (int) $this->filterCategory : '',
+            $this->filterPriority !== '' ? (string) (int) $this->filterPriority : '',
+            $this->activeTab,
+        ]);
+    }
+
+    public function setActiveTab(string $value): void
+    {
+        if (in_array($value, ['in_progress', 'pending', 'all_active'], true)) {
+            $this->activeTab = $value;
+        }
+    }
+
+    public function updatedActiveTab(string $value): void
+    {
+        if (! in_array($value, ['in_progress', 'pending', 'all_active'], true)) {
+            $this->activeTab = 'in_progress';
+        }
+    }
+
+    public function updatedDate(string $value): void
+    {
+        try {
+            $this->date = Carbon::parse($value)->toDateString();
+        } catch (\Throwable) {
+            $this->date = now()->toDateString();
+        }
+    }
+
     /** @return array{0: Carbon, 1: Carbon} */
     private function dateRange(): array
     {
-        $day = Carbon::parse($this->date ?: now()->toDateString());
+        try {
+            $day = Carbon::parse($this->date ?: now()->toDateString());
+        } catch (\Throwable) {
+            $day = now();
+            $this->date = $day->toDateString();
+        }
 
         return [$day->copy()->startOfDay(), $day->copy()->endOfDay()];
     }
@@ -188,19 +228,30 @@ class DailyReport extends Component
     #[Computed]
     public function activeTickets()
     {
-        $query = $this->baseTicketQuery();
-
         $statuses = match ($this->activeTab) {
             'in_progress' => [TicketStatus::InProgress],
             'pending' => [TicketStatus::Pending],
             default => [TicketStatus::Open, TicketStatus::InProgress, TicketStatus::Pending],
         };
 
-        return $query
-            ->whereIn('tickets.status', $statuses)
+        $cacheKey = sprintf('reports:daily:active:%d:%s', $this->orgId(), md5($this->reportScopeHash()));
+        $ids = Cache::remember($cacheKey, 120, function () use ($statuses) {
+            return $this->baseTicketQuery()
+                ->whereIn('tickets.status', $statuses)
+                ->orderByDesc('tickets.updated_at')
+                ->limit(50)
+                ->pluck('tickets.id')
+                ->all();
+        });
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return Ticket::query()
+            ->whereIn('tickets.id', $ids)
             ->with(['category:id,name', 'priority:id,name', 'group:id,name', 'assignees:id,name'])
             ->orderByDesc('tickets.updated_at')
-            ->limit(50)
             ->get();
     }
 
@@ -208,23 +259,44 @@ class DailyReport extends Component
     public function atRiskTickets(): array
     {
         $now = Carbon::now();
-        $base = $this->baseTicketQuery()
-            ->whereNotNull('tickets.due_date')
-            ->whereIn('tickets.status', [TicketStatus::Open, TicketStatus::InProgress, TicketStatus::Pending])
-            ->with(['category:id,name', 'priority:id,name', 'group:id,name', 'assignees:id,name']);
+        $cacheKey = sprintf('reports:daily:risk:%d:%s', $this->orgId(), md5($this->reportScopeHash()));
+        $riskIds = Cache::remember($cacheKey, 120, function () use ($now) {
+            $base = $this->baseTicketQuery()
+                ->whereNotNull('tickets.due_date')
+                ->whereIn('tickets.status', [TicketStatus::Open, TicketStatus::InProgress, TicketStatus::Pending]);
 
-        $overdue = (clone $base)
-            ->where('tickets.due_date', '<', $now->toDateString())
-            ->orderBy('tickets.due_date')
-            ->limit(20)
-            ->get();
+            return [
+                'overdue' => (clone $base)
+                    ->where('tickets.due_date', '<', $now->toDateString())
+                    ->orderBy('tickets.due_date')
+                    ->limit(20)
+                    ->pluck('tickets.id')
+                    ->all(),
+                'due_soon' => (clone $base)
+                    ->where('tickets.due_date', '>=', $now->toDateString())
+                    ->where('tickets.due_date', '<=', $now->copy()->addDay()->toDateString())
+                    ->orderBy('tickets.due_date')
+                    ->limit(20)
+                    ->pluck('tickets.id')
+                    ->all(),
+            ];
+        });
 
-        $dueSoon = (clone $base)
-            ->where('tickets.due_date', '>=', $now->toDateString())
-            ->where('tickets.due_date', '<=', $now->copy()->addDay()->toDateString())
-            ->orderBy('tickets.due_date')
-            ->limit(20)
-            ->get();
+        $overdue = ($riskIds['overdue'] ?? []) === []
+            ? collect()
+            : Ticket::query()
+                ->whereIn('tickets.id', $riskIds['overdue'])
+                ->with(['category:id,name', 'priority:id,name', 'group:id,name', 'assignees:id,name'])
+                ->orderBy('tickets.due_date')
+                ->get();
+
+        $dueSoon = ($riskIds['due_soon'] ?? []) === []
+            ? collect()
+            : Ticket::query()
+                ->whereIn('tickets.id', $riskIds['due_soon'])
+                ->with(['category:id,name', 'priority:id,name', 'group:id,name', 'assignees:id,name'])
+                ->orderBy('tickets.due_date')
+                ->get();
 
         return ['overdue' => $overdue, 'due_soon' => $dueSoon];
     }
@@ -234,30 +306,34 @@ class DailyReport extends Component
     {
         [$start, $end] = $this->dateRange();
 
-        return DB::table('ticket_messages as tm')
-            ->join('tickets as t', 't.id', '=', 'tm.ticket_id')
-            ->join('users as u', 'u.id', '=', 'tm.user_id')
-            ->where('t.organization_id', $this->orgId())
-            ->whereBetween('tm.created_at', [$start, $end])
-            ->where('tm.type', 'message')
-            ->whereColumn('tm.user_id', '!=', 't.created_by')
-            ->select(
-                'u.id as user_id',
-                'u.name as name',
-                DB::raw('count(distinct t.id) as handled'),
-                DB::raw("count(distinct t.id) filter (where t.status in ('resolved','closed')) as resolved"),
-            )
-            ->groupBy('u.id', 'u.name')
-            ->orderByDesc('handled')
-            ->limit(10)
-            ->get()
-            ->map(fn ($r) => [
-                'user_id' => $r->user_id,
-                'name' => $r->name,
-                'handled' => (int) $r->handled,
-                'resolved' => (int) $r->resolved,
-            ])
-            ->all();
+        $cacheKey = sprintf('reports:daily:agent:%d:%s', $this->orgId(), md5($this->reportScopeHash()));
+
+        return Cache::remember($cacheKey, 120, function () use ($start, $end) {
+            return DB::table('ticket_messages as tm')
+                ->join('tickets as t', 't.id', '=', 'tm.ticket_id')
+                ->join('users as u', 'u.id', '=', 'tm.user_id')
+                ->where('t.organization_id', $this->orgId())
+                ->whereBetween('tm.created_at', [$start, $end])
+                ->where('tm.type', 'message')
+                ->whereColumn('tm.user_id', '!=', 't.created_by')
+                ->select(
+                    'u.id as user_id',
+                    'u.name as name',
+                    DB::raw('count(distinct t.id) as handled'),
+                    DB::raw("count(distinct t.id) filter (where t.status in ('resolved','closed')) as resolved"),
+                )
+                ->groupBy('u.id', 'u.name')
+                ->orderByDesc('handled')
+                ->limit(10)
+                ->get()
+                ->map(fn ($r) => [
+                    'user_id' => $r->user_id,
+                    'name' => $r->name,
+                    'handled' => (int) $r->handled,
+                    'resolved' => (int) $r->resolved,
+                ])
+                ->all();
+        });
     }
 
     #[Computed]
@@ -265,16 +341,20 @@ class DailyReport extends Component
     {
         [$start, $end] = $this->dateRange();
 
-        return $this->baseTicketQuery()
-            ->whereBetween('tickets.created_at', [$start, $end])
-            ->leftJoin('ticket_categories as tc', 'tickets.ticket_category_id', '=', 'tc.id')
-            ->selectRaw("coalesce(tc.name, ?) as name, count(*) as c", [__('daily_report.no_category')])
-            ->groupBy('tc.name')
-            ->orderByDesc('c')
-            ->limit(8)
-            ->get()
-            ->map(fn ($r) => ['name' => (string) $r->name, 'count' => (int) $r->c])
-            ->all();
+        $cacheKey = sprintf('reports:daily:cat:%d:%s', $this->orgId(), md5($this->reportScopeHash()));
+
+        return Cache::remember($cacheKey, 120, function () use ($start, $end) {
+            return $this->baseTicketQuery()
+                ->whereBetween('tickets.created_at', [$start, $end])
+                ->leftJoin('ticket_categories as tc', 'tickets.ticket_category_id', '=', 'tc.id')
+                ->selectRaw("coalesce(tc.name, ?) as name, count(*) as c", [__('daily_report.no_category')])
+                ->groupBy('tc.name')
+                ->orderByDesc('c')
+                ->limit(8)
+                ->get()
+                ->map(fn ($r) => ['name' => (string) $r->name, 'count' => (int) $r->c])
+                ->all();
+        });
     }
 
     #[Computed]
@@ -284,17 +364,21 @@ class DailyReport extends Component
 
         $priorityColors = ['#ef4444', '#f59e0b', '#3b82f6', '#6b7280', '#10b981', '#8b5cf6', '#ec4899', '#94a3b8'];
 
-        return $this->baseTicketQuery()
-            ->whereBetween('tickets.created_at', [$start, $end])
-            ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
-            ->selectRaw("coalesce(tp.name, ?) as name, count(*) as c", [__('daily_report.no_priority')])
-            ->groupBy('tp.name')
-            ->orderByDesc('c')
-            ->limit(8)
-            ->get()
-            ->values()
-            ->map(fn ($r, $i) => ['name' => (string) $r->name, 'color' => $priorityColors[$i % count($priorityColors)], 'count' => (int) $r->c])
-            ->all();
+        $cacheKey = sprintf('reports:daily:prio:%d:%s', $this->orgId(), md5($this->reportScopeHash()));
+
+        return Cache::remember($cacheKey, 120, function () use ($start, $end, $priorityColors) {
+            return $this->baseTicketQuery()
+                ->whereBetween('tickets.created_at', [$start, $end])
+                ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
+                ->selectRaw("coalesce(tp.name, ?) as name, count(*) as c", [__('daily_report.no_priority')])
+                ->groupBy('tp.name')
+                ->orderByDesc('c')
+                ->limit(8)
+                ->get()
+                ->values()
+                ->map(fn ($r, $i) => ['name' => (string) $r->name, 'color' => $priorityColors[$i % count($priorityColors)], 'count' => (int) $r->c])
+                ->all();
+        });
     }
 
     private function getLogoBase64(?object $org): ?string

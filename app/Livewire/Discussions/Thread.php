@@ -31,12 +31,15 @@ class Thread extends Component
 
     public int $threadId;
     public bool $embedded = false;
+    public int $messagesLimit = 120;
 
     public string $body = '';
     /** @var \Illuminate\Http\UploadedFile[] */
     public $attachmentFiles = [];
 
     public string $addParticipantSearch = '';
+
+    private ?DiscussionThread $threadCache = null;
 
     public function getListeners(): array
     {
@@ -54,13 +57,19 @@ class Thread extends Component
 
     private function getThread(): DiscussionThread
     {
+        if ($this->threadCache instanceof DiscussionThread && (int) $this->threadCache->id === $this->threadId) {
+            return $this->threadCache;
+        }
+
         $orgId = (int) session('current_organization_id');
 
-        return DiscussionThread::query()
+        $this->threadCache = DiscussionThread::query()
             ->with(['participants:id,name,email'])
             ->whereKey($this->threadId)
             ->where('organization_id', $orgId)
             ->firstOrFail();
+
+        return $this->threadCache;
     }
 
     private function authorizeThread(): void
@@ -158,6 +167,7 @@ class Thread extends Component
         )));
 
         $this->addParticipantSearch = '';
+        $this->threadCache = null;
     }
 
     public function removeParticipant(int $userId): void
@@ -209,6 +219,12 @@ class Thread extends Component
             actorName: $user->name,
             userName: $removedUser->name,
         )));
+        $this->threadCache = null;
+    }
+
+    public function loadMoreMessages(): void
+    {
+        $this->messagesLimit = min(600, $this->messagesLimit + 120);
     }
 
     public function sendMessage(): void
@@ -369,20 +385,39 @@ class Thread extends Component
     public function render()
     {
         $thread = $this->getThread();
-        $thread->load([
-            'messages.user:id,name,email',
-        ]);
+        $messages = DiscussionMessage::query()
+            ->where('thread_id', $thread->id)
+            ->select(['id', 'thread_id', 'user_id', 'body', 'attachments', 'created_at'])
+            ->with('user:id,name')
+            ->latest('id')
+            ->limit($this->messagesLimit)
+            ->get()
+            ->reverse()
+            ->values();
+        $thread->setRelation('messages', $messages);
+
+        $totalMessages = cache()->remember(
+            "disc:thread_total_messages:{$thread->id}",
+            60,
+            fn () => (int) DiscussionMessage::query()
+                ->where('thread_id', $thread->id)
+                ->count()
+        );
+        $hasMoreMessages = $totalMessages > $messages->count();
 
         $orgId = (int) session('current_organization_id');
-        $orgUsers = cache()->remember(
-            CacheHelper::membersKey($orgId),
-            CacheHelper::TTL,
-            fn () => User::query()
-                ->whereHas('organizations', fn ($q) => $q->where('organization_id', $orgId))
-                ->orderBy('name')
-                ->limit(200)
-                ->get(['id', 'name', 'email'])
-        );
+        $canManageParticipants = $this->canManageParticipants;
+        $orgUsers = ($thread->is_group && $canManageParticipants)
+            ? cache()->remember(
+                CacheHelper::membersKey($orgId),
+                CacheHelper::TTL,
+                fn () => User::query()
+                    ->whereHas('organizations', fn ($q) => $q->where('organization_id', $orgId))
+                    ->orderBy('name')
+                    ->limit(200)
+                    ->get(['id', 'name', 'email'])
+            )
+            : collect();
 
         $layout = $this->embedded ? 'layouts.manexo-embed' : 'layouts.manexo-app';
 
@@ -391,7 +426,8 @@ class Thread extends Component
             'thread' => $thread,
             'orgUsers' => $orgUsers,
             'embedded' => $this->embedded,
-            'canManageParticipants' => $this->canManageParticipants,
+            'canManageParticipants' => $canManageParticipants,
+            'hasMoreMessages' => $hasMoreMessages,
         ]);
         return $view->layout($layout);
     }

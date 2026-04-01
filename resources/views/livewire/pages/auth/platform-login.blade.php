@@ -93,11 +93,11 @@ new #[Layout('layouts.platform-guest')] class extends Component
             </div>
 
             <div class="pt-1">
-                <button type="submit" class="group flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-300/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all duration-200 active:scale-[0.98]">
+                <x-manexo.action-button type="submit" wire-target="login" variant="primary" class="group !w-full !rounded-xl !bg-indigo-600 hover:!bg-indigo-700 px-4 py-2.5 text-sm font-semibold shadow-sm hover:shadow-lg hover:shadow-indigo-300/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all duration-200 active:scale-[0.98]" :loading-label="__('ui.action.loading')">
                     <iconify-icon icon="solar:shield-check-bold" class="text-white/80 text-sm"></iconify-icon>
                     {{ __('platform_login.submit') }}
                     <iconify-icon icon="solar:arrow-right-linear" class="text-white text-sm transition-transform group-hover:translate-x-1"></iconify-icon>
-                </button>
+                </x-manexo.action-button>
             </div>
         </form>
 

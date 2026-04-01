@@ -44,11 +44,42 @@ class Settings extends Component
 
     /** 1 = en-tête + navigation, 2 = listes / onglets (requêtes cache) */
     public int $loadStage = 1;
+    public string $activeTab = 'branding';
 
     public function loadSettingsBody(): void
     {
         if ($this->loadStage < 2) {
             $this->loadStage = 2;
+        }
+    }
+
+    public function setActiveTab(string $tab): void
+    {
+        if ($tab === $this->activeTab) {
+            return;
+        }
+
+        $allowedTabs = [
+            'branding',
+            'tickets',
+            'categories',
+            'groups',
+            'priorities',
+            'functions',
+            'forms',
+            'email',
+            'sla',
+            'automations',
+            'knowledge_base',
+            'api',
+            'roles',
+            'maintenance',
+            'danger',
+            'webhooks',
+        ];
+
+        if (in_array($tab, $allowedTabs, true)) {
+            $this->activeTab = $tab;
         }
     }
 
@@ -2359,6 +2390,8 @@ class Settings extends Component
     private function buildSettingsViewData(): array
     {
         $orgId = $this->orgId();
+        $tab = $this->activeTab;
+        $needs = static fn (array $tabs) => in_array($tab, $tabs, true);
 
         if ($this->loadStage < 2) {
             $org = null;
@@ -2396,7 +2429,7 @@ class Settings extends Component
             }
         }
 
-        $categories = $orgId
+        $categories = ($orgId && $needs(['tickets', 'categories', 'email', 'automations', 'sla']))
             ? Cache::remember(CacheHelper::categoriesKey($orgId, false), CacheHelper::TTL, function () use ($orgId) {
                 return TicketCategory::query()
                     ->where('organization_id', $orgId)
@@ -2405,7 +2438,7 @@ class Settings extends Component
             })
             : collect();
 
-        $priorities = $orgId
+        $priorities = ($orgId && $needs(['tickets', 'priorities', 'email', 'automations', 'sla']))
             ? Cache::remember(CacheHelper::prioritiesKey($orgId, false), CacheHelper::TTL, function () use ($orgId) {
                 return TicketPriority::query()
                     ->where('organization_id', $orgId)
@@ -2414,16 +2447,16 @@ class Settings extends Component
             })
             : collect();
 
-        $members = $orgId
+        $members = ($orgId && $needs(['categories', 'automations', 'roles', 'maintenance']))
             ? Cache::remember(CacheHelper::settingsMembersListKey($orgId), 300, fn () => OrganizationMembership::query()
                 ->where('organization_id', $orgId)
                 ->with(['user:id,name,email'])
                 ->orderBy('id')
-                ->get()
+                ->get(['id', 'organization_id', 'user_id', 'role'])
             )
             : collect();
 
-        $organizationFunctions = $orgId
+        $organizationFunctions = ($orgId && $needs(['functions']))
             ? Cache::remember(CacheHelper::orgFunctionsKey($orgId), CacheHelper::TTL, function () use ($orgId) {
                 return OrganizationFunction::query()
                     ->where('organization_id', $orgId)
@@ -2433,7 +2466,7 @@ class Settings extends Component
             })
             : collect();
 
-        $ticketGroups = $orgId
+        $ticketGroups = ($orgId && $needs(['groups', 'categories', 'email', 'automations']))
             ? Cache::remember(CacheHelper::ticketGroupsKey($orgId, false), CacheHelper::TTL, function () use ($orgId) {
                 return TicketGroup::query()
                     ->where('organization_id', $orgId)
@@ -2443,7 +2476,7 @@ class Settings extends Component
             })
             : collect();
 
-        $roles = $orgId
+        $roles = ($orgId && $needs(['categories', 'roles', 'maintenance']))
             ? Cache::remember(CacheHelper::settingsRolesListKey($orgId), 300, fn () => RoleDefinition::query()
                 ->where('organization_id', $orgId)
                 ->orderByRaw("case slug when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 when 'member' then 3 else 4 end")
@@ -2452,7 +2485,7 @@ class Settings extends Component
             : collect();
 
         $roleMemberCounts = [];
-        if ($orgId) {
+        if ($orgId && $needs(['roles', 'maintenance'])) {
             $roleMemberCounts = Cache::remember(CacheHelper::settingsRoleCountsKey($orgId), 120, function () use ($orgId, $roles) {
                 $counts = OrganizationMembership::query()
                     ->where('organization_id', $orgId)
@@ -2468,7 +2501,7 @@ class Settings extends Component
             });
         }
 
-        $forms = $orgId
+        $forms = ($orgId && $needs(['categories']))
             ? Cache::remember(CacheHelper::settingsPublishedFormsKey($orgId), CacheHelper::TTL, function () use ($orgId) {
                 return Form::query()
                     ->where('organization_id', $orgId)
@@ -2479,7 +2512,7 @@ class Settings extends Component
             : collect();
 
         $automationRules = collect();
-        if ($orgId) {
+        if ($orgId && $needs(['automations'])) {
             try {
                 $automationRules = Cache::remember(CacheHelper::settingsAutomationRulesListKey($orgId), CacheHelper::TTL, function () use ($orgId) {
                     return AutomationRule::withoutOrganizationScope()
@@ -2492,7 +2525,7 @@ class Settings extends Component
             }
         }
 
-        $maintenanceStats = $orgId ? Cache::remember(CacheHelper::settingsMaintenanceStatsKey($orgId), 300, function () use ($orgId) {
+        $maintenanceStats = ($orgId && $needs(['maintenance'])) ? Cache::remember(CacheHelper::settingsMaintenanceStatsKey($orgId), 300, function () use ($orgId) {
             return [
                 'members' => OrganizationMembership::query()->where('organization_id', $orgId)->count(),
                 'tickets' => Ticket::query()->where('organization_id', $orgId)->count(),
@@ -2504,7 +2537,7 @@ class Settings extends Component
         }) : [];
 
         $apiTokens = collect();
-        if ($orgId) {
+        if ($orgId && $needs(['api'])) {
             try {
                 $apiTokens = Cache::remember(CacheHelper::settingsApiTokensKey($orgId), CacheHelper::TTL, function () use ($orgId) {
                     return \Laravel\Sanctum\PersonalAccessToken::query()
@@ -2519,7 +2552,7 @@ class Settings extends Component
 
         $kbCategories = collect();
         $kbArticles = collect();
-        if ($orgId) {
+        if ($orgId && $needs(['knowledge_base'])) {
             try {
                 $kbCategories = Cache::remember(CacheHelper::settingsKbCategoriesAdminKey($orgId), CacheHelper::TTL, function () use ($orgId) {
                     return KbCategory::withoutOrganizationScope()
@@ -2541,7 +2574,7 @@ class Settings extends Component
         }
 
         $webhookEndpoints = collect();
-        if ($orgId) {
+        if ($orgId && $needs(['webhooks'])) {
             try {
                 $webhookEndpoints = Cache::remember(CacheHelper::settingsWebhookEndpointsKey($orgId), CacheHelper::TTL, function () use ($orgId) {
                     return WebhookEndpoint::query()

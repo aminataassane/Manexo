@@ -30,12 +30,12 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-1">Nom du token</label>
-                            <input type="text" wire:model="newTokenName" placeholder="Ex: ERP Integration" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
+                            <input type="text" wire:model.blur="newTokenName" placeholder="Ex: ERP Integration" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
                             @error('newTokenName') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-1">Expiration (optionnel)</label>
-                            <input type="date" wire:model="newTokenExpiresAt" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
+                            <input type="date" wire:model.blur="newTokenExpiresAt" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
                         </div>
                     </div>
                     <div>
@@ -50,10 +50,10 @@
                         </div>
                         @error('newTokenScopes') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>
-                    <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                    <x-manexo.action-button type="submit" wire-target="createApiToken" variant="primary" class="!font-semibold">
                         <iconify-icon icon="solar:key-bold" width="18"></iconify-icon>
                         Créer un token
-                    </button>
+                    </x-manexo.action-button>
                 </form>
             @endif
 

@@ -59,7 +59,9 @@
                                 :options="$drawerCategoryOptions"
                                 :label="$drawerCategoryLabel"
                                 :selected-value="(string) $ticket_category_id"
-                                wire:model.live="ticket_category_id"
+                                wire:model="ticket_category_id"
+                                wire:loading.attr="disabled"
+                                wire:target="ticket_category_id"
                             />
                         </div>
                         <x-input-error :messages="$errors->get('ticket_category_id')" class="mt-2" />
@@ -74,6 +76,8 @@
                                 :label="$drawerPriorityLabel"
                                 :selected-value="(string) $ticket_priority_id"
                                 wire:model="ticket_priority_id"
+                                wire:loading.attr="disabled"
+                                wire:target="ticket_priority_id"
                             />
                         </div>
                         <x-input-error :messages="$errors->get('ticket_priority_id')" class="mt-2" />
@@ -85,7 +89,9 @@
                     <input
                         id="drawer_subject"
                         type="text"
-                        wire:model.live.debounce.500ms="subject"
+                        wire:model.live.debounce.700ms="subject"
+                        wire:loading.attr="disabled"
+                        wire:target="subject"
                         @input="saveDraft()"
                         required
                         class="mt-1 {{ $field }}"
@@ -141,7 +147,7 @@
                 <x-input-label for="drawer_description" :value="__('Description *')" class="text-[#111827] block text-[11px] font-medium text-slate-700" />
                 <textarea
                     id="drawer_description"
-                    wire:model="description"
+                    wire:model.defer="description"
                     @input="saveDraft()"
                     rows="5"
                     class="mt-1 {{ $textarea }}"
@@ -234,12 +240,14 @@
                             type="url"
                             class="flex-1 {{ $field }}"
                             placeholder="https://..."
-                            wire:model.defer="linkUrl"
+                            wire:model.blur="linkUrl"
                         />
                         <button
                             type="button"
                             class="h-10 w-10 rounded-md border border-[#E5E7EB] bg-white text-[#6B7280] hover:text-[color:var(--accent)] hover:bg-[color:var(--accent-soft)] hover:border-[color:var(--accent-soft-2)] transition flex items-center justify-center"
                             wire:click="addLink"
+                            wire:loading.attr="disabled"
+                            wire:target="addLink"
                             title="{{ __('Ajouter') }}"
                         >
                             <iconify-icon icon="solar:add-circle-linear" width="16"></iconify-icon>
@@ -286,18 +294,22 @@
                 type="button"
                 class="flex h-10 w-full items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-4 text-[13px] font-semibold text-[#111827] shadow-sm transition hover:bg-[#F9FAFB] sm:w-auto"
                 wire:click="$dispatch('tickets:closeCreateDrawer')"
+                wire:loading.attr="disabled"
+                wire:target="submit"
             >
                 {{ __('Annuler') }}
             </button>
-            <button
+            <x-manexo.action-button
                 type="submit"
-                wire:loading.attr="disabled"
-                class="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--accent)] px-4 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+                wire-target="submit"
+                variant="primary"
+                spinner-size="sm"
+                class="flex h-10 w-full sm:w-auto items-center justify-center gap-2 !rounded-xl bg-[color:var(--accent)] px-4 text-[13px] font-semibold hover:bg-[color:color-mix(in_srgb,var(--accent)_85%,black)]"
+                :loading-label="__('ui.tickets.sending_ticket')"
             >
-                <span wire:loading.remove wire:target="submit"><iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon></span>
-                <span wire:loading wire:target="submit" class="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                <span wire:loading.remove wire:target="submit">{{ __('Envoyer') }}</span>
-            </button>
+                <iconify-icon icon="solar:send-square-linear" width="16"></iconify-icon>
+                {{ __('Envoyer') }}
+            </x-manexo.action-button>
         </div>
     </div>
 </form>

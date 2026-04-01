@@ -19,10 +19,10 @@
             <p class="mt-1 text-sm text-slate-500">{{ __('super_admin.support.subtitle') }}</p>
         </div>
         @if(auth()->user()->canPlatformManage())
-        <button wire:click="openCreateModal" class="sa-btn-primary">
+        <x-manexo.action-button wire:click="openCreateModal" wire-target="openCreateModal" variant="super">
             <iconify-icon icon="solar:headphones-round-bold" width="16"></iconify-icon>
             {{ __('super_admin.support.start') }}
-        </button>
+        </x-manexo.action-button>
         @endif
     </div>
 
@@ -55,9 +55,9 @@
                     </div>
                 </div>
                 @if(auth()->user()->canPlatformManage())
-                <button wire:click="endSession({{ $this->activeSession->id }})" class="rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 transition-colors">
+                <x-manexo.action-button wire:click="endSession({{ $this->activeSession->id }})" wire-target="endSession" variant="warning" class="rounded-xl">
                     {{ __('super_admin.support.end') }}
-                </button>
+                </x-manexo.action-button>
                 @endif
             </div>
         </div>
@@ -106,10 +106,10 @@
                             </td>
                             <td class="px-5 py-3.5 text-right">
                                 @if ($session->isActive() && auth()->user()->canPlatformManage())
-                                    <button wire:click="endSession({{ $session->id }})" class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors">
+                                    <x-manexo.action-button wire:click="endSession({{ $session->id }})" wire-target="endSession" variant="custom" class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors">
                                         <iconify-icon icon="solar:stop-circle-bold" width="14"></iconify-icon>
                                         {{ __('super_admin.support.end') }}
-                                    </button>
+                                    </x-manexo.action-button>
                                 @else
                                     <span class="text-xs text-slate-400">
                                         {{ $session->ended_at?->format('d/m/Y H:i') ?? '—' }}
@@ -189,9 +189,9 @@
                     <button @click="open = false" class="sa-btn-secondary">
                         {{ __('super_admin.cancel') }}
                     </button>
-                    <button wire:click="startSession" class="sa-btn-primary">
+                    <x-manexo.action-button wire:click="startSession" wire-target="startSession" variant="super">
                         {{ __('super_admin.support.confirm_start') }}
-                    </button>
+                    </x-manexo.action-button>
                 </div>
             </div>
         </div>

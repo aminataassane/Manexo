@@ -1,12 +1,12 @@
-<div class="discussion-composer shrink-0 border-t border-slate-200 bg-white/95 p-2 sm:p-2.5 z-10 safe-area-pb min-w-0 overflow-hidden backdrop-blur" data-composer>
+<div class="discussion-composer shrink-0 border-t border-slate-200 bg-white/95 p-1.5 sm:p-2.5 z-10 safe-area-pb min-w-0 overflow-hidden backdrop-blur" data-composer>
     <div class="mx-auto max-w-3xl min-w-0">
-        <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
-            <button type="button" wire:click="setAsInternalNote(false)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 <?php echo e(!$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900'); ?>">
+        <div class="flex items-center gap-1.5 mb-1 sm:mb-1.5">
+            <button type="button" wire:click="setAsInternalNote(false)" wire:loading.attr="disabled" wire:target="setAsInternalNote" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 touch-manipulation <?php echo e(!$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900'); ?>">
                 <?php echo e(__('Répondre')); ?>
 
             </button>
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($canWriteInternalNotes): ?>
-                <button type="button" wire:click="setAsInternalNote(true)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1 <?php echo e($asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900'); ?>">
+                <button type="button" wire:click="setAsInternalNote(true)" wire:loading.attr="disabled" wire:target="setAsInternalNote" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1 touch-manipulation <?php echo e($asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900'); ?>">
                     <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="10"></iconify-icon>
                     <?php echo e(__('Note interne')); ?>
 
@@ -77,7 +77,7 @@
             <div class="p-1.5 sm:p-2 relative">
                 <textarea
                     x-ref="mentionInput"
-                    wire:model="body"
+                    wire:model.defer="body"
                     rows="2"
                     @input="onInput($event)"
                     @keydown.arrow-down.prevent="mentionOpen && filteredMentions.length && (mentionOpen = true)"
@@ -98,14 +98,14 @@
                 </div>
             </div>
 
-            <div class="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 border-t border-slate-100 rounded-b-xl bg-slate-50/50">
-                <div class="flex items-center gap-0.5 min-w-0 flex-1 sm:flex-initial">
+            <div class="flex items-center justify-between gap-1.5 sm:gap-2 px-1.5 sm:px-2.5 py-1 sm:py-1.5 border-t border-slate-100 rounded-b-xl bg-slate-50/50">
+                <div class="flex items-center gap-0.5 min-w-0">
                     <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="composer-file-input-<?php echo e($ticketId); ?>" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
-                    <button type="button" onclick="document.getElementById('composer-file-input-<?php echo e($ticketId); ?>').click()" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="<?php echo e(__('Joindre un fichier')); ?>">
+                    <button type="button" onclick="document.getElementById('composer-file-input-<?php echo e($ticketId); ?>').click()" wire:loading.attr="disabled" wire:target="attachmentFiles,sendMessage" class="p-1.5 min-h-[34px] min-w-[34px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="<?php echo e(__('Joindre un fichier')); ?>">
                         <iconify-icon icon="solar:paperclip-linear" width="16"></iconify-icon>
                     </button>
-                    <div x-data="{ emojiOpen: false }" class="relative">
-                        <button type="button" @click="emojiOpen = !emojiOpen" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="<?php echo e(__('Emoji')); ?>">
+                    <div x-data="{ emojiOpen: false }" class="relative hidden sm:block">
+                        <button type="button" @click="emojiOpen = !emojiOpen" class="p-1.5 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="<?php echo e(__('Emoji')); ?>">
                             <iconify-icon icon="solar:smile-circle-linear" width="16"></iconify-icon>
                         </button>
                         <div x-show="emojiOpen" @click.outside="emojiOpen = false" x-cloak class="absolute bottom-full left-0 mb-1 p-1.5 rounded-lg bg-white shadow-xl border border-slate-200 grid grid-cols-8 gap-1 max-h-36 overflow-y-auto z-50 w-48">
@@ -115,19 +115,36 @@
                         </div>
                     </div>
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count($attachmentFiles ?? []) > 0): ?>
-                        <span class="ml-1 text-[10px] sm:text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-1.5 py-0.5 rounded"><?php echo e(count($attachmentFiles)); ?> fichier(s)</span>
+                        <span class="ml-0.5 text-[10px] sm:text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-1.5 py-0.5 rounded"><?php echo e(count($attachmentFiles)); ?></span>
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                    <span wire:loading wire:target="attachmentFiles" class="ml-0.5 text-[10px] text-slate-500"><?php echo e(__('Téléversement…')); ?></span>
+                    <p class="text-[10px] text-slate-400 hidden md:inline ml-2"><?php echo e(__('Markdown')); ?> · <kbd class="px-0.5 py-px rounded bg-slate-100 text-slate-600 font-mono text-[9px]">@</kbd> <?php echo e(__('pour mentionner')); ?></p>
                 </div>
 
-                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                    <p class="text-[10px] text-slate-400 hidden sm:inline"><?php echo e(__('Markdown')); ?></p>
-                    <p class="text-[10px] text-slate-400"><?php echo e(__('Tapez')); ?> <kbd class="px-0.5 py-px rounded bg-slate-100 text-slate-600 font-mono text-[9px]">@</kbd> <?php echo e(__('pour mentionner')); ?></p>
-                    <button type="submit" x-ref="submitBtn" wire:loading.attr="disabled" wire:target="sendMessage" class="inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 min-h-[34px] sm:min-h-0 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70 disabled:cursor-not-allowed" style="background-color: <?php echo e($asInternalNote ? '#d97706' : 'var(--accent)'); ?>;">
-                        <span wire:loading.remove wire:target="sendMessage"><?php echo e(__('Envoyer')); ?></span>
-                        <span wire:loading wire:target="sendMessage" class="inline-block h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                        <iconify-icon icon="solar:plain-bold" width="12" wire:loading.remove wire:target="sendMessage"></iconify-icon>
-                    </button>
-                </div>
+                <?php if (isset($component)) { $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.action-button','data' => ['type' => 'submit','wireTarget' => 'sendMessage','variant' => 'primary','spinnerSize' => 'sm','xRef' => 'submitBtn','class' => 'rounded-lg px-3 sm:px-3.5 py-1.5 sm:py-2 min-h-[34px] sm:min-h-0 text-xs touch-manipulation shrink-0','style' => 'background-color: '.e($asInternalNote ? '#d97706' : 'var(--accent)').';','loadingLabel' => __('ui.tickets.sending')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('manexo.action-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['type' => 'submit','wire-target' => 'sendMessage','variant' => 'primary','spinner-size' => 'sm','x-ref' => 'submitBtn','class' => 'rounded-lg px-3 sm:px-3.5 py-1.5 sm:py-2 min-h-[34px] sm:min-h-0 text-xs touch-manipulation shrink-0','style' => 'background-color: '.e($asInternalNote ? '#d97706' : 'var(--accent)').';','loading-label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('ui.tickets.sending'))]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
+                    <iconify-icon icon="solar:plain-bold" width="12"></iconify-icon>
+                    <span class="hidden sm:inline"><?php echo e(__('Envoyer')); ?></span>
+                 <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $attributes = $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $component = $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
             </div>
         </form>
         <?php if (isset($component)) { $__componentOriginalf94ed9c5393ef72725d159fe01139746 = $component; } ?>

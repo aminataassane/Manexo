@@ -219,11 +219,10 @@
                         </div>
 
                         <div class="pt-4 mt-auto">
-                            <button type="submit" class="group/btn flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all duration-200 active:scale-[0.98]" style="background-color: var(--accent); box-shadow: 0 10px 25px rgba(0,0,0,0.08);">
+                            <x-manexo.action-button type="submit" wire-target="createOrganization" variant="primary" class="group/btn !w-full !shadow-md active:scale-[0.98]" style="background-color: var(--accent); box-shadow: 0 10px 25px rgba(0,0,0,0.08);" :loading-label="__('ui.action.loading')">
                                 Créer et continuer
-                                <!-- Lucide Icon: Arrow Right -->
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover/btn:translate-x-1"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-                            </button>
+                            </x-manexo.action-button>
                         </div>
                     </form>
                 </div>
@@ -406,9 +405,9 @@
                     <button type="button" @click="$wire.closeInviteModal()" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
                         Annuler
                     </button>
-                    <button type="submit" class="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors" style="background-color: var(--accent);">
+                    <x-manexo.action-button type="submit" wire-target="joinWithInviteCode" variant="primary" class="!rounded-lg !font-medium" style="background-color: var(--accent);" :loading-label="__('ui.action.loading')">
                         Rejoindre
-                    </button>
+                    </x-manexo.action-button>
                 </div>
             </form>
         </div>

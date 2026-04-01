@@ -12,6 +12,7 @@ use App\Services\AutomationService;
 use App\Services\SlaService;
 use App\Services\WebhookService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -56,25 +57,30 @@ class CreateForm extends Component
             return;
         }
 
-        $term = '%'.trim($value).'%';
-        $this->kbSuggestions = \App\Models\KbArticle::withoutOrganizationScope()
-            ->where('organization_id', $orgId)
-            ->published()
-            ->where(function ($q) use ($term) {
-                $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
-                    ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
-                    ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
-            })
-            ->orderByDesc('view_count')
-            ->limit(5)
-            ->get(['id', 'title', 'content', 'view_count'])
-            ->map(fn ($a) => [
-                'id' => $a->id,
-                'title' => $a->title,
-                'excerpt' => $a->excerpt(200),
-                'view_count' => $a->view_count,
-            ])
-            ->toArray();
+        $needle = trim($value);
+        $cacheKey = 'create_drawer:kb_suggestions:'.$orgId.':'.md5(mb_strtolower($needle));
+        $this->kbSuggestions = Cache::remember($cacheKey, 60, function () use ($orgId, $needle) {
+            $term = '%'.$needle.'%';
+
+            return \App\Models\KbArticle::withoutOrganizationScope()
+                ->where('organization_id', $orgId)
+                ->published()
+                ->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
+                        ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
+                        ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
+                })
+                ->orderByDesc('view_count')
+                ->limit(5)
+                ->get(['id', 'title', 'content', 'view_count'])
+                ->map(fn ($a) => [
+                    'id' => $a->id,
+                    'title' => $a->title,
+                    'excerpt' => $a->excerpt(200),
+                    'view_count' => $a->view_count,
+                ])
+                ->toArray();
+        });
     }
 
     public function mount(): void
@@ -82,17 +88,23 @@ class CreateForm extends Component
         $orgId = (int) session('current_organization_id');
 
         if ($orgId) {
-            $category = TicketCategory::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->first();
+            $category = Cache::remember(CacheHelper::categoriesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketCategory::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id'])
+                    ->first();
+            });
 
-            $priority = TicketPriority::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderByDesc('level')
-                ->first();
+            $priority = Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketPriority::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderByDesc('level')
+                    ->get(['id'])
+                    ->first();
+            });
 
             if ($category) {
                 $this->ticket_category_id = (int) $category->id;
@@ -244,19 +256,23 @@ class CreateForm extends Component
         $orgId = (int) session('current_organization_id');
 
         $categories = $orgId
-            ? TicketCategory::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get()
+            ? Cache::remember(CacheHelper::categoriesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketCategory::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get();
+            })
             : collect();
 
         $priorities = $orgId
-            ? TicketPriority::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderByDesc('level')
-                ->get()
+            ? Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+                return TicketPriority::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderByDesc('level')
+                    ->get();
+            })
             : collect();
 
         return view('livewire.tickets.create-form', [

@@ -1,4 +1,4 @@
-<div class="w-full max-w-full min-w-0 mx-auto">
+<div class="w-full max-w-full min-w-0 mx-auto" wire:poll.45s>
     {{-- Header --}}
     <div class="page-header">
         <div class="min-w-0">
@@ -6,7 +6,7 @@
             <p class="page-subtitle">{{ __('pages.groups.subtitle') }}</p>
         </div>
         <div class="page-actions">
-            <a href="{{ route('tickets.index') }}" wire:navigate
+            <a href="{{ route('tickets.index') }}" wire:navigate.hover
                class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:px-4 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all">
                 <iconify-icon icon="solar:ticket-bold-duotone" width="18"></iconify-icon>
                 <span class="hidden sm:inline">{{ __('pages.groups.all_tickets') }}</span>
@@ -32,9 +32,13 @@
             </div>
         </div>
     @else
-        <div class="flex flex-col lg:flex-row gap-5 lg:gap-6">
+        <div class="relative flex flex-col lg:flex-row gap-5 lg:gap-6">
+            <div wire:loading.flex wire:target="$refresh" class="absolute inset-0 z-10 items-center justify-center bg-white/50 backdrop-blur-[1px] text-xs text-slate-500 rounded-xl">
+                <iconify-icon icon="solar:refresh-linear" width="14" class="animate-spin mr-1"></iconify-icon>
+                {{ __('Chargement...') }}
+            </div>
             {{-- ═══ MAIN COLUMN — Groups with top tickets ═══ --}}
-            <div class="flex-1 min-w-0 space-y-4">
+            <div wire:loading.class="opacity-70 pointer-events-none" wire:target="$refresh" class="flex-1 min-w-0 space-y-4 transition-opacity duration-150">
 
                 @foreach($groups as $grp)
                     @php
@@ -85,7 +89,7 @@
                                             $age = \Carbon\Carbon::parse($t->created_at)->diffForHumans(short: true);
                                             $isHighPriority = $pLevel >= 3;
                                         @endphp
-                                        <a href="{{ route('tickets.discussion', ['ticket' => $t->public_id]) }}" wire:navigate
+                                        <a href="{{ route('tickets.discussion', ['ticket' => $t->public_id]) }}" wire:navigate.hover
                                            class="flex items-center gap-3 px-5 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0">
                                             <span class="font-mono text-[11px] text-slate-400 shrink-0 w-16">{{ \Illuminate\Support\Str::limit($t->public_id, 10) }}</span>
                                             <span class="text-sm text-slate-900 font-medium truncate flex-1 min-w-0">{{ $t->subject }}</span>
@@ -110,14 +114,14 @@
 
                             {{-- Footer link --}}
                             <div class="px-5 py-2.5 border-t border-slate-100 bg-slate-50/50">
-                                <a href="{{ route('tickets.index', ['group' => $grp->id]) }}" wire:navigate class="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+                                <a href="{{ route('tickets.index', ['group' => $grp->id]) }}" wire:navigate.hover class="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
                                     {{ __('Voir tous les tickets') }} &rarr;
                                 </a>
                             </div>
                         </div>
                     @else
                         {{-- Inactive group: compact single line --}}
-                        <a href="{{ route('tickets.index', ['group' => $grp->id]) }}" wire:navigate
+                        <a href="{{ route('tickets.index', ['group' => $grp->id]) }}" wire:navigate.hover
                            class="flex items-center gap-3 rounded-xl bg-white border border-slate-200 px-5 py-3 hover:bg-slate-50 transition-colors shadow-sm">
                             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white text-xs font-bold" style="background-color: {{ $color }}; opacity: 0.6;">
                                 @if($grp->icon)
@@ -149,13 +153,13 @@
                                 <span class="text-xs text-slate-400 font-medium shrink-0">{{ $ungroupedTotal }} {{ __('actif(s)') }}</span>
                             </div>
                             <div class="px-5 py-2.5 border-t border-slate-100 bg-slate-50/50">
-                                <a href="{{ route('tickets.index', ['group' => 'none']) }}" wire:navigate class="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
+                                <a href="{{ route('tickets.index', ['group' => 'none']) }}" wire:navigate.hover class="text-xs font-medium text-slate-500 hover:text-slate-900 transition-colors">
                                     {{ __('Voir tous les tickets') }} &rarr;
                                 </a>
                             </div>
                         </div>
                     @else
-                        <a href="{{ route('tickets.index', ['group' => 'none']) }}" wire:navigate
+                        <a href="{{ route('tickets.index', ['group' => 'none']) }}" wire:navigate.hover
                            class="flex items-center gap-3 rounded-xl bg-white border border-dashed border-slate-300 px-5 py-3 hover:bg-slate-50 transition-colors shadow-sm">
                             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400 text-xs font-bold">
                                 <iconify-icon icon="solar:minus-circle-linear" width="14"></iconify-icon>

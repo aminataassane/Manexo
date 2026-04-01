@@ -30,12 +30,12 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-1">URL du webhook</label>
-                            <input type="url" wire:model="newWebhookUrl" placeholder="https://example.com/webhook" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
+                            <input type="url" wire:model.blur="newWebhookUrl" placeholder="https://example.com/webhook" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
                             @error('newWebhookUrl') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-1">Description (optionnel)</label>
-                            <input type="text" wire:model="newWebhookDescription" placeholder="Ex: Notification ERP" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
+                            <input type="text" wire:model.blur="newWebhookDescription" placeholder="Ex: Notification ERP" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
                         </div>
                     </div>
                     <div>
@@ -50,10 +50,10 @@
                         </div>
                         @error('newWebhookEvents') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
                     </div>
-                    <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">
+                    <x-manexo.action-button type="submit" wire-target="createWebhookEndpoint" variant="primary" class="!font-semibold">
                         <iconify-icon icon="solar:link-round-bold" width="18"></iconify-icon>
                         Créer un webhook
-                    </button>
+                    </x-manexo.action-button>
                 </form>
             @endif
 
@@ -64,11 +64,11 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-1">URL</label>
-                            <input type="url" wire:model="editingWebhookUrl" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
+                            <input type="url" wire:model.blur="editingWebhookUrl" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-1">Description</label>
-                            <input type="text" wire:model="editingWebhookDescription" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
+                            <input type="text" wire:model.blur="editingWebhookDescription" class="w-full rounded-xl border-slate-200 bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]" />
                         </div>
                     </div>
                     <div>
@@ -89,7 +89,9 @@
                         </label>
                     </div>
                     <div class="flex gap-2">
-                        <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all">Enregistrer</button>
+                        <x-manexo.action-button type="submit" wire-target="updateWebhookEndpoint" variant="primary" class="!font-semibold">
+                            Enregistrer
+                        </x-manexo.action-button>
                         <button type="button" wire:click="cancelEditWebhook" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">Annuler</button>
                     </div>
                 </form>

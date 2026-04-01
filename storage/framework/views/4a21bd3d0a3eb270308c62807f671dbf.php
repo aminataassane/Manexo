@@ -45,7 +45,7 @@
         $sidebarFunctionOptions[] = ['value' => (string) $fn->id, 'label' => $fn->name];
     }
 ?>
-<div class="flex flex-col h-full gap-4 min-w-0">
+<div class="flex flex-col h-full gap-3 sm:gap-4 min-w-0">
     
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isLocked ?? false): ?>
         <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3 sm:p-4 shadow-sm min-w-0">
@@ -62,7 +62,7 @@
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <!-- Aperçu (aligné détail ticket) -->
-    <div class="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm min-w-0">
+    <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-4 shadow-sm min-w-0">
         <div class="flex flex-col gap-3 min-w-0">
             <div class="flex items-start gap-2 min-w-0">
                 <span class="shrink-0 inline-flex items-center justify-center rounded-lg px-2.5 py-1.5 min-w-[6rem] text-[11px] font-semibold font-mono tracking-tight bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent-soft)]">
@@ -80,7 +80,7 @@
 
         
         <div class="mt-3 space-y-2.5">
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3 min-w-0">
                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                     <?php echo e(__('Statut')); ?>
 
@@ -117,7 +117,7 @@
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
 
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3 min-w-0">
                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                     <?php echo e(__('Priorité')); ?>
 
@@ -154,7 +154,7 @@
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
 
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3 min-w-0">
                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5"><?php echo e(__('Catégorie')); ?></div>
                 <div class="flex min-w-0 items-center gap-2 rounded-lg bg-white px-3 py-2.5 text-sm font-medium text-slate-700 border border-slate-200">
                     <iconify-icon icon="solar:tag-bold-duotone" width="14"></iconify-icon>
@@ -163,7 +163,7 @@
             </div>
 
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($ticketGroups ?? collect())->isNotEmpty()): ?>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3 min-w-0">
                     <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                         <?php echo e(__('Groupe')); ?>
 
@@ -207,7 +207,7 @@
         
         <div class="mt-4 space-y-3 text-sm">
             
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3 min-w-0">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-0.5"><?php echo e(__('Assignés')); ?></div>
                 <div class="mt-1 flex flex-col gap-2 min-w-0">
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($ticket->assignees->isNotEmpty()): ?>
@@ -240,7 +240,7 @@
                                 </div>
                                 <span class="text-sm font-semibold text-slate-900 truncate flex-1 min-w-0"><?php echo e($asg->name); ?></span>
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($canAssignTicket ?? false) && !($isLocked ?? false)): ?>
-                                    <button type="button" wire:click="promoteToResponsible(<?php echo e($asg->id); ?>)" class="shrink-0 text-[10px] font-bold text-[var(--accent)] hover:underline" title="<?php echo e(__('Promouvoir en responsable')); ?>">
+                                    <button type="button" wire:click="promoteToResponsible(<?php echo e($asg->id); ?>)" wire:loading.attr="disabled" wire:target="promoteToResponsible(<?php echo e($asg->id); ?>)" class="shrink-0 text-[10px] font-bold text-[var(--accent)] hover:underline" title="<?php echo e(__('Promouvoir en responsable')); ?>">
                                         <iconify-icon icon="solar:star-bold" width="14"></iconify-icon>
                                     </button>
                                     <button type="button" @click="$dispatch('confirm-action', { title: '<?php echo e(__('Retirer')); ?>', message: '<?php echo e(__('Retirer cet assigné du ticket ?')); ?>', confirmLabel: '<?php echo e(__('Retirer')); ?>', variant: 'danger', onConfirm: () => $wire.removeAssignee(<?php echo e($asg->id); ?>) })" class="shrink-0 text-slate-400 hover:text-red-500 transition-colors" title="<?php echo e(__('Retirer')); ?>">
@@ -273,7 +273,7 @@
                                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isAlreadyAssigned): ?>
                                         <span class="text-[9px] text-slate-400 shrink-0"><?php echo e(__('assigné')); ?></span>
                                     <?php elseif(($canAssignTicket ?? false) && !($isLocked ?? false)): ?>
-                                        <button type="button" wire:click="addAssignee(<?php echo e($gm->id); ?>)" class="shrink-0 text-[10px] font-semibold text-[var(--accent)] hover:underline">
+                                        <button type="button" wire:click="addAssignee(<?php echo e($gm->id); ?>)" wire:loading.attr="disabled" wire:target="addAssignee(<?php echo e($gm->id); ?>)" class="shrink-0 text-[10px] font-semibold text-[var(--accent)] hover:underline">
                                             <?php echo e(__('Assigner')); ?>
 
                                         </button>
@@ -285,11 +285,31 @@
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($canAssignTicket ?? false) && !($isLocked ?? false)): ?>
                         <div class="space-y-2.5 pt-1">
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($ticket->assignees->isEmpty() || (auth()->id() && !$ticket->assignees->contains('id', auth()->id()))): ?>
-                                <button type="button" wire:click="assignToMe" class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 py-2.5 text-sm font-bold text-white shadow-sm hover:opacity-90 transition-all">
+                                <?php if (isset($component)) { $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.action-button','data' => ['wire:click' => 'assignToMe','wireTarget' => 'assignToMe','variant' => 'primary','spinnerSize' => 'sm','class' => '!rounded-lg !py-2.5 !px-3 w-full sm:w-auto','loadingLabel' => __('ui.tickets.assigning_self')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('manexo.action-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['wire:click' => 'assignToMe','wire-target' => 'assignToMe','variant' => 'primary','spinner-size' => 'sm','class' => '!rounded-lg !py-2.5 !px-3 w-full sm:w-auto','loading-label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('ui.tickets.assigning_self'))]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                                     <iconify-icon icon="solar:user-check-bold" width="16"></iconify-icon>
                                     <?php echo e(__("M'assigner")); ?>
 
-                                </button>
+                                 <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $attributes = $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $component = $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             <div class="space-y-2" x-data="{ selectedAssignee: 0 }">
                                 <label for="sidebar-add-assignee" class="sr-only"><?php echo e(__('Assigner à…')); ?></label>
@@ -319,7 +339,7 @@
 <?php $component = $__componentOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36; ?>
 <?php unset($__componentOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36); ?>
 <?php endif; ?>
-                                <button type="button" class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :disabled="selectedAssignee <= 0" @click="$wire.addAssignee(Number(selectedAssignee)); selectedAssignee = 0;">
+                                <button type="button" class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" :disabled="selectedAssignee <= 0" @click="$wire.addAssignee(Number(selectedAssignee)); selectedAssignee = 0;" wire:loading.attr="disabled" wire:target="addAssignee">
                                     <?php echo e(__('Ajouter')); ?>
 
                                 </button>
@@ -328,7 +348,7 @@
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
             </div>
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0">
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3 min-w-0">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5"><?php echo e(__('Fonction')); ?></div>
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($canSeeInternalNotes ?? false): ?>
                     <?php if (isset($component)) { $__componentOriginal67b35608722bcee218637ec24a02b934 = $component; } ?>
@@ -379,7 +399,7 @@
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isAlreadyAssigned): ?>
                                     <span class="text-[9px] text-slate-400 shrink-0"><?php echo e(__('assigné')); ?></span>
                                 <?php elseif(($canAssignTicket ?? false) && !($isLocked ?? false)): ?>
-                                    <button type="button" wire:click="addAssignee(<?php echo e($fm->id); ?>)" class="shrink-0 text-[10px] font-semibold text-[var(--accent)] hover:underline">
+                                    <button type="button" wire:click="addAssignee(<?php echo e($fm->id); ?>)" wire:loading.attr="disabled" wire:target="addAssignee(<?php echo e($fm->id); ?>)" class="shrink-0 text-[10px] font-semibold text-[var(--accent)] hover:underline">
                                         <?php echo e(__('Assigner')); ?>
 
                                     </button>
@@ -404,6 +424,8 @@
                             type="date"
                             value="<?php echo e($ticketDueDate?->format('Y-m-d') ?? ''); ?>"
                             wire:change="updateDueDate($event.target.value)"
+                            wire:loading.attr="disabled"
+                            wire:target="updateDueDate"
                             class="min-w-0 w-full rounded-lg border-slate-200 bg-white py-2 pl-3 pr-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)] max-w-full disabled:opacity-50 disabled:cursor-not-allowed"
                             <?php if(($isLocked ?? false) && !($canBypassLock ?? false)): echo 'disabled'; endif; ?>
                         />
@@ -418,7 +440,7 @@
 
             
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($ticket->sla_policy_id): ?>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 min-w-0"
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3 min-w-0"
                      x-data="{
                          frSecs: <?php echo e($ticket->slaFirstResponseRemainingSeconds() ?? 'null'); ?>,
                          resSecs: <?php echo e($ticket->slaResolutionRemainingSeconds() ?? 'null'); ?>,
@@ -504,7 +526,7 @@
 
     
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($ticket->requires_approval): ?>
-        <div class="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm min-w-0">
+        <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-4 shadow-sm min-w-0">
             <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3"><?php echo e(__('Approbation')); ?></div>
 
             
@@ -579,7 +601,7 @@
 
     
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($formResponse && !empty($formResponse->field_snapshot) && !empty($formResponse->responses)): ?>
-        <div class="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm min-w-0">
+        <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-4 shadow-sm min-w-0">
             <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3"><?php echo e(__('Champs personnalisés')); ?></div>
             <div class="space-y-3">
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $formResponse->field_snapshot; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $field): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
@@ -616,7 +638,7 @@
         $checklistDone = $checklistItems->where('is_done', true)->count();
         $checklistPct = $checklistTotal > 0 ? (int) round(100 * $checklistDone / $checklistTotal) : 0;
     ?>
-    <div class="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm min-w-0">
+    <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-4 shadow-sm min-w-0">
         <div class="flex items-center justify-between gap-2 min-w-0">
             <div class="min-w-0">
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500"><?php echo e(__('Checklist')); ?></div>
@@ -790,7 +812,7 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
 
                         </button>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div class="grid grid-cols-1 gap-2">
                         <template x-if="assignMode === 'user'">
                             <?php if (isset($component)) { $__componentOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalfbd96fa9ceb0dd232d7f99b6c6b44c36 = $attributes; } ?>
@@ -850,11 +872,31 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
                         <input type="date" wire:model="newChecklistDueDate" class="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" />
                     </div>
                     <div class="flex gap-2">
-                        <button type="button" wire:click="addChecklistItemToTicket" wire:loading.attr="disabled" class="cursor-pointer flex-1 inline-flex items-center justify-center gap-1.5 h-9 rounded-lg bg-[var(--accent)] text-white text-xs font-bold disabled:opacity-70 disabled:cursor-not-allowed">
+                        <?php if (isset($component)) { $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.action-button','data' => ['type' => 'button','wire:click' => 'addChecklistItemToTicket','wireTarget' => 'addChecklistItemToTicket','variant' => 'primary-sm','class' => 'cursor-pointer flex-1']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('manexo.action-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['type' => 'button','wire:click' => 'addChecklistItemToTicket','wire-target' => 'addChecklistItemToTicket','variant' => 'primary-sm','class' => 'cursor-pointer flex-1']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                             <iconify-icon icon="solar:add-circle-linear" width="14"></iconify-icon>
                             <?php echo e(__('Ajouter')); ?>
 
-                        </button>
+                         <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $attributes = $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $component = $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
                         <button type="button" wire:click="closeAddChecklistForm" class="cursor-pointer h-9 px-3 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium">
                             <?php echo e(__('Annuler')); ?>
 
@@ -872,7 +914,7 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
     </div>
 
     <!-- Participants -->
-    <div class="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm min-w-0">
+    <div class="rounded-xl sm:rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-4 shadow-sm min-w-0">
         <div class="flex items-center justify-between gap-2 min-w-0 flex-wrap">
             <div>
                 <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500"><?php echo e(__('Participants')); ?></div>
@@ -886,14 +928,14 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
         </div>
         <div class="mt-4 space-y-2">
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $discussionUsers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $u): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                <div class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div class="h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
+                <div class="flex items-center gap-2 sm:gap-3 rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:p-3">
+                    <div class="h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold shrink-0" style="background: var(--accent-soft); color: var(--accent);">
                         <?php echo e(strtoupper(mb_substr($u->name ?? '?', 0, 1))); ?>
 
                     </div>
                     <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-2 min-w-0 flex-wrap">
-                            <span class="text-sm font-semibold text-slate-900 truncate"><?php echo e($u->name); ?></span>
+                        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
+                            <span class="text-xs sm:text-sm font-semibold text-slate-900 truncate"><?php echo e($u->name); ?></span>
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($u->id === $creator?->id): ?>
                                 <span class="text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full shrink-0"><?php echo e(__('Créateur')); ?></span>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -949,11 +991,31 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
                     </div>
                 </div>
             </div>
-            <button type="button" wire:click="restoreTicket" class="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors">
+            <?php if (isset($component)) { $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.action-button','data' => ['type' => 'button','wire:click' => 'restoreTicket','wireTarget' => 'restoreTicket','variant' => 'secondary','spinnerSize' => 'sm','class' => '!w-full !h-10 !rounded-xl !font-bold']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('manexo.action-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['type' => 'button','wire:click' => 'restoreTicket','wire-target' => 'restoreTicket','variant' => 'secondary','spinner-size' => 'sm','class' => '!w-full !h-10 !rounded-xl !font-bold']); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
                 <iconify-icon icon="solar:restart-bold-duotone" width="18"></iconify-icon>
                 <?php echo e(__('Restaurer')); ?>
 
-            </button>
+             <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $attributes = $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $component = $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
         <?php else: ?>
             <p class="text-sm text-slate-500 mb-3"><?php echo e(__('Archivez ce ticket pour le sortir des listes actives.')); ?></p>
             <button type="button" @click="$dispatch('confirm-action', { title: '<?php echo e(__('Archiver')); ?>', message: '<?php echo e(__('Archiver ce ticket ? Il sera retiré des listes actives.')); ?>', confirmLabel: '<?php echo e(__('Archiver')); ?>', variant: 'warning', onConfirm: () => $wire.archiveTicket() })" class="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl bg-slate-900 text-sm font-bold text-white hover:bg-slate-800 transition-colors">
@@ -967,7 +1029,7 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
 
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($canDeleteTicket ?? false): ?>
     <!-- Suppression (soft delete) -->
-    <div class="rounded-2xl border border-red-100 bg-red-50/50 p-3 sm:p-4 shadow-sm min-w-0">
+    <div class="rounded-xl sm:rounded-2xl border border-red-100 bg-red-50/50 p-2.5 sm:p-4 shadow-sm min-w-0">
         <div class="text-[11px] font-bold uppercase tracking-wider text-red-600 mb-3"><?php echo e(__('Supprimer le ticket')); ?></div>
         <p class="text-sm text-slate-600 mb-3"><?php echo e(__('Le ticket sera masqué des listes. La suppression peut être annulée par un administrateur.')); ?></p>
         <button
@@ -982,8 +1044,12 @@ unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendB
     </div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    <div class="mt-auto rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4 text-xs text-slate-500 text-center min-w-0">
-        <?php echo e(__('Créé')); ?> <?php echo e($ticket->created_at?->translatedFormat('d M H:i') ?? '—'); ?> · <?php echo e(__('Mis à jour')); ?> <?php echo e($lastActivity?->diffForHumans() ?? '—'); ?>
+    <div class="mt-auto rounded-xl sm:rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:p-4 text-[11px] sm:text-xs text-slate-500 text-center min-w-0 leading-relaxed">
+        <?php echo e(__('Créé')); ?> <?php echo e($ticket->created_at?->translatedFormat('d M H:i') ?? '—'); ?>
+
+        <span class="hidden sm:inline">·</span>
+        <br class="sm:hidden">
+        <?php echo e(__('Mis à jour')); ?> <?php echo e($lastActivity?->diffForHumans() ?? '—'); ?>
 
     </div>
 </div>

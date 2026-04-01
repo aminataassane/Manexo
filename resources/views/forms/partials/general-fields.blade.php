@@ -19,12 +19,18 @@
     @if(!$form->ticket_category_id)
         <div class="space-y-2">
             <label for="ticket_category_id" class="text-[13px] font-semibold text-slate-700">{{ __('Catégorie') }}</label>
-            <x-select-input name="ticket_category_id" id="ticket_category_id">
-                <option value="">{{ __('Sélectionner…') }}</option>
-                @foreach($categories as $c)
-                    <option value="{{ $c->id }}" @selected((string) old('ticket_category_id') === (string) $c->id)>{{ $c->name }}</option>
-                @endforeach
-            </x-select-input>
+            <div class="relative group/select">
+                <select name="ticket_category_id" id="ticket_category_id"
+                        class="select-manexo-inset block w-full text-[13px] font-medium text-slate-800 transition-colors duration-200">
+                    <option value="">{{ __('Sélectionner…') }}</option>
+                    @foreach($categories as $c)
+                        <option value="{{ $c->id }}" @selected((string) old('ticket_category_id') === (string) $c->id)>{{ $c->name }}</option>
+                    @endforeach
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition-colors duration-200 group-hover/select:text-slate-600">
+                    <iconify-icon icon="solar:alt-arrow-down-linear" width="16" class="opacity-90"></iconify-icon>
+                </div>
+            </div>
             @error('ticket_category_id')<p class="text-[12px] text-red-500 mt-1 flex items-center gap-1"><iconify-icon icon="solar:danger-circle-bold" width="13"></iconify-icon> {{ $message }}</p>@enderror
         </div>
     @else

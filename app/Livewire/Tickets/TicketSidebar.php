@@ -79,6 +79,8 @@ class TicketSidebar extends Component
 
     public string $approvalAction = '';
 
+    private ?Ticket $ticketCache = null;
+
     public function getListeners(): array
     {
         return [
@@ -96,11 +98,17 @@ class TicketSidebar extends Component
 
     private function getTicket(): Ticket
     {
-        return Ticket::query()
+        if ($this->ticketCache instanceof Ticket) {
+            return $this->ticketCache;
+        }
+
+        $this->ticketCache = Ticket::query()
             ->with(['participants:id,name,email', 'creator:id,name,email', 'assignees:id,name,email'])
             ->whereKey($this->ticketId)
             ->where('organization_id', session('current_organization_id'))
             ->firstOrFail();
+
+        return $this->ticketCache;
     }
 
     private function guardAgainstLock(Ticket $ticket): void
@@ -115,9 +123,9 @@ class TicketSidebar extends Component
         abort(403, __('tickets.locked'));
     }
 
-    private function canAssignTicket(): bool
+    private function canAssignTicket(Ticket $ticket): bool
     {
-        return Gate::allows('assign', $this->getTicket());
+        return Gate::allows('assign', $ticket);
     }
 
     private function isInternalStaffUser(int $userId, int $organizationId): bool
@@ -221,10 +229,10 @@ class TicketSidebar extends Component
     {
         $user = Auth::user();
         abort_if(! $user, 403);
-        if (! $this->canAssignTicket()) {
+        $ticket = $this->getTicket();
+        if (! $this->canAssignTicket($ticket)) {
             abort(403);
         }
-        $ticket = $this->getTicket();
         $this->guardAgainstLock($ticket);
         $orgMember = User::whereKey($userId)->assignableInOrganization((int) $ticket->organization_id)->firstOrFail();
         if ($ticket->assignees()->where('users.id', $userId)->exists()) {
@@ -266,10 +274,10 @@ class TicketSidebar extends Component
     {
         $user = Auth::user();
         abort_if(! $user, 403);
-        if (! $this->canAssignTicket()) {
+        $ticket = $this->getTicket();
+        if (! $this->canAssignTicket($ticket)) {
             abort(403);
         }
-        $ticket = $this->getTicket();
         $this->guardAgainstLock($ticket);
         $removedUser = User::find($userId);
         $wasResponsible = $ticket->assignees()->where('users.id', $userId)->wherePivot('role', 'responsible')->exists();
@@ -311,10 +319,10 @@ class TicketSidebar extends Component
     {
         $user = Auth::user();
         abort_if(! $user, 403);
-        if (! $this->canAssignTicket()) {
+        $ticket = $this->getTicket();
+        if (! $this->canAssignTicket($ticket)) {
             abort(403);
         }
-        $ticket = $this->getTicket();
         $this->guardAgainstLock($ticket);
         if (! $ticket->assignees()->where('users.id', $userId)->exists()) {
             return;
@@ -382,14 +390,15 @@ class TicketSidebar extends Component
     public function changeStatus(string $status): void
     {
         $user = Auth::user();
-        if (! $user || ! $this->canAssignTicket()) {
-            abort(403);
-        }
+        abort_if(! $user, 403);
         $newStatus = TicketStatus::tryFrom($status);
         if (! $newStatus) {
             return;
         }
         $ticket = $this->getTicket();
+        if (! $this->canAssignTicket($ticket)) {
+            abort(403);
+        }
         $oldStatus = $ticket->status;
         if ($oldStatus === $newStatus) {
             return;
@@ -476,10 +485,11 @@ class TicketSidebar extends Component
     public function changePriority(int $priorityId): void
     {
         $user = Auth::user();
-        if (! $user || ! $this->canAssignTicket()) {
+        abort_if(! $user, 403);
+        $ticket = $this->getTicket();
+        if (! $this->canAssignTicket($ticket)) {
             abort(403);
         }
-        $ticket = $this->getTicket();
         $this->guardAgainstLock($ticket);
         $oldPriority = $ticket->priority;
         $newPriority = TicketPriority::where('organization_id', $ticket->organization_id)->where('is_active', true)->whereKey($priorityId)->firstOrFail();
@@ -506,10 +516,11 @@ class TicketSidebar extends Component
     public function changeGroup($groupId): void
     {
         $user = Auth::user();
-        if (! $user || ! $this->canAssignTicket()) {
+        abort_if(! $user, 403);
+        $ticket = $this->getTicket();
+        if (! $this->canAssignTicket($ticket)) {
             abort(403);
         }
-        $ticket = $this->getTicket();
         $this->guardAgainstLock($ticket);
         $id = $groupId === '' || $groupId === null ? null : (int) $groupId;
         $group = null;
@@ -1075,8 +1086,14 @@ class TicketSidebar extends Component
         if ($resolutionMode !== 'strict') {
             return true;
         }
-        $totalItems = $ticket->checklistItems()->count();
-        $doneItems = $ticket->checklistItems()->where('is_done', true)->count();
+        $agg = $ticket->checklistItems()
+            ->getQuery()
+            ->clone()
+            ->reorder()
+            ->selectRaw('count(*) as total_count, coalesce(sum(case when is_done then 1 else 0 end), 0) as done_count')
+            ->first();
+        $totalItems = (int) ($agg->total_count ?? 0);
+        $doneItems = (int) ($agg->done_count ?? 0);
         if ($totalItems > 0 && $doneItems < $totalItems) {
             $this->dispatch('toast', type: 'error', message: __('tickets.ticket_resolution_strict_error'));
 
@@ -1118,7 +1135,6 @@ class TicketSidebar extends Component
     }
 
     /**
-     * @param  mixed  $user
      * @return array<string, mixed>
      */
     private function sidebarAccessFlags(Ticket $ticket, mixed $user, int $userId, int $orgId): array
@@ -1138,7 +1154,7 @@ class TicketSidebar extends Component
             'canEditChecklist' => $canEditChecklist,
             'canEditTicket' => $hasEditPerm || $isCreator,
             'canDeleteTicket' => $hasDeletePerm || ($isCreator && $ticket->status !== TicketStatus::Closed),
-            'canAssignTicket' => Gate::allows('assign', $ticket),
+            'canAssignTicket' => $this->canAssignTicket($ticket),
             'canEditDueDate' => $hasEditPerm || $isCreator || $isAssignee,
             'canArchive' => $hasArchivePerm || $isCreator || $isAssignee,
             'isStaffOrTicketOwner' => $hasEditPerm || $isCreator || $isAssignee,
@@ -1160,13 +1176,17 @@ class TicketSidebar extends Component
             ->merge($ticket->participants)
             ->filter()
             ->unique('id');
-        $discussionUserIds = $discussionUsers->pluck('id')->all();
+        $discussionUserIds = $discussionUsers->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
         $orgMemberRoles = ! empty($discussionUserIds)
-            ? DB::table('organization_memberships')
-                ->where('organization_id', $orgId)
-                ->whereIn('user_id', $discussionUserIds)
-                ->pluck('role', 'user_id')
-                ->all()
+            ? cache()->remember(
+                "org_member_roles:{$orgId}:".implode(',', $discussionUserIds),
+                60,
+                fn () => DB::table('organization_memberships')
+                    ->where('organization_id', $orgId)
+                    ->whereIn('user_id', $discussionUserIds)
+                    ->pluck('role', 'user_id')
+                    ->all()
+            )
             : [];
 
         return compact('discussionUsers', 'orgMemberRoles');
@@ -1177,9 +1197,19 @@ class TicketSidebar extends Component
      */
     private function sidebarAttachmentsPayload(Ticket $ticket): array
     {
-        $allAttachments = TicketMessage::where('ticket_id', $ticket->id)->whereNotNull('attachments')->pluck('attachments')->flatMap(fn ($a) => is_array($a) ? $a : [])->filter()->values();
-        $lastMessage = TicketMessage::where('ticket_id', $ticket->id)->latest('id')->first(['created_at']);
-        $lastActivity = $lastMessage?->created_at ?? $ticket->updated_at;
+        $attachmentRows = TicketMessage::query()
+            ->where('ticket_id', $ticket->id)
+            ->whereNotNull('attachments')
+            ->get(['attachments']);
+        $allAttachments = $attachmentRows
+            ->pluck('attachments')
+            ->flatMap(fn ($a) => is_array($a) ? $a : [])
+            ->filter()
+            ->values();
+        $lastActivityRaw = TicketMessage::query()
+            ->where('ticket_id', $ticket->id)
+            ->max('created_at');
+        $lastActivity = $lastActivityRaw ? \Illuminate\Support\Carbon::parse($lastActivityRaw) : $ticket->updated_at;
         $ticketAttachments = [];
         if (is_array($ticket->attachments)) {
             foreach ($ticket->attachments['files'] ?? [] as $f) {

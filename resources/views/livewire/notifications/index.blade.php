@@ -114,6 +114,7 @@
             $senderName = $data['actor_name'] ?? '—';
             $subject = $data['thread_name'] ?? __('Discussion');
             $excerpt = $data['body_excerpt'] ?? __('Vous avez été retiré de cette discussion.');
+            $notifUrl = route('discussions.index');
         } elseif ($nType === 'organization_invitation' || $nType === 'invitation_accepted') {
             $category = 'team';
             $categoryLabel = __('Équipe');
@@ -180,7 +181,10 @@
             $notifUrl = $ticketRouteKey ? route('tickets.discussion', $ticketRouteKey) : '#';
             if ($messageId && $ticketRouteKey) { $notifUrl .= '#message-' . $messageId; }
         }
-        return compact('isRead', 'senderName', 'subject', 'excerpt', 'notifUrl', 'icon', 'iconBg', 'category', 'categoryLabel', 'categoryIcon');
+        $notifInternal = is_string($notifUrl) && str_starts_with($notifUrl, url('/'));
+        $notifActionable = is_string($notifUrl) && $notifUrl !== '#';
+
+        return compact('isRead', 'senderName', 'subject', 'excerpt', 'notifUrl', 'notifInternal', 'notifActionable', 'icon', 'iconBg', 'category', 'categoryLabel', 'categoryIcon');
     };
 
     $categoryFilters = [
@@ -194,7 +198,7 @@
     $activeCategory = is_string($category ?? null) ? $category : 'all';
 @endphp
 
-<div class="w-full max-w-full min-w-0 mx-auto">
+<div class="w-full max-w-full min-w-0 mx-auto" wire:poll.30s>
 
     {{-- ═══ HEADER ═══ --}}
     <div class="page-header">
@@ -203,14 +207,16 @@
             <p class="page-subtitle">{{ __('pages.notifications.subtitle') }}</p>
         </div>
         <div class="page-actions">
-            @if($this->unreadCount > 0)
+            @if($unreadCount > 0)
                 <span class="inline-flex items-center gap-1.5 rounded-xl border border-[var(--accent-soft-2)] bg-[var(--accent-soft)] px-3 py-2 text-xs font-bold text-[var(--accent)]">
                     <iconify-icon icon="solar:bell-bold-duotone" width="16"></iconify-icon>
-                    {{ $this->unreadCount }} {{ __('non lues') }}
+                    {{ $unreadCount }} {{ __('non lues') }}
                 </span>
                 <button
                     type="button"
                     wire:click="markAllAsRead"
+                    wire:loading.attr="disabled"
+                    wire:target="markAllAsRead"
                     class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all"
                 >
                     <iconify-icon icon="solar:check-read-linear" width="16"></iconify-icon>
@@ -231,7 +237,7 @@
             <div class="flex justify-between items-start gap-2">
                 <div class="min-w-0">
                     <span class="stat-card-label">{{ __('Non lues') }}</span>
-                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-slate-900">{{ $this->unreadCount }}</div>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-slate-900">{{ $unreadCount }}</div>
                 </div>
                 <div class="stat-card-icon bg-red-50 text-red-600">
                     <iconify-icon icon="solar:bell-bold-duotone" width="20"></iconify-icon>
@@ -242,7 +248,7 @@
             <div class="flex justify-between items-start gap-2">
                 <div class="min-w-0">
                     <span class="stat-card-label">{{ __('Total') }}</span>
-                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-slate-900">{{ $this->notifications->total() }}</div>
+                    <div class="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-slate-900">{{ $notifications->total() }}</div>
                 </div>
                 <div class="stat-card-icon bg-blue-50 text-blue-600">
                     <iconify-icon icon="solar:inbox-bold-duotone" width="20"></iconify-icon>
@@ -286,22 +292,22 @@
                         <h3>{{ __('Statut de lecture') }}</h3>
                     </div>
                     <div class="sidebar-panel-body">
-                        <button type="button" wire:click="setFilter('all')"
+                        <button type="button" wire:click="setFilter('all')" wire:loading.attr="disabled" wire:target="setFilter,setCategory,nextPage,previousPage,gotoPage,setPage,markAllAsRead,markAsRead"
                             class="sidebar-item {{ $filter === 'all' ? 'sidebar-item-active' : 'sidebar-item-default' }}">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:inbox-bold-duotone" width="18" class="{{ $filter === 'all' ? 'text-[var(--accent)]' : 'text-slate-400' }}"></iconify-icon>
                                 {{ __('pages.notifications.all') }}
                             </span>
                         </button>
-                        <button type="button" wire:click="setFilter('unread')"
+                        <button type="button" wire:click="setFilter('unread')" wire:loading.attr="disabled" wire:target="setFilter,setCategory,nextPage,previousPage,gotoPage,setPage,markAllAsRead,markAsRead"
                             class="sidebar-item {{ $filter === 'unread' ? 'sidebar-item-active' : 'sidebar-item-default' }}">
                             <span class="flex items-center gap-2.5">
                                 <iconify-icon icon="solar:bell-bold-duotone" width="18" class="{{ $filter === 'unread' ? 'text-[var(--accent)]' : 'text-slate-400' }}"></iconify-icon>
                                 {{ __('pages.notifications.unread') }}
                             </span>
-                            @if($this->unreadCount > 0)
+                            @if($unreadCount > 0)
                                 <span class="sidebar-badge {{ $filter === 'unread' ? 'sidebar-badge-active' : 'sidebar-badge-default' }}">
-                                    {{ $this->unreadCount }}
+                                    {{ $unreadCount }}
                                 </span>
                             @endif
                         </button>
@@ -315,7 +321,7 @@
                     </div>
                     <div class="sidebar-panel-body">
                         @foreach ($categoryFilters as $catKey => $catInfo)
-                            <button type="button" wire:click="setCategory('{{ $catKey }}')"
+                            <button type="button" wire:click="setCategory('{{ $catKey }}')" wire:loading.attr="disabled" wire:target="setFilter,setCategory,nextPage,previousPage,gotoPage,setPage,markAllAsRead,markAsRead"
                                 class="sidebar-item {{ $category === $catKey ? 'sidebar-item-active' : 'sidebar-item-default' }}">
                                 <span class="flex items-center gap-2.5">
                                     <iconify-icon icon="{{ $catInfo['icon'] }}" width="18" class="{{ $category === $catKey ? 'text-[var(--accent)]' : 'text-slate-400' }}"></iconify-icon>
@@ -330,7 +336,10 @@
 
         {{-- NOTIFICATIONS LIST --}}
         <div class="lg:col-span-3">
-            <div class="content-card">
+            <div class="content-card relative">
+                <div wire:loading.flex wire:target="setFilter,setCategory,nextPage,previousPage,gotoPage,setPage,markAllAsRead,markAsRead" class="absolute inset-0 z-10 items-center justify-center bg-white/60 backdrop-blur-[1px] text-xs text-slate-500">
+                    {{ __('pages.notifications.title') }}...
+                </div>
 
                 {{-- Toolbar --}}
                 <div class="flex items-center justify-between gap-3 p-3 sm:p-4" style="border-bottom: 1px solid #f1f5f9;">
@@ -339,26 +348,31 @@
                         {{ __('Les plus récentes') }}
                     </div>
                     <div class="text-xs text-slate-400">
-                        {{ $this->notifications->total() }} {{ __('notification(s)') }}
+                        {{ $notifications->total() }} {{ __('notification(s)') }}
                     </div>
                 </div>
 
                 {{-- List --}}
                 <div class="divide-y divide-slate-100">
-                    @forelse($this->notifications as $notification)
+                    @forelse($notifications as $notification)
                         @php $n = $parseNotification($notification); @endphp
                         <a
-                            href="{{ $n['notifUrl'] }}"
-                            wire:navigate
+                            href="{{ $n['notifActionable'] ? $n['notifUrl'] : 'javascript:void(0)' }}"
+                            @if($n['notifInternal']) wire:navigate @endif
                             wire:click="markAsRead('{{ $notification->id }}')"
+                            wire:loading.attr="disabled"
+                            wire:target="markAsRead"
                             wire:key="notif-{{ $notification->id }}"
-                            class="group flex items-start gap-4 px-4 py-4 transition-colors sm:px-6 sm:py-5 {{ $n['isRead'] ? 'hover:bg-slate-50/70' : 'bg-[var(--accent-soft)]/20 hover:bg-[var(--accent-soft)]/30' }}"
+                            x-data="{ optimisticRead: false }"
+                            @click="optimisticRead = true"
+                            :class="optimisticRead ? 'hover:bg-slate-50/70 bg-slate-50/40' : ''"
+                            class="group flex items-start gap-4 px-4 py-4 transition-all duration-200 sm:px-6 sm:py-5 {{ $n['isRead'] ? 'hover:bg-slate-50/70' : 'bg-[var(--accent-soft)]/20 hover:bg-[var(--accent-soft)]/30' }}"
                         >
                             {{-- Icon --}}
                             <span class="relative mt-0.5 shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-xl transition {{ $n['isRead'] ? $n['iconBg'] : $n['iconBg'] }}">
                                 <iconify-icon icon="{{ $n['icon'] }}" width="20"></iconify-icon>
                                 @if(! $n['isRead'])
-                                    <span class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)] ring-2 ring-white"></span>
+                                    <span x-show="!optimisticRead" x-transition.opacity.duration.200ms class="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)] ring-2 ring-white"></span>
                                 @endif
                             </span>
 
@@ -366,13 +380,13 @@
                             <div class="min-w-0 flex-1">
                                 <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                                     <div class="min-w-0 flex-1">
-                                        <p class="text-sm sm:text-[14px] leading-snug {{ $n['isRead'] ? 'font-medium text-slate-700 group-hover:text-slate-900' : 'font-semibold text-slate-900' }}">
-                                            <span>{{ $n['senderName'] }}</span>
+                                        <p class="text-sm sm:text-[14px] leading-snug break-words {{ $n['isRead'] ? 'font-medium text-slate-700 group-hover:text-slate-900' : 'font-semibold text-slate-900' }}">
+                                            <span class="break-words">{{ $n['senderName'] }}</span>
                                             <span class="mx-1.5 text-slate-300">&middot;</span>
-                                            <span class="text-slate-600">{{ $n['subject'] }}</span>
+                                            <span class="text-slate-600 break-words">{{ $n['subject'] }}</span>
                                         </p>
                                         @if($n['excerpt'])
-                                            <p class="mt-1 line-clamp-2 text-[13px] leading-relaxed {{ $n['isRead'] ? 'text-slate-400' : 'text-slate-500' }}">{{ $n['excerpt'] }}</p>
+                                            <p class="mt-1 line-clamp-2 break-all text-[13px] leading-relaxed {{ $n['isRead'] ? 'text-slate-400' : 'text-slate-500' }}">{{ $n['excerpt'] }}</p>
                                         @endif
                                     </div>
 
@@ -382,7 +396,7 @@
                                         </time>
                                         <div class="flex items-center gap-1.5">
                                             @if(! $n['isRead'])
-                                                <span class="inline-flex items-center rounded-lg bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--accent)] ring-1 ring-[var(--accent)]/10">
+                                                <span x-show="!optimisticRead" x-transition.opacity.duration.200ms class="inline-flex items-center rounded-lg bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--accent)] ring-1 ring-[var(--accent)]/10">
                                                     {{ __('Nouveau') }}
                                                 </span>
                                             @endif
@@ -413,9 +427,9 @@
                 </div>
 
                 {{-- Pagination --}}
-                @if($this->notifications->hasPages())
+                @if($notifications->hasPages())
                     <div class="overflow-x-auto px-4 py-4 sm:px-6" style="border-top: 1px solid #f1f5f9;">
-                        {{ $this->notifications->links('vendor.pagination.manexo') }}
+                        {{ $notifications->links('vendor.pagination.manexo') }}
                     </div>
                 @endif
             </div>

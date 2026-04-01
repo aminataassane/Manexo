@@ -1,11 +1,11 @@
-<div class="discussion-composer shrink-0 border-t border-slate-200 bg-white/95 p-2 sm:p-2.5 z-10 safe-area-pb min-w-0 overflow-hidden backdrop-blur" data-composer>
+<div class="discussion-composer shrink-0 border-t border-slate-200 bg-white/95 p-1.5 sm:p-2.5 z-10 safe-area-pb min-w-0 overflow-hidden backdrop-blur" data-composer>
     <div class="mx-auto max-w-3xl min-w-0">
-        <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
-            <button type="button" wire:click="setAsInternalNote(false)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 {{ !$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
+        <div class="flex items-center gap-1.5 mb-1 sm:mb-1.5">
+            <button type="button" wire:click="setAsInternalNote(false)" wire:loading.attr="disabled" wire:target="setAsInternalNote" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 touch-manipulation {{ !$asInternalNote ? 'text-slate-900 border-[var(--accent)]' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
                 {{ __('Répondre') }}
             </button>
             @if($canWriteInternalNotes)
-                <button type="button" wire:click="setAsInternalNote(true)" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1 {{ $asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
+                <button type="button" wire:click="setAsInternalNote(true)" wire:loading.attr="disabled" wire:target="setAsInternalNote" class="text-[11px] sm:text-xs font-bold transition-colors border-b-2 pb-0.5 flex items-center gap-1 touch-manipulation {{ $asInternalNote ? 'text-amber-700 border-amber-500' : 'text-slate-500 border-transparent hover:text-slate-900' }}">
                     <iconify-icon icon="solar:lock-keyhole-bold-duotone" width="10"></iconify-icon>
                     {{ __('Note interne') }}
                 </button>
@@ -75,7 +75,7 @@
             <div class="p-1.5 sm:p-2 relative">
                 <textarea
                     x-ref="mentionInput"
-                    wire:model="body"
+                    wire:model.defer="body"
                     rows="2"
                     @input="onInput($event)"
                     @keydown.arrow-down.prevent="mentionOpen && filteredMentions.length && (mentionOpen = true)"
@@ -96,14 +96,14 @@
                 </div>
             </div>
 
-            <div class="flex flex-wrap items-center justify-between gap-2 px-2.5 py-1.5 border-t border-slate-100 rounded-b-xl bg-slate-50/50">
-                <div class="flex items-center gap-0.5 min-w-0 flex-1 sm:flex-initial">
+            <div class="flex items-center justify-between gap-1.5 sm:gap-2 px-1.5 sm:px-2.5 py-1 sm:py-1.5 border-t border-slate-100 rounded-b-xl bg-slate-50/50">
+                <div class="flex items-center gap-0.5 min-w-0">
                     <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="composer-file-input-{{ $ticketId }}" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
-                    <button type="button" onclick="document.getElementById('composer-file-input-{{ $ticketId }}').click()" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Joindre un fichier') }}">
+                    <button type="button" onclick="document.getElementById('composer-file-input-{{ $ticketId }}').click()" wire:loading.attr="disabled" wire:target="attachmentFiles,sendMessage" class="p-1.5 min-h-[34px] min-w-[34px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Joindre un fichier') }}">
                         <iconify-icon icon="solar:paperclip-linear" width="16"></iconify-icon>
                     </button>
-                    <div x-data="{ emojiOpen: false }" class="relative">
-                        <button type="button" @click="emojiOpen = !emojiOpen" class="p-1.5 min-h-[32px] min-w-[32px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Emoji') }}">
+                    <div x-data="{ emojiOpen: false }" class="relative hidden sm:block">
+                        <button type="button" @click="emojiOpen = !emojiOpen" class="p-1.5 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="{{ __('Emoji') }}">
                             <iconify-icon icon="solar:smile-circle-linear" width="16"></iconify-icon>
                         </button>
                         <div x-show="emojiOpen" @click.outside="emojiOpen = false" x-cloak class="absolute bottom-full left-0 mb-1 p-1.5 rounded-lg bg-white shadow-xl border border-slate-200 grid grid-cols-8 gap-1 max-h-36 overflow-y-auto z-50 w-48">
@@ -113,19 +113,25 @@
                         </div>
                     </div>
                     @if(count($attachmentFiles ?? []) > 0)
-                        <span class="ml-1 text-[10px] sm:text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-1.5 py-0.5 rounded">{{ count($attachmentFiles) }} fichier(s)</span>
+                        <span class="ml-0.5 text-[10px] sm:text-xs font-medium text-[var(--accent)] bg-[var(--accent-soft)] px-1.5 py-0.5 rounded">{{ count($attachmentFiles) }}</span>
                     @endif
+                    <span wire:loading wire:target="attachmentFiles" class="ml-0.5 text-[10px] text-slate-500">{{ __('Téléversement…') }}</span>
+                    <p class="text-[10px] text-slate-400 hidden md:inline ml-2">{{ __('Markdown') }} · <kbd class="px-0.5 py-px rounded bg-slate-100 text-slate-600 font-mono text-[9px]">@</kbd> {{ __('pour mentionner') }}</p>
                 </div>
 
-                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                    <p class="text-[10px] text-slate-400 hidden sm:inline">{{ __('Markdown') }}</p>
-                    <p class="text-[10px] text-slate-400">{{ __('Tapez') }} <kbd class="px-0.5 py-px rounded bg-slate-100 text-slate-600 font-mono text-[9px]">@</kbd> {{ __('pour mentionner') }}</p>
-                    <button type="submit" x-ref="submitBtn" wire:loading.attr="disabled" wire:target="sendMessage" class="inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 min-h-[34px] sm:min-h-0 text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all touch-manipulation disabled:opacity-70 disabled:cursor-not-allowed" style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};">
-                        <span wire:loading.remove wire:target="sendMessage">{{ __('Envoyer') }}</span>
-                        <span wire:loading wire:target="sendMessage" class="inline-block h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
-                        <iconify-icon icon="solar:plain-bold" width="12" wire:loading.remove wire:target="sendMessage"></iconify-icon>
-                    </button>
-                </div>
+                <x-manexo.action-button
+                    type="submit"
+                    wire-target="sendMessage"
+                    variant="primary"
+                    spinner-size="sm"
+                    x-ref="submitBtn"
+                    class="rounded-lg px-3 sm:px-3.5 py-1.5 sm:py-2 min-h-[34px] sm:min-h-0 text-xs touch-manipulation shrink-0"
+                    style="background-color: {{ $asInternalNote ? '#d97706' : 'var(--accent)' }};"
+                    :loading-label="__('ui.tickets.sending')"
+                >
+                    <iconify-icon icon="solar:plain-bold" width="12"></iconify-icon>
+                    <span class="hidden sm:inline">{{ __('Envoyer') }}</span>
+                </x-manexo.action-button>
             </div>
         </form>
         <x-input-error :messages="$errors->get('body')" class="mt-2" />

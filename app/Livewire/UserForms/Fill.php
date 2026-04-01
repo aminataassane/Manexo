@@ -8,9 +8,11 @@ use App\Helpers\CacheHelper;
 use App\Models\Form;
 use App\Models\FormAssignment;
 use App\Models\FormResponse;
+use App\Models\OrganizationMembership;
 use App\Models\User;
 use App\Notifications\FormResponseNotification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -35,12 +37,32 @@ class Fill extends Component
     {
         $userId = Auth::id();
         $orgId = (int) session('current_organization_id');
+        abort_if(! $userId || ! $orgId, 403);
+
+        $functionIds = Cache::remember("org_member_functions:{$orgId}:{$userId}", CacheHelper::TTL, function () use ($orgId, $userId) {
+            return OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->where('user_id', (int) $userId)
+                ->whereNotNull('organization_function_id')
+                ->pluck('organization_function_id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        });
 
         // Verify user has access to this assignment
         $hasAccess = FormAssignment::query()
             ->whereKey($assignment->id)
-            ->forUser($userId, $orgId)
             ->where('organization_id', $orgId)
+            ->where(function ($q) use ($userId, $functionIds) {
+                $q->where('user_id', (int) $userId);
+                if ($functionIds !== []) {
+                    $q->orWhere(function ($sub) use ($functionIds) {
+                        $sub->whereNull('user_id')
+                            ->whereIn('organization_function_id', $functionIds);
+                    });
+                }
+            })
             ->exists();
 
         abort_if(! $hasAccess, 403);

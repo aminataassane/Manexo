@@ -11,7 +11,10 @@
       "Bash(find /c/Users/Aminata_an/OneDrive/Bureau/QUALITY_CENTER/Manexo/manexo/resources/views -name \"*.blade.php\" -exec grep -l \"wire:loading\" {})",
       "Bash(find /c/Users/Aminata_an/OneDrive/Bureau/QUALITY_CENTER/Manexo/manexo/resources/views -name \"*.blade.php\" -exec grep -l \"wire:click\" {})",
       "Bash(find /c/Users/Aminata_an/OneDrive/Bureau/QUALITY_CENTER/Manexo/manexo/resources/views -name \"*.blade.php\" -exec grep -l \"wire:submit\" {})",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(echo \"No protected $with found\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/admin/settings)",
+      "Bash(timeout 60 bash -c 'while ! composer show pragmarx/google2fa 2>/dev/null | head -1; do sleep 3; done')"
     ],
     "additionalDirectories": [
       "\\tmp"

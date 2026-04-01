@@ -54,9 +54,9 @@ new #[Layout('layouts.guest')] class extends Component
         </div>
 
         <div class="flex justify-end mt-4">
-            <x-primary-button>
+            <x-manexo.action-button type="submit" wire-target="confirmPassword" variant="primary" class="btn-primary" :loading-label="__('ui.action.loading')">
                 {{ __('Confirm') }}
-            </x-primary-button>
+            </x-manexo.action-button>
         </div>
     </form>
 </div>

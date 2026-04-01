@@ -2,15 +2,14 @@
     class="discussion-shell flex flex-col min-h-0 rounded-none sm:rounded-xl lg:rounded-2xl overflow-hidden bg-white border-0 sm:border border-slate-200 shadow-sm"
     style="height: calc(100dvh - var(--discussion-offset, 7rem)); min-height: 12rem; padding-bottom: env(safe-area-inset-bottom, 0);"
     x-init="
-        // Calculate exact offset: topbar + shell padding + content wrap spacing
         $nextTick(() => {
             const shell = $el.closest('.manexo-shell-scroll');
             if (shell) {
                 const shellStyle = getComputedStyle(shell);
                 const shellRect = shell.getBoundingClientRect();
                 const offset = shellRect.top + parseFloat(shellStyle.paddingTop);
-                $el.style.height = 'calc(100dvh - ' + offset + 'px - 1rem)';
-                // Prevent parent from scrolling
+                const gap = window.innerWidth < 640 ? '0px' : '1rem';
+                $el.style.height = 'calc(100dvh - ' + offset + 'px - ' + gap + ')';
                 shell.style.overflow = 'hidden';
             }
         });
@@ -42,8 +41,66 @@
         x-init="init()"
     >
         
-        <section id="ticket-details-section" aria-label="<?php echo e(__('Détails du ticket')); ?>" class="hidden lg:block shrink-0">
-            <aside class="flex shrink-0 flex-col bg-white border-r border-slate-200 overflow-hidden transition-[width] duration-300 ease-in-out h-full" :class="sidebarOpen ? 'w-[290px] xl:w-[310px]' : 'w-0 border-r-0'">
+        <template x-teleport="body">
+            <div
+                x-show="mobileDrawerOpen"
+                x-cloak
+                class="lg:hidden fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm"
+                x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                @click="mobileDrawerOpen = false"
+            ></div>
+            <section
+                x-show="mobileDrawerOpen"
+                x-cloak
+                x-transition:enter="ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+                x-transition:leave="ease-in duration-200" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+                class="lg:hidden fixed inset-y-0 right-0 z-[61] w-full sm:w-[min(26rem,85dvw)] md:w-[min(30rem,80dvw)] flex flex-col bg-white shadow-2xl sm:rounded-l-2xl sm:border-l sm:border-slate-100"
+            >
+                <div class="flex h-14 shrink-0 items-center justify-between border-b border-slate-100 px-4">
+                    <span class="text-sm font-bold text-slate-900"><?php echo e(__('Infos')); ?></span>
+                    <button type="button" @click="mobileDrawerOpen = false" class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors touch-manipulation" aria-label="<?php echo e(__('Fermer')); ?>">
+                        <iconify-icon icon="solar:close-circle-bold" width="24"></iconify-icon>
+                    </button>
+                </div>
+                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
+                    <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('tickets.ticket-sidebar', ['ticket-id' => $ticket->id,'ticket-public-id' => $ticketPublicId,'can-see-internal-notes' => $canSeeInternalNotes,'can-write-internal-notes' => $canWriteInternalNotes]);
+
+$key = 'sidebar-mobile-'.e($ticket->id).'';
+$__componentSlots = [];
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1192859215-0', $key);
+
+$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__componentSlots);
+unset($__split);
+?>
+                </div>
+            </section>
+        </template>
+
+        
+        <section
+            id="ticket-details-section"
+            aria-label="<?php echo e(__('Détails du ticket')); ?>"
+            class="hidden lg:flex shrink-0 flex-col bg-white border-slate-200 overflow-hidden h-full
+                relative border-r flex-shrink-0 transition-[width] duration-300 ease-in-out"
+            :class="{
+                'w-0 border-r-0 overflow-hidden': !sidebarOpen,
+                'w-[290px] xl:w-[310px]': sidebarOpen
+            }"
+        >
+            <aside class="flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden">
                 <div class="flex flex-col flex-1 min-w-0 min-h-0 w-[290px] xl:w-[310px]">
                     <div class="flex h-[60px] shrink-0 items-center justify-between border-b border-slate-100 px-5">
                         <span class="text-sm font-bold text-slate-900"><?php echo e(__('Infos')); ?></span>
@@ -51,22 +108,17 @@
                             <iconify-icon icon="solar:close-circle-linear" width="20"></iconify-icon>
                         </button>
                     </div>
-                    <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5">
+                    <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
                         <?php
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('tickets.ticket-sidebar', [
-                            'ticketId' => $ticket->id,
-                            'ticketPublicId' => $ticketPublicId,
-                            'canSeeInternalNotes' => $canSeeInternalNotes,
-                            'canWriteInternalNotes' => $canWriteInternalNotes,
-                        ]);
+[$__name, $__params] = $__split('tickets.ticket-sidebar', ['ticket-id' => $ticket->id,'ticket-public-id' => $ticketPublicId,'can-see-internal-notes' => $canSeeInternalNotes,'can-write-internal-notes' => $canWriteInternalNotes]);
 
-$key = 'sidebar-' . $ticket->id;
+$key = 'sidebar-'.e($ticket->id).'';
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1192859215-0', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1192859215-1', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -84,11 +136,15 @@ unset($__split);
         </section>
 
         
-        <section id="ticket-discussion-section" aria-label="<?php echo e(__('Discussion')); ?>" class="discussion-chat-panel flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-white">
+        <section
+            id="ticket-discussion-section"
+            aria-label="<?php echo e(__('Discussion')); ?>"
+            class="discussion-chat-panel flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-white"
+        >
             <!-- Header -->
-            <header class="sticky top-0 z-20 shrink-0 bg-white/95 border-b border-slate-200 px-3 py-1.5 sm:px-5 sm:py-2 backdrop-blur safe-area-inset-top" style="padding-top: max(0.5rem, env(safe-area-inset-top));">
-                <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
-                    <nav class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 text-xs sm:text-sm" style="min-width: 0;">
+            <header class="sticky top-0 z-20 shrink-0 bg-white/95 border-b border-slate-200 px-2.5 py-1.5 sm:px-5 sm:py-2 backdrop-blur safe-area-inset-top" style="padding-top: max(0.375rem, env(safe-area-inset-top));">
+                <div class="flex items-center justify-between gap-1.5 sm:gap-3">
+                    <nav class="flex items-center gap-1 sm:gap-2 min-w-0 flex-1 text-xs sm:text-sm overflow-hidden">
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($embedded ?? false): ?>
                             <a href="<?php echo e(route('discussions.index', ['discussionParam' => $ticket->public_id])); ?>" wire:navigate class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
                                 <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
@@ -100,10 +156,10 @@ unset($__split);
                                 <span class="hidden sm:inline font-medium"><?php echo e(__('Retour')); ?></span>
                             </a>
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                        <span class="text-slate-300 shrink-0">/</span>
-                        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 overflow-hidden">
-                            <span class="font-mono text-xs font-bold text-slate-400 shrink-0"><?php echo e($ticket->shortReference()); ?></span>
-                            <span class="font-semibold text-slate-900 truncate min-w-0"><?php echo e($ticket->subject); ?></span>
+                        <span class="text-slate-300 shrink-0 hidden sm:inline">/</span>
+                        <div class="flex items-center gap-1 sm:gap-2 min-w-0 flex-1 overflow-hidden">
+                            <span class="font-mono text-[10px] sm:text-xs font-bold text-slate-400 shrink-0"><?php echo e($ticket->shortReference()); ?></span>
+                            <span class="font-semibold text-slate-900 truncate min-w-0 text-xs sm:text-sm"><?php echo e($ticket->subject); ?></span>
                             <span
                                 x-show="!wsConnected"
                                 x-cloak
@@ -112,7 +168,7 @@ unset($__split);
                             ></span>
                         </div>
                     </nav>
-                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <div class="flex items-center gap-1 sm:gap-2 shrink-0">
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($embedded ?? false): ?>
                             <a
                                 href="<?php echo e(route('tickets.discussion', $ticket)); ?>"
@@ -123,7 +179,7 @@ unset($__split);
                                 <span class="hidden sm:inline"><?php echo e(__('pages.discussions.open_full_ticket')); ?></span>
                             </a>
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                        <button type="button" @click="togglePanel()" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors lg:hidden" title="<?php echo e(__('Infos ticket')); ?>">
+                        <button type="button" @click="mobileDrawerOpen = !mobileDrawerOpen" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors lg:hidden" title="<?php echo e(__('Infos ticket')); ?>">
                             <iconify-icon icon="solar:sidebar-minimalistic-linear" width="20"></iconify-icon>
                         </button>
                         <button type="button" @click="toggleSidebar()" class="hidden lg:flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors" :title="sidebarOpen ? '<?php echo e(__('Fermer le panneau')); ?>' : '<?php echo e(__('Ouvrir le panneau Infos')); ?>'">
@@ -138,17 +194,12 @@ unset($__split);
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('tickets.ticket-timeline', [
-                'ticketId' => $ticket->id,
-                'ticketPublicId' => $ticketPublicId,
-                'ticketCreatorId' => (int) $ticket->created_by,
-                'canSeeInternalNotes' => $canSeeInternalNotes,
-            ]);
+[$__name, $__params] = $__split('tickets.ticket-timeline', ['ticket-id' => $ticket->id,'ticket-public-id' => $ticketPublicId,'ticket-creator-id' => (int) $ticket->created_by,'can-see-internal-notes' => $canSeeInternalNotes]);
 
-$key = 'timeline-' . $ticket->id;
+$key = 'timeline-'.e($ticket->id).'';
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1192859215-1', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1192859215-2', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -166,62 +217,9 @@ unset($__split);
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('tickets.ticket-composer', [
-                'ticketId' => $ticket->id,
-                'ticketPublicId' => $ticketPublicId,
-                'canWriteInternalNotes' => $canWriteInternalNotes,
-                'isLocked' => $isLocked,
-                'mentionableUsers' => $mentionableUsers ?? [],
-            ]);
+[$__name, $__params] = $__split('tickets.ticket-composer', ['ticket-id' => $ticket->id,'ticket-public-id' => $ticketPublicId,'can-write-internal-notes' => $canWriteInternalNotes,'is-locked' => $isLocked,'mentionable-users' => $mentionableUsers ?? []]);
 
-$key = 'composer-' . $ticket->id;
-$__componentSlots = [];
-
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1192859215-2', $key);
-
-$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
-
-echo $__html;
-
-unset($__html);
-unset($__name);
-unset($__params);
-unset($__componentSlots);
-unset($__split);
-?>
-        </section>
-
-        <!-- MOBILE DRAWER -->
-        <div x-show="mobileDrawerOpen" x-cloak class="lg:hidden fixed inset-0 z-50" style="display: none; padding-left: env(safe-area-inset-left); padding-bottom: env(safe-area-inset-bottom);">
-            <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" x-show="mobileDrawerOpen" x-transition.opacity @click="mobileDrawerOpen = false"></div>
-            <div class="absolute right-0 top-0 bottom-0 w-full max-w-[min(100%,24rem)] bg-white shadow-2xl flex flex-col rounded-l-2xl overflow-hidden"
-                 x-show="mobileDrawerOpen"
-                 x-transition:enter="transform transition ease-out duration-300"
-                 x-transition:enter-start="translate-x-full"
-                 x-transition:enter-end="translate-x-0"
-                 x-transition:leave="transform transition ease-in duration-300"
-                 x-transition:leave-start="translate-x-0"
-                 x-transition:leave-end="translate-x-full">
-                <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 shrink-0" style="padding-top: max(0.75rem, env(safe-area-inset-top));">
-                    <h2 class="text-base sm:text-lg font-bold text-slate-900"><?php echo e(__('Infos')); ?></h2>
-                    <button type="button" @click="mobileDrawerOpen = false" class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors touch-manipulation" aria-label="<?php echo e(__('Fermer')); ?>">
-                        <iconify-icon icon="solar:close-circle-bold" width="24"></iconify-icon>
-                    </button>
-                </div>
-                <div class="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
-                    
-                    <?php
-$__split = function ($name, $params = []) {
-    return [$name, $params];
-};
-[$__name, $__params] = $__split('tickets.ticket-sidebar', [
-                        'ticketId' => $ticket->id,
-                        'ticketPublicId' => $ticketPublicId,
-                        'canSeeInternalNotes' => $canSeeInternalNotes,
-                        'canWriteInternalNotes' => $canWriteInternalNotes,
-                    ]);
-
-$key = 'sidebar-mobile-' . $ticket->id;
+$key = 'composer-'.e($ticket->id).'';
 $__componentSlots = [];
 
 $key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1192859215-3', $key);
@@ -236,9 +234,8 @@ unset($__params);
 unset($__componentSlots);
 unset($__split);
 ?>
-                </div>
-            </div>
-        </div>
+        </section>
+
     </div>
 </div>
 

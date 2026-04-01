@@ -5,7 +5,6 @@ namespace App\Livewire\Reports;
 use App\Enums\Permission;
 use App\Helpers\CacheHelper;
 use App\Models\Organization;
-use App\Models\OrganizationMembership;
 use App\Models\Ticket;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +30,24 @@ class Index extends Component
 
     /** @var string 'default' (30 days) | 'monthly' (current month) | 'yearly' (12 months) */
     public string $period = 'default';
+
+    public function setPeriod(string $period): void
+    {
+        if (in_array($period, ['default', 'monthly', 'yearly'], true)) {
+            if ($period === $this->period) {
+                return;
+            }
+
+            $this->period = $period;
+        }
+    }
+
+    public function updatedPeriod(string $value): void
+    {
+        if (! in_array($value, ['default', 'monthly', 'yearly'], true)) {
+            $this->period = 'default';
+        }
+    }
 
     private function orgId(): int
     {
@@ -185,35 +202,11 @@ class Index extends Component
                 ? min(100, (int) round(($activeCount / $kpis['total']) * 100))
                 : 0;
 
-            $byStatus = (clone $base)
-                ->select('status', DB::raw('count(*) as c'))
-                ->groupBy('status')
-                ->orderByDesc('c')
-                ->get()
-                ->map(function ($r) {
-                    $statusValue = is_object($r->status) ? $r->status->value : (string) $r->status;
-
-                    return ['status' => $statusValue, 'count' => (int) $r->c];
-                })
-                ->all();
-
-            $createdLast7d = (clone $base)
-                ->where('created_at', '>=', $since7d)
-                ->selectRaw("date_trunc('day', created_at) as d, count(*) as c")
-                ->groupBy('d')
-                ->orderBy('d')
-                ->get()
-                ->map(fn ($r) => ['date' => Carbon::parse($r->d)->toDateString(), 'count' => (int) $r->c])
-                ->all();
-
-            $createdLast30d = (clone $base)
-                ->where('created_at', '>=', $since30d)
-                ->selectRaw("date_trunc('day', created_at) as d, count(*) as c")
-                ->groupBy('d')
-                ->orderBy('d')
-                ->get()
-                ->map(fn ($r) => ['date' => Carbon::parse($r->d)->toDateString(), 'count' => (int) $r->c])
-                ->all();
+            // Kept for backwards compatibility in the view payload, but not queried
+            // because this page currently doesn't render these series directly.
+            $byStatus = [];
+            $createdLast7d = [];
+            $createdLast30d = [];
 
             $since14d = $now->copy()->subDays(14);
             $performanceSeries = match ($period) {
@@ -281,19 +274,11 @@ class Index extends Component
                 ];
             })->all();
 
-            $rolesCount = OrganizationMembership::query()
-                ->where('organization_id', $orgId)
-                ->selectRaw("count(*) filter (where role = 'owner') as owners")
-                ->selectRaw("count(*) filter (where role = 'admin') as admins")
-                ->selectRaw("count(*) filter (where role = 'agent') as agents")
-                ->selectRaw("count(*) filter (where role = 'member') as members")
-                ->first();
-
             $team = [
-                'owners' => (int) ($rolesCount?->owners ?? 0),
-                'admins' => (int) ($rolesCount?->admins ?? 0),
-                'agents' => (int) ($rolesCount?->agents ?? 0),
-                'members' => (int) ($rolesCount?->members ?? 0),
+                'owners' => 0,
+                'admins' => 0,
+                'agents' => 0,
+                'members' => 0,
             ];
 
             // SLA KPIs (only if SLA is enabled for this organization)

@@ -1,10 +1,47 @@
-AFFICHER LA LISTE DES PARTICIPANT SI C'EST TOUT UN GROUPE TOUT UNE EQUIPE
+Priorité haute (lourdes ou sensibles perf dans ton audit)
+/admin/settings — AdminSettings
+Citée explicitement comme écran souvent très chargé (beaucoup de champs / config).
+
+/reports — ReportsIndex
+
+/reports/tasks — TaskReport
+
+/reports/daily — DailyReport
+Rapports = agrégats, exports, souvent grosses requêtes.
+
+/discussions (+ fil / ticket embarqué) — Discussions\Index
+Liste + threads + temps réel possible.
+
+/notifications — Notifications\Index
+Volume de lignes + pagination / filtres à valider.
+
+Ticketing (à valider / finir si besoin, même si le plan dit “fait”)
+/tickets — liste + Kanban — Tickets\Index
+/tickets/groups — Tickets\Groups
+/tickets/create — CreateTicket
+/tickets/{ticket} — Tickets\Discussion (timeline + composer + sidebar)
+/conversation/{ticket} — même Discussion (vue conversation)
+(Si ton plan est à jour, ce bloc sert surtout à mesurer avec Telescope/Debugbar et confirmer les gains, pas à refaire une grosse refonte.)
+
+Formulaires & contenu
+/forms — UserFormsIndex
+/forms/{assignment} — UserFormsFill
+/forms/team/{form} / /forms/l/{slug} — remplissage équipe
+/knowledge-base — KnowledgeBase\Index
+Profil & auth
+/profile/history — Profile\History
+/two-factor/setup et /two-factor/challenge — 2FA
+Admin org (hors settings déjà cité)
+/admin/users — AdminUsers
+/admin/forms — AdminFormBuilder
+/admin/forms/{form}/responses — AdminFormResponses
+Super-admin plateforme (routes/platform-admin.php) — si dans ton périmètre “plateforme”
+Dashboard super-admin, organisations, audit-log, users globaux, fichiers, notifications globales, support-sessions, sécurité, monitoring, backups, etc.
+En pratique pour demain : après le dashboard, enchaîne dans cet ordre si tu veux le meilleur ratio effort / impact : /admin/settings → /reports* → /discussions → /notifications → formulaires → base de connaissances → reste.
+
+Si tu me dis si tu cibles uniquement l’org courante ou aussi le super-admin, je peux réduire la liste au strict nécessaire (toujours en Ask mode, sans toucher au code).
 
 
-DANS LA LISTE DES UTILISATEUR A ASSIGNER IL YA PAS TOUS LES MEMBRE DU PLATEFORME
+Sidebar details tickets 
 
-faire un composant pour les dropdown
-
-faire un loader aprez un pas loader en sois mais apres un click qu'omn sache que le bouton a ete cliquer aulieu detre la a cliquer tout le temps par ce que tu pense que le click n'es ps passer
-
-redesigner tous les 
+dans profile il nya pas de couleur apparente pour permettre a ce que l'tilisateur puisse genre le profil il ya tout ce qui est centraliser pourquoi pas 

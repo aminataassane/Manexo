@@ -93,25 +93,30 @@ class Create extends Component
             return;
         }
 
-        $term = '%'.trim($value).'%';
-        $this->kbSuggestions = \App\Models\KbArticle::withoutOrganizationScope()
-            ->where('organization_id', $orgId)
-            ->published()
-            ->where(function ($q) use ($term) {
-                $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
-                    ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
-                    ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
-            })
-            ->orderByDesc('view_count')
-            ->limit(5)
-            ->get(['id', 'title', 'content', 'view_count'])
-            ->map(fn (\App\Models\KbArticle $a) => [
-                'id' => $a->id,
-                'title' => $a->title,
-                'excerpt' => $a->excerpt(200),
-                'view_count' => $a->view_count,
-            ])
-            ->toArray();
+        $needle = trim($value);
+        $cacheKey = 'create_ticket:kb_suggestions:'.$orgId.':'.md5(mb_strtolower($needle));
+        $this->kbSuggestions = Cache::remember($cacheKey, 60, function () use ($orgId, $needle) {
+            $term = '%'.$needle.'%';
+
+            return \App\Models\KbArticle::withoutOrganizationScope()
+                ->where('organization_id', $orgId)
+                ->published()
+                ->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
+                        ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
+                        ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
+                })
+                ->orderByDesc('view_count')
+                ->limit(5)
+                ->get(['id', 'title', 'content', 'view_count'])
+                ->map(fn (\App\Models\KbArticle $a) => [
+                    'id' => $a->id,
+                    'title' => $a->title,
+                    'excerpt' => $a->excerpt(200),
+                    'view_count' => $a->view_count,
+                ])
+                ->toArray();
+        });
     }
 
     public function openKbBrowser(): void
@@ -139,26 +144,31 @@ class Create extends Component
             return;
         }
 
-        $term = '%'.trim($this->kbSearchTerm).'%';
-        $this->kbSearchResults = \App\Models\KbArticle::withoutOrganizationScope()
-            ->where('organization_id', $orgId)
-            ->published()
-            ->where(function ($q) use ($term) {
-                $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
-                    ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
-                    ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
-            })
-            ->orderByDesc('view_count')
-            ->limit(10)
-            ->get(['id', 'title', 'content', 'view_count'])
-            ->map(fn (\App\Models\KbArticle $a) => [
-                'id' => $a->id,
-                'title' => $a->title,
-                'excerpt' => $a->excerpt(300),
-                'safeHtml' => $a->safeHtml(),
-                'view_count' => $a->view_count,
-            ])
-            ->toArray();
+        $needle = trim($this->kbSearchTerm);
+        $cacheKey = 'create_ticket:kb_search:'.$orgId.':'.md5(mb_strtolower($needle));
+        $this->kbSearchResults = Cache::remember($cacheKey, 60, function () use ($orgId, $needle) {
+            $term = '%'.$needle.'%';
+
+            return \App\Models\KbArticle::withoutOrganizationScope()
+                ->where('organization_id', $orgId)
+                ->published()
+                ->where(function ($q) use ($term) {
+                    $q->whereRaw('LOWER(title) LIKE LOWER(?)', [$term])
+                        ->orWhereRaw('LOWER(content) LIKE LOWER(?)', [$term])
+                        ->orWhereRaw("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(keywords, '[]'::jsonb)) kw WHERE LOWER(kw) LIKE LOWER(?))", [$term]);
+                })
+                ->orderByDesc('view_count')
+                ->limit(10)
+                ->get(['id', 'title', 'content', 'view_count'])
+                ->map(fn (\App\Models\KbArticle $a) => [
+                    'id' => $a->id,
+                    'title' => $a->title,
+                    'excerpt' => $a->excerpt(300),
+                    'safeHtml' => $a->safeHtml(),
+                    'view_count' => $a->view_count,
+                ])
+                ->toArray();
+        });
     }
 
     public function mount(): void
@@ -214,11 +224,14 @@ class Create extends Component
             return;
         }
 
-        $category = TicketCategory::query()
-            ->where('organization_id', $orgId)
-            ->where('is_active', true)
-            ->whereKey((int) $value)
-            ->first();
+        $categories = Cache::remember(CacheHelper::categoriesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
+            return TicketCategory::query()
+                ->where('organization_id', $orgId)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'default_ticket_group_id']);
+        });
+        $category = $categories->firstWhere('id', (int) $value);
 
         if ($category && $category->default_ticket_group_id) {
             $this->ticket_group_id = $category->default_ticket_group_id;
@@ -232,10 +245,11 @@ class Create extends Component
 
     private function handleSubmit(): void
     {
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         $orgId = (int) session('current_organization_id');
 
-        if (! $user || ! $orgId) {
+        if (! ($user instanceof User) || ! $orgId) {
             $this->redirectRoute('organizations.select');
 
             return;
@@ -491,7 +505,8 @@ class Create extends Component
         ]);
 
         // Notify the ticket creator with a confirmation email
-        $orgName = $ticket->organization?->name ?? config('app.name', 'Support');
+        $currentOrg = request()->attributes->get('currentOrganization');
+        $orgName = $currentOrg?->name ?? config('app.name', 'Support');
         $user->notify(new TicketCreatedNotification(
             ticketId: $ticket->id,
             ticketPublicId: $ticket->public_id,
