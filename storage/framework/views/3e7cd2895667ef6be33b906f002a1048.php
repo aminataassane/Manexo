@@ -1,0 +1,183 @@
+<!-- SLA TAB -->
+<div x-show="tab === 'sla'" x-cloak class="space-y-6">
+    <form wire:submit.prevent="saveSlaSettings">
+        
+        <div class="content-card">
+            <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
+                <h2 class="text-lg font-bold text-slate-900">Accords de niveau de service (SLA)</h2>
+                <p class="text-sm text-slate-500">Configurez les objectifs de temps de réponse et de résolution par priorité.</p>
+            </div>
+
+            <div class="p-6 space-y-6">
+                
+                <div class="flex items-center justify-between">
+                    <div>
+                        <label class="text-sm font-semibold text-slate-900">Activer le suivi SLA</label>
+                        <p class="text-xs text-slate-500 mt-0.5">Les délais seront calculés automatiquement pour chaque nouveau ticket.</p>
+                    </div>
+                    <button
+                        type="button"
+                        wire:click="$toggle('slaEnabled')"
+                        class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+                        :class="$wire.slaEnabled ? 'bg-[var(--accent)]' : 'bg-slate-200'"
+                        role="switch"
+                        :aria-checked="$wire.slaEnabled"
+                    >
+                        <span
+                            class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                            :class="$wire.slaEnabled ? 'translate-x-5' : 'translate-x-0'"
+                        ></span>
+                    </button>
+                </div>
+
+                
+                <div>
+                    <label for="slaAtRiskThreshold" class="block text-sm font-semibold text-slate-900">
+                        Seuil "à risque" (%)
+                    </label>
+                    <p class="text-xs text-slate-500 mt-0.5 mb-2">
+                        Quand ce pourcentage du temps SLA est écoulé, le ticket passe en statut "à risque".
+                    </p>
+                    <div class="flex items-center gap-2 max-w-xs">
+                        <input
+                            type="number"
+                            id="slaAtRiskThreshold"
+                            wire:model="slaAtRiskThreshold"
+                            min="1"
+                            max="99"
+                            class="block w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                        >
+                        <span class="text-sm text-slate-500">%</span>
+                    </div>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php $__errorArgs = ['slaAtRiskThreshold'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                        <p class="text-xs text-red-600 mt-1"><?php echo e($message); ?></p>
+                    <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        
+        <div class="content-card mt-6">
+            <div class="px-6 py-5 bg-slate-50/50" style="border-bottom: 1px solid #f1f5f9;">
+                <h2 class="text-lg font-bold text-slate-900">Délais par priorité</h2>
+                <p class="text-sm text-slate-500">Définissez les objectifs en minutes pour chaque niveau de priorité.</p>
+            </div>
+
+            <div class="p-6">
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(count($priorities) === 0): ?>
+                    <div class="text-center py-8 text-sm text-slate-500">
+                        <iconify-icon icon="solar:flag-bold-duotone" width="32" class="text-slate-300 mb-2"></iconify-icon>
+                        <p>Aucune priorité configurée. Créez d'abord des priorités dans l'onglet dédié.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead>
+                                <tr class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                    <th class="px-4 py-3">Priorité</th>
+                                    <th class="px-4 py-3">Première réponse (min)</th>
+                                    <th class="px-4 py-3">Résolution (min)</th>
+                                    <th class="px-4 py-3 text-center">Actif</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $priorities; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $priority): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                    <?php $pid = $priority->id; ?>
+                                    <tr class="hover:bg-slate-50/50">
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-100 text-xs font-bold text-slate-600">
+                                                    <?php echo e($priority->level); ?>
+
+                                                </span>
+                                                <span class="text-sm font-medium text-slate-900"><?php echo e($priority->name); ?></span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    wire:model="slaPolicies.<?php echo e($pid); ?>.first_response_minutes"
+                                                    min="1"
+                                                    placeholder="ex: 60"
+                                                    class="block w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                >
+                                                <span class="text-xs text-slate-400 hidden sm:inline">= <?php echo e(isset($slaPolicies[$pid]['first_response_minutes']) && $slaPolicies[$pid]['first_response_minutes'] ? round($slaPolicies[$pid]['first_response_minutes'] / 60, 1) . 'h' : '—'); ?></span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    wire:model="slaPolicies.<?php echo e($pid); ?>.resolution_minutes"
+                                                    min="1"
+                                                    placeholder="ex: 480"
+                                                    class="block w-28 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                                >
+                                                <span class="text-xs text-slate-400 hidden sm:inline">= <?php echo e(isset($slaPolicies[$pid]['resolution_minutes']) && $slaPolicies[$pid]['resolution_minutes'] ? round($slaPolicies[$pid]['resolution_minutes'] / 60, 1) . 'h' : '—'); ?></span>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            <input
+                                                type="checkbox"
+                                                wire:model="slaPolicies.<?php echo e($pid); ?>.is_active"
+                                                class="h-4 w-4 rounded border-slate-300 text-[var(--accent)] focus:ring-[var(--accent)]"
+                                            >
+                                        </td>
+                                    </tr>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-100">
+                        <div class="flex items-start gap-2">
+                            <iconify-icon icon="solar:info-circle-bold" class="text-blue-400 mt-0.5 flex-shrink-0" width="16"></iconify-icon>
+                            <p class="text-xs text-blue-700 leading-relaxed">
+                                <strong>Première réponse :</strong> temps maximum avant qu'un agent réponde au ticket.
+                                <strong>Résolution :</strong> temps maximum pour résoudre le ticket.
+                                Laissez vide pour ne pas appliquer de SLA à cette priorité.
+                                Le timer de résolution se met automatiquement en pause quand le ticket est "En attente".
+                            </p>
+                        </div>
+                    </div>
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            </div>
+        </div>
+
+        
+        <div class="flex justify-end mt-6">
+            <?php if (isset($component)) { $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.action-button','data' => ['type' => 'submit','wireTarget' => 'saveSlaSettings','variant' => 'primary','class' => '!px-6 !font-semibold','loadingLabel' => __('ui.action.saving')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('manexo.action-button'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['type' => 'submit','wire-target' => 'saveSlaSettings','variant' => 'primary','class' => '!px-6 !font-semibold','loading-label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('ui.action.saving'))]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
+
+                <iconify-icon icon="solar:diskette-bold" width="18"></iconify-icon>
+                Enregistrer les paramètres SLA
+             <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $attributes = $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7)): ?>
+<?php $component = $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7; ?>
+<?php unset($__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7); ?>
+<?php endif; ?>
+        </div>
+    </form>
+</div><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\resources\views\livewire\admin\partials\settings-sla.blade.php ENDPATH**/ ?>

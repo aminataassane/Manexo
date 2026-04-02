@@ -88,6 +88,11 @@ Route::get('/invitations/{token}/accept', [InvitationController::class, 'accept'
     ->name('invitations.accept');
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'processAccept'])
     ->name('invitations.process-accept');
+Route::get('/invitations/code', [InvitationController::class, 'codeForm'])
+    ->name('invitations.code-form');
+Route::post('/invitations/code', [InvitationController::class, 'processCode'])
+    ->middleware('throttle:10,1')
+    ->name('invitations.process-code');
 
 /**
  * Platform invitation acceptance (public, no auth required)
@@ -176,9 +181,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 abort(404);
             }
 
-            return $storage->response($path, $filename, [
-                'Content-Type' => $storage->mimeType($path),
-            ]);
+            $headers = ['Content-Type' => $storage->mimeType($path)];
+
+            if (request()->boolean('download')) {
+                return $storage->download($path, $filename, $headers);
+            }
+
+            return $storage->response($path, $filename, $headers);
         })->where('filename', '[^/]+')->name('tickets.discussion.file');
 
         Route::get('/tickets/{ticket}/attachment/{filename}', function (Ticket $ticket, string $filename) {
@@ -193,9 +202,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 abort(404);
             }
 
-            return $storage->response($path, $filename, [
-                'Content-Type' => $storage->mimeType($path),
-            ]);
+            $headers = ['Content-Type' => $storage->mimeType($path)];
+
+            if (request()->boolean('download')) {
+                return $storage->download($path, $filename, $headers);
+            }
+
+            return $storage->response($path, $filename, $headers);
         })->where('filename', '[^/]+')->name('tickets.attachment');
         Route::get('/tickets/{ticket}', \App\Livewire\Tickets\Discussion::class)->name('tickets.discussion');
 

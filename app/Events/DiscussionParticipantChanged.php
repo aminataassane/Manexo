@@ -3,10 +3,10 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 
-class DiscussionParticipantChanged implements ShouldBroadcast
+class DiscussionParticipantChanged implements ShouldBroadcastNow
 {
     use Dispatchable;
 
@@ -20,7 +20,7 @@ class DiscussionParticipantChanged implements ShouldBroadcast
 
     public function broadcastOn(): array
     {
-        return [new PrivateChannel('discussion.' . $this->threadId)];
+        return [new PrivateChannel('discussion.'.$this->threadId)];
     }
 
     public function broadcastAs(): string

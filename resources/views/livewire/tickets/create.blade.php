@@ -27,6 +27,7 @@
         <div class="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:flex-shrink-0">
             <a
                 href="{{ route('tickets.index') }}"
+                wire:navigate
                 class="min-h-[44px] sm:min-h-0 h-10 px-4 bg-white border border-[#E5E7EB] text-[#111827] text-[13px] font-semibold rounded-xl shadow-sm hover:bg-[#F9FAFB] transition inline-flex items-center justify-center gap-2"
             >
                 <iconify-icon icon="solar:arrow-left-linear" width="16"></iconify-icon>
@@ -153,6 +154,7 @@
                         >
                         <x-input-error :messages="$errors->get('subject')" class="mt-2" />
 
+                        <div wire:key="kb-suggestions-wrapper">
                         @if (count($kbSuggestions))
                             <div class="mt-2 rounded-xl border border-blue-200 bg-blue-50 p-3" x-data="{ expanded: null }">
                                 <div class="flex items-center gap-2 mb-2">
@@ -161,7 +163,7 @@
                                 </div>
                                 <ul class="space-y-1.5">
                                     @foreach ($kbSuggestions as $idx => $suggestion)
-                                        <li class="rounded-lg transition-colors" :class="expanded === {{ $idx }} ? 'bg-blue-100/60' : ''">
+                                        <li class="rounded-lg transition-colors" wire:key="kb-suggestion-{{ $idx }}" :class="expanded === {{ $idx }} ? 'bg-blue-100/60' : ''">
                                             <button
                                                 type="button"
                                                 class="w-full flex items-center gap-2 text-xs text-blue-700 hover:text-blue-900 transition-colors px-2 py-1.5 text-left"
@@ -186,6 +188,7 @@
                                 </ul>
                             </div>
                         @endif
+                        </div>
 
                         {{-- Browse KB button --}}
                         <div class="mt-2">
@@ -472,7 +475,7 @@
                         @if (count($checklistItems) > 0)
                             <div class="mt-4 space-y-3">
                                 @foreach ($checklistItems as $idx => $item)
-                                    <div class="flex flex-wrap items-start gap-2 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3" wire:key="checklist-{{ $idx }}">
+                                    <div class="flex flex-wrap items-start gap-2 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-3" wire:key="checklist-{{ $item['_key'] ?? $idx }}">
                                         <div class="flex-1 min-w-0 grid gap-2 sm:grid-cols-1 md:grid-cols-3">
                                             <div class="md:col-span-2">
                                                 <input

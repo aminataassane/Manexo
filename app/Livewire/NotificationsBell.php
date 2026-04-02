@@ -3,6 +3,9 @@
 namespace App\Livewire;
 
 use App\Helpers\CacheHelper;
+use App\Models\User;
+use App\Notifications\DiscussionInviteNotification;
+use App\Notifications\DiscussionNewMessageNotification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
@@ -34,19 +37,48 @@ class NotificationsBell extends Component
      */
     public function invalidateNotificationsCache(array $payload = []): void
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = Auth::user();
-        $this->dispatch('$refresh');
-        if ($user) {
+        if ($user instanceof User) {
             CacheHelper::invalidateNotificationsCount((int) $user->id);
             CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
+            $this->pushSidebarBadgeCountsToBrowser($user);
         }
+
+        $this->dispatch('$refresh');
 
         $notificationType = (string) ($payload['type'] ?? 'general');
         $message = $this->notificationPreviewMessage($notificationType);
         if ($message !== '') {
             $this->dispatch('toast', type: 'info', message: $message);
         }
+    }
+
+    /**
+     * File d’attente désactivée ou WebSocket coupé : garde cloche + badges sidebar à jour.
+     */
+    public function refreshBellAndSidebarBadges(): void
+    {
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            return;
+        }
+        CacheHelper::invalidateNotificationsCount((int) $user->id);
+        CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
+        $this->pushSidebarBadgeCountsToBrowser($user);
+    }
+
+    private function pushSidebarBadgeCountsToBrowser(User $user): void
+    {
+        $notifications = (int) $user->unreadNotifications()->count();
+        $discussions = (int) $user->unreadNotifications()
+            ->whereIn('type', [
+                DiscussionNewMessageNotification::class,
+                DiscussionInviteNotification::class,
+            ])
+            ->count();
+
+        $this->js('window.dispatchEvent(new CustomEvent("manexo-sidebar-badges",{detail:{notifications:'.$notifications.',discussions:'.$discussions.'}}))');
     }
 
     private function notificationPreviewMessage(string $type): string
@@ -103,23 +135,25 @@ class NotificationsBell extends Component
 
     public function markAsRead(string $id): void
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = Auth::user();
-        if ($user) {
+        if ($user instanceof User) {
             $user->unreadNotifications()->where('id', $id)->first()?->markAsRead();
             CacheHelper::invalidateNotificationsCount((int) $user->id);
             CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
+            $this->pushSidebarBadgeCountsToBrowser($user);
         }
     }
 
     public function markAllAsRead(): void
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = Auth::user();
-        if ($user) {
+        if ($user instanceof User) {
             $user->unreadNotifications()->update(['read_at' => now()]);
             CacheHelper::invalidateNotificationsCount((int) $user->id);
             CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
+            $this->pushSidebarBadgeCountsToBrowser($user);
         }
     }
 

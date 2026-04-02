@@ -1,4 +1,4 @@
-<div class="relative" x-data="{ open: false }" @click.outside="open = false">
+<div class="relative" x-data="{ open: false }" @click.outside="open = false" wire:poll.50s.visible="refreshBellAndSidebarBadges">
     <button
         type="button"
         @click="open = !open; if (open) $wire.loadNotifications()"

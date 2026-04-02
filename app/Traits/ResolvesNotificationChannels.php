@@ -8,7 +8,9 @@ use App\Models\User;
  * Resolves notification delivery channels based on user type.
  *
  * RULE: Internal staff (owner, admin, agent) → in-app only (database).
- *       External users (member, guest, client) → in-app + email.
+ *       Rôle « member » : souvent équipe assignable ; pour assignation / création ticket,
+ *       voir {@see User::isTicketAssignableMember} (notifications dédiées, base seule).
+ *       Autres cas « externes » → in-app + e-mail selon la notification.
  *
  * This prevents agents from receiving redundant emails for actions
  * they can already see in the platform.

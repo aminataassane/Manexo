@@ -44,6 +44,7 @@ class Settings extends Component
 
     /** 1 = en-tête + navigation, 2 = listes / onglets (requêtes cache) */
     public int $loadStage = 1;
+
     public string $activeTab = 'branding';
 
     public function loadSettingsBody(): void
@@ -1173,6 +1174,9 @@ class Settings extends Component
         );
 
         $this->successMessage = __('Paramètres mis à jour.');
+
+        $accent = $org->primary_color ?: (string) env('MANEXO_DEFAULT_ACCENT', '#005F02');
+        $this->dispatch('manexo-accent', accent: $accent);
     }
 
     public function saveFormsSettings(): void

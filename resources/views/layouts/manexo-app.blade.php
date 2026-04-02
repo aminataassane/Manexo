@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ? (is_string($title) ? __($title) : $title) : 'Manexo' }}</title>
+    <title>{{ is_string($title ?? null) ? __($title) : 'Manexo' }}</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/Logo(1).png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -26,12 +26,6 @@
         }
         [x-cloak] { display: none !important; }
         html { overflow-x: hidden; }
-
-        /* Custom Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #E2E8F0; border-radius: 999px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #CBD5E1; }
 
         /* Animations */
         @keyframes subtleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
@@ -79,7 +73,7 @@
         --accent-ring: color-mix(in srgb, var(--accent) 20%, transparent);
     "
     x-data="{ sidebarOpen: true, mobileOpen: false }"
-    x-init="sidebarOpen = (localStorage.getItem('manexo_sidebar') !== 'false'); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)')"
+    x-init="sidebarOpen = (localStorage.getItem('manexo_sidebar') !== 'false'); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)'); document.addEventListener('livewire:navigated', () => { mobileOpen = false })"
     x-effect="localStorage.setItem('manexo_sidebar', sidebarOpen); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)')"
 >
 
@@ -171,6 +165,19 @@
             Livewire.on('toast', function(params) {
                 var p = Array.isArray(params) ? params[0] : params;
                 window.dispatchEvent(new CustomEvent('toast', { detail: p }));
+            });
+            // Couleur d’accent org : le layout n’est pas re-rendu par Livewire après « Enregistrer »
+            Livewire.on('manexo-accent', function(params) {
+                var p = Array.isArray(params) ? params[0] : params;
+                var accent = p && p.accent ? p.accent : null;
+                if (!accent) {
+                    return;
+                }
+                document.body.style.setProperty('--accent', accent);
+                document.body.style.setProperty('--accent-soft', 'color-mix(in srgb, ' + accent + ' 15%, white)');
+                document.body.style.setProperty('--accent-soft-2', 'color-mix(in srgb, ' + accent + ' 25%, white)');
+                document.body.style.setProperty('--accent-dark', 'color-mix(in srgb, ' + accent + ' 20%, black)');
+                document.body.style.setProperty('--accent-ring', 'color-mix(in srgb, ' + accent + ' 20%, transparent)');
             });
         });
     </script>

@@ -10,7 +10,7 @@
     };
 @endphp
 
-<div class="w-full max-w-full min-w-0 mx-auto" x-data="{ activeTab: 'internal' }">
+<div class="w-full max-w-full min-w-0 mx-auto">
 
     {{-- ═══ HEADER ═══ --}}
     <div class="page-header">
@@ -82,7 +82,7 @@
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                     <span class="stat-card-label">{{ __('pages.team.pending_count') }}</span>
-                    <div class="stat-card-value">{{ $pendingInvitations->count() }}</div>
+                    <div class="stat-card-value">{{ $stats['pending_invites'] ?? 0 }}</div>
                 </div>
                 <div class="stat-card-icon bg-orange-50 text-orange-500">
                     <iconify-icon icon="solar:clock-circle-bold-duotone" width="20"></iconify-icon>
@@ -110,11 +110,18 @@
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 hover:bg-orange-50/40 transition-colors">
                         <div class="flex items-center gap-4 min-w-0">
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
-                                <iconify-icon icon="solar:letter-linear" width="20"></iconify-icon>
+                                <iconify-icon icon="{{ $inv->email ? 'solar:letter-linear' : 'solar:key-minimalistic-square-3-linear' }}" width="20"></iconify-icon>
                             </div>
                             <div class="min-w-0">
-                                <div class="text-sm font-bold text-slate-900 truncate">{{ $inv->email }}</div>
+                                <div class="text-sm font-bold text-slate-900 truncate">
+                                    {{ $inv->email ?: __('pages.team.invitation_by_code_label') }}
+                                </div>
                                 <div class="flex flex-wrap items-center gap-2 mt-1">
+                                    @if(!empty($inv->invitation_code))
+                                        <span class="pill-badge bg-slate-100 text-slate-700 border-slate-200" style="font-size: 10px;">
+                                            {{ __('pages.team.code') }}: {{ $inv->invitation_code }}
+                                        </span>
+                                    @endif
                                     <span class="pill-badge {{ $ib['bg'] }} {{ $ib['text'] }} {{ $ib['border'] }}" style="font-size: 10px;">
                                         <iconify-icon icon="{{ $ib['icon'] }}" width="12"></iconify-icon>
                                         {{ $ib['label_key'] ? __($ib['label_key']) : ($ib['label'] ?? $inv->role) }}
@@ -141,10 +148,10 @@
                                 wire:target="resendInvitation({{ $inv->id }})"
                                 class="h-8 px-3 rounded-lg bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition inline-flex items-center gap-1.5"
                                 style="border: 1px solid #e2e8f0;"
-                                title="{{ __('pages.team.resend') }}"
+                                title="{{ $inv->email ? __('pages.team.resend') : __('pages.team.regenerate_code') }}"
                             >
                                 <iconify-icon icon="solar:refresh-linear" width="14"></iconify-icon>
-                                {{ __('pages.team.resend') }}
+                                {{ $inv->email ? __('pages.team.resend') : __('pages.team.regenerate_code') }}
                             </button>
                             <button
                                 type="button"
@@ -169,38 +176,51 @@
     <div class="flex items-center gap-1 p-1 rounded-xl bg-slate-100/80 mb-5 w-fit">
         <button
             type="button"
-            @click="activeTab = 'internal'"
-            :class="activeTab === 'internal'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+            wire:click="setTeamTab('internal')"
+            wire:loading.attr="disabled"
+            wire:target="setTeamTab"
+            @class([
+                'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                'bg-white text-slate-900 shadow-sm' => ($teamTab ?? 'internal') === 'internal',
+                'text-slate-500 hover:text-slate-700' => ($teamTab ?? 'internal') !== 'internal',
+            ])
         >
             <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="18"></iconify-icon>
             {{ __('pages.team.tab_internal') }}
             <span
-                :class="activeTab === 'internal' ? 'bg-[var(--accent)] text-white' : 'bg-slate-200 text-slate-600'"
-                class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold transition-colors"
+                @class([
+                    'inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold transition-colors',
+                    'bg-[var(--accent)] text-white' => ($teamTab ?? 'internal') === 'internal',
+                    'bg-slate-200 text-slate-600' => ($teamTab ?? 'internal') !== 'internal',
+                ])
             >{{ $stats['total'] ?? 0 }}</span>
         </button>
         <button
             type="button"
-            @click="activeTab = 'external'"
-            :class="activeTab === 'external'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+            wire:click="setTeamTab('external')"
+            wire:loading.attr="disabled"
+            wire:target="setTeamTab"
+            @class([
+                'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200',
+                'bg-white text-slate-900 shadow-sm' => ($teamTab ?? 'internal') === 'external',
+                'text-slate-500 hover:text-slate-700' => ($teamTab ?? 'internal') !== 'external',
+            ])
         >
             <iconify-icon icon="solar:mailbox-bold-duotone" width="18"></iconify-icon>
             {{ __('pages.team.tab_external') }}
             <span
-                :class="activeTab === 'external' ? 'bg-[var(--accent)] text-white' : 'bg-slate-200 text-slate-600'"
-                class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold transition-colors"
+                @class([
+                    'inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold transition-colors',
+                    'bg-[var(--accent)] text-white' => ($teamTab ?? 'internal') === 'external',
+                    'bg-slate-200 text-slate-600' => ($teamTab ?? 'internal') !== 'external',
+                ])
             >{{ $stats['external'] ?? 0 }}</span>
         </button>
     </div>
 
     {{-- ═══ TAB: INTERNAL MEMBERS ═══ --}}
-    <div x-show="activeTab === 'internal'" x-cloak>
+    @if(($teamTab ?? 'internal') === 'internal')
+    <div>
         <div class="content-card">
             @php
                 $roleFilterOptions = array_merge(
@@ -348,9 +368,11 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{-- ═══ TAB: EXTERNAL CONTACTS ═══ --}}
-    <div x-show="activeTab === 'external'" x-cloak>
+    @if(($teamTab ?? 'internal') === 'external')
+    <div>
         <div class="content-card">
             {{-- Toolbar --}}
             <div class="filter-bar">
@@ -429,25 +451,42 @@
             </div>
         </div>
     </div>
+    @endif
 
-    {{-- ═══ INVITE MODAL ═══ --}}
-    <div x-data="{ open: $wire.$entangle('showInviteModal') }" x-show="open" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style="display:none;">
+    {{-- ═══ INVITE MODAL ═══
+         Téléport vers body : sinon le modal reste dans <main class="z-10"> et passe SOUS le header / overlay (z-40) — surtout visible sur mobile. --}}
+    @teleport('body')
+    <div
+        x-data="{
+            open: $wire.$entangle('showInviteModal'),
+            inviteUi: 'email',
+            _prevInviteOpen: false,
+        }"
+        x-effect="
+            if (open && ! _prevInviteOpen) { inviteUi = 'email' }
+            _prevInviteOpen = open
+        "
+        x-show="open"
+        x-cloak
+        @keydown.escape.window="if (open) $wire.closeInviteModal()"
+        class="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4"
+    >
         <div
             x-show="open"
             x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
             x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-            class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="$wire.closeInviteModal()"
+            class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            @click="$wire.closeInviteModal()"
         ></div>
 
         <div
             x-show="open"
-            x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0 scale-95 translate-y-4" x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-            x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100 scale-100 translate-y-0" x-transition:leave-end="opacity-0 scale-95 translate-y-4"
-            class="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden"
-            style="border: 1px solid #f1f5f9;"
+            x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+            x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            class="relative z-10 flex max-h-[min(92dvh,100dvh)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[min(90dvh,40rem)] sm:rounded-2xl"
             @click.stop
         >
-            <div class="px-5 py-4 flex items-center justify-between" style="border-bottom: 1px solid #f1f5f9;">
+            <div class="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div class="min-w-0">
                     <div class="text-sm font-extrabold text-slate-900">{{ __('pages.team.invite_member') }}</div>
                     <div class="text-xs text-slate-500">{{ __('pages.team.invite_modal_subtitle') }}</div>
@@ -457,34 +496,74 @@
                 </button>
             </div>
 
-            <form wire:submit.prevent="sendInvite" class="p-5 space-y-4">
-                <div class="space-y-1.5">
-                    <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.email') }}</label>
-                    <input
-                        type="email"
-                        wire:model.blur="inviteEmail"
-                        class="block w-full rounded-xl bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
-                        style="border: 1px solid #e2e8f0;"
-                        placeholder="{{ __('pages.team.email_placeholder') }}"
-                        required
-                    >
-                    <x-input-error :messages="$errors->get('inviteEmail')" />
+            {{-- inviteUi en Alpine uniquement : évite un round-trip Livewire au clic (morph du @teleport casse Alpine / _x_pendingModelUpdates). --}}
+            <form class="flex min-h-0 flex-1 flex-col overflow-hidden" x-on:submit.prevent="$wire.sendInvite(inviteUi)">
+                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain px-5 py-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.invitation_mode') }}</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                @click="inviteUi = 'email'"
+                                class="h-10 rounded-xl text-sm font-semibold transition"
+                                style="border: 1px solid #e2e8f0;"
+                                x-bind:class="inviteUi === 'email' ? 'bg-[var(--accent)] text-white' : 'bg-white text-slate-700'"
+                            >
+                                {{ __('pages.team.invite_by_email') }}
+                            </button>
+                            <button
+                                type="button"
+                                @click="inviteUi = 'code'"
+                                class="h-10 rounded-xl text-sm font-semibold transition"
+                                style="border: 1px solid #e2e8f0;"
+                                x-bind:class="inviteUi === 'code' ? 'bg-[var(--accent)] text-white' : 'bg-white text-slate-700'"
+                            >
+                                {{ __('pages.team.invite_by_code') }}
+                            </button>
+                        </div>
+                        <x-input-error :messages="$errors->get('inviteMethod')" />
+                    </div>
+
+                    <div class="space-y-1.5" x-show="inviteUi === 'email'" x-cloak>
+                        <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.email') }}</label>
+                        <input
+                            type="email"
+                            wire:model.blur="inviteEmail"
+                            class="block w-full rounded-xl bg-white py-2.5 px-3 text-sm shadow-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                            style="border: 1px solid #e2e8f0;"
+                            placeholder="{{ __('pages.team.email_placeholder') }}"
+                        >
+                        <x-input-error :messages="$errors->get('inviteEmail')" />
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.role') }}</label>
+                        <x-dropdown-select
+                            :options="$inviteRoleDropdownOptions"
+                            :label="$inviteRoleLabel"
+                            :selected-value="$inviteRole"
+                            model-name="inviteRole"
+                            instance-key="invite-role"
+                        />
+                        <x-input-error :messages="$errors->get('inviteRole')" />
+                    </div>
+
+                    @if(!empty($generatedInviteCode))
+                        <div class="rounded-xl bg-slate-50 px-3 py-3" style="border: 1px solid #e2e8f0;">
+                            <div class="text-[11px] font-semibold text-slate-700 mb-1">{{ __('pages.team.generated_code') }}</div>
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                <code class="inline-flex min-h-10 flex-1 items-center rounded-lg bg-white px-3 py-2 text-sm font-bold text-slate-900 tracking-wider break-all" style="border: 1px solid #e2e8f0;">{{ $generatedInviteCode }}</code>
+                                <button type="button" x-on:click="navigator.clipboard.writeText('{{ $generatedInviteCode }}')" class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition sm:w-auto w-full" style="border: 1px solid #e2e8f0;">
+                                    {{ __('pages.team.copy_code') }}
+                                </button>
+                            </div>
+                            <p class="mt-2 text-[11px] text-slate-500">{{ __('pages.team.code_expiry_hint') }}</p>
+                        </div>
+                    @endif
                 </div>
 
-                <div class="space-y-1.5">
-                    <label class="text-[11px] font-semibold text-slate-700">{{ __('pages.team.role') }}</label>
-                    <x-dropdown-select
-                        :options="$inviteRoleDropdownOptions"
-                        :label="$inviteRoleLabel"
-                        :selected-value="$inviteRole"
-                        model-name="inviteRole"
-                        instance-key="invite-role"
-                    />
-                    <x-input-error :messages="$errors->get('inviteRole')" />
-                </div>
-
-                <div class="pt-2 flex items-center justify-end gap-3">
-                    <button type="button" wire:click="closeInviteModal" class="h-10 px-4 rounded-xl bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition" style="border: 1px solid #e2e8f0;">
+                <div class="flex shrink-0 flex-col gap-2 border-t border-slate-100 bg-white px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:pb-4">
+                    <button type="button" wire:click="closeInviteModal" class="h-10 w-full rounded-xl bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition sm:w-auto sm:px-4" style="border: 1px solid #e2e8f0;">
                         {{ __('pages.team.cancel') }}
                     </button>
                     <x-manexo.action-button
@@ -492,13 +571,15 @@
                         variant="primary"
                         wire-target="sendInvite"
                         :loading-label="__('pages.team.sending')"
-                        class="h-10 px-4 rounded-xl text-sm font-extrabold shadow-sm"
+                        class="h-10 w-full rounded-xl text-sm font-extrabold shadow-sm sm:w-auto sm:px-4"
                     >
-                        {{ __('pages.team.send') }}
+                        <span x-show="inviteUi === 'email'">{{ __('pages.team.send') }}</span>
+                        <span x-show="inviteUi === 'code'">{{ __('pages.team.generate_code') }}</span>
                     </x-manexo.action-button>
                 </div>
             </form>
         </div>
     </div>
+    @endteleport
 
 </div>

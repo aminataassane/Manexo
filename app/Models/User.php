@@ -217,6 +217,23 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * Same cohort as {@see scopeAssignableInOrganization}: can be assigned to tickets in this org.
+     * Ticket assign / création depuis la plateforme : notification en base uniquement (pas d’e-mail),
+     * comme pour owner/admin/agent — le rôle « member » était auparavant traité comme « externe ».
+     */
+    public function isTicketAssignableMember(int $organizationId): bool
+    {
+        if ($this->status === 'guest') {
+            return false;
+        }
+
+        return $this->organizations()
+            ->where('organization_id', $organizationId)
+            ->wherePivotIn('role', ['owner', 'admin', 'agent', 'member'])
+            ->exists();
+    }
+
+    /**
      * Check if the user is an external participant (member, guest, or no internal role).
      * External users receive email notifications.
      */
@@ -226,7 +243,7 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Scope: only active internal users assignable to tickets in a given organization.
+     * Scope: active org members who can be assigned to tickets (internal team + members).
      * Excludes guests regardless of their org membership role.
      */
     public function scopeAssignableInOrganization($query, int $organizationId)
@@ -235,7 +252,7 @@ class User extends Authenticatable implements MustVerifyEmail
             ->where('status', '!=', 'guest')
             ->whereHas('organizations', function ($q) use ($organizationId) {
                 $q->where('organization_memberships.organization_id', $organizationId)
-                    ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent']);
+                    ->whereIn('organization_memberships.role', ['owner', 'admin', 'agent', 'member']);
             });
     }
 }

@@ -34,8 +34,12 @@ class TicketAssigneeNotification extends Notification implements ShouldQueue
             return ['database'];
         }
 
-        // Assignment: respect internal/external routing
         $orgId = (int) $this->ticket->organization_id;
+
+        // Collègues assignables (y compris rôle member) : plateforme uniquement, pas d’e-mail
+        if ($notifiable instanceof User && $notifiable->isTicketAssignableMember($orgId)) {
+            return ['database'];
+        }
 
         return $this->resolveChannels($notifiable, $orgId);
     }
@@ -69,7 +73,7 @@ class TicketAssigneeNotification extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         $orgId = (int) $this->ticket->organization_id;
-        $isInternal = $notifiable instanceof User && $notifiable->isInternalStaff($orgId);
+        $isInternal = $notifiable instanceof User && $notifiable->isTicketAssignableMember($orgId);
 
         return [
             'type' => 'ticket_assignee',

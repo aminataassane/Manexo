@@ -15,7 +15,7 @@
         });
     "
     x-data="discussionWebSocket('{{ $ticketPublicId }}', {{ auth()->id() ?? 'null' }}, {{ $canSeeInternalNotes ? 'true' : 'false' }})"
-    @keydown.escape.window="addParticipantOpen = false"
+    @keydown.escape.window="addParticipantOpen = false; $dispatch('close-attachment-preview')"
 >
     <div
         class="flex flex-1 min-h-0 overflow-hidden flex-row"
@@ -39,40 +39,58 @@
             }
         }"
         x-init="init()"
+        @keydown.escape.window="if (mobileDrawerOpen && window.innerWidth < 1024) mobileDrawerOpen = false"
     >
-        {{-- SIDEBAR — desktop: in-flow à gauche ; mobile/tablette: drawer plein écran par-dessus --}}
+        {{--
+            Drawer mobile : téléporté sur <body> + z-index au-dessus du layout.
+            Sinon position:fixed reste piégé sous .animate-enter (transform) + overflow du scroll,
+            ce qui donne le blur sans panneau visible.
+        --}}
         <template x-teleport="body">
-            <div
-                x-show="mobileDrawerOpen"
-                x-cloak
-                class="lg:hidden fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm"
-                x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-                x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-                @click="mobileDrawerOpen = false"
-            ></div>
-            <section
-                x-show="mobileDrawerOpen"
-                x-cloak
-                x-transition:enter="ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
-                x-transition:leave="ease-in duration-200" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
-                class="lg:hidden fixed inset-y-0 right-0 z-[61] w-full sm:w-[min(26rem,85dvw)] md:w-[min(30rem,80dvw)] flex flex-col bg-white shadow-2xl sm:rounded-l-2xl sm:border-l sm:border-slate-100"
-            >
-                <div class="flex h-14 shrink-0 items-center justify-between border-b border-slate-100 px-4">
-                    <span class="text-sm font-bold text-slate-900">{{ __('Infos') }}</span>
-                    <button type="button" @click="mobileDrawerOpen = false" class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors touch-manipulation" aria-label="{{ __('Fermer') }}">
-                        <iconify-icon icon="solar:close-circle-bold" width="24"></iconify-icon>
-                    </button>
+                <div
+                    x-show="mobileDrawerOpen"
+                    x-cloak
+                    class="lg:hidden fixed inset-0 z-[200]"
+                >
+                    <div
+                        class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+                        x-show="mobileDrawerOpen"
+                        x-transition:enter="ease-out duration-200"
+                        x-transition:enter-start="opacity-0"
+                        x-transition:enter-end="opacity-100"
+                        x-transition:leave="ease-in duration-150"
+                        x-transition:leave-start="opacity-100"
+                        x-transition:leave-end="opacity-0"
+                        @click="mobileDrawerOpen = false"
+                    ></div>
+                    <section
+                        x-show="mobileDrawerOpen"
+                        x-transition:enter="ease-out duration-300 transform"
+                        x-transition:enter-start="translate-x-full"
+                        x-transition:enter-end="translate-x-0"
+                        x-transition:leave="ease-in duration-200 transform"
+                        x-transition:leave-start="translate-x-0"
+                        x-transition:leave-end="translate-x-full"
+                        class="absolute inset-y-0 right-0 flex w-full max-w-full flex-col bg-white shadow-2xl sm:max-w-[26rem] md:max-w-[30rem] sm:rounded-l-2xl sm:border-l sm:border-slate-100"
+                        @click.stop
+                    >
+                        <div class="flex h-14 shrink-0 items-center justify-between border-b border-slate-100 px-4">
+                            <span class="text-sm font-bold text-slate-900">{{ __('Infos') }}</span>
+                            <button type="button" @click="mobileDrawerOpen = false" class="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-900 transition-colors touch-manipulation" aria-label="{{ __('Fermer') }}">
+                                <iconify-icon icon="solar:close-circle-bold" width="24"></iconify-icon>
+                            </button>
+                        </div>
+                        <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
+                            <livewire:tickets.ticket-sidebar
+                                :ticket-id="$ticket->id"
+                                :ticket-public-id="$ticketPublicId"
+                                :can-see-internal-notes="$canSeeInternalNotes"
+                                :can-write-internal-notes="$canWriteInternalNotes"
+                                wire:key="sidebar-mobile-{{ $ticket->id }}"
+                            />
+                        </div>
+                    </section>
                 </div>
-                <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
-                    <livewire:tickets.ticket-sidebar
-                        :ticket-id="$ticket->id"
-                        :ticket-public-id="$ticketPublicId"
-                        :can-see-internal-notes="$canSeeInternalNotes"
-                        :can-write-internal-notes="$canWriteInternalNotes"
-                        wire:key="sidebar-mobile-{{ $ticket->id }}"
-                    />
-                </div>
-            </section>
         </template>
 
         {{-- SIDEBAR — desktop only (in-flow) --}}
@@ -123,7 +141,7 @@
                                 <span class="hidden sm:inline font-medium">{{ __('Retour') }}</span>
                             </a>
                         @else
-                            <a href="{{ route('tickets.index') }}" onclick="if(history.length>1){event.preventDefault();history.back()}" class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
+                            <a href="{{ route('tickets.index') }}" wire:navigate class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
                                 <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
                                 <span class="hidden sm:inline font-medium">{{ __('Retour') }}</span>
                             </a>
@@ -182,10 +200,138 @@
         </section>
 
     </div>
+
+    {{-- ══════ LIGHTBOX / PREVIEW MODAL ══════ --}}
+    <div x-data="attachmentLightbox()" x-cloak
+         @open-attachment-preview.window="openPreview($event.detail)"
+         @keydown.escape.window="close()"
+         @keydown.left.window="prev()"
+         @keydown.right.window="next()"
+         x-show="open"
+         class="fixed inset-0 z-[100]"
+         style="display: none;">
+
+        {{-- Backdrop --}}
+        <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" @click="close()"
+             x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
+
+        {{-- Content --}}
+        <div class="absolute inset-0 flex flex-col items-center justify-center p-4 sm:p-8 pointer-events-none">
+
+            {{-- Top bar --}}
+            <div class="w-full max-w-4xl flex items-center justify-between gap-4 mb-3 pointer-events-auto" x-show="open"
+                 x-transition:enter="transition ease-out duration-200 delay-75" x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="text-sm font-medium text-white truncate min-w-0" x-text="name"></span>
+                    <span x-show="gallery.length > 1" class="text-xs text-white/60 shrink-0" x-text="(currentIndex + 1) + ' / ' + gallery.length"></span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <a :href="url" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors shadow-sm">
+                        <iconify-icon icon="solar:square-top-down-linear" width="14"></iconify-icon>
+                        <span class="hidden sm:inline">Ouvrir</span>
+                    </a>
+                    <a :href="downloadUrl"
+                       class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors shadow-sm">
+                        <iconify-icon icon="solar:download-minimalistic-linear" width="14"></iconify-icon>
+                        <span class="hidden sm:inline">Télécharger</span>
+                    </a>
+                    <button @click="close()" class="p-2 rounded-xl bg-white/20 hover:bg-white/40 text-white transition-colors ml-0.5">
+                        <iconify-icon icon="solar:close-circle-linear" width="18"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Preview area --}}
+            <div class="relative flex items-center justify-center flex-1 min-h-0 w-full pointer-events-auto" x-show="open"
+                 x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                 x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
+
+                {{-- Nav: prev --}}
+                <button x-show="gallery.length > 1" @click.stop="prev()"
+                        class="absolute left-2 sm:left-4 z-20 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition-colors backdrop-blur-sm shadow-lg">
+                    <iconify-icon icon="solar:alt-arrow-left-linear" width="20"></iconify-icon>
+                </button>
+
+                {{-- Image --}}
+                <template x-if="type === 'image'">
+                    <img :src="url" :alt="name"
+                         class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl bg-white/5 select-none"
+                         @click.stop>
+                </template>
+
+                {{-- PDF --}}
+                <template x-if="type === 'pdf'">
+                    <iframe :src="url" class="w-full h-full rounded-2xl shadow-2xl bg-white" @click.stop></iframe>
+                </template>
+
+                {{-- Nav: next --}}
+                <button x-show="gallery.length > 1" @click.stop="next()"
+                        class="absolute right-2 sm:right-4 z-20 w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white/15 hover:bg-white/30 text-white flex items-center justify-center transition-colors backdrop-blur-sm shadow-lg">
+                    <iconify-icon icon="solar:alt-arrow-right-linear" width="20"></iconify-icon>
+                </button>
+            </div>
+
+            {{-- Thumbnail strip for galleries --}}
+            <div x-show="gallery.length > 1" class="mt-3 flex items-center gap-2 pointer-events-auto overflow-x-auto max-w-full pb-1">
+                <template x-for="(item, i) in gallery" :key="i">
+                    <button @click="goTo(i)" class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 shrink-0 transition-all"
+                            :class="i === currentIndex ? 'border-white shadow-lg scale-105' : 'border-white/30 opacity-60 hover:opacity-90'">
+                        <img :src="item.url" :alt="item.name" class="w-full h-full object-cover">
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
 </div>
 
 @script
 <script>
+    Alpine.data('attachmentLightbox', () => ({
+        open: false,
+        url: '',
+        name: '',
+        type: '',
+        downloadUrl: '',
+        gallery: [],
+        currentIndex: 0,
+
+        openPreview(detail) {
+            this.type = detail.type || 'file';
+            this.gallery = Array.isArray(detail.gallery) && detail.gallery.length > 0 ? detail.gallery : [{ url: detail.url, name: detail.name }];
+            this.currentIndex = typeof detail.index === 'number' ? detail.index : 0;
+            this.applyCurrentItem();
+            this.open = true;
+            document.body.style.overflow = 'hidden';
+        },
+        applyCurrentItem() {
+            const item = this.gallery[this.currentIndex];
+            if (!item) return;
+            this.url = item.url;
+            this.name = item.name;
+            this.downloadUrl = item.url + (item.url.includes('?') ? '&' : '?') + 'download=1';
+        },
+        close() {
+            this.open = false;
+            document.body.style.overflow = '';
+        },
+        next() {
+            if (this.gallery.length <= 1) return;
+            this.currentIndex = (this.currentIndex + 1) % this.gallery.length;
+            this.applyCurrentItem();
+        },
+        prev() {
+            if (this.gallery.length <= 1) return;
+            this.currentIndex = (this.currentIndex - 1 + this.gallery.length) % this.gallery.length;
+            this.applyCurrentItem();
+        },
+        goTo(i) {
+            this.currentIndex = i;
+            this.applyCurrentItem();
+        }
+    }));
+
     Alpine.data('discussionWebSocket', (ticketPublicId, currentUserId, canSeeInternalNotes) => ({
         ticketPublicId,
         currentUserId,
@@ -261,20 +407,120 @@
             if (att.url) return att.url;
             return origin + '/storage/' + path;
         },
+        fileIcon(ext) {
+            if (['doc','docx'].includes(ext)) return 'solar:document-text-linear';
+            if (['xls','xlsx','csv'].includes(ext)) return 'solar:chart-square-linear';
+            if (['zip','rar','7z'].includes(ext)) return 'solar:archive-linear';
+            if (ext === 'txt') return 'solar:notes-linear';
+            return 'solar:file-text-linear';
+        },
         attachmentsHtml(attachments, variant) {
             if (!Array.isArray(attachments) || attachments.length === 0) return '';
-            const borderClass = 'border-t border-slate-100';
-            const items = attachments.map(a => {
-                const url = this.fileUrl(a);
-                const name = this.escapeHtml(a.name || 'Fichier');
+            const imgExts = ['png','jpg','jpeg','gif','webp'];
+            const images = [];
+            const files = [];
+
+            attachments.forEach(a => {
                 const ext = (a.name || '').split('.').pop().toLowerCase();
-                const isImg = ['png','jpg','jpeg','gif','webp'].includes(ext);
-                if (isImg && url !== '#') {
-                    return `<a href="${url}" target="_blank" rel="noopener" class="inline-block rounded-lg overflow-hidden border border-slate-200 max-w-[200px] mt-2"><img src="${url}" alt="${name}" class="block w-full h-auto max-h-36 object-cover" loading="lazy"></a>`;
-                }
-                return `<a href="${url}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/30 hover:bg-white/50 p-2 text-xs text-slate-700"><iconify-icon icon="solar:file-text-linear" width="14"></iconify-icon><span class="truncate">${name}</span><iconify-icon icon="solar:download-linear" width="12"></iconify-icon></a>`;
-            }).join('');
-            return `<div class="mt-3 pt-3 ${borderClass} space-y-2">${items}</div>`;
+                if (imgExts.includes(ext)) images.push(a);
+                else files.push(a);
+            });
+
+            if (images.length === 0 && files.length === 0) return '';
+
+            const borderTone = variant === 'note' ? 'border-amber-200/45' : variant === 'mine' ? 'border-[color:color-mix(in_srgb,var(--accent)_22%,#e2e8f0)]' : 'border-slate-200/45';
+            let html = `<div class="mt-2 border-t border-dashed pt-2.5 ${borderTone}">`;
+
+            // Images grid
+            if (images.length > 0) {
+                const gallery = images.map(a => ({ url: this.fileUrl(a), name: this.escapeHtml(a.name || 'Image') }));
+                const galleryJson = JSON.stringify(gallery).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+                const maxVisible = 4;
+                const extra = Math.max(0, images.length - maxVisible);
+                const gridCols = images.length === 1 ? 'grid-cols-1 max-w-[280px]' : 'grid-cols-2 max-w-[340px]';
+                const imgTileClass = variant === 'mine'
+                    ? 'border border-[color:color-mix(in_srgb,var(--accent)_18%,#e2e8f0)] bg-[color-mix(in_srgb,var(--accent-soft)_45%,white)]'
+                    : variant === 'note'
+                        ? 'border border-amber-200/50 bg-amber-50/40'
+                        : 'border border-slate-200/55 bg-slate-50';
+
+                html += `<div class="grid ${gridCols} gap-1.5 ${files.length > 0 ? 'mb-2.5' : ''}">`;
+
+                images.forEach((a, idx) => {
+                    if (idx >= maxVisible) return;
+                    const url = this.fileUrl(a);
+                    const dlUrl = url + (url.includes('?') ? '&' : '?') + 'download=1';
+                    const name = this.escapeHtml(a.name || 'Image');
+                    const aspectClass = images.length === 1 ? 'max-h-[220px]' : (images.length === 3 && idx === 0 ? 'row-span-2 aspect-[3/4]' : 'aspect-square');
+
+                    html += `<div class="${aspectClass} relative overflow-hidden rounded-xl group/img cursor-pointer ${imgTileClass}"
+                        onclick="window.dispatchEvent(new CustomEvent('open-attachment-preview', { detail: { type: 'image', index: ${idx}, gallery: ${galleryJson} } }))">
+                        <img src="${url}" alt="${name}" class="block w-full h-full object-cover transition-transform duration-200 group-hover/img:scale-105" loading="lazy">
+                        <div class="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-0 group-hover/img:opacity-100 transition-opacity duration-200 flex flex-col items-start justify-end p-2.5">
+                            <span class="text-[11px] font-medium text-white truncate max-w-full drop-shadow">${name}</span>
+                        </div>
+                        <div class="absolute top-1.5 right-1.5 opacity-0 group-hover/img:opacity-100 transition-opacity duration-200">
+                            <a href="${dlUrl}" onclick="event.stopPropagation()" title="Télécharger" class="w-7 h-7 rounded-lg bg-white/85 hover:bg-white text-slate-600 flex items-center justify-center shadow-sm backdrop-blur-sm transition-colors">
+                                <iconify-icon icon="solar:download-minimalistic-linear" width="13"></iconify-icon>
+                            </a>
+                        </div>`;
+
+                    if (idx === maxVisible - 1 && extra > 0) {
+                        html += `<div class="absolute inset-0 bg-slate-900/50 flex items-center justify-center pointer-events-none rounded-xl"><span class="text-white text-xl font-bold drop-shadow">+${extra}</span></div>`;
+                    }
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            }
+
+            // Files stack
+            if (files.length > 0) {
+                const fileRow = variant === 'note' ? 'bg-amber-200/20 hover:bg-amber-200/30' : variant === 'mine' ? 'bg-[color-mix(in_srgb,var(--accent)_14%,white)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,white)]' : 'bg-slate-900/[0.025] hover:bg-slate-900/[0.045]';
+                const iconWrap = variant === 'note' ? 'bg-amber-100/50 text-amber-800/60 ring-amber-200/30' : variant === 'mine' ? 'bg-white/95 text-[var(--accent)] shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-[color:color-mix(in_srgb,var(--accent)_32%,transparent)]' : 'bg-white/90 text-slate-500 ring-slate-900/[0.06] shadow-[0_1px_2px_rgba(15,23,42,0.04)]';
+                const nameCls = variant === 'note' ? 'text-amber-950/90' : variant === 'mine' ? 'text-slate-800' : 'text-slate-700';
+                const metaCls = variant === 'note' ? 'text-amber-800/55' : variant === 'mine' ? 'text-slate-600/85' : 'text-slate-400';
+                const pillCls = variant === 'note' ? 'bg-amber-50/90 ring-amber-200/35' : variant === 'mine' ? 'bg-white/95 ring-1 ring-[color:color-mix(in_srgb,var(--accent)_24%,transparent)]' : 'bg-white/75 ring-slate-900/[0.05] sm:bg-white/85';
+                const actionCls = variant === 'mine' ? 'flex h-8 w-8 items-center justify-center rounded-full text-[var(--accent-dark)] transition-colors hover:bg-[var(--accent-soft)]' : 'flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800';
+                html += `<div class="space-y-2">`;
+                files.forEach(a => {
+                    const url = this.fileUrl(a);
+                    const dlUrl = url + (url.includes('?') ? '&' : '?') + 'download=1';
+                    const name = this.escapeHtml(a.name || 'Fichier');
+                    const ext = (a.name || '').split('.').pop().toLowerCase();
+                    const isPdf = ext === 'pdf';
+                    const icon = this.fileIcon(ext);
+                    const extLabel = ext.toUpperCase();
+                    let sizeStr = '';
+                    if (a.size) {
+                        const b = parseInt(a.size, 10);
+                        if (!isNaN(b) && b > 0) {
+                            sizeStr = b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1024).toFixed(1) + ' KB';
+                        }
+                    }
+                    const metaBits = sizeStr
+                        ? `<span class="uppercase tracking-wide">${extLabel}</span><span class="mx-1 opacity-40">·</span><span class="tabular-nums">${sizeStr}</span>`
+                        : `<span class="uppercase tracking-wide">${extLabel}</span>`;
+                    const openBtn = isPdf
+                        ? `<button type="button" onclick="window.dispatchEvent(new CustomEvent('open-attachment-preview', { detail: { url: '${url}', name: '${name.replace(/'/g, "\\'")}', type: 'pdf' } }))" title="Aperçu" class="${actionCls}"><iconify-icon icon="solar:eye-linear" width="16"></iconify-icon></button>`
+                        : `<a href="${url}" target="_blank" rel="noopener" title="Ouvrir" class="${actionCls}"><iconify-icon icon="solar:square-top-down-linear" width="16"></iconify-icon></a>`;
+
+                    html += `<div class="attachment-file-row flex max-w-full cursor-default items-center gap-2.5 rounded-2xl px-2.5 py-2 transition-colors duration-200 sm:gap-3 sm:px-3 sm:py-2.5 ${fileRow} group/file">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${iconWrap}"><iconify-icon icon="${icon}" width="18" class="opacity-90"></iconify-icon></div>
+                        <div class="min-w-0 flex-1 py-0.5">
+                            <p class="truncate text-[13px] font-medium leading-snug tracking-tight ${nameCls}">${name}</p>
+                            <p class="mt-0.5 text-[11px] font-normal ${metaCls}">${metaBits}</p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-0.5 self-center rounded-full p-0.5 shadow-sm ring-1 backdrop-blur-[2px] transition-opacity duration-200 opacity-80 group-hover/file:opacity-100 ${pillCls}">
+                            ${openBtn}
+                            <a href="${dlUrl}" title="Télécharger" class="${actionCls}"><iconify-icon icon="solar:download-minimalistic-linear" width="16"></iconify-icon></a>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+            return html;
         },
         renderBubble(e) {
             const isNote = e.type === 'internal_note';
@@ -284,21 +530,26 @@
             const name = this.escapeHtml(e.user_name || '');
             const body = this.escapeHtml(e.body || '').replace(/\n/g, '<br>');
             const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'U') + '&size=40&background=e2e8f0&color=475569';
-            const hasAttachments = (e.attachments && e.attachments.length > 0);
-            const attachmentsBlock = this.attachmentsHtml(e.attachments || [], (isOwn && hasAttachments) ? 'theirs' : (isOwn ? 'mine' : 'theirs'));
+            const hasAtt = (e.attachments && e.attachments.length > 0);
+            const attVariant = isNote ? 'note' : (isOwn ? 'mine' : 'theirs');
+            const attBlock = this.attachmentsHtml(e.attachments || [], attVariant);
+            const attPad = hasAtt ? `<div class="px-3 sm:px-4 pb-3">${attBlock}</div>` : '';
 
             if (isSystem) {
                 return `<div class="message-row message-system flex justify-center py-3"><div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs"><iconify-icon icon="solar:info-circle-linear" width="14" class="shrink-0 text-slate-500"></iconify-icon><span class="break-words max-w-[min(100%,28rem)]">${body}</span><span class="text-slate-400 shrink-0">· ${timeAgo}</span></div></div>`;
             }
             if (isNote) {
-                return `<div class="message-row message-note flex gap-3 py-3 max-w-[85%]"><div class="w-8 h-8 shrink-0 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><iconify-icon icon="solar:lock-keyhole-linear" width="14"></iconify-icon></div><div class="message-bubble flex-1 min-w-0 rounded-2xl rounded-tl-md bg-amber-50/90 border border-amber-200/80 shadow-sm overflow-hidden"><div class="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/60 bg-amber-50/50"><div class="flex items-center gap-2"><span class="text-[11px] font-bold text-amber-800 uppercase tracking-wide">Note interne</span><span class="text-[10px] text-amber-600">${name}</span></div><span class="text-[10px] text-amber-600/90">${timeAgo}</span></div><div class="px-4 py-3 text-sm leading-relaxed text-amber-900 break-words">${body}</div>${attachmentsBlock}</div></div>`;
+                return `<div class="message-row message-note flex gap-3 py-3 max-w-[85%]"><div class="w-8 h-8 shrink-0 rounded-full bg-amber-100 flex items-center justify-center text-amber-600"><iconify-icon icon="solar:lock-keyhole-linear" width="14"></iconify-icon></div><div class="message-bubble flex-1 min-w-0 rounded-2xl rounded-tl-md bg-amber-50/90 border border-amber-200/80 shadow-sm overflow-hidden"><div class="px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/60 bg-amber-50/50"><div class="flex items-center gap-2"><span class="text-[11px] font-bold text-amber-800 uppercase tracking-wide">Note interne</span><span class="text-[10px] text-amber-600">${name}</span></div><span class="text-[10px] text-amber-600/90">${timeAgo}</span></div><div class="px-4 py-3 text-sm leading-relaxed text-amber-900 break-words">${body}</div>${attPad}</div></div>`;
             }
             if (isOwn) {
-                const bubbleWrap = hasAttachments ? 'rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed shadow-md w-full max-w-full bg-white border border-slate-200 text-slate-700' : 'rounded-2xl rounded-br-md px-4 py-3 text-sm leading-relaxed shadow-md w-full max-w-full text-white';
-                const bubbleStyle = hasAttachments ? '' : ' style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%);"';
-                return `<div class="message-row message-own flex justify-end py-3"><div class="flex items-end gap-3 max-w-[85%] min-w-0 flex-row-reverse"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="flex flex-col items-end min-w-0 max-w-full"><div class="flex items-center gap-2 mb-1.5 flex-row-reverse"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400">${timeAgo}</span></div><div class="message-bubble ${bubbleWrap}"${bubbleStyle}><div class="text-left break-words ${!hasAttachments?'text-white':''}">${body}</div>${attachmentsBlock}</div></div></div></div>`;
+                const bubbleCls = 'rounded-2xl rounded-br-md text-sm leading-relaxed shadow-md w-full max-w-full overflow-hidden';
+                const bubbleStyle = hasAtt
+                    ? ' style="background: color-mix(in srgb, var(--accent) 8%, white); border: 1px solid color-mix(in srgb, var(--accent) 18%, #e2e8f0);"'
+                    : ' style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%); color: #fff;"';
+                const textCls = hasAtt ? 'text-slate-800' : 'text-white';
+                return `<div class="message-row message-own flex justify-end py-3"><div class="flex items-end gap-3 max-w-[85%] min-w-0 flex-row-reverse"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="flex flex-col items-end min-w-0 max-w-full"><div class="flex items-center gap-2 mb-1.5 flex-row-reverse"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400">${timeAgo}</span></div><div class="message-bubble ${bubbleCls}"${bubbleStyle}><div class="px-3 py-2.5 sm:px-4 sm:py-3 text-left break-words ${textCls}">${body}</div>${attPad}</div></div></div></div>`;
             }
-            return `<div class="message-row message-incoming flex gap-3 py-3 min-w-0 max-w-[85%]"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="min-w-0 max-w-full w-fit"><div class="flex flex-wrap items-center gap-2 mb-1.5"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400 ml-auto">${timeAgo}</span></div><div class="message-bubble rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0">${body}${attachmentsBlock}</div></div></div>`;
+            return `<div class="message-row message-incoming flex gap-3 py-3 min-w-0 max-w-[85%]"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="min-w-0 max-w-full w-fit"><div class="flex flex-wrap items-center gap-2 mb-1.5"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400 ml-auto">${timeAgo}</span></div><div class="message-bubble rounded-2xl rounded-bl-md text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0 overflow-hidden"><div class="px-3 py-2.5 sm:px-4 sm:py-3">${body}</div>${attPad}</div></div></div>`;
         },
         escapeHtml(text) {
             const div = document.createElement('div');

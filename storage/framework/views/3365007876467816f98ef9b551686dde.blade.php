@@ -1,0 +1,1 @@
+disc-msg-{{ $msg->id }}

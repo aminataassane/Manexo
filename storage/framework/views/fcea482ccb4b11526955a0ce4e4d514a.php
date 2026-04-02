@@ -25,10 +25,8 @@
 
             </div>
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($item->hasAttachments): ?>
-                <div class="px-4 py-3 pt-2 border-t border-amber-200/50 space-y-2 flex flex-wrap gap-2">
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $item->attachments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $att): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                        <?php echo $__env->make('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'note'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                <div class="px-3 sm:px-4 pb-3">
+                    <?php echo $__env->make('livewire.tickets.partials.attachments-group', ['attachments' => $item->attachments, 'variant' => 'note'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                 </div>
             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
         </div>
@@ -63,16 +61,17 @@
 
                         <span class="text-[10px] text-slate-400"><?php echo e($item->timeHuman); ?></span>
                     </div>
-                    <div class="message-bubble rounded-2xl rounded-br-md px-3 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm leading-relaxed shadow-md w-full max-w-full <?php echo e($item->hasAttachments ? 'bg-white border border-slate-200 text-slate-700' : ''); ?>" <?php if(!$item->hasAttachments): ?> style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%); color: #fff;" <?php endif; ?>>
-                        <div class="text-left break-words <?php echo e(!$item->hasAttachments ? 'text-white' : ''); ?>">
+                    <div class="message-bubble rounded-2xl rounded-br-md text-[13px] sm:text-sm leading-relaxed shadow-md w-full max-w-full overflow-hidden"
+                         style="<?php echo e($item->hasAttachments
+                             ? 'background: color-mix(in srgb, var(--accent) 8%, white); border: 1px solid color-mix(in srgb, var(--accent) 18%, #e2e8f0);'
+                             : 'background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%); color: #fff;'); ?>">
+                        <div class="px-3 py-2.5 sm:px-4 sm:py-3 text-left break-words <?php echo e($item->hasAttachments ? 'text-slate-800' : 'text-white'); ?>">
                             <?php echo $item->body; ?>
 
                         </div>
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($item->hasAttachments): ?>
-                            <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $item->attachments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $att): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                                    <?php echo $__env->make('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'theirs'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                            <div class="px-3 sm:px-4 pb-3">
+                                <?php echo $__env->make('livewire.tickets.partials.attachments-group', ['attachments' => $item->attachments, 'variant' => 'mine'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                             </div>
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </div>
@@ -111,14 +110,14 @@
                     <div class="text-[10px] text-slate-400 mb-1">via <?php echo e($item->emailFrom); ?></div>
                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-                <div class="message-bubble rounded-2xl rounded-bl-md px-3 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0">
-                    <?php echo $item->body; ?>
+                <div class="message-bubble rounded-2xl rounded-bl-md text-[13px] sm:text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0 overflow-hidden">
+                    <div class="px-3 py-2.5 sm:px-4 sm:py-3">
+                        <?php echo $item->body; ?>
 
+                    </div>
                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($item->hasAttachments): ?>
-                        <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">
-                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $item->attachments; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $att): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                                <?php echo $__env->make('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'theirs'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
-                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                        <div class="px-3 sm:px-4 pb-3">
+                            <?php echo $__env->make('livewire.tickets.partials.attachments-group', ['attachments' => $item->attachments, 'variant' => 'theirs'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                         </div>
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>

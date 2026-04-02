@@ -1,1 +1,0 @@
-fn-<?php echo e($fn->id); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/069c57d7073fb4175ae0711c1e9936df.blade.php ENDPATH**/ ?>

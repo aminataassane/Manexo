@@ -3,10 +3,10 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 
-class UserNotificationReceived implements ShouldBroadcast
+class UserNotificationReceived implements ShouldBroadcastNow
 {
     use Dispatchable;
 
@@ -18,7 +18,7 @@ class UserNotificationReceived implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('App.Models.User.' . $this->userId),
+            new PrivateChannel('App.Models.User.'.$this->userId),
         ];
     }
 

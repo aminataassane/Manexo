@@ -7,8 +7,8 @@
 
         @if ($selected)
             {{-- Form header — editorial, Notion-like --}}
-            <div class="mb-12">
-                <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight">{{ $selected->name }}</h2>
+            <div class="mb-8 sm:mb-12">
+                <h2 class="text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">{{ $selected->name }}</h2>
                 @if($selected->description)
                     <p class="text-sm text-slate-400 mt-3 leading-relaxed max-w-xl">{{ $selected->description }}</p>
                 @endif
@@ -60,7 +60,7 @@
                         <div
                             draggable="true"
                             wire:click="selectField({{ (int) $f->id }})"
-                            class="canvas-field-full canvas-section group px-6 py-6 {{ $isActive ? 'is-active' : '' }}"
+                            class="canvas-field-full canvas-section group px-4 py-5 sm:px-6 sm:py-6 {{ $isActive ? 'is-active' : '' }}"
                             :class="{ 'is-drop-target': dropTargetId === {{ (int) $f->id }} }"
                             @dragstart="dragFieldId = {{ (int) $f->id }}"
                             @dragend="dragFieldId = null; dropTargetId = null"

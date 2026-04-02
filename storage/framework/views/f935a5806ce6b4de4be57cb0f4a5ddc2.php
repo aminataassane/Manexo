@@ -14,7 +14,7 @@
             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
         </div>
 
-        <form wire:submit="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-<?php echo e($ticketPublicId); ?>')" class="discussion-composer-box relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)]/25 focus-within:border-[var(--accent)] transition-all min-w-0"
+        <form wire:submit="sendMessage" wire:loading.class="pointer-events-none opacity-90" wire:target="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-<?php echo e($ticketPublicId); ?>')" class="discussion-composer-box relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)]/25 focus-within:border-[var(--accent)] transition-all min-w-0"
         x-data="{
             users: <?php echo e(\Illuminate\Support\Js::from($mentionableUsers ?? [])); ?>,
             mentionOpen: false,
@@ -79,6 +79,8 @@
                     x-ref="mentionInput"
                     wire:model.defer="body"
                     rows="2"
+                    wire:loading.attr="disabled"
+                    wire:target="sendMessage"
                     @input="onInput($event)"
                     @keydown.arrow-down.prevent="mentionOpen && filteredMentions.length && (mentionOpen = true)"
                     class="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm p-1 min-h-[2.5rem] sm:min-h-[2.75rem] max-h-28"
@@ -100,7 +102,20 @@
 
             <div class="flex items-center justify-between gap-1.5 sm:gap-2 px-1.5 sm:px-2.5 py-1 sm:py-1.5 border-t border-slate-100 rounded-b-xl bg-slate-50/50">
                 <div class="flex items-center gap-0.5 min-w-0">
-                    <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="composer-file-input-<?php echo e($ticketId); ?>" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
+                    <input
+                        type="file"
+                        multiple
+                        class="hidden"
+                        id="composer-file-input-<?php echo e($ticketId); ?>"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*"
+                        x-on:change="async (e) => {
+                            const list = e.target.files;
+                            if (!list?.length) return;
+                            const ready = await window.manexoCompressFilesForUpload(list);
+                            e.target.value = '';
+                            $wire.uploadMultiple('attachmentFiles', ready);
+                        }"
+                    >
                     <button type="button" onclick="document.getElementById('composer-file-input-<?php echo e($ticketId); ?>').click()" wire:loading.attr="disabled" wire:target="attachmentFiles,sendMessage" class="p-1.5 min-h-[34px] min-w-[34px] sm:min-h-0 sm:min-w-0 flex items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors touch-manipulation" title="<?php echo e(__('Joindre un fichier')); ?>">
                         <iconify-icon icon="solar:paperclip-linear" width="16"></iconify-icon>
                     </button>

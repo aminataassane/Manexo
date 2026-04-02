@@ -15,6 +15,9 @@ use App\Models\User;
 use App\Notifications\OrganizationInvitationNotification;
 use App\Notifications\TeamRoleChangedNotification;
 use App\Services\OrganizationAuditService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -50,6 +53,13 @@ class Users extends Component
 
     public string $inviteRole = '';
 
+    public string $inviteMethod = 'email';
+
+    public string $generatedInviteCode = '';
+
+    /** internal | external — les contacts externes ne sont chargés qu’en ouvrant l’onglet (perf). */
+    public string $teamTab = 'internal';
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -68,6 +78,11 @@ class Users extends Component
     public function updatedSearchExternal(): void
     {
         $this->resetPage('externalPage');
+    }
+
+    public function setTeamTab(string $tab): void
+    {
+        $this->teamTab = in_array($tab, ['internal', 'external'], true) ? $tab : 'internal';
     }
 
     private function orgId(): int
@@ -110,16 +125,19 @@ class Users extends Component
         $this->resetErrorBag();
         $this->inviteEmail = '';
         $this->inviteRole = OrganizationRole::Member->value;
+        $this->inviteMethod = 'email';
+        $this->generatedInviteCode = '';
         $this->showInviteModal = true;
     }
 
     public function closeInviteModal(): void
     {
         $this->showInviteModal = false;
+        $this->generatedInviteCode = '';
         $this->resetErrorBag();
     }
 
-    public function sendInvite(): void
+    public function sendInvite(?string $inviteMethodOverride = null): void
     {
         /** @var User|null $authUser */
         $authUser = Auth::user();
@@ -130,18 +148,36 @@ class Users extends Component
         $orgId = $this->orgId();
         abort_if(! $orgId, 403);
 
+        if (in_array($inviteMethodOverride, ['email', 'code'], true)) {
+            $this->inviteMethod = $inviteMethodOverride;
+        }
+
         $allowedRoles = $this->allowedRoleSlugs($orgId);
 
         $validated = $this->validate([
-            'inviteEmail' => ['required', 'email', 'max:255'],
+            'inviteMethod' => ['required', 'in:email,code'],
+            'inviteEmail' => ['nullable', 'email', 'max:255'],
             'inviteRole' => ['required', 'string', 'in:'.implode(',', $allowedRoles)],
         ]);
 
-        $email = Str::lower(trim((string) $validated['inviteEmail']));
+        $method = (string) $validated['inviteMethod'];
+        $email = $method === 'email'
+            ? Str::lower(trim((string) ($validated['inviteEmail'] ?? '')))
+            : null;
         $role = (string) $validated['inviteRole'];
 
+        if ($method === 'email' && empty($email)) {
+            $this->addError('inviteEmail', __('validation.required', ['attribute' => __('pages.team.email')]));
+
+            return;
+        }
+
         // Check if user is already a member
-        $existingUser = User::query()->where('email', $email)->first();
+        $existingUser = null;
+        if ($email) {
+            $existingUser = User::query()->where('email', $email)->first();
+        }
+
         if ($existingUser) {
             $alreadyMember = OrganizationMembership::query()
                 ->where('organization_id', $orgId)
@@ -156,12 +192,15 @@ class Users extends Component
         }
 
         // Check if a pending invitation already exists
-        $existingInvitation = OrganizationInvitation::query()
-            ->where('organization_id', $orgId)
-            ->where('email', $email)
-            ->where('status', 'pending')
-            ->where('expires_at', '>', now())
-            ->exists();
+        $existingInvitation = false;
+        if ($email) {
+            $existingInvitation = OrganizationInvitation::query()
+                ->where('organization_id', $orgId)
+                ->where('email', $email)
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->exists();
+        }
 
         if ($existingInvitation) {
             $this->addError('inviteEmail', __('pages.team.invitation_already_pending'));
@@ -170,17 +209,22 @@ class Users extends Component
         }
 
         // Cancel any old pending invitations for this email+org (expired ones)
-        OrganizationInvitation::query()
-            ->where('organization_id', $orgId)
-            ->where('email', $email)
-            ->where('status', 'pending')
-            ->update(['status' => 'expired']);
+        if ($email) {
+            OrganizationInvitation::query()
+                ->where('organization_id', $orgId)
+                ->where('email', $email)
+                ->where('status', 'pending')
+                ->update(['status' => 'expired']);
+        }
+
+        $inviteCode = $method === 'code' ? $this->createUniqueInvitationCode() : null;
 
         $invitation = OrganizationInvitation::create([
             'organization_id' => $orgId,
             'email' => $email,
             'role' => $role,
             'token' => Str::random(64),
+            'invitation_code' => $inviteCode,
             'invited_by' => (int) $authUser->id,
             'status' => 'pending',
             'expires_at' => now()->addDays(OrganizationInvitation::EXPIRY_DAYS),
@@ -193,30 +237,36 @@ class Users extends Component
             'role' => $role,
         ]);
 
-        $notification = new OrganizationInvitationNotification($invitation, $org);
+        if ($method === 'email') {
+            $notification = new OrganizationInvitationNotification($invitation, $org);
 
-        try {
-            if ($existingUser) {
-                $existingUser->notify($notification);
-                event(new UserNotificationReceived(userId: (int) $existingUser->id, notificationType: 'organization_invitation'));
-            } else {
-                Notification::route('mail', $email)->notify($notification);
+            try {
+                if ($existingUser) {
+                    $existingUser->notify($notification);
+                    event(new UserNotificationReceived(userId: (int) $existingUser->id, notificationType: 'organization_invitation'));
+                } else {
+                    Notification::route('mail', $email)->notify($notification);
+                }
+                $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_sent'));
+            } catch (Throwable $e) {
+                Log::warning('Organization invitation email could not be sent.', [
+                    'email' => $email,
+                    'organization_id' => $orgId,
+                    'exception' => $e->getMessage(),
+                ]);
+                $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_created_email_failed'));
             }
-            $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_sent'));
-        } catch (Throwable $e) {
-            Log::warning('Organization invitation email could not be sent.', [
-                'email' => $email,
-                'organization_id' => $orgId,
-                'exception' => $e->getMessage(),
-            ]);
-            $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_created_email_failed'));
+            $this->showInviteModal = false;
+        } else {
+            $this->generatedInviteCode = (string) $inviteCode;
+            $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_code_created'));
         }
 
-        $this->showInviteModal = false;
         $this->inviteEmail = '';
+        $this->inviteMethod = 'email';
         $this->inviteRole = OrganizationRole::Member->value;
         $this->resetPage();
-        Cache::forget("admin_users_pending_invites:{$orgId}");
+        $this->forgetTeamPageCaches($orgId);
     }
 
     public function resendInvitation(int $invitationId): void
@@ -237,8 +287,17 @@ class Users extends Component
 
         $invitation->update([
             'token' => Str::random(64),
+            'invitation_code' => $invitation->email ? null : $this->createUniqueInvitationCode(),
             'expires_at' => now()->addDays(OrganizationInvitation::EXPIRY_DAYS),
         ]);
+
+        if (! $invitation->email) {
+            $this->generatedInviteCode = (string) $invitation->invitation_code;
+            $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_code_regenerated'));
+            $this->forgetTeamPageCaches($orgId);
+
+            return;
+        }
 
         $org = Cache::remember("org_name:{$orgId}", CacheHelper::TTL_CONFIG, fn () => Organization::query()->find($orgId));
         $notification = new OrganizationInvitationNotification($invitation, $org);
@@ -261,7 +320,18 @@ class Users extends Component
             $this->dispatch('toast', type: 'warning', message: __('pages.team.invitation_resent_email_failed'));
         }
 
-        Cache::forget("admin_users_pending_invites:{$orgId}");
+        $this->forgetTeamPageCaches($orgId);
+    }
+
+    private function createUniqueInvitationCode(): string
+    {
+        do {
+            $code = strtoupper(Str::random(8));
+        } while (OrganizationInvitation::query()
+            ->where('invitation_code', $code)
+            ->exists());
+
+        return $code;
     }
 
     public function cancelInvitation(int $invitationId): void
@@ -286,7 +356,7 @@ class Users extends Component
         ]);
 
         $this->dispatch('toast', type: 'success', message: __('pages.team.invitation_cancelled'));
-        Cache::forget("admin_users_pending_invites:{$orgId}");
+        $this->forgetTeamPageCaches($orgId);
     }
 
     public function updateRole(int $membershipId, string $newRole): void
@@ -424,10 +494,12 @@ class Users extends Component
         $currentRole = $this->currentRole();
         $memberships = $this->membershipsPaginator($orgId);
         $stats = $this->teamStats($orgId);
-        $pendingInvitations = $this->pendingInvitations($orgId);
+        $pendingInvitations = $this->pendingInvitations($orgId, (int) ($stats['pending_invites'] ?? 0));
         $organizationFunctions = $this->organizationFunctions($orgId);
         $roles = $this->organizationRoles($orgId);
-        $externalContacts = $this->externalContacts($orgId);
+        $externalContacts = $this->teamTab === 'external'
+            ? $this->externalContacts($orgId)
+            : $this->emptyExternalPaginator();
 
         return view('livewire.admin.users', [
             'memberships' => $memberships,
@@ -437,6 +509,7 @@ class Users extends Component
             'roles' => $roles,
             'pendingInvitations' => $pendingInvitations,
             'externalContacts' => $externalContacts,
+            'teamTab' => $this->teamTab,
         ]);
     }
 
@@ -457,18 +530,20 @@ class Users extends Component
         $search = trim($this->search);
 
         return OrganizationMembership::query()
-            ->with(['user', 'organizationFunction'])
-            ->where('organization_id', $orgId)
-            ->whereHas('user', fn ($q) => $q->where('status', '!=', 'guest'))
-            ->when($this->role !== '', fn ($q) => $q->where('role', $this->role))
+            ->select('organization_memberships.*')
+            ->join('users', 'users.id', '=', 'organization_memberships.user_id')
+            ->where('organization_memberships.organization_id', $orgId)
+            ->where('users.status', '!=', 'guest')
+            ->when($this->role !== '', fn ($q) => $q->where('organization_memberships.role', $this->role))
             ->when($search !== '', function ($q) use ($search) {
-                $q->whereHas('user', function ($u) use ($search) {
-                    $u->where('name', 'ilike', "%{$search}%")
-                        ->orWhere('email', 'ilike', "%{$search}%");
+                $q->where(function ($q) use ($search) {
+                    $q->where('users.name', 'ilike', "%{$search}%")
+                        ->orWhere('users.email', 'ilike', "%{$search}%");
                 });
             })
-            ->orderByRaw("case role when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 else 3 end")
-            ->orderByDesc('created_at')
+            ->with(['user', 'organizationFunction'])
+            ->orderByRaw("case organization_memberships.role when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 else 3 end")
+            ->orderByDesc('organization_memberships.created_at')
             ->paginate($this->perPage);
     }
 
@@ -476,18 +551,26 @@ class Users extends Component
     {
         return Cache::remember("admin_users_stats:{$orgId}", 120, function () use ($orgId) {
             $statsRow = OrganizationMembership::query()
-                ->where('organization_id', $orgId)
-                ->whereHas('user', fn ($q) => $q->where('status', '!=', 'guest'))
+                ->join('users', 'users.id', '=', 'organization_memberships.user_id')
+                ->where('organization_memberships.organization_id', $orgId)
+                ->where('users.status', '!=', 'guest')
                 ->selectRaw('count(*) as total')
-                ->selectRaw("count(*) filter (where role = 'owner') as owners")
-                ->selectRaw("count(*) filter (where role = 'admin') as admins")
-                ->selectRaw("count(*) filter (where role = 'agent') as agents")
-                ->selectRaw("count(*) filter (where role = 'member') as members")
+                ->selectRaw("count(*) filter (where organization_memberships.role = 'owner') as owners")
+                ->selectRaw("count(*) filter (where organization_memberships.role = 'admin') as admins")
+                ->selectRaw("count(*) filter (where organization_memberships.role = 'agent') as agents")
+                ->selectRaw("count(*) filter (where organization_memberships.role = 'member') as members")
                 ->first();
 
             $externalCount = OrganizationMembership::query()
+                ->join('users', 'users.id', '=', 'organization_memberships.user_id')
+                ->where('organization_memberships.organization_id', $orgId)
+                ->where('users.status', 'guest')
+                ->count();
+
+            $pendingInvites = OrganizationInvitation::query()
                 ->where('organization_id', $orgId)
-                ->whereHas('user', fn ($q) => $q->where('status', 'guest'))
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
                 ->count();
 
             return [
@@ -497,12 +580,20 @@ class Users extends Component
                 'agents' => (int) ($statsRow?->agents ?? 0),
                 'members' => (int) ($statsRow?->members ?? 0),
                 'external' => $externalCount,
+                'pending_invites' => $pendingInvites,
             ];
         });
     }
 
-    private function pendingInvitations(int $orgId)
+    /**
+     * @param  int  $pendingCount  depuis teamStats (évite une requête si 0)
+     */
+    private function pendingInvitations(int $orgId, int $pendingCount): EloquentCollection
     {
+        if ($pendingCount === 0) {
+            return new EloquentCollection;
+        }
+
         return Cache::remember("admin_users_pending_invites:{$orgId}", 60, function () use ($orgId) {
             return OrganizationInvitation::query()
                 ->with('inviter')
@@ -514,21 +605,43 @@ class Users extends Component
         });
     }
 
+    private function emptyExternalPaginator(): LengthAwarePaginator
+    {
+        return new LengthAwarePaginator(
+            [],
+            0,
+            $this->perPage,
+            Paginator::resolveCurrentPage('externalPage', 1),
+            [
+                'path' => Paginator::resolveCurrentPath(),
+                'pageName' => 'externalPage',
+            ]
+        );
+    }
+
+    private function forgetTeamPageCaches(int $orgId): void
+    {
+        Cache::forget("admin_users_pending_invites:{$orgId}");
+        Cache::forget("admin_users_stats:{$orgId}");
+    }
+
     private function externalContacts(int $orgId)
     {
         $search = trim($this->searchExternal);
 
         return OrganizationMembership::query()
-            ->with('user')
-            ->where('organization_id', $orgId)
-            ->whereHas('user', fn ($q) => $q->where('status', 'guest'))
+            ->select('organization_memberships.*')
+            ->join('users', 'users.id', '=', 'organization_memberships.user_id')
+            ->where('organization_memberships.organization_id', $orgId)
+            ->where('users.status', 'guest')
             ->when($search !== '', function ($q) use ($search) {
-                $q->whereHas('user', function ($u) use ($search) {
-                    $u->where('name', 'ilike', "%{$search}%")
-                        ->orWhere('email', 'ilike', "%{$search}%");
+                $q->where(function ($q) use ($search) {
+                    $q->where('users.name', 'ilike', "%{$search}%")
+                        ->orWhere('users.email', 'ilike', "%{$search}%");
                 });
             })
-            ->orderByDesc('created_at')
+            ->with('user')
+            ->orderByDesc('organization_memberships.created_at')
             ->paginate($this->perPage, ['*'], 'externalPage');
     }
 

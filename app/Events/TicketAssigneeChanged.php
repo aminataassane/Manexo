@@ -3,10 +3,10 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 
-class TicketAssigneeChanged implements ShouldBroadcast
+class TicketAssigneeChanged implements ShouldBroadcastNow
 {
     use Dispatchable;
 
@@ -26,8 +26,8 @@ class TicketAssigneeChanged implements ShouldBroadcast
             : $this->ticketId;
 
         return [
-            new PrivateChannel('ticket.' . $ticketChannel),
-            new PrivateChannel('App.Models.User.' . $this->affectedUserId),
+            new PrivateChannel('ticket.'.$ticketChannel),
+            new PrivateChannel('App.Models.User.'.$this->affectedUserId),
         ];
     }
 

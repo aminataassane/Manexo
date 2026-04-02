@@ -1,0 +1,1 @@
+kb-suggestions-wrapper<?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/b402cd6770035d9f72092d47e9d1038c.blade.php ENDPATH**/ ?>

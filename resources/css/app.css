@@ -357,6 +357,19 @@
         }
     }
 
+    /*
+     * Discussions: la page vit dans .manexo-content-wrap (max-width ~92vw), ce qui laisse
+     * des marges visibles sur grand écran. On élargit le wrap uniquement quand il contient
+     * la messagerie, pour utiliser toute la colonne principale (les marges négatives du
+     * full-bleed compensent alors le padding horizontal de .page-content-safe).
+     */
+    .page-content-safe:has(.messaging-full-bleed) > .manexo-content-wrap {
+        max-width: none;
+        width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+    }
+
     /* Messaging full-bleed: annule padding page-content-safe (y compris bottom) */
     .messaging-full-bleed {
         margin-left: calc(-1 * (var(--manexo-page-px) + env(safe-area-inset-left, 0px)));
@@ -502,6 +515,23 @@
         margin-right: calc(-1 * (var(--manexo-page-px) + env(safe-area-inset-right, 0px)));
         margin-top: calc(-1 * clamp(1rem, 0.45rem + 1.5vw, 2.5rem));
         max-width: none !important;
+        /* Hauteur zone builder sous la barre app (~3.5rem) + marge iOS home indicator */
+        height: calc(100dvh - 3.5rem - env(safe-area-inset-bottom, 0px));
+        min-height: 0;
+    }
+    @media (min-width: 640px) {
+        .builder-full-bleed {
+            height: calc(100dvh - 4rem - env(safe-area-inset-bottom, 0px));
+        }
+    }
+
+    /* Onglets / barres scrollables sans barre visible agressive (mobile) */
+    .builder-tabs-scroll {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .builder-tabs-scroll::-webkit-scrollbar {
+        display: none;
     }
 
     /* Largeurs latérales = variables (voir :root --fb-*); min-w-0 évite le débordement flex */
@@ -513,17 +543,6 @@
     .fb-sidebar-properties {
         width: var(--fb-properties-width);
         min-width: 0;
-    }
-
-    /* Drawers tablette/mobile : même échelle que le desktop, plafonné à la largeur écran */
-    .fb-drawer-palette {
-        width: min(92vw, var(--fb-palette-width));
-        max-width: 17rem;
-    }
-
-    .fb-drawer-properties {
-        width: min(92vw, var(--fb-properties-width));
-        max-width: 20.5rem;
     }
 
     /* SaaS-style input for builder panels — refined */
@@ -549,8 +568,13 @@
     .canvas-grid {
         display: grid;
         grid-template-columns: repeat(6, 1fr);
-        gap: 1rem 1.25rem;
+        gap: 0.75rem 1rem;
         align-items: start;
+    }
+    @media (min-width: 640px) {
+        .canvas-grid {
+            gap: 1rem 1.25rem;
+        }
     }
     .canvas-field-full  { grid-column: span 6; }
     .canvas-field-half  { grid-column: span 3; }
@@ -837,6 +861,40 @@
         border-color: #e2e8f0;
         box-shadow: 0 4px 12px -4px rgba(0,0,0,0.06);
     }
+
+    /* Indeterminate progress under Kanban header (Livewire loading) */
+    .manexo-kanban-progress-indeterminate {
+        position: relative;
+        overflow: hidden;
+    }
+    .manexo-kanban-progress-indeterminate::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 42%;
+        border-radius: 9999px;
+        background: var(--accent, #005f02);
+        opacity: 0.92;
+        animation: manexo-kanban-indeterminate 1.05s ease-in-out infinite;
+    }
+    @keyframes manexo-kanban-indeterminate {
+        0% {
+            transform: translateX(-105%);
+        }
+        100% {
+            transform: translateX(260%);
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .manexo-kanban-progress-indeterminate::after {
+            animation: none;
+            left: 29%;
+            width: 42%;
+            transform: none;
+        }
+    }
 }
 
 /* Responsive utilities: touch targets, scroll containers, safe areas */
@@ -877,6 +935,32 @@
     }
     .scrollbar-x-subtle:hover::-webkit-scrollbar-thumb {
         background-color: rgba(100, 116, 139, 0.45);
+    }
+
+    /* Zones overflow : piste discrète ; plus fine sur mobile (< sm) */
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #e2e8f0 transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #e2e8f0;
+        border-radius: 999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: #cbd5e1;
+    }
+    @media (max-width: 639px) {
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 3px;
+            height: 3px;
+        }
     }
 
     /* Builder viewport height (below topbar) */

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ __($title ?? 'super_admin.title') }} — Platform Admin</title>
+    <title>{{ __(is_string($title ?? null) ? $title : 'super_admin.title') }} — Platform Admin</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/Logo(1).png') }}">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -24,10 +24,6 @@
         }
         [x-cloak] { display: none !important; }
         html { overflow-x: hidden; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #E2E8F0; border-radius: 999px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #CBD5E1; }
         @keyframes subtleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .animate-enter { animation: subtleFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         ::selection { background: #F2E3BB; color: #005F02; }
@@ -115,7 +111,7 @@
     class="manexo-fluid-root flex h-screen w-full min-h-0 overflow-hidden bg-slate-50 text-slate-900"
     data-echo-enabled="1"
     x-data="{ sidebarOpen: true, mobileOpen: false }"
-    x-init="sidebarOpen = (localStorage.getItem('sa_sidebar') !== 'false'); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)')"
+    x-init="sidebarOpen = (localStorage.getItem('sa_sidebar') !== 'false'); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)'); document.addEventListener('livewire:navigated', () => { mobileOpen = false })"
     x-effect="localStorage.setItem('sa_sidebar', sidebarOpen); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)')"
 >
     <div class="pointer-events-none fixed inset-0 -z-10 bg-slate-50"></div>

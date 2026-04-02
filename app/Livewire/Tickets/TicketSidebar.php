@@ -1125,7 +1125,7 @@ class TicketSidebar extends Component
     private function sidebarCachedOrganizationData(int $orgId, Ticket $ticket): array
     {
         $orgUsers = cache()->remember(CacheHelper::membersKey($orgId), CacheHelper::TTL, fn () => User::query()->whereHas('organizations', fn ($q) => $q->where('organization_id', $orgId))->orderBy('name')->limit(300)->get(['id', 'name', 'email', 'mention_tag']));
-        $staffUsers = cache()->remember("staff_users:{$orgId}", CacheHelper::TTL, fn () => User::query()->assignableInOrganization($orgId)->orderBy('name')->get(['id', 'name', 'email']));
+        $staffUsers = cache()->remember(CacheHelper::staffUsersKey($orgId), CacheHelper::TTL, fn () => User::query()->assignableInOrganization($orgId)->orderBy('name')->get(['id', 'name', 'email']));
         $orgPriorities = cache()->remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, fn () => TicketPriority::where('organization_id', $orgId)->where('is_active', true)->orderBy('level')->get(['id', 'name', 'level']));
         $ticketGroups = cache()->remember(CacheHelper::ticketGroupsKey($orgId, true), CacheHelper::TTL, fn () => TicketGroup::where('organization_id', $orgId)->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'color']));
         $organizationFunctions = cache()->remember(CacheHelper::orgFunctionsKey($orgId), CacheHelper::TTL, fn () => OrganizationFunction::query()->where('organization_id', $orgId)->orderBy('sort_order')->orderBy('name')->get(['id', 'name']));

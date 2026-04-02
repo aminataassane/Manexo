@@ -17,20 +17,6 @@
             font-variation-settings: "wdth" 100;
         }
 
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #E5E7EB;
-            border-radius: 20px;
-        }
-
         /* Animations */
         .fade-in-up {
             animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;

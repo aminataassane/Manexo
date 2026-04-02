@@ -417,7 +417,7 @@ class Index extends Component
             return;
         }
         $this->displayMode = $nextMode;
-        $this->resetPage();
+        // Avoid resetPage() here: switching list ↔ kanban should not force a list refetch or lose the current page.
     }
 
     public function moveTicket(int $ticketId, string $status): void
@@ -693,7 +693,7 @@ class Index extends Component
             : collect();
 
         $assignees = ($org && $orgId)
-            ? Cache::remember("assignable_users:{$orgId}", CacheHelper::TTL, function () use ($orgId) {
+            ? Cache::remember(CacheHelper::ticketAssignableUsersKey($orgId), CacheHelper::TTL, function () use ($orgId) {
                 return User::query()->assignableInOrganization($orgId)->orderBy('name')->get(['id', 'name']);
             })
             : collect();
@@ -722,8 +722,9 @@ class Index extends Component
                     : ' and (t2.created_by = ? or exists (select 1 from ticket_assignees ta2 where ta2.ticket_id = t2.id and ta2.user_id = ?) or exists (select 1 from ticket_participants tp2 where tp2.ticket_id = t2.id and tp2.user_id = ?))';
                 $archivedBindings = $isStaff ? [$orgId] : [$orgId, $user->id, $user->id, $user->id];
 
+                // No join on ticket_priorities here — avoids row duplication and keeps status counts
+                // aligned with the Kanban board (single row per ticket).
                 $q = Ticket::query()
-                    ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
                     ->where('tickets.organization_id', $orgId)
                     ->whereNull('tickets.archived_at')
                     ->when(! $isStaff, fn ($q) => $q->where(function ($sub) use ($user) {
@@ -743,7 +744,7 @@ class Index extends Component
                     ->selectRaw('count(*) filter (where tickets.created_by = ?) as created_by_me_count', [$user->id])
                     ->selectRaw('count(*) filter (where exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id and ticket_assignees.user_id = ?) or exists (select 1 from ticket_participants where ticket_participants.ticket_id = tickets.id and ticket_participants.user_id = ?)) as assigned_to_me_count', [$user->id, $user->id])
                     ->selectRaw("count(*) filter (where tickets.status in ('open','in_progress','pending') and tickets.updated_at < ?) as past_due_count", [Carbon::now()->subDays(7)])
-                    ->selectRaw('count(*) filter (where tp.level >= 3) as high_priority_count')
+                    ->selectRaw('count(*) filter (where exists (select 1 from ticket_priorities tp_hp where tp_hp.id = tickets.ticket_priority_id and tp_hp.level >= 3)) as high_priority_count')
                     ->selectRaw('count(*) filter (where not exists (select 1 from ticket_assignees where ticket_assignees.ticket_id = tickets.id)) as unassigned_count')
                     // Source counts
                     ->selectRaw('count(*) filter (where exists (select 1 from form_responses fr where fr.ticket_id = tickets.id)) as from_form_count')
@@ -911,13 +912,12 @@ class Index extends Component
         $baseQuery = $this->buildTicketIndexQuery($user, $orgId, $isStaff, $viewKey);
 
         if ($showKanban) {
-            $kanbanCacheKey = sprintf(
-                'tickets:kanban:%d:%d:%s',
+            $kanbanCacheKey = CacheHelper::kanbanTicketsKey(
                 $orgId,
                 (int) ($user?->id ?? 0),
-                md5($this->filterStateHash($viewKey))
+                md5($this->kanbanCacheFingerprint($viewKey))
             );
-            $kanbanTickets = Cache::remember($kanbanCacheKey, 60, fn () => $this->buildKanbanTicketsPerStatus($baseQuery, $statusColumns));
+            $kanbanTickets = Cache::remember($kanbanCacheKey, 120, fn () => $this->buildKanbanTicketsPerStatus($baseQuery, $statusColumns));
             $tickets = new LengthAwarePaginator(
                 [],
                 0,
@@ -935,11 +935,11 @@ class Index extends Component
         return compact('tickets', 'kanbanTickets', 'statusColumns');
     }
 
-    private function filterStateHash(string $viewKey): string
+    /** Fingerprint for Kanban payload cache (independent of list pagination and display mode). */
+    private function kanbanCacheFingerprint(string $viewKey): string
     {
         return implode(':', [
             $this->box,
-            $this->displayMode,
             $viewKey,
             trim($this->search),
             $this->status,
@@ -950,7 +950,6 @@ class Index extends Component
             $this->dateFrom,
             $this->dateTo,
             trim($this->messageSearch),
-            (string) $this->perPage,
         ]);
     }
 
@@ -1060,19 +1059,59 @@ class Index extends Component
     }
 
     /**
-     * One query per status column (up to KANBAN_PER_COLUMN rows each), same filters as the list.
+     * Kanban columns: one UNION ALL round-trip (up to KANBAN_PER_COLUMN rows per status), same filters as the list.
+     * Eager loads are applied once after fetch to avoid N× duplicate work.
      *
      * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\Ticket>  $baseQuery
+     * @return array<string, \Illuminate\Support\Collection<int, \App\Models\Ticket>>
      */
     private function buildKanbanTicketsPerStatus($baseQuery, array $statusColumns): array
     {
-        $kanbanTickets = [];
+        $empty = [];
         foreach ($statusColumns as $status) {
-            $kanbanTickets[$status] = (clone $baseQuery)
+            $empty[$status] = collect();
+        }
+        if ($statusColumns === []) {
+            return $empty;
+        }
+
+        $first = true;
+        $union = null;
+        foreach ($statusColumns as $status) {
+            $branch = (clone $baseQuery)
+                ->withoutEagerLoads()
                 ->where('tickets.status', $status)
                 ->orderByDesc('tickets.updated_at')
-                ->limit(self::KANBAN_PER_COLUMN)
-                ->get();
+                ->limit(self::KANBAN_PER_COLUMN);
+            if ($first) {
+                $union = $branch;
+                $first = false;
+            } else {
+                $union->unionAll($branch);
+            }
+        }
+
+        $all = $union->get();
+        if ($all->isEmpty()) {
+            return $empty;
+        }
+
+        $all->loadMissing([
+            'category:id,name',
+            'priority:id,name,level',
+            'group:id,name,color',
+            'creator:id,name',
+            'assignees:id,name',
+            'formResponse',
+        ]);
+
+        $grouped = $all->groupBy(fn (Ticket $t) => $t->status->value);
+
+        $kanbanTickets = [];
+        foreach ($statusColumns as $status) {
+            $kanbanTickets[$status] = ($grouped->get($status, collect()))
+                ->sortByDesc('updated_at')
+                ->values();
         }
 
         return $kanbanTickets;

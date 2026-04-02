@@ -14,6 +14,7 @@ use App\Notifications\TicketNewMessageNotification;
 use App\Services\SlaService;
 use App\Services\WebhookService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -67,10 +68,24 @@ class TicketComposer extends Component
         }
 
         $user = Auth::user();
-        if (! $user) {
+        if (! $user instanceof User) {
             abort(403);
         }
 
+        $sendLock = Cache::lock('ticket:composer:send:'.$this->ticketId.':'.$user->id, 15);
+        if (! $sendLock->get()) {
+            return;
+        }
+
+        try {
+            $this->persistTicketMessage($user);
+        } finally {
+            $sendLock->release();
+        }
+    }
+
+    private function persistTicketMessage(User $user): void
+    {
         $ticket = $this->getTicket();
 
         if (! $ticket->hasDiscussionAccess((int) $user->id)) {
@@ -264,6 +279,7 @@ class TicketComposer extends Component
             $partLower = mb_strtolower($part);
             if (preg_match('/^[\p{L}\p{N}_]+$/u', $part) && isset($tagToId[$partLower])) {
                 $resolvedIds[] = $tagToId[$partLower];
+
                 continue;
             }
 

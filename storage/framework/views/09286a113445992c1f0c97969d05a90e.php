@@ -1,0 +1,14 @@
+<div class="rounded-xl sm:rounded-2xl bg-white p-4 sm:p-6 shadow-sm border border-slate-100">
+    <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-4 sm:mb-6"><?php echo e(__('pages.dashboard.recent_activity')); ?></h3>
+    <div class="relative pl-4 space-y-6 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_4 = true; $__currentLoopData = $this->recentActivity; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $a): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_4 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+            <a href="<?php echo e($a->url); ?>" class="relative pl-6 block group" wire:navigate>
+                <div class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white shadow-sm group-hover:scale-110 transition-transform" style="background-color: var(--accent);"></div>
+                <p class="text-sm font-medium text-slate-900 group-hover:text-[var(--accent)] truncate" title="<?php echo e($a->subject); ?>"><?php echo e($a->subject); ?></p>
+                <p class="text-xs text-slate-500 mt-0.5"><?php echo e($a->created_at->diffForHumans()); ?> <?php echo e(__('pages.dashboard.by')); ?> <span class="font-medium text-slate-700"><?php echo e($a->user_name); ?></span></p>
+            </a>
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_4): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+            <p class="text-sm text-slate-500 py-2"><?php echo e(__('pages.dashboard.no_recent_activity')); ?></p>
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+    </div>
+</div><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\resources\views\livewire\dashboard\recent-activity-panel.blade.php ENDPATH**/ ?>

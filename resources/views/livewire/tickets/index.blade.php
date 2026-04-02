@@ -67,15 +67,29 @@
         <div class="page-actions">
             {{-- View toggle (list / kanban) --}}
             @if($boxKey !== 'trash')
-                <div class="view-toggle">
-                    <button type="button" wire:click="setDisplayMode('list')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
-                        class="view-toggle-btn {{ ($displayMode ?? 'list') === 'list' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">
-                        <iconify-icon icon="solar:list-bold" width="16"></iconify-icon>
-                    </button>
-                    <button type="button" wire:click="setDisplayMode('kanban')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
-                        class="view-toggle-btn {{ ($displayMode ?? 'list') === 'kanban' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">
-                        <iconify-icon icon="solar:widget-4-bold" width="16"></iconify-icon>
-                    </button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="view-toggle shrink-0">
+                        <button type="button" wire:click="setDisplayMode('list')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
+                            class="view-toggle-btn {{ ($displayMode ?? 'list') === 'list' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">
+                            <iconify-icon icon="solar:list-bold" width="16"></iconify-icon>
+                        </button>
+                        <button type="button" wire:click="setDisplayMode('kanban')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
+                            class="view-toggle-btn {{ ($displayMode ?? 'list') === 'kanban' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">
+                            <iconify-icon icon="solar:widget-4-bold" width="16"></iconify-icon>
+                        </button>
+                    </div>
+                    <div
+                        wire:loading.flex
+                        wire:target="setDisplayMode"
+                        class="items-center gap-2 rounded-lg border border-[color:color-mix(in_srgb,var(--accent)_25%,#e2e8f0)] bg-[color:color-mix(in_srgb,var(--accent)_8%,white)] px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span class="relative flex h-4 w-4 shrink-0">
+                            <span class="absolute inset-0 rounded-full border-2 border-[color:color-mix(in_srgb,var(--accent)_35%,#e2e8f0)] border-t-[color:var(--accent)] animate-spin"></span>
+                        </span>
+                        <span>{{ __('pages.tickets.view_switch_loading') }}…</span>
+                    </div>
                 </div>
             @endif
 
@@ -95,7 +109,7 @@
             </button>
 
             {{-- New ticket --}}
-            <a href="{{ route('tickets.create') }}" wire:navigate
+            <a href="{{ route('tickets.create') }}" wire:navigate.hover
                class="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 sm:px-4 text-sm font-semibold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0"
                style="background-color: var(--accent);">
                 <iconify-icon icon="solar:add-circle-bold" width="18"></iconify-icon>
@@ -103,6 +117,17 @@
             </a>
         </div>
     </div>
+
+    @if($boxKey !== 'trash')
+        <div
+            wire:loading.block
+            wire:target="setDisplayMode"
+            class="mb-5 sm:mb-6 h-1 w-full overflow-hidden rounded-full bg-slate-200/90"
+            aria-hidden="true"
+        >
+            <div class="manexo-kanban-progress-indeterminate h-full w-full rounded-full"></div>
+        </div>
+    @endif
 
     {{-- ═══ GROUP CONTEXT BAR ═══ --}}
     @if(($activeGroup ?? null) || ($group ?? '') === 'none')
@@ -356,20 +381,84 @@
         <div class="flex-1 min-w-0">
 
             @if(($loadStage ?? 0) >= 2)
+            <div class="relative min-h-[min(420px,58vh)]">
+                {{-- Liste → Kanban : le bloc Kanban n’existe pas encore ; overlay couvre la zone principale --}}
+                <div
+                    wire:loading.flex
+                    wire:target="setDisplayMode"
+                    class="absolute inset-0 z-40 flex-col items-center justify-center gap-3 rounded-2xl bg-white/88 p-6 backdrop-blur-sm"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                >
+                    <div class="flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-slate-200/90 bg-white px-8 py-7 text-center shadow-xl ring-1 ring-slate-900/[0.04]">
+                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:color-mix(in_srgb,var(--accent)_12%,white)] text-[color:var(--accent)]">
+                            <iconify-icon icon="solar:widget-4-bold-duotone" width="36" class="animate-pulse"></iconify-icon>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-[15px] font-bold text-slate-900">{{ __('pages.tickets.view_switch_loading') }}</p>
+                            <p class="text-sm text-slate-500 leading-snug">{{ __('pages.tickets.view_switch_loading_hint') }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div wire:loading.class="pointer-events-none opacity-45" wire:target="setDisplayMode" class="transition-opacity duration-200">
 
             @if (($displayMode ?? 'list') === 'kanban' && $boxKey !== 'trash')
                 {{-- ═══ KANBAN VIEW ═══ --}}
-                <div class="content-card h-[calc(100vh-14rem)] sm:h-[calc(100vh-12rem)] min-h-[400px] flex flex-col">
+                @php
+                    $kanbanLoadingTargets = 'moveTicket,setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters';
+                @endphp
+                <div class="content-card h-[calc(100vh-14rem)] sm:h-[calc(100vh-12rem)] min-h-[400px] flex flex-col overflow-hidden">
                     <div class="shrink-0 p-3 sm:p-4 border-b border-slate-100/80 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-slate-50/30">
-                        <h2 class="text-sm font-bold text-slate-900">{{ __('pages.tickets.kanban_board') }}</h2>
+                        <div class="flex flex-col gap-1 min-w-0 sm:flex-row sm:items-center sm:gap-4">
+                            <h2 class="text-sm font-bold text-slate-900">{{ __('pages.tickets.kanban_board') }}</h2>
+                            {{-- Visible loading strip in the header row (no need to hunt below) --}}
+                            <div
+                                wire:loading.flex
+                                wire:target="{{ $kanbanLoadingTargets }}"
+                                class="items-center gap-2 rounded-lg border border-[color:color-mix(in_srgb,var(--accent)_25%,#e2e8f0)] bg-[color:color-mix(in_srgb,var(--accent)_8%,white)] px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <span class="relative flex h-4 w-4 shrink-0">
+                                    <span class="absolute inset-0 rounded-full border-2 border-[color:color-mix(in_srgb,var(--accent)_35%,#e2e8f0)] border-t-[color:var(--accent)] animate-spin"></span>
+                                </span>
+                                <span>{{ __('pages.tickets.kanban_updating') }}…</span>
+                            </div>
+                        </div>
                         <div class="text-xs text-slate-400 hidden sm:block">{{ __('pages.tickets.drag_to_change_status') }}</div>
                     </div>
-                    <div wire:loading.flex wire:target="moveTicket,setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters" class="shrink-0 px-4 py-2 text-xs text-slate-500 items-center gap-2 border-b border-slate-50 bg-white/70">
-                        <iconify-icon icon="solar:refresh-linear" width="14" class="animate-spin"></iconify-icon>
-                        {{ __('Chargement...') }}
+                    {{-- Full-width activity bar under header --}}
+                    <div
+                        wire:loading.block
+                        wire:target="{{ $kanbanLoadingTargets }}"
+                        class="h-1 w-full shrink-0 overflow-hidden bg-slate-200/90"
+                        aria-hidden="true"
+                    >
+                        <div class="manexo-kanban-progress-indeterminate h-full w-full"></div>
                     </div>
-                    <div class="flex-1 min-h-0 min-w-0 p-3 sm:p-4 overflow-x-auto overflow-y-hidden custom-scrollbar scroll-touch">
-                        <div wire:loading.class="opacity-60 pointer-events-none" wire:target="moveTicket,setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters" class="flex gap-3 sm:gap-4 h-full min-w-max pb-2 transition-opacity duration-150">
+                    <div class="flex-1 min-h-0 min-w-0 relative">
+                        {{-- Center overlay: obvious feedback on the board itself --}}
+                        <div
+                            wire:loading.flex
+                            wire:target="{{ $kanbanLoadingTargets }}"
+                            class="absolute inset-0 z-30 flex-col items-center justify-center gap-2 bg-white/85 p-6 backdrop-blur-sm"
+                            role="status"
+                            aria-live="polite"
+                            aria-busy="true"
+                        >
+                            <div class="flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-slate-200/90 bg-white px-8 py-7 text-center shadow-xl ring-1 ring-slate-900/[0.04]">
+                                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:color-mix(in_srgb,var(--accent)_12%,white)] text-[color:var(--accent)]">
+                                    <iconify-icon icon="solar:refresh-circle-bold-duotone" width="36" class="animate-spin"></iconify-icon>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[15px] font-bold text-slate-900">{{ __('pages.tickets.kanban_updating') }}</p>
+                                    <p class="text-sm text-slate-500 leading-snug">{{ __('pages.tickets.kanban_updating_hint') }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute inset-0 overflow-x-auto overflow-y-hidden custom-scrollbar scroll-touch p-3 sm:p-4">
+                            <div wire:loading.class="opacity-50 pointer-events-none" wire:target="{{ $kanbanLoadingTargets }}" class="flex gap-3 sm:gap-4 h-full min-w-max pb-2 transition-opacity duration-200">
                             @foreach (($statusColumns ?? []) as $colStatus)
                                 @php
                                     [$colLabel, $colIcon] = $statusLabel($colStatus);
@@ -385,19 +474,20 @@
                                         </span>
                                         <span class="text-xs font-bold text-slate-300">{{ count($cards) }}</span>
                                     </div>
-                                    <div class="p-2.5 space-y-2.5 overflow-y-auto custom-scrollbar flex-1">
+                                    {{-- @dragover.prevent on the scroll area + cards so HTML5 drop works over children (not only the column shell) --}}
+                                    <div class="p-2.5 space-y-2.5 overflow-y-auto custom-scrollbar flex-1" @dragover.prevent>
                                         @forelse ($cards as $t)
                                             @php
                                                 $prio = $priorityMeta($t->priority?->level);
                                                 $prog = $checklistProgress[$t->id] ?? null;
                                                 $pct = $prog && (int) $prog->total > 0 ? (int) round(100 * (int) $prog->done / (int) $prog->total) : null;
                                             @endphp
-                                            <div x-data="{ dragging: false }"
+                                            {{-- No nested x-data here: Alpine $root must be the page root with dragId (nested x-data made $root = card, so dragId never reached the drop handler). --}}
+                                            <div
                                                 class="kanban-card group"
                                                 draggable="true"
-                                                @mousedown="dragging = false"
-                                                @mousemove="dragging = true"
-                                                @click="if (!dragging) Livewire.navigate('{{ $t->public_id ? url('/tickets/' . e($t->public_id)) : '#' }}')"
+                                                @dragover.prevent
+                                                @click="Livewire.navigate('{{ $t->public_id ? url('/tickets/' . e($t->public_id)) : '#' }}')"
                                                 @dragstart="$root.dragId = {{ (int) $t->id }}"
                                                 @dragend="$root.dragId = null">
                                                 <div class="flex justify-between items-start mb-2">
@@ -448,13 +538,14 @@
                                                 </div>
                                             </div>
                                         @empty
-                                            <div class="py-8 text-center text-xs text-slate-300 italic">{{ __('pages.tickets.empty_column') }}</div>
+                                            <div class="py-8 text-center text-xs text-slate-300 italic" @dragover.prevent>{{ __('pages.tickets.empty_column') }}</div>
                                         @endforelse
                                     </div>
                                 </div>
                             @endforeach
                         </div>
                     </div>
+                </div>
                 </div>
             @else
                 {{-- ═══ LIST VIEW ═══ --}}
@@ -676,6 +767,8 @@
                     @endif
                 </div>
             @endif
+                </div>
+            </div>
 
             @else
             {{-- Skeleton --}}

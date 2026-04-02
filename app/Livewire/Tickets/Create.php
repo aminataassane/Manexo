@@ -184,13 +184,8 @@ class Create extends Component
         $this->canAssignAtCreate = $user->hasPermission(Permission::TicketsAssign);
 
         // Set defaults once at mount (avoid mutating state during render).
-        $categories = Cache::remember(CacheHelper::categoriesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
-            return TicketCategory::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'default_ticket_group_id']);
-        });
+        $data = $this->bootstrapCreateTicketPage($orgId, $this->canAssignAtCreate);
+        $categories = $data['categories'];
         if ($this->ticket_category_id === null && $categories->isNotEmpty()) {
             $this->ticket_category_id = (int) $categories->first()->id;
             $defaultGroupId = $categories->first()->default_ticket_group_id ?? null;
@@ -199,13 +194,7 @@ class Create extends Component
             }
         }
 
-        $priorities = Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
-            return TicketPriority::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderBy('level')
-                ->get(['id']);
-        });
+        $priorities = $data['priorities'];
         if ($this->ticket_priority_id === null && $priorities->isNotEmpty()) {
             $this->ticket_priority_id = (int) $priorities->first()->id;
         }
@@ -224,13 +213,7 @@ class Create extends Component
             return;
         }
 
-        $categories = Cache::remember(CacheHelper::categoriesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
-            return TicketCategory::query()
-                ->where('organization_id', $orgId)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'default_ticket_group_id']);
-        });
+        $categories = $this->bootstrapCreateTicketPage($orgId, $this->canAssignAtCreate)['categories'];
         $category = $categories->firstWhere('id', (int) $value);
 
         if ($category && $category->default_ticket_group_id) {
@@ -428,8 +411,8 @@ class Create extends Component
             'subject' => $validated['subject'],
             'description' => $validated['description'],
             'custom_fields' => $customFields ?: null,
-            'start_date' => $validated['start_date'] ?? null,
-            'due_date' => $validated['due_date'] ?? null,
+            'start_date' => ! empty($validated['start_date']) ? $validated['start_date'] : null,
+            'due_date' => ! empty($validated['due_date']) ? $validated['due_date'] : null,
         ]);
 
         SlaService::applyPolicy($ticket);
@@ -522,7 +505,7 @@ class Create extends Component
 
     public function addChecklistItem(): void
     {
-        $this->checklistItems[] = ['title' => '', 'assigned_to' => null, 'due_date' => null];
+        $this->checklistItems[] = ['_key' => uniqid('cl_'), 'title' => '', 'assigned_to' => null, 'due_date' => null];
     }
 
     public function removeChecklistItem(int $index): void
@@ -589,45 +572,18 @@ class Create extends Component
     {
         $orgId = (int) session('current_organization_id');
 
-        $categories = $orgId
-            ? Cache::remember(CacheHelper::categoriesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
-                return TicketCategory::query()
-                    ->where('organization_id', $orgId)
-                    ->where('is_active', true)
-                    ->orderBy('name')
-                    ->get();
-            })
-            : collect();
-
-        $priorities = $orgId
-            ? Cache::remember(CacheHelper::prioritiesKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
-                return TicketPriority::query()
-                    ->where('organization_id', $orgId)
-                    ->where('is_active', true)
-                    ->orderBy('level')
-                    ->get();
-            })
-            : collect();
-
-        $assignees = ($this->canAssignAtCreate && $orgId)
-            ? Cache::remember("create_ticket_assignees_staff:{$orgId}", CacheHelper::TTL, function () use ($orgId) {
-                return User::query()
-                    ->assignableInOrganization($orgId)
-                    ->orderBy('name')
-                    ->get(['id', 'name', 'email']);
-            })
-            : collect();
-
-        $ticketGroups = $orgId
-            ? Cache::remember(CacheHelper::ticketGroupsKey($orgId, true), CacheHelper::TTL, function () use ($orgId) {
-                return TicketGroup::query()
-                    ->where('organization_id', $orgId)
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->get(['id', 'name', 'color']);
-            })
-            : collect();
+        if ($orgId) {
+            $boot = $this->bootstrapCreateTicketPage($orgId, $this->canAssignAtCreate);
+            $categories = $boot['categories'];
+            $priorities = $boot['priorities'];
+            $ticketGroups = $boot['ticketGroups'];
+            $assignees = $boot['assignees'];
+        } else {
+            $categories = collect();
+            $priorities = collect();
+            $ticketGroups = collect();
+            $assignees = collect();
+        }
 
         $userId = (int) (Auth::id() ?: 0);
         $form = ($orgId && $userId && $this->ticket_category_id)
@@ -647,6 +603,52 @@ class Create extends Component
         ]);
     }
 
+    /**
+     * @return array{categories: \Illuminate\Support\Collection, priorities: \Illuminate\Support\Collection, ticketGroups: \Illuminate\Support\Collection, assignees: \Illuminate\Support\Collection}
+     */
+    private function bootstrapCreateTicketPage(int $orgId, bool $canAssign): array
+    {
+        return Cache::remember(
+            CacheHelper::createTicketBootstrapKey($orgId, $canAssign),
+            CacheHelper::TTL,
+            function () use ($orgId, $canAssign) {
+                $categories = TicketCategory::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'default_ticket_group_id']);
+
+                $priorities = TicketPriority::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('level')
+                    ->get(['id', 'name', 'level']);
+
+                $ticketGroups = TicketGroup::query()
+                    ->where('organization_id', $orgId)
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'color', 'sort_order']);
+
+                $assignees = collect();
+                if ($canAssign) {
+                    $assignees = User::query()
+                        ->assignableInOrganization($orgId)
+                        ->orderBy('name')
+                        ->get(['id', 'name', 'email']);
+                }
+
+                return [
+                    'categories' => $categories,
+                    'priorities' => $priorities,
+                    'ticketGroups' => $ticketGroups,
+                    'assignees' => $assignees,
+                ];
+            }
+        );
+    }
+
     private function resolveForm(int $orgId, int $categoryId, int $userId): ?Form
     {
         return Cache::remember(
@@ -655,6 +657,10 @@ class Create extends Component
             function () use ($orgId, $categoryId, $userId) {
                 // Single query with specificity ranking:
                 // 1) category+user, 2) category+public, 3) global+user, 4) global+public.
+                $fieldsSelect = [
+                    'id', 'form_id', 'type', 'label', 'key', 'required', 'sort_order', 'configuration', 'form_version',
+                ];
+
                 $form = Form::query()
                     ->where('organization_id', $orgId)
                     ->where('status', FormStatus::Published)
@@ -675,7 +681,9 @@ class Create extends Component
                         END DESC',
                         [$categoryId, $userId, $categoryId, $userId]
                     )
-                    ->with(['fields'])
+                    ->with([
+                        'fields' => fn ($q) => $q->orderBy('sort_order')->select($fieldsSelect),
+                    ])
                     ->first();
                 if ($form) {
                     return $form;
@@ -688,7 +696,9 @@ class Create extends Component
                         ->where('id', $category->default_form_id)
                         ->where('organization_id', $orgId)
                         ->where('status', FormStatus::Published)
-                        ->with(['fields'])
+                        ->with([
+                            'fields' => fn ($q) => $q->orderBy('sort_order')->select($fieldsSelect),
+                        ])
                         ->first();
                 }
 

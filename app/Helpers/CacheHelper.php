@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Models\OrganizationMembership;
 use App\Models\RoleDefinition;
 use Illuminate\Support\Facades\Cache;
 
@@ -87,11 +88,37 @@ class CacheHelper
         return "org_member_roles:{$orgId}";
     }
 
+    /** Assignable users list for ticket sidebar (versioned for cache bust on query changes). */
+    public static function staffUsersKey(int $orgId): string
+    {
+        return "staff_users:v2:{$orgId}";
+    }
+
+    /** Assignable users for ticket index filters (versioned with staff_users). */
+    public static function ticketAssignableUsersKey(int $orgId): string
+    {
+        return "assignable_users:v2:{$orgId}";
+    }
+
     public static function ticketGroupsKey(int $orgId, bool $activeOnly): string
     {
         $variant = $activeOnly ? 'active' : 'all';
 
         return "ticket_groups:{$orgId}:{$variant}";
+    }
+
+    /**
+     * Page « Créer un ticket » : une seule entrée cache pour catégories, priorités, groupes et (optionnel) staff assignable.
+     */
+    public static function createTicketBootstrapKey(int $orgId, bool $withAssignableStaff): string
+    {
+        return 'create_ticket_bootstrap:v3:'.$orgId.':'.($withAssignableStaff ? '1' : '0');
+    }
+
+    public static function invalidateCreateTicketBootstrap(int $orgId): void
+    {
+        Cache::forget(self::createTicketBootstrapKey($orgId, true));
+        Cache::forget(self::createTicketBootstrapKey($orgId, false));
     }
 
     public static function groupsOverviewKey(int $orgId): string
@@ -134,6 +161,17 @@ class CacheHelper
         $ver = (int) Cache::get("tickets:counts_ver:{$orgId}", 0);
 
         return "tickets:counts:{$orgId}:{$userId}:{$ver}:".($group !== '' ? $group : 'all');
+    }
+
+    /**
+     * Kanban board columns — uses the same tickets:counts_ver as stats so both stay in sync
+     * after invalidateTicketCounts (status change, move, create, etc.).
+     */
+    public static function kanbanTicketsKey(int $orgId, int $userId, string $filterHash): string
+    {
+        $ver = (int) Cache::get("tickets:counts_ver:{$orgId}", 0);
+
+        return "tickets:kanban:{$orgId}:{$userId}:{$filterHash}:v{$ver}";
     }
 
     public static function formsListKey(int $orgId): string
@@ -274,6 +312,7 @@ class CacheHelper
     {
         Cache::forget(self::categoriesKey($orgId, true));
         Cache::forget(self::categoriesKey($orgId, false));
+        self::invalidateCreateTicketBootstrap($orgId);
         self::invalidateSettingsMaintenanceStats($orgId);
     }
 
@@ -281,6 +320,7 @@ class CacheHelper
     {
         Cache::forget(self::prioritiesKey($orgId, true));
         Cache::forget(self::prioritiesKey($orgId, false));
+        self::invalidateCreateTicketBootstrap($orgId);
         self::invalidateSettingsMaintenanceStats($orgId);
     }
 
@@ -289,6 +329,10 @@ class CacheHelper
         Cache::forget(self::membersKey($orgId));
         Cache::forget(self::orgMemberRolesKey($orgId));
         Cache::forget("staff_users:{$orgId}");
+        Cache::forget(self::staffUsersKey($orgId));
+        Cache::forget("assignable_users:{$orgId}");
+        Cache::forget(self::ticketAssignableUsersKey($orgId));
+        self::invalidateCreateTicketBootstrap($orgId);
     }
 
     public static function invalidateOrgFunctions(int $orgId): void
@@ -312,6 +356,7 @@ class CacheHelper
         Cache::forget(self::ticketGroupsKey($orgId, true));
         Cache::forget(self::ticketGroupsKey($orgId, false));
         Cache::forget(self::groupsOverviewKey($orgId));
+        self::invalidateCreateTicketBootstrap($orgId);
     }
 
     public static function invalidateKnowledgeBase(int $orgId): void
@@ -392,11 +437,13 @@ class CacheHelper
     public static function invalidateNotificationsCount(int $userId): void
     {
         Cache::forget(self::notificationsUnreadCountKey($userId));
+        Cache::forget('sidebar_notif_unread:'.$userId);
     }
 
     public static function invalidateSidebarDiscussionsUnread(int $userId): void
     {
         Cache::forget(self::sidebarDiscussionsUnreadKey($userId));
+        Cache::forget('sidebar_disc_unread:'.$userId);
     }
 
     public static function invalidateRolePermissions(int $orgId): void
@@ -410,6 +457,23 @@ class CacheHelper
         foreach ($slugs as $role) {
             Cache::forget(self::rolePermissionsKey($orgId, $role));
         }
+    }
+
+    /**
+     * Invalide les caches d’hydratation de l’organisation utilisés par EnsureOrganizationIsSelected
+     * (sinon primary_color / nom restent obsolètes jusqu’à expiration du TTL, ~5 min).
+     */
+    public static function invalidateOrganizationIdentityCache(int $orgId): void
+    {
+        Cache::forget("sa_org:{$orgId}");
+
+        OrganizationMembership::query()
+            ->where('organization_id', $orgId)
+            ->pluck('user_id')
+            ->unique()
+            ->each(function ($userId) use ($orgId): void {
+                Cache::forget('user_org:'.(int) $userId.':'.$orgId);
+            });
     }
 
     public static function invalidateAll(int $orgId): void
@@ -436,5 +500,6 @@ class CacheHelper
         Cache::forget(self::settingsRoleCountsKey($orgId));
         Cache::forget(self::settingsMembersListKey($orgId));
         Cache::forget(self::settingsMaintenanceStatsKey($orgId));
+        self::invalidateOrganizationIdentityCache($orgId);
     }
 }

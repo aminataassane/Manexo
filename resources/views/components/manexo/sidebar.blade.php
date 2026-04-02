@@ -21,16 +21,22 @@
         \App\Enums\Permission::SettingsDeleteOrg,
     ]);
     $isStaff = $canSeeTeam || $canSeeReports || $canSeeForms || $canSeeSettings;
-    // Nombre de nouveaux messages / invitations pour les discussions (badge sidebar).
+    // Badges sidebar : mêmes clés que CacheHelper (invalidées par la cloche / temps réel).
+    $sidebarUserId = (int) ($authUser?->id ?? 0);
     $discussionsUnreadCount = \Illuminate\Support\Facades\Cache::remember(
-        'sidebar_disc_unread:' . ($authUser?->id ?? 0),
-        60, // 1 minute cache
+        \App\Helpers\CacheHelper::sidebarDiscussionsUnreadKey($sidebarUserId),
+        \App\Helpers\CacheHelper::TTL_SHORT,
         fn () => $authUser?->unreadNotifications()
             ->whereIn('type', [
                 \App\Notifications\DiscussionNewMessageNotification::class,
                 \App\Notifications\DiscussionInviteNotification::class,
             ])
             ->count() ?? 0
+    );
+    $notificationsUnreadCount = \Illuminate\Support\Facades\Cache::remember(
+        \App\Helpers\CacheHelper::notificationsUnreadCountKey($sidebarUserId),
+        \App\Helpers\CacheHelper::TTL_SHORT,
+        fn () => (int) ($authUser?->unreadNotifications()->count() ?? 0)
     );
     // Logo: organisation (URL relative à la requête pour éviter erreur de chargement)
     $logoUrl = $org && $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
@@ -108,9 +114,16 @@
                 path: window.location.pathname,
                 search: window.location.search,
                 ticketsOpen: false,
+                notifUnread: {{ (int) $notificationsUnreadCount }},
+                discUnread: {{ (int) $discussionsUnreadCount }},
                 init() {
                     this.update();
                     document.addEventListener('livewire:navigated', () => this.update());
+                    window.addEventListener('manexo-sidebar-badges', (e) => {
+                        const d = e.detail || {};
+                        if (typeof d.notifications === 'number') this.notifUnread = d.notifications;
+                        if (typeof d.discussions === 'number') this.discUnread = d.discussions;
+                    });
                 },
                 update() {
                     this.path = window.location.pathname;
@@ -218,14 +231,10 @@
             <div x-show="isDiscussions && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
             <span class="relative shrink-0">
                 <iconify-icon icon="solar:chat-round-bold-duotone" width="20" :class="isDiscussions ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
-                @if ($discussionsUnreadCount > 0)
-                    <span x-show="!sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak>{{ $discussionsUnreadCount > 99 ? '99+' : $discussionsUnreadCount }}</span>
-                @endif
+                <span x-show="discUnread > 0 && !sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak x-text="discUnread > 99 ? '99+' : discUnread"></span>
             </span>
             <span x-show="sidebarOpen" class="truncate">{{ __('menu.discussions') }}</span>
-            @if ($discussionsUnreadCount > 0)
-                <span x-show="sidebarOpen" class="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white ring-2 ring-white/20">{{ $discussionsUnreadCount > 99 ? '99+' : $discussionsUnreadCount }}</span>
-            @endif
+            <span x-show="discUnread > 0 && sidebarOpen" class="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white ring-2 ring-white/20" x-text="discUnread > 99 ? '99+' : discUnread"></span>
 
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                 {{ __('menu.discussions') }}
@@ -251,7 +260,7 @@
             </div>
         </a>
 
-        <!-- Base de connaissances -->
+        <!-- {{ __('menu.knowledge_base') }} -->
         <a
             href="{{ route('knowledge-base.index') }}"
             wire:navigate
@@ -263,10 +272,10 @@
         >
             <div x-show="isKnowledgeBase && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
             <iconify-icon icon="solar:book-2-bold-duotone" width="20" :class="isKnowledgeBase ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
-            <span x-show="sidebarOpen" class="truncate">Base de connaissances</span>
+            <span x-show="sidebarOpen" class="truncate">{{ __('menu.knowledge_base') }}</span>
 
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
-                Base de connaissances
+                {{ __('menu.knowledge_base') }}
             </div>
         </a>
 
@@ -291,13 +300,6 @@
         @endif
 
         <!-- Notifications -->
-        @php
-            $notificationsUnreadCount = \Illuminate\Support\Facades\Cache::remember(
-                'sidebar_notif_unread:' . ($authUser?->id ?? 0),
-                60,
-                fn () => $authUser?->unreadNotifications()->count() ?? 0
-            );
-        @endphp
         <a
             href="{{ route('notifications.index') }}"
             wire:navigate
@@ -310,14 +312,10 @@
             <div x-show="isNotifications && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
             <span class="relative shrink-0">
                 <iconify-icon icon="solar:bell-bold-duotone" width="20" :class="isNotifications ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
-                @if ($notificationsUnreadCount > 0)
-                    <span x-show="!sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak>{{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}</span>
-                @endif
+                <span x-show="notifUnread > 0 && !sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak x-text="notifUnread > 99 ? '99+' : notifUnread"></span>
             </span>
             <span x-show="sidebarOpen" class="truncate">{{ __('menu.notifications') }}</span>
-            @if ($notificationsUnreadCount > 0)
-                <span x-show="sidebarOpen" class="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white ring-2 ring-white/20">{{ $notificationsUnreadCount > 99 ? '99+' : $notificationsUnreadCount }}</span>
-            @endif
+            <span x-show="notifUnread > 0 && sidebarOpen" class="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white ring-2 ring-white/20" x-text="notifUnread > 99 ? '99+' : notifUnread"></span>
 
             <div x-show="!sidebarOpen" class="absolute left-full ml-2 hidden rounded-md bg-slate-900 px-2 py-1 text-xs text-white opacity-0 group-hover:block group-hover:opacity-100 z-50 whitespace-nowrap shadow-xl">
                 {{ __('menu.notifications') }}

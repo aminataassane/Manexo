@@ -7,6 +7,7 @@ return [
     'groups_view' => 'Groupes',
     'discussions' => 'Discussions',
     'forms' => 'Formulaires',
+    'knowledge_base' => 'Base de connaissances',
     'notifications' => 'Notifications',
     'administration' => 'Administration',
     'team' => 'Équipe',
@@ -21,4 +22,8 @@ return [
     'french' => 'Français',
     'english' => 'Anglais',
     'powered_by' => 'Propulsé par',
+    'logged_in_as' => 'Connecté en tant que',
+    'my_profile' => 'Mon Profil',
+    'switch_company' => 'Changer d\'entreprise',
+    'logout' => 'Déconnexion',
 ];

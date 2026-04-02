@@ -1,0 +1,1 @@
+thread-<?php echo e($selectedThread->id); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/dfa74e4f7e38e2cb4cb311fe5c66cf8c.blade.php ENDPATH**/ ?>

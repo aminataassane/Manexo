@@ -13,6 +13,37 @@ use Illuminate\Support\Facades\Auth;
 
 class InvitationController extends Controller
 {
+    public function codeForm()
+    {
+        return view('invitations.code');
+    }
+
+    public function processCode(Request $request)
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:16'],
+        ]);
+
+        $code = strtoupper(trim((string) $validated['code']));
+
+        $invitation = OrganizationInvitation::withoutGlobalScope(OrganizationScope::class)
+            ->where('invitation_code', $code)
+            ->where('status', 'pending')
+            ->first();
+
+        if (! $invitation || $invitation->expires_at->isPast()) {
+            if ($invitation && $invitation->expires_at->isPast()) {
+                $invitation->update(['status' => 'expired']);
+            }
+
+            return back()
+                ->withInput()
+                ->withErrors(['code' => __('invitations.invalid_code')]);
+        }
+
+        return redirect()->route('invitations.accept', ['token' => $invitation->token]);
+    }
+
     public function accept(Request $request, string $token)
     {
         // Bypass org scope: invitation acceptance is a public route,
@@ -37,6 +68,28 @@ class InvitationController extends Controller
                 'error' => __('invitations.invalid'),
                 'invitation' => null,
             ]);
+        }
+
+        if (empty($invitation->email)) {
+            /** @var User|null $currentUser */
+            $currentUser = Auth::user();
+            if ($currentUser) {
+                $alreadyMember = OrganizationMembership::where('organization_id', $invitation->organization_id)
+                    ->where('user_id', $currentUser->id)
+                    ->exists();
+                if ($alreadyMember) {
+                    return view('invitations.accept', [
+                        'error' => __('invitations.already_member'),
+                        'invitation' => null,
+                    ]);
+                }
+
+                return $this->acceptInvitation($invitation, $currentUser);
+            }
+
+            session()->put('url.intended', route('invitations.accept', ['token' => $token]));
+
+            return redirect()->route('login');
         }
 
         $existingUser = User::where('email', $invitation->email)->first();
@@ -112,7 +165,11 @@ class InvitationController extends Controller
         /** @var User|null $currentUser */
         $currentUser = Auth::user();
 
-        if (! $currentUser || $currentUser->email !== $invitation->email) {
+        if (! $currentUser) {
+            return redirect()->route('invitations.accept', ['token' => $token]);
+        }
+
+        if (! empty($invitation->email) && $currentUser->email !== $invitation->email) {
             return redirect()->route('invitations.accept', ['token' => $token]);
         }
 

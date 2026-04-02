@@ -77,6 +77,7 @@
                             $messageAttachments = is_array($msg->attachments) ? $msg->attachments : [];
                         @endphp
 
+                        <div wire:key="disc-msg-{{ $msg->id }}" data-discussion-message-id="{{ $msg->id }}">
                         @if($isOwn)
                             <div class="flex justify-end">
                                 <div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0">
@@ -119,6 +120,7 @@
                                 </div>
                             </div>
                         @endif
+                        </div>
                     @empty
                         <div class="py-16 text-center" data-empty-thread>
                             <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full text-slate-300" style="background: var(--accent-soft);">
@@ -134,7 +136,7 @@
             {{-- Composer --}}
             <div class="shrink-0 messaging-composer border-t border-slate-100 p-2 sm:p-3 z-10" data-composer style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));">
                 <div class="mx-auto w-full max-w-3xl">
-                    <form wire:submit="sendMessage" class="flex items-end gap-2 bg-[#F1F5F9]/80 rounded-2xl border border-slate-200 p-1.5 focus-within:ring-2 focus-within:ring-[var(--accent)]/30 focus-within:border-[var(--accent)]/30 transition-all"
+                    <form wire:submit="sendMessage" wire:loading.class="pointer-events-none opacity-90" wire:target="sendMessage" class="flex items-end gap-2 bg-[#F1F5F9]/80 rounded-2xl border border-slate-200 p-1.5 focus-within:ring-2 focus-within:ring-[var(--accent)]/30 focus-within:border-[var(--accent)]/30 transition-all"
                         x-data="{
                             draftKey: 'discussion-draft-{{ $thread->id }}',
                             draftTimer: null,
@@ -169,7 +171,20 @@
                         "
                     >
                         {{-- Paperclip --}}
-                        <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="thread-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
+                        <input
+                            type="file"
+                            multiple
+                            class="hidden"
+                            id="thread-file-input"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*"
+                            x-on:change="async (e) => {
+                                const list = e.target.files;
+                                if (!list?.length) return;
+                                const ready = await window.manexoCompressFilesForUpload(list);
+                                e.target.value = '';
+                                $wire.uploadMultiple('attachmentFiles', ready);
+                            }"
+                        >
                         <button type="button" onclick="document.getElementById('thread-file-input').click()" class="shrink-0 h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-white/70 transition-colors inline-flex items-center justify-center" title="{{ __('pages.discussions.attach_file') }}">
                             <iconify-icon icon="solar:paperclip-linear" width="19"></iconify-icon>
                         </button>
@@ -178,6 +193,8 @@
                         <textarea
                             wire:model="body"
                             rows="1"
+                            wire:loading.attr="disabled"
+                            wire:target="sendMessage"
                             class="flex-1 bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm py-2 px-1 max-h-32"
                             style="min-height: 2.25rem;"
                             placeholder="{{ __('pages.discussions.write_message') }}"
@@ -405,9 +422,13 @@
             const scroll = document.getElementById('thread-messages');
             if (!timeline || !scroll) return;
 
-            // Replace one optimistic pending bubble by the confirmed message.
-            const pending = timeline.querySelector('[data-pending-own="1"]');
-            if (pending) pending.remove();
+            const messageId = e.id != null && String(e.id).match(/^\d+$/) ? String(e.id) : '';
+            if (messageId !== '' && timeline.querySelector('[data-discussion-message-id="' + messageId + '"]')) {
+                timeline.querySelectorAll('[data-pending-own="1"]').forEach((el) => el.remove());
+                return;
+            }
+
+            timeline.querySelectorAll('[data-pending-own="1"]').forEach((el) => el.remove());
 
             const empty = timeline.querySelector('[data-empty-thread]');
             if (empty) empty.remove();
@@ -440,6 +461,7 @@
 
             const div = document.createElement('div');
             div.className = 'animate-enter';
+            if (messageId !== '') div.setAttribute('data-discussion-message-id', messageId);
             div.innerHTML = html;
             timeline.appendChild(div);
             scroll.scrollTop = scroll.scrollHeight;
@@ -448,6 +470,8 @@
             const timeline = document.getElementById('thread-timeline');
             const scroll = document.getElementById('thread-messages');
             if (!timeline || !scroll) return;
+
+            timeline.querySelectorAll('[data-pending-own="1"]').forEach((el) => el.remove());
 
             const empty = timeline.querySelector('[data-empty-thread]');
             if (empty) empty.remove();

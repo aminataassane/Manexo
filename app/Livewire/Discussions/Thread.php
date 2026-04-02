@@ -9,14 +9,14 @@ use App\Helpers\CacheHelper;
 use App\Models\DiscussionMessage;
 use App\Models\DiscussionThread;
 use App\Models\User;
-use App\Notifications\DiscussionRemovedNotification;
 use App\Notifications\DiscussionInviteNotification;
 use App\Notifications\DiscussionNewMessageNotification;
+use App\Notifications\DiscussionRemovedNotification;
 use Illuminate\Broadcasting\BroadcastException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -30,10 +30,13 @@ class Thread extends Component
     use WithFileUploads;
 
     public int $threadId;
+
     public bool $embedded = false;
+
     public int $messagesLimit = 120;
 
     public string $body = '';
+
     /** @var \Illuminate\Http\UploadedFile[] */
     public $attachmentFiles = [];
 
@@ -238,11 +241,12 @@ class Thread extends Component
         $hasAttachments = is_array($this->attachmentFiles) && count($this->attachmentFiles) > 0;
         if (! $hasBody && ! $hasAttachments) {
             $this->addError('body', __('Ajoutez un message ou joignez au moins un fichier.'));
+
             return;
         }
 
         $user = Auth::user();
-        if (! $user) {
+        if (! $user instanceof User) {
             abort(403);
         }
 
@@ -251,6 +255,20 @@ class Thread extends Component
             abort(403);
         }
 
+        $sendLock = Cache::lock('discussion:send:'.$this->threadId.':'.$user->id, 15);
+        if (! $sendLock->get()) {
+            return;
+        }
+
+        try {
+            $this->persistDiscussionMessage($thread, $user);
+        } finally {
+            $sendLock->release();
+        }
+    }
+
+    private function persistDiscussionMessage(DiscussionThread $thread, User $user): void
+    {
         $savedAttachments = [];
         foreach ($this->attachmentFiles as $file) {
             $path = $file->store('discussion-messages/'.$thread->id, 'local');
@@ -270,6 +288,8 @@ class Thread extends Component
             'body' => trim((string) $this->body),
             'attachments' => $savedAttachments ?: null,
         ]);
+
+        cache()->forget("disc:thread_total_messages:{$thread->id}");
 
         // Marquer comme lues les notifs de ce fil pour l'utilisateur (il est dans la conversation)
         $this->markThreadNotificationsAsRead($thread->id);
@@ -429,6 +449,7 @@ class Thread extends Component
             'canManageParticipants' => $canManageParticipants,
             'hasMoreMessages' => $hasMoreMessages,
         ]);
+
         return $view->layout($layout);
     }
 }

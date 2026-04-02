@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Ticket;
+use App\Models\User;
 use App\Notifications\Concerns\BuildsTicketThreadedOutboundMail;
 use App\Traits\ResolvesNotificationChannels;
 use Illuminate\Bus\Queueable;
@@ -31,6 +32,11 @@ class TicketCreatedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
+        // Création depuis l’app : tout utilisateur assignable dans l’org (member inclus) → base seule
+        if ($notifiable instanceof User && $notifiable->isTicketAssignableMember($this->organizationId)) {
+            return ['database'];
+        }
+
         return $this->resolveChannels($notifiable, $this->organizationId);
     }
 

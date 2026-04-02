@@ -21,8 +21,16 @@ class SecurityHeaders
 
         // Allow iframe embedding only for public form routes
         $isPublicForm = $request->is('f/*');
-        if (! $isPublicForm) {
+        // Ticket / discussion file responses are shown in an in-app preview iframe (PDF) and must not use DENY.
+        $allowSameOriginFraming = $request->is(
+            'tickets/*/attachment/*',
+            'tickets/*/files/*',
+            'discussions/thread/*/files/*',
+        );
+        if (! $isPublicForm && ! $allowSameOriginFraming) {
             $response->headers->set('X-Frame-Options', 'DENY');
+        } elseif ($allowSameOriginFraming) {
+            $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         }
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
@@ -55,7 +63,7 @@ class SecurityHeaders
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https://ui-avatars.com",
             "connect-src 'self' https://api.iconify.design https://api.simplesvg.com".$wsConnect.$viteDev,
-            $isPublicForm ? 'frame-ancestors *' : "frame-ancestors 'none'",
+            $isPublicForm ? 'frame-ancestors *' : "frame-ancestors 'self'",
             "base-uri 'self'",
             "form-action 'self'",
         ]);

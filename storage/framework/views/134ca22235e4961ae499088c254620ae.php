@@ -115,18 +115,20 @@ unset($__split);
                 style="display: none;"
             >
                 <div class="px-4 py-3 border-b border-slate-100">
-                    <p class="text-sm font-medium text-slate-900">Connecté en tant que</p>
+                    <p class="text-sm font-medium text-slate-900"><?php echo e(__('menu.logged_in_as')); ?></p>
                     <p class="truncate text-sm text-slate-500"><?php echo e($user?->email); ?></p>
                 </div>
 
                 <div class="py-1">
                     <a href="<?php echo e(route('profile')); ?>" wire:navigate class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:user-linear" width="16"></iconify-icon>
-                        Mon Profil
+                        <?php echo e(__('menu.my_profile')); ?>
+
                     </a>
                     <a href="<?php echo e(route('organizations.select', ['mode' => 'switch'])); ?>" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:buildings-linear" width="16"></iconify-icon>
-                        Changer d'entreprise
+                        <?php echo e(__('menu.switch_company')); ?>
+
                     </a>
                 </div>
 
@@ -135,7 +137,8 @@ unset($__split);
                         <?php echo csrf_field(); ?>
                         <button type="submit" class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                             <iconify-icon icon="solar:logout-2-linear" width="16"></iconify-icon>
-                            Déconnexion
+                            <?php echo e(__('menu.logout')); ?>
+
                         </button>
                     </form>
                 </div>

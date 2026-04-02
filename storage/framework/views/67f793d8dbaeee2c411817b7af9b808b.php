@@ -1,0 +1,1 @@
+role-<?php echo e($r->id); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/051d597265094ecbbf47de57f8180389.blade.php ENDPATH**/ ?>

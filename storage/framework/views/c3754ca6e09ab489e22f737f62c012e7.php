@@ -24,7 +24,7 @@
                     <?php echo e(__('pages.dashboard.view_tickets')); ?>
 
                 </a>
-                <a href="<?php echo e(route('tickets.create')); ?>" wire:navigate class="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 sm:py-2.5 text-sm font-semibold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0" style="background-color: var(--accent);">
+                <a href="<?php echo e(route('tickets.create')); ?>" wire:navigate.hover class="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 sm:py-2.5 text-sm font-semibold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0" style="background-color: var(--accent);">
                     <iconify-icon icon="solar:add-circle-bold" width="18"></iconify-icon>
                     <?php echo e(__('pages.dashboard.new_ticket')); ?>
 

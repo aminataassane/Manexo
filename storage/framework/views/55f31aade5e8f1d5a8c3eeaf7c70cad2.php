@@ -1,0 +1,1 @@
+disc-msg-<?php echo e($msg->id); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/3365007876467816f98ef9b551686dde.blade.php ENDPATH**/ ?>

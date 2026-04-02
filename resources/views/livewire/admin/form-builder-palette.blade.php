@@ -36,10 +36,14 @@
             ],
         ],
     ];
+    $paletteDrawerEmbed = $paletteDrawerEmbed ?? false;
 @endphp
 
-{{-- Desktop: vertical sidebar (shown inside lg:flex aside) --}}
-<div class="hidden lg:flex flex-col h-full" x-data="{ paletteSearch: '' }">
+{{--
+  Desktop: sidebar (lg+). Sur mobile, la liste est soit dans le FAB/bottom sheet, soit dans le drawer
+  plein écran (paletteDrawerEmbed) — sinon hidden lg:flex masque toute la liste quand on ouvre le tiroir toolbar.
+--}}
+<div class="{{ $paletteDrawerEmbed ? 'flex min-h-0 h-full flex-col' : 'hidden h-full flex-col lg:flex' }}" x-data="{ paletteSearch: '' }">
     {{-- Search --}}
     <div class="px-4 pt-4 pb-3 min-[1100px]:px-5 min-[1100px]:pt-5 min-[1100px]:pb-4">
         <div class="relative">
@@ -79,7 +83,8 @@
     </div>
 </div>
 
-{{-- Mobile: FAB + Bottom drawer --}}
+@if (! $paletteDrawerEmbed)
+{{-- Mobile: FAB + Bottom drawer (pas quand la liste est déjà dans le tiroir toolbar) --}}
 <div class="lg:hidden" x-data="{ paletteOpen: false, mobileSearch: '' }">
     {{-- FAB button --}}
     <button type="button"
@@ -87,21 +92,34 @@
             @disabled(! $canManageForms || ! $fb_selected_form_id)
             x-show="!paletteOpen"
             x-cloak
-            class="fixed right-3 sm:right-4 bottom-4 sm:bottom-5 z-[90] h-12 w-12 rounded-2xl text-white shadow-xl shadow-black/20 ring-1 ring-white/20 flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-            style="background: var(--accent);">
+            class="fixed z-[38] flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-xl shadow-black/20 ring-1 ring-white/20 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            style="background: var(--accent); right: max(0.75rem, env(safe-area-inset-right, 0px)); bottom: max(1rem, env(safe-area-inset-bottom, 0px));">
         <iconify-icon icon="solar:add-circle-bold" width="22"></iconify-icon>
     </button>
 
     {{-- Bottom drawer --}}
-    <div x-show="paletteOpen" x-cloak class="fixed inset-0 z-50" style="display:none;">
-        <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" @click="paletteOpen = false"></div>
-        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl border-t border-slate-100 max-h-[78vh] flex flex-col overflow-hidden"
-             x-transition:enter="transition ease-out duration-250"
-             x-transition:enter-start="translate-y-full"
-             x-transition:enter-end="translate-y-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="translate-y-0"
-             x-transition:leave-end="translate-y-full">
+    <div x-show="paletteOpen" x-cloak class="fixed inset-0 z-[90]" style="display:none;">
+        <div
+            class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            x-show="paletteOpen"
+            x-transition:enter="ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @click="paletteOpen = false"
+        ></div>
+        <div class="absolute bottom-0 left-0 right-0 flex max-h-[min(78vh,calc(100dvh-8rem))] flex-col overflow-hidden rounded-t-3xl border-t border-slate-100 bg-white shadow-2xl"
+             x-show="paletteOpen"
+             x-transition:enter="transform transition ease-[cubic-bezier(0.16,1,0.3,1)] duration-300"
+             x-transition:enter-start="translate-y-full opacity-95"
+             x-transition:enter-end="translate-y-0 opacity-100"
+             x-transition:leave="transform transition ease-in duration-200"
+             x-transition:leave-start="translate-y-0 opacity-100"
+             x-transition:leave-end="translate-y-full opacity-100"
+             @click.stop
+        >
             {{-- Handle --}}
             <div class="sticky top-0 z-10 bg-white border-b border-slate-50">
                 <div class="flex justify-center pt-2.5 pb-2">
@@ -118,7 +136,7 @@
                 </div>
             </div>
             {{-- Types --}}
-            <div class="flex-1 overflow-y-auto custom-scrollbar px-4 pb-6 pt-4 space-y-5 bg-slate-50/30">
+            <div class="flex-1 space-y-5 overflow-y-auto overscroll-y-contain bg-slate-50/30 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 custom-scrollbar">
                 @foreach($fieldGroups as $group)
                     <div x-show="!mobileSearch || {{ json_encode(collect($group['types'])->pluck('label')->join(' ')) }}.toLowerCase().includes(mobileSearch.toLowerCase())">
                         <h4 class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 mb-2.5 px-1">
@@ -147,3 +165,4 @@
         </div>
     </div>
 </div>
+@endif

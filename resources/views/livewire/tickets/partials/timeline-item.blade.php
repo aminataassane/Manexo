@@ -24,10 +24,8 @@
                 {!! $item->body !!}
             </div>
             @if($item->hasAttachments)
-                <div class="px-4 py-3 pt-2 border-t border-amber-200/50 space-y-2 flex flex-wrap gap-2">
-                    @foreach($item->attachments as $att)
-                        @include('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'note'])
-                    @endforeach
+                <div class="px-3 sm:px-4 pb-3">
+                    @include('livewire.tickets.partials.attachments-group', ['attachments' => $item->attachments, 'variant' => 'note'])
                 </div>
             @endif
         </div>
@@ -60,15 +58,16 @@
 
                         <span class="text-[10px] text-slate-400">{{ $item->timeHuman }}</span>
                     </div>
-                    <div class="message-bubble rounded-2xl rounded-br-md px-3 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm leading-relaxed shadow-md w-full max-w-full {{ $item->hasAttachments ? 'bg-white border border-slate-200 text-slate-700' : '' }}" @if(!$item->hasAttachments) style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%); color: #fff;" @endif>
-                        <div class="text-left break-words {{ !$item->hasAttachments ? 'text-white' : '' }}">
+                    <div class="message-bubble rounded-2xl rounded-br-md text-[13px] sm:text-sm leading-relaxed shadow-md w-full max-w-full overflow-hidden"
+                         style="{{ $item->hasAttachments
+                             ? 'background: color-mix(in srgb, var(--accent) 8%, white); border: 1px solid color-mix(in srgb, var(--accent) 18%, #e2e8f0);'
+                             : 'background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%); color: #fff;' }}">
+                        <div class="px-3 py-2.5 sm:px-4 sm:py-3 text-left break-words {{ $item->hasAttachments ? 'text-slate-800' : 'text-white' }}">
                             {!! $item->body !!}
                         </div>
                         @if($item->hasAttachments)
-                            <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">
-                                @foreach($item->attachments as $att)
-                                    @include('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'theirs'])
-                                @endforeach
+                            <div class="px-3 sm:px-4 pb-3">
+                                @include('livewire.tickets.partials.attachments-group', ['attachments' => $item->attachments, 'variant' => 'mine'])
                             </div>
                         @endif
                     </div>
@@ -105,13 +104,13 @@
                     <div class="text-[10px] text-slate-400 mb-1">via {{ $item->emailFrom }}</div>
                 @endif
 
-                <div class="message-bubble rounded-2xl rounded-bl-md px-3 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0">
-                    {!! $item->body !!}
+                <div class="message-bubble rounded-2xl rounded-bl-md text-[13px] sm:text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0 overflow-hidden">
+                    <div class="px-3 py-2.5 sm:px-4 sm:py-3">
+                        {!! $item->body !!}
+                    </div>
                     @if($item->hasAttachments)
-                        <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">
-                            @foreach($item->attachments as $att)
-                                @include('livewire.tickets.partials.attachment-link', ['att' => $att, 'variant' => 'theirs'])
-                            @endforeach
+                        <div class="px-3 sm:px-4 pb-3">
+                            @include('livewire.tickets.partials.attachments-group', ['attachments' => $item->attachments, 'variant' => 'theirs'])
                         </div>
                     @endif
                 </div>

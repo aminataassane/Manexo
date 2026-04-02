@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class OrganizationInvitation extends Model
 {
     use BelongsToOrganization;
+
     public const EXPIRY_DAYS = 7;
 
     protected $fillable = [
@@ -17,6 +18,7 @@ class OrganizationInvitation extends Model
         'email',
         'role',
         'token',
+        'invitation_code',
         'invited_by',
         'status',
         'accepted_at',

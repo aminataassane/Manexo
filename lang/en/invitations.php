@@ -11,6 +11,12 @@ return [
     'logout_and_login' => 'Log out and log in',
     'register_banner' => 'You have been invited to join :org. Create your account to accept.',
     'invited_by' => 'Invited by :name',
+    'code_title' => 'Join with a code',
+    'code_desc' => 'Enter your invitation code to join a team.',
+    'code_label' => 'Invitation code',
+    'code_placeholder' => 'e.g. AB12CD34',
+    'code_submit' => 'Continue',
+    'invalid_code' => 'This code is invalid or has expired.',
 
     // Pending invitations
     'pending_title' => 'Pending invitations',

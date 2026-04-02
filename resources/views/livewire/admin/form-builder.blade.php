@@ -1,6 +1,5 @@
 <div
-    class="builder-full-bleed flex flex-col"
-    style="height: calc(100dvh - 3.5rem);"
+    class="builder-full-bleed flex min-h-0 flex-col"
     x-data="{
         paletteDrawer: false,
         propsDrawer: false,
@@ -8,11 +7,6 @@
     }"
     x-on:field-selected.window="if (window.innerWidth < 1024) { propsDrawer = true; paletteDrawer = false; }"
 >
-    <style>
-        @media (min-width: 640px) {
-            [style*='height: calc(100dvh - 3.5rem)'] { height: calc(100dvh - 4rem) !important; }
-        }
-    </style>
 
     {{-- ═══════ TOOLBAR — premium, clean, sticky ═══════ --}}
     <header class="shrink-0 z-30 bg-white border-b border-slate-100">
@@ -59,7 +53,7 @@
                          x-transition:leave="transition ease-in duration-75"
                          x-transition:leave-start="opacity-100 scale-100"
                          x-transition:leave-end="opacity-0 scale-95"
-                         class="absolute left-0 top-full mt-1.5 w-72 bg-white rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 z-50 overflow-hidden"
+                         class="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-200/40 sm:right-auto sm:w-72"
                          x-cloak>
                         <div class="p-3 border-b border-slate-50">
                             <div class="relative">
@@ -192,17 +186,17 @@
 
         {{-- Onglets --}}
         @if($fb_selected_form_id)
-        <nav class="px-3 sm:px-5 lg:px-6" aria-label="{{ __('forms_builder.tabs_label') }}">
-            <div class="flex gap-0">
+        <nav class="builder-tabs-scroll overflow-x-auto overscroll-x-contain px-3 sm:px-5 lg:px-6" aria-label="{{ __('forms_builder.tabs_label') }}">
+            <div class="flex min-w-max gap-0">
                 <button type="button" wire:click="setActiveTab('champs')" wire:loading.attr="disabled" wire:target="setActiveTab"
-                        class="relative px-3 py-2.5 text-xs font-semibold transition-colors {{ $activeTab === 'champs' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
+                        class="relative whitespace-nowrap px-3 py-2.5 text-xs font-semibold transition-colors {{ $activeTab === 'champs' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
                     {{ __('forms_builder.fields_tab') }}
                     @if($activeTab === 'champs')
                         <span class="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style="background: var(--accent);"></span>
                     @endif
                 </button>
                 <button type="button" wire:click="setActiveTab('assignations')" wire:loading.attr="disabled" wire:target="setActiveTab"
-                        class="relative px-3 py-2.5 text-xs font-semibold transition-colors flex items-center gap-1.5 {{ $activeTab === 'assignations' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
+                        class="relative flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-xs font-semibold transition-colors {{ $activeTab === 'assignations' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
                     {{ __('forms_builder.assignments_tab') }}
                     @if($assignments->where('status.value', 'pending')->count() > 0)
                         <span class="inline-flex items-center justify-center h-4 min-w-[16px] rounded-full bg-amber-100 px-1 text-[9px] font-bold text-amber-700">{{ $assignments->where('status.value', 'pending')->count() }}</span>
@@ -212,7 +206,7 @@
                     @endif
                 </button>
                 <button type="button" wire:click="setActiveTab('reponses')" wire:loading.attr="disabled" wire:target="setActiveTab"
-                        class="relative px-3 py-2.5 text-xs font-semibold transition-colors {{ $activeTab === 'reponses' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
+                        class="relative whitespace-nowrap px-3 py-2.5 text-xs font-semibold transition-colors {{ $activeTab === 'reponses' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600' }}">
                     {{ __('forms_builder.responses_tab') }}
                     @if($activeTab === 'reponses')
                         <span class="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style="background: var(--accent);"></span>
@@ -233,7 +227,7 @@
 
         {{-- Canvas central --}}
         <div class="flex-1 flex flex-col overflow-hidden min-w-0 bg-[#fafbfc]">
-            <div class="flex-1 overflow-y-auto custom-scrollbar px-4 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12 xl:px-16 flex justify-center">
+            <div class="flex flex-1 justify-center overflow-y-auto overscroll-y-contain px-3 py-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-10 lg:px-12 lg:py-12 xl:px-16">
                 <div class="w-full max-w-2xl xl:max-w-3xl flex flex-col">
                     @include('livewire.admin.form-builder-canvas')
                 </div>
@@ -242,7 +236,7 @@
 
         {{-- Proprietes droite (desktop) --}}
         <aside class="hidden lg:flex fb-sidebar-properties bg-white border-l border-slate-100 flex-col shrink-0 z-10 transition-[width] duration-200 ease-out">
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 min-[1100px]:p-5 xl:p-6">
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 min-[1100px]:p-5 xl:p-6" wire:key="props-desktop-{{ $fb_selected_field_id ?? 'none' }}">
                 @include('livewire.admin.form-builder-properties')
             </div>
         </aside>
@@ -253,8 +247,8 @@
         </div>
     @elseif($activeTab === 'assignations')
         {{-- ═══════ ONGLET ASSIGNATIONS ═══════ --}}
-        <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#fafbfc]">
-            <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        <div class="flex-1 overflow-y-auto overscroll-y-contain custom-scrollbar bg-[#fafbfc]">
+            <div class="mx-auto w-full max-w-4xl space-y-6 px-3 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8 lg:px-8">
 
                 @if($canManageForms)
                 {{-- Nouvelle assignation --}}
@@ -387,7 +381,7 @@
                                 $initial = mb_substr($assigneeName, 0, 1);
                                 $isFunction = ! $a->user_id && $a->organization_function_id;
                             @endphp
-                            <div class="px-5 sm:px-6 py-3.5 flex items-center gap-4 hover:bg-slate-50/40 transition-colors group">
+                            <div class="group flex flex-wrap items-start gap-x-3 gap-y-2.5 px-4 py-3.5 transition-colors hover:bg-slate-50/40 sm:flex-nowrap sm:items-center sm:gap-4 sm:px-5 sm:py-3.5">
                                 <div class="w-10 h-10 rounded-xl {{ $isFunction ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-600' }} flex items-center justify-center font-bold text-sm shrink-0">
                                     @if($isFunction)
                                         <iconify-icon icon="solar:users-group-rounded-bold" width="18"></iconify-icon>
@@ -420,7 +414,7 @@
                                         @endif
                                     </p>
                                 </div>
-                                <div class="flex items-center gap-3 shrink-0">
+                                <div class="flex basis-full shrink-0 items-center justify-end gap-3 sm:basis-auto sm:w-auto sm:justify-end">
                                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold {{ $aBadge['bg'] }} {{ $aBadge['text'] }}">
                                         <iconify-icon icon="{{ $aBadge['icon'] }}" width="14"></iconify-icon>
                                         {{ $aBadge['label'] }}
@@ -448,8 +442,8 @@
         </div>
     @elseif($activeTab === 'reponses')
         {{-- ═══════ ONGLET RÉPONSES ═══════ --}}
-        <div class="flex-1 overflow-y-auto custom-scrollbar bg-[#fafbfc]">
-            <div class="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div class="flex-1 overflow-y-auto overscroll-y-contain custom-scrollbar bg-[#fafbfc]">
+            <div class="mx-auto w-full max-w-4xl px-3 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8 lg:px-8">
                 <div class="rounded-2xl border border-slate-100 bg-white shadow-sm p-8 sm:p-10 text-center">
                     <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-300 mx-auto mb-4">
                         <iconify-icon icon="solar:chart-2-bold-duotone" width="28"></iconify-icon>
@@ -471,44 +465,73 @@
     </div>
 
     {{-- ═══════ DRAWER PALETTE (tablet/mobile — left) ═══════ --}}
-    <div class="lg:hidden fixed inset-0 z-40" x-show="paletteDrawer" x-cloak style="display:none;">
-        <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" @click="paletteDrawer = false"></div>
-        <div class="absolute left-0 top-0 bottom-0 fb-drawer-palette bg-white shadow-2xl border-r border-slate-100 flex flex-col rounded-r-2xl overflow-hidden"
-             x-transition:enter="transition ease-out duration-250"
-             x-transition:enter-start="-translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="-translate-x-full">
-            <div class="h-12 px-4 border-b border-slate-50 flex items-center justify-between shrink-0">
-                <h3 class="text-xs font-bold text-slate-900">{{ __('forms_builder.search_fields') }}</h3>
-                <button type="button" @click="paletteDrawer = false" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition" aria-label="{{ __('forms_builder.close') }}">
+    <div class="lg:hidden fixed inset-0 z-[100]" x-show="paletteDrawer" x-cloak style="display:none;">
+        <div
+            class="absolute inset-0 z-0 bg-slate-900/45 backdrop-blur-sm"
+            x-show="paletteDrawer"
+            x-transition:enter="ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @click="paletteDrawer = false"
+        ></div>
+        {{-- Plein écran (viewport < lg) : aligné sur le drawer Infos ticket (fondu voile + glissé doux) --}}
+        <div
+            class="absolute inset-0 z-10 flex w-full max-w-none flex-col overflow-hidden bg-white shadow-2xl"
+            x-show="paletteDrawer"
+            x-transition:enter="transform transition ease-[cubic-bezier(0.16,1,0.3,1)] duration-300"
+            x-transition:enter-start="-translate-x-full opacity-0"
+            x-transition:enter-end="translate-x-0 opacity-100"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0 opacity-100"
+            x-transition:leave-end="-translate-x-full opacity-0"
+            @click.stop
+        >
+            <div class="flex h-12 shrink-0 items-center justify-end border-b border-slate-50 px-3">
+                <button type="button" @click="paletteDrawer = false" class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600" aria-label="{{ __('forms_builder.close') }}">
                     <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
                 </button>
             </div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar">
-                @include('livewire.admin.form-builder-palette')
+            <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+                @include('livewire.admin.form-builder-palette', ['paletteDrawerEmbed' => true])
             </div>
         </div>
     </div>
 
     {{-- ═══════ DRAWER PROPRIÉTÉS (tablet/mobile — right) ═══════ --}}
-    <div class="lg:hidden fixed inset-0 z-40" x-show="propsDrawer" x-cloak style="display:none;">
-        <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" @click="propsDrawer = false"></div>
-        <div class="absolute right-0 top-0 bottom-0 fb-drawer-properties bg-white shadow-2xl border-l border-slate-100 flex flex-col rounded-l-2xl overflow-hidden"
-             x-transition:enter="transition ease-out duration-250"
-             x-transition:enter-start="translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="translate-x-full">
+    <div class="lg:hidden fixed inset-0 z-[100]" x-show="propsDrawer" x-cloak style="display:none;">
+        <div
+            class="absolute inset-0 z-0 bg-slate-900/45 backdrop-blur-sm"
+            x-show="propsDrawer"
+            x-transition:enter="ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @click="propsDrawer = false"
+        ></div>
+        {{-- Plein écran (viewport < lg) : aligné sur le drawer Infos ticket --}}
+        <div
+            class="absolute inset-0 z-10 flex w-full max-w-none flex-col overflow-hidden bg-white shadow-2xl"
+            x-show="propsDrawer"
+            x-transition:enter="transform transition ease-[cubic-bezier(0.16,1,0.3,1)] duration-300"
+            x-transition:enter-start="translate-x-full opacity-0"
+            x-transition:enter-end="translate-x-0 opacity-100"
+            x-transition:leave="transform transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0 opacity-100"
+            x-transition:leave-end="translate-x-full opacity-0"
+            @click.stop
+        >
             <div class="h-12 px-4 border-b border-slate-50 flex items-center justify-between shrink-0">
                 <h3 class="text-xs font-bold text-slate-900">{{ __('forms_builder.properties') }}</h3>
                 <button type="button" @click="propsDrawer = false" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition" aria-label="{{ __('forms_builder.close') }}">
                     <iconify-icon icon="solar:close-circle-linear" width="16"></iconify-icon>
                 </button>
             </div>
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-5">
+            <div class="flex-1 overflow-y-auto overscroll-y-contain custom-scrollbar p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]" wire:key="props-mobile-{{ $fb_selected_field_id ?? 'none' }}">
                 @include('livewire.admin.form-builder-properties')
             </div>
         </div>

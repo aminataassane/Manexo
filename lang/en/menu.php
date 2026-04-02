@@ -7,6 +7,7 @@ return [
     'groups_view' => 'Groups',
     'discussions' => 'Discussions',
     'forms' => 'Forms',
+    'knowledge_base' => 'Knowledge Base',
     'notifications' => 'Notifications',
     'administration' => 'Administration',
     'team' => 'Team',
@@ -21,4 +22,8 @@ return [
     'french' => 'French',
     'english' => 'English',
     'powered_by' => 'Powered by',
+    'logged_in_as' => 'Logged in as',
+    'my_profile' => 'My Profile',
+    'switch_company' => 'Switch company',
+    'logout' => 'Log out',
 ];

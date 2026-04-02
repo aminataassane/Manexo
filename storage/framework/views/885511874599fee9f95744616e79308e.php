@@ -70,15 +70,29 @@
         <div class="page-actions">
             
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($boxKey !== 'trash'): ?>
-                <div class="view-toggle">
-                    <button type="button" wire:click="setDisplayMode('list')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
-                        class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'list' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
-                        <iconify-icon icon="solar:list-bold" width="16"></iconify-icon>
-                    </button>
-                    <button type="button" wire:click="setDisplayMode('kanban')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
-                        class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'kanban' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
-                        <iconify-icon icon="solar:widget-4-bold" width="16"></iconify-icon>
-                    </button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="view-toggle shrink-0">
+                        <button type="button" wire:click="setDisplayMode('list')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
+                            class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'list' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
+                            <iconify-icon icon="solar:list-bold" width="16"></iconify-icon>
+                        </button>
+                        <button type="button" wire:click="setDisplayMode('kanban')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
+                            class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'kanban' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
+                            <iconify-icon icon="solar:widget-4-bold" width="16"></iconify-icon>
+                        </button>
+                    </div>
+                    <div
+                        wire:loading.flex
+                        wire:target="setDisplayMode"
+                        class="items-center gap-2 rounded-lg border border-[color:color-mix(in_srgb,var(--accent)_25%,#e2e8f0)] bg-[color:color-mix(in_srgb,var(--accent)_8%,white)] px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span class="relative flex h-4 w-4 shrink-0">
+                            <span class="absolute inset-0 rounded-full border-2 border-[color:color-mix(in_srgb,var(--accent)_35%,#e2e8f0)] border-t-[color:var(--accent)] animate-spin"></span>
+                        </span>
+                        <span><?php echo e(__('pages.tickets.view_switch_loading')); ?>…</span>
+                    </div>
                 </div>
             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
@@ -98,7 +112,7 @@
             </button>
 
             
-            <a href="<?php echo e(route('tickets.create')); ?>" wire:navigate
+            <a href="<?php echo e(route('tickets.create')); ?>" wire:navigate.hover
                class="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 sm:px-4 text-sm font-semibold text-white shadow-lg shadow-[var(--accent-ring)] hover:opacity-90 transition-all transform hover:-translate-y-0.5 touch-target sm:min-h-0 sm:min-w-0"
                style="background-color: var(--accent);">
                 <iconify-icon icon="solar:add-circle-bold" width="18"></iconify-icon>
@@ -106,6 +120,17 @@
             </a>
         </div>
     </div>
+
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($boxKey !== 'trash'): ?>
+        <div
+            wire:loading.block
+            wire:target="setDisplayMode"
+            class="mb-5 sm:mb-6 h-1 w-full overflow-hidden rounded-full bg-slate-200/90"
+            aria-hidden="true"
+        >
+            <div class="manexo-kanban-progress-indeterminate h-full w-full rounded-full"></div>
+        </div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($activeGroup ?? null) || ($group ?? '') === 'none'): ?>
@@ -374,21 +399,84 @@
         <div class="flex-1 min-w-0">
 
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($loadStage ?? 0) >= 2): ?>
+            <div class="relative min-h-[min(420px,58vh)]">
+                
+                <div
+                    wire:loading.flex
+                    wire:target="setDisplayMode"
+                    class="absolute inset-0 z-40 flex-col items-center justify-center gap-3 rounded-2xl bg-white/88 p-6 backdrop-blur-sm"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                >
+                    <div class="flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-slate-200/90 bg-white px-8 py-7 text-center shadow-xl ring-1 ring-slate-900/[0.04]">
+                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:color-mix(in_srgb,var(--accent)_12%,white)] text-[color:var(--accent)]">
+                            <iconify-icon icon="solar:widget-4-bold-duotone" width="36" class="animate-pulse"></iconify-icon>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-[15px] font-bold text-slate-900"><?php echo e(__('pages.tickets.view_switch_loading')); ?></p>
+                            <p class="text-sm text-slate-500 leading-snug"><?php echo e(__('pages.tickets.view_switch_loading_hint')); ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div wire:loading.class="pointer-events-none opacity-45" wire:target="setDisplayMode" class="transition-opacity duration-200">
 
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($displayMode ?? 'list') === 'kanban' && $boxKey !== 'trash'): ?>
                 
-                <div class="content-card h-[calc(100vh-14rem)] sm:h-[calc(100vh-12rem)] min-h-[400px] flex flex-col">
+                <?php
+                    $kanbanLoadingTargets = 'moveTicket,setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters';
+                ?>
+                <div class="content-card h-[calc(100vh-14rem)] sm:h-[calc(100vh-12rem)] min-h-[400px] flex flex-col overflow-hidden">
                     <div class="shrink-0 p-3 sm:p-4 border-b border-slate-100/80 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-slate-50/30">
-                        <h2 class="text-sm font-bold text-slate-900"><?php echo e(__('pages.tickets.kanban_board')); ?></h2>
+                        <div class="flex flex-col gap-1 min-w-0 sm:flex-row sm:items-center sm:gap-4">
+                            <h2 class="text-sm font-bold text-slate-900"><?php echo e(__('pages.tickets.kanban_board')); ?></h2>
+                            
+                            <div
+                                wire:loading.flex
+                                wire:target="<?php echo e($kanbanLoadingTargets); ?>"
+                                class="items-center gap-2 rounded-lg border border-[color:color-mix(in_srgb,var(--accent)_25%,#e2e8f0)] bg-[color:color-mix(in_srgb,var(--accent)_8%,white)] px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <span class="relative flex h-4 w-4 shrink-0">
+                                    <span class="absolute inset-0 rounded-full border-2 border-[color:color-mix(in_srgb,var(--accent)_35%,#e2e8f0)] border-t-[color:var(--accent)] animate-spin"></span>
+                                </span>
+                                <span><?php echo e(__('pages.tickets.kanban_updating')); ?>…</span>
+                            </div>
+                        </div>
                         <div class="text-xs text-slate-400 hidden sm:block"><?php echo e(__('pages.tickets.drag_to_change_status')); ?></div>
                     </div>
-                    <div wire:loading.flex wire:target="moveTicket,setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters" class="shrink-0 px-4 py-2 text-xs text-slate-500 items-center gap-2 border-b border-slate-50 bg-white/70">
-                        <iconify-icon icon="solar:refresh-linear" width="14" class="animate-spin"></iconify-icon>
-                        <?php echo e(__('Chargement...')); ?>
-
+                    
+                    <div
+                        wire:loading.block
+                        wire:target="<?php echo e($kanbanLoadingTargets); ?>"
+                        class="h-1 w-full shrink-0 overflow-hidden bg-slate-200/90"
+                        aria-hidden="true"
+                    >
+                        <div class="manexo-kanban-progress-indeterminate h-full w-full"></div>
                     </div>
-                    <div class="flex-1 min-h-0 min-w-0 p-3 sm:p-4 overflow-x-auto overflow-y-hidden custom-scrollbar scroll-touch">
-                        <div wire:loading.class="opacity-60 pointer-events-none" wire:target="moveTicket,setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters" class="flex gap-3 sm:gap-4 h-full min-w-max pb-2 transition-opacity duration-150">
+                    <div class="flex-1 min-h-0 min-w-0 relative">
+                        
+                        <div
+                            wire:loading.flex
+                            wire:target="<?php echo e($kanbanLoadingTargets); ?>"
+                            class="absolute inset-0 z-30 flex-col items-center justify-center gap-2 bg-white/85 p-6 backdrop-blur-sm"
+                            role="status"
+                            aria-live="polite"
+                            aria-busy="true"
+                        >
+                            <div class="flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-slate-200/90 bg-white px-8 py-7 text-center shadow-xl ring-1 ring-slate-900/[0.04]">
+                                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:color-mix(in_srgb,var(--accent)_12%,white)] text-[color:var(--accent)]">
+                                    <iconify-icon icon="solar:refresh-circle-bold-duotone" width="36" class="animate-spin"></iconify-icon>
+                                </div>
+                                <div class="space-y-1">
+                                    <p class="text-[15px] font-bold text-slate-900"><?php echo e(__('pages.tickets.kanban_updating')); ?></p>
+                                    <p class="text-sm text-slate-500 leading-snug"><?php echo e(__('pages.tickets.kanban_updating_hint')); ?></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute inset-0 overflow-x-auto overflow-y-hidden custom-scrollbar scroll-touch p-3 sm:p-4">
+                            <div wire:loading.class="opacity-50 pointer-events-none" wire:target="<?php echo e($kanbanLoadingTargets); ?>" class="flex gap-3 sm:gap-4 h-full min-w-max pb-2 transition-opacity duration-200">
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = ($statusColumns ?? []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $colStatus): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                 <?php
                                     [$colLabel, $colIcon] = $statusLabel($colStatus);
@@ -405,19 +493,20 @@
                                         </span>
                                         <span class="text-xs font-bold text-slate-300"><?php echo e(count($cards)); ?></span>
                                     </div>
-                                    <div class="p-2.5 space-y-2.5 overflow-y-auto custom-scrollbar flex-1">
+                                    
+                                    <div class="p-2.5 space-y-2.5 overflow-y-auto custom-scrollbar flex-1" @dragover.prevent>
                                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $cards; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                             <?php
                                                 $prio = $priorityMeta($t->priority?->level);
                                                 $prog = $checklistProgress[$t->id] ?? null;
                                                 $pct = $prog && (int) $prog->total > 0 ? (int) round(100 * (int) $prog->done / (int) $prog->total) : null;
                                             ?>
-                                            <div x-data="{ dragging: false }"
+                                            
+                                            <div
                                                 class="kanban-card group"
                                                 draggable="true"
-                                                @mousedown="dragging = false"
-                                                @mousemove="dragging = true"
-                                                @click="if (!dragging) Livewire.navigate('<?php echo e($t->public_id ? url('/tickets/' . e($t->public_id)) : '#'); ?>')"
+                                                @dragover.prevent
+                                                @click="Livewire.navigate('<?php echo e($t->public_id ? url('/tickets/' . e($t->public_id)) : '#'); ?>')"
                                                 @dragstart="$root.dragId = <?php echo e((int) $t->id); ?>"
                                                 @dragend="$root.dragId = null">
                                                 <div class="flex justify-between items-start mb-2">
@@ -533,13 +622,14 @@
                                                 </div>
                                             </div>
                                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
-                                            <div class="py-8 text-center text-xs text-slate-300 italic"><?php echo e(__('pages.tickets.empty_column')); ?></div>
+                                            <div class="py-8 text-center text-xs text-slate-300 italic" @dragover.prevent><?php echo e(__('pages.tickets.empty_column')); ?></div>
                                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </div>
                                 </div>
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         </div>
                     </div>
+                </div>
                 </div>
             <?php else: ?>
                 
@@ -851,6 +941,8 @@
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                </div>
+            </div>
 
             <?php else: ?>
             
