@@ -553,11 +553,12 @@
             const emailLine = e.user_email ? `<div class="mt-2 text-xs leading-relaxed text-slate-500 [overflow-wrap:anywhere] break-all">${esc(e.user_email)}</div>` : '';
             const tagLine = e.mention_tag ? `<div class="mt-2 text-sm font-medium text-slate-600 [overflow-wrap:anywhere] break-all"><span class="text-slate-400">@</span>${esc(e.mention_tag)}</div>` : '';
             const badgesBlock = badgeHtml ? `<div class="mt-3 flex flex-wrap gap-2">${badgeHtml}</div>` : '';
-            const pid = 'mxc-' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+            const rawPid = 'mxc-' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+            const pid = (typeof window.manexoSanitizePopoverDomId === 'function' && window.manexoSanitizePopoverDomId(rawPid)) || ('mxc-' + Math.random().toString(36).slice(2, 14));
             const btnCls = 'list-none cursor-pointer touch-manipulation select-none min-h-11 min-w-11 h-11 w-11 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0 rounded-full ring-2 ring-white shadow-md border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0 hover:ring-2 hover:ring-[var(--accent)]/35 hover:bg-slate-50 active:scale-[0.98] transition-all';
             return `<div data-manexo-user-card-root class="relative isolate shrink-0">
 <button type="button" popovertarget="${pid}" class="${btnCls}" title="${t}" aria-label="${t}" aria-haspopup="dialog">${esc(initials)}</button>
-<div id="${pid}" popover="manual" data-manexo-user-card role="dialog" aria-label="${t}" class="pointer-events-auto m-0 w-[min(24rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/[0.06]" style="padding-left:max(1rem,env(safe-area-inset-left,0px));padding-right:max(1rem,env(safe-area-inset-right,0px))" onclick="event.stopPropagation()">
+<div id="${pid}" popover="manual" data-manexo-user-card role="dialog" aria-label="${t}" class="pointer-events-auto m-0 w-[min(24rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/[0.06]" style="padding-left:max(1rem,env(safe-area-inset-left,0px));padding-right:max(1rem,env(safe-area-inset-right,0px))">
 <div class="text-[15px] font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] break-words">${nameEscaped}</div>
 ${emailLine}
 ${tagLine}

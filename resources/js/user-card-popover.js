@@ -2,7 +2,18 @@
  * Fiches utilisateur (avatar) : API Popover en mode "manual" pour éviter la fermeture
  * immédiate au même clic que l’ouverture (comportement du light dismiss avec <details> ou popover=auto).
  * Position fixed dans le top layer, hors overflow des panneaux.
+ *
+ * Sécurité : pas de gestionnaires inline (CSP), ids DOM validés côté Blade/JS, hidePopover
+ * uniquement sur nœuds connectés au document.
  */
+
+/** id / popovertarget : sous-ensemble sûr pour attributs HTML (aligné sur le Blade). */
+function sanitizeManexoPopoverDomId(id) {
+    if (typeof id !== 'string' || id.length > 150) {
+        return null;
+    }
+    return /^[a-zA-Z][a-zA-Z0-9_.:-]*$/.test(id) ? id : null;
+}
 
 function getManexoUserCardButton(panel) {
     if (!panel?.id) {
@@ -71,6 +82,9 @@ function closeOtherUserCards(exceptPanel) {
         if (p === exceptPanel || typeof p.hidePopover !== 'function') {
             return;
         }
+        if (!sanitizeManexoPopoverDomId(p.id)) {
+            return;
+        }
         try {
             if (p.matches(':popover-open')) {
                 p.hidePopover();
@@ -91,12 +105,18 @@ function isPopoverOpen(panel) {
 
 function onUserCardToggle(ev) {
     const panel = ev.target;
-    if (!panel?.matches?.('[data-manexo-user-card][popover]')) {
+    if (!(panel instanceof HTMLElement) || !panel.isConnected) {
+        return;
+    }
+    if (!panel.matches('[data-manexo-user-card][popover]')) {
         return;
     }
     const te = /** @type {ToggleEvent} */ (ev);
     if (te.newState !== 'open') {
         resetManexoUserCardPanel(panel);
+        return;
+    }
+    if (!sanitizeManexoPopoverDomId(panel.id)) {
         return;
     }
 
@@ -133,6 +153,12 @@ document.addEventListener(
             return;
         }
         document.querySelectorAll('[data-manexo-user-card][popover]').forEach((panel) => {
+            if (!(panel instanceof HTMLElement) || !panel.isConnected) {
+                return;
+            }
+            if (!sanitizeManexoPopoverDomId(panel.id)) {
+                return;
+            }
             if (!isPopoverOpen(panel) || typeof panel.hidePopover !== 'function') {
                 return;
             }
@@ -148,6 +174,18 @@ document.addEventListener(
         });
     },
     true,
+);
+
+/** Empêche la remontée du clic depuis la fiche (remplace onclick inline — CSP). */
+document.addEventListener(
+    'click',
+    (e) => {
+        const panel = e.target?.closest?.('[data-manexo-user-card][popover]');
+        if (panel instanceof HTMLElement && panel.contains(e.target)) {
+            e.stopPropagation();
+        }
+    },
+    false,
 );
 
 document.addEventListener('toggle', onUserCardToggle, true);
@@ -185,3 +223,5 @@ document.addEventListener('livewire:navigated', bindScrollRepositionOnContainers
 document.addEventListener('livewire:init', () => {
     bindScrollRepositionOnContainers();
 });
+
+window.manexoSanitizePopoverDomId = sanitizeManexoPopoverDomId;

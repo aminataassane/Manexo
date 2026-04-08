@@ -17,7 +17,13 @@
 @php
     $badges = is_array($badges ?? null) ? $badges : [];
     $openLabel = $openLabel ?? __('pages.discussions.user_card_open');
-    $pid = $popoverId ?? 'muc-' . bin2hex(random_bytes(8));
+    // ID HTML sûr (évite injection d’attribut si popoverId venait d’une source externe un jour)
+    if ($popoverId !== null && is_string($popoverId) && preg_match('/^[a-zA-Z][a-zA-Z0-9_.:-]{0,127}$/', $popoverId)) {
+        $pid = $popoverId;
+    } else {
+        $pid = 'muc-' . bin2hex(random_bytes(8));
+    }
+    $initials = \Illuminate\Support\Str::limit(strip_tags((string) ($initials ?? '?')), 8, '');
 @endphp
 
 <div class="relative isolate shrink-0" data-manexo-user-card-root>
@@ -37,7 +43,6 @@
         aria-label="{{ $openLabel }}"
         class="pointer-events-auto m-0 w-[min(24rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/[0.06]"
         style="padding-left: max(1rem, env(safe-area-inset-left, 0px)); padding-right: max(1rem, env(safe-area-inset-right, 0px));"
-        onclick="event.stopPropagation()"
     >
         <div class="text-[15px] font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] break-words">{{ $name }}</div>
         @if($email)
