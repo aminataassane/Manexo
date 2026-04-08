@@ -1,0 +1,1 @@
+notif-<?php echo e($notification->id); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/687087f5fc53ad658be53ffef8662de4.blade.php ENDPATH**/ ?>

@@ -25,6 +25,13 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 #[Title('Rapport journalier')]
 class DailyReport extends Component
 {
+    public bool $ready = false;
+
+    public function loadPage(): void
+    {
+        $this->ready = true;
+    }
+
     public string $date = '';
 
     public string $filterGroup = '';
@@ -62,6 +69,7 @@ class DailyReport extends Component
     public function setActiveTab(string $value): void
     {
         if (in_array($value, ['in_progress', 'pending', 'all_active'], true)) {
+            $this->ready = true;
             $this->activeTab = $value;
         }
     }
@@ -75,11 +83,32 @@ class DailyReport extends Component
 
     public function updatedDate(string $value): void
     {
+        $this->ready = true;
         try {
             $this->date = Carbon::parse($value)->toDateString();
         } catch (\Throwable) {
             $this->date = now()->toDateString();
         }
+    }
+
+    public function updatedFilterGroup(): void
+    {
+        $this->ready = true;
+    }
+
+    public function updatedFilterAgent(): void
+    {
+        $this->ready = true;
+    }
+
+    public function updatedFilterCategory(): void
+    {
+        $this->ready = true;
+    }
+
+    public function updatedFilterPriority(): void
+    {
+        $this->ready = true;
     }
 
     /** @return array{0: Carbon, 1: Carbon} */
@@ -123,6 +152,27 @@ class DailyReport extends Component
             || $this->filterAgent !== ''
             || $this->filterCategory !== ''
             || $this->filterPriority !== '';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyDailySummary(): array
+    {
+        return [
+            'created_total' => 0,
+            'created_open' => 0,
+            'created_in_progress' => 0,
+            'created_pending' => 0,
+            'created_resolved' => 0,
+            'created_closed' => 0,
+            'resolved_today' => 0,
+            'backlog_open' => 0,
+            'backlog_in_progress' => 0,
+            'backlog_pending' => 0,
+            'avg_first_response_seconds' => null,
+            'avg_resolution_seconds' => null,
+        ];
     }
 
     /**
@@ -218,6 +268,10 @@ class DailyReport extends Component
     #[Computed]
     public function activeTickets()
     {
+        if (! $this->ready) {
+            return collect();
+        }
+
         $statuses = match ($this->activeTab) {
             'in_progress' => [TicketStatus::InProgress],
             'pending' => [TicketStatus::Pending],
@@ -248,6 +302,10 @@ class DailyReport extends Component
     #[Computed]
     public function atRiskTickets(): array
     {
+        if (! $this->ready) {
+            return ['overdue' => collect(), 'due_soon' => collect()];
+        }
+
         $now = Carbon::now();
         $cacheKey = sprintf('reports:daily:risk:%d:%s', $this->orgId(), md5($this->reportScopeHash()));
         $riskIds = Cache::remember($cacheKey, 120, function () use ($now) {
@@ -294,6 +352,10 @@ class DailyReport extends Component
     #[Computed]
     public function agentPerformance(): array
     {
+        if (! $this->ready) {
+            return [];
+        }
+
         [$start, $end] = $this->dateRange();
 
         $cacheKey = sprintf('reports:daily:agent:%d:%s', $this->orgId(), md5($this->reportScopeHash()));
@@ -329,6 +391,10 @@ class DailyReport extends Component
     #[Computed]
     public function distributionByCategory(): array
     {
+        if (! $this->ready) {
+            return [];
+        }
+
         [$start, $end] = $this->dateRange();
 
         $cacheKey = sprintf('reports:daily:cat:%d:%s', $this->orgId(), md5($this->reportScopeHash()));
@@ -350,6 +416,10 @@ class DailyReport extends Component
     #[Computed]
     public function distributionByPriority(): array
     {
+        if (! $this->ready) {
+            return [];
+        }
+
         [$start, $end] = $this->dateRange();
 
         $priorityColors = ['#ef4444', '#f59e0b', '#3b82f6', '#6b7280', '#10b981', '#8b5cf6', '#ec4899', '#94a3b8'];
@@ -547,6 +617,16 @@ class DailyReport extends Component
         }
 
         [$start, $end] = $this->dateRange();
+
+        if (! $this->ready) {
+            return view('livewire.reports.daily-report', [
+                'summary' => $this->emptyDailySummary(),
+                'categories' => collect(),
+                'priorities' => collect(),
+                'groups' => collect(),
+                'agents' => collect(),
+            ]);
+        }
 
         // Cache summary only if date = today AND no filters active
         $isToday = $this->date === now()->toDateString();

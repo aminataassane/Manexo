@@ -116,8 +116,8 @@
         </a>
     </div>
 
-    <!-- Navigation -->
-    <div class="custom-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+    <!-- Navigation (scrollbar masquée, défilement inchangé) -->
+    <div class="scrollbar-hide flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
 
         <!-- Section Label -->
         <div class="px-3 mb-2 mt-2 text-[10px] font-bold uppercase tracking-widest text-white/30 transition-opacity duration-300" x-show="sidebarOpen">

@@ -1,0 +1,1 @@
+props-desktop-<?php echo e($fb_selected_field_id ?? 'none'); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/282c8de6c787f12eb52b9f78c1e37a1f.blade.php ENDPATH**/ ?>

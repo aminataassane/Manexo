@@ -42,6 +42,13 @@ class Settings extends Component
 {
     use WithFileUploads;
 
+    public bool $ready = false;
+
+    public function loadPage(): void
+    {
+        $this->ready = true;
+    }
+
     public string $activeTab = 'branding';
 
     /** Tracks which tabs have already had their data loaded. */
@@ -74,6 +81,7 @@ class Settings extends Component
 
         if (in_array($tab, $allowedTabs, true)) {
             $this->activeTab = $tab;
+            $this->ready = true;
             $this->loadTabData($tab);
         }
     }
@@ -2416,6 +2424,26 @@ class Settings extends Component
             if (! $org instanceof Organization) {
                 $org = Organization::query()->find($orgId);
             }
+        }
+
+        if (! $this->ready) {
+            return [
+                'org' => $org,
+                'categories' => collect(),
+                'priorities' => collect(),
+                'organizationFunctions' => collect(),
+                'ticketGroups' => collect(),
+                'forms' => collect(),
+                'members' => collect(),
+                'roles' => collect(),
+                'roleMemberCounts' => [],
+                'automationRules' => collect(),
+                'maintenanceStats' => [],
+                'apiTokens' => collect(),
+                'webhookEndpoints' => collect(),
+                'kbCategories' => collect(),
+                'kbArticles' => collect(),
+            ];
         }
 
         $categories = ($orgId && $needs(['tickets', 'categories', 'email', 'automations', 'sla']))

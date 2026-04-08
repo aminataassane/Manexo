@@ -40,7 +40,7 @@
     }
 @endphp
 
-<div class="daily-report w-full max-w-full min-w-0 mx-auto space-y-6 sm:space-y-8">
+<div class="daily-report w-full max-w-full min-w-0 mx-auto space-y-6 sm:space-y-8" wire:init="loadPage">
 
     {{-- ════════════════════════════════════════════════════════════════
          HEADER — même style que la page Rapport des tâches

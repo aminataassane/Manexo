@@ -22,6 +22,13 @@ class Index extends Component
     /** Limite d’affichage par onglet (évite les requêtes trop lourdes). */
     public const ASSIGNMENTS_LIST_LIMIT = 200;
 
+    public bool $ready = false;
+
+    public function loadPage(): void
+    {
+        $this->ready = true;
+    }
+
     public string $tab = 'pending'; // pending | overdue | submitted | expired | all
 
     public function setTab(string $tab): void
@@ -34,6 +41,7 @@ class Index extends Component
             return;
         }
 
+        $this->ready = true;
         $this->tab = $tab;
     }
 
@@ -46,6 +54,9 @@ class Index extends Component
     #[Computed]
     public function assignments()
     {
+        if (! $this->ready) {
+            return collect();
+        }
         $userId = Auth::id();
         $orgId = $this->orgId;
         if (! $userId || ! $orgId) {
@@ -93,6 +104,9 @@ class Index extends Component
     #[Computed]
     public function teamForms()
     {
+        if (! $this->ready) {
+            return collect();
+        }
         $orgId = $this->orgId;
         if (! $orgId) {
             return collect();
@@ -112,6 +126,9 @@ class Index extends Component
     #[Computed]
     public function formStats(): array
     {
+        if (! $this->ready) {
+            return ['pending' => 0, 'overdue' => 0, 'expired' => 0, 'submitted' => 0, 'total' => 0];
+        }
         $userId = Auth::id();
         $orgId = $this->orgId;
         if (! $userId || ! $orgId) {

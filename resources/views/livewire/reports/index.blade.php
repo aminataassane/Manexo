@@ -22,7 +22,7 @@
     $volumeChartMinWidth = $needsWideVolumeChart ? max(1200, $volumePointCount * 52) : 0;
 @endphp
 
-<div class="w-full max-w-full min-w-0 mx-auto">
+<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadPage">
     {{-- ═══ HEADER ═══ --}}
     <div class="page-header">
         <div class="min-w-0 flex-1">

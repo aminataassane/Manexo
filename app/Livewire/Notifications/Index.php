@@ -20,9 +20,12 @@ class Index extends Component
 {
     use WithPagination;
 
-    public bool $ready = true;
+    public bool $ready = false;
 
-    public function loadPage(): void {}
+    public function loadPage(): void
+    {
+        $this->ready = true;
+    }
 
     #[Url]
     public string $filter = 'all';
@@ -63,6 +66,9 @@ class Index extends Component
 
     public function getNotificationsProperty(): LengthAwarePaginator
     {
+        if (! $this->ready) {
+            return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $this->perPage);
+        }
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
         if (! $user) {
@@ -91,6 +97,9 @@ class Index extends Component
 
     public function getUnreadCountProperty(): int
     {
+        if (! $this->ready) {
+            return 0;
+        }
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
         if (! $user) {
@@ -127,6 +136,7 @@ class Index extends Component
         if ($nextFilter === $this->filter) {
             return;
         }
+        $this->ready = true;
         $this->filter = $nextFilter;
         $this->resetPage();
     }
@@ -138,6 +148,7 @@ class Index extends Component
         if ($nextCategory === $this->category) {
             return;
         }
+        $this->ready = true;
         $this->category = $nextCategory;
         $this->resetPage();
     }

@@ -1,5 +1,5 @@
 {{-- Un seul élément racine pour Livewire (évite "Snapshot missing" / "Component not found") --}}
-<div class="w-full max-w-full min-w-0 mx-auto">
+<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadPage">
 @php
     $closedByCategoryTotal = max(1, array_sum(array_column($stats['byCategoryClosed'] ?? [], 'count')));
 @endphp

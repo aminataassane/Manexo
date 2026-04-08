@@ -1,4 +1,4 @@
-<div class="w-full max-w-full min-w-0 mx-auto" x-data="{ tab: $wire.entangle('activeTab').live }">
+<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadPage" x-data="{ tab: $wire.entangle('activeTab').live }">
     {{-- ═══ HEADER ═══ --}}
     <div class="page-header">
         <div class="min-w-0">
@@ -135,7 +135,7 @@
         </div>
 
         <!-- RIGHT CONTENT AREA -->
-        <div class="lg:col-span-9 space-y-6">
+        <div class="lg:col-span-9 space-y-6 @if(! $ready) animate-pulse @endif">
             @if (! $canManage)
                 <div class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3" style="border: 1px solid #fde68a;">
                     <iconify-icon icon="solar:lock-keyhole-bold" width="20" class="shrink-0"></iconify-icon>

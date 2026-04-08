@@ -1,0 +1,1 @@
+cat-<?php echo e($cat->id); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/7fdba7e8b23f1295322a06309f44ca38.blade.php ENDPATH**/ ?>

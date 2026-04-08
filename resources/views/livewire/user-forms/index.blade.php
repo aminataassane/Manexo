@@ -7,7 +7,7 @@
     ];
 @endphp
 
-<div class="w-full max-w-full min-w-0 mx-auto">
+<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadPage">
 
     {{-- Header --}}
     <div class="page-header">
@@ -25,6 +25,28 @@
         </div>
     @endif
 
+    @if(! $ready)
+    <div class="mb-6 sm:mb-8 space-y-3 animate-pulse">
+        <div class="flex gap-2 overflow-hidden">
+            @for($i = 0; $i < 5; $i++)
+                <div class="h-10 flex-1 min-w-[5rem] max-w-[8rem] rounded-lg bg-slate-200"></div>
+            @endfor
+        </div>
+        <div class="h-px bg-slate-200"></div>
+    </div>
+    <div class="rounded-xl border border-slate-200 bg-white overflow-hidden divide-y divide-slate-100">
+        @for($i = 0; $i < 5; $i++)
+            <div class="flex items-center gap-4 px-5 py-4">
+                <div class="h-2.5 w-2.5 rounded-full bg-slate-200 shrink-0"></div>
+                <div class="flex-1 space-y-2">
+                    <div class="h-4 w-[66%] max-w-sm rounded bg-slate-200"></div>
+                    <div class="h-3 w-40 rounded bg-slate-100"></div>
+                </div>
+                <div class="h-9 w-20 rounded-lg bg-slate-200 shrink-0 hidden sm:block"></div>
+            </div>
+        @endfor
+    </div>
+    @else
     @php $stats = $this->formStats; @endphp
 
     {{-- Navigation : tabs + compteurs inline --}}
@@ -186,4 +208,5 @@
             </div>
         @endforelse
     </div>
+    @endif
 </div>

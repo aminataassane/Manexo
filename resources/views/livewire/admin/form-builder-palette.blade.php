@@ -56,7 +56,7 @@
     </div>
 
     {{-- Grouped field types --}}
-    <div class="flex-1 overflow-y-auto custom-scrollbar px-3 min-[1100px]:px-4 pb-5 space-y-5">
+    <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-3 min-[1100px]:px-4 pb-5 space-y-5">
         @foreach($fieldGroups as $group)
             <div x-show="!paletteSearch || {{ json_encode(collect($group['types'])->pluck('label')->join(' ')) }}.toLowerCase().includes(paletteSearch.toLowerCase())">
                 <h4 class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-300 mb-2 px-2">
@@ -136,7 +136,7 @@
                 </div>
             </div>
             {{-- Types --}}
-            <div class="flex-1 space-y-5 overflow-y-auto overscroll-y-contain bg-slate-50/30 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 custom-scrollbar">
+            <div class="flex-1 min-h-0 space-y-5 overflow-y-auto overflow-x-hidden overscroll-y-contain bg-slate-50/30 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-4 scrollbar-hide">
                 @foreach($fieldGroups as $group)
                     <div x-show="!mobileSearch || {{ json_encode(collect($group['types'])->pluck('label')->join(' ')) }}.toLowerCase().includes(mobileSearch.toLowerCase())">
                         <h4 class="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400 mb-2.5 px-1">

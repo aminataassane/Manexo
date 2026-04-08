@@ -17,6 +17,13 @@ use Livewire\Component;
 #[Title('Rapports')]
 class Index extends Component
 {
+    public bool $ready = false;
+
+    public function loadPage(): void
+    {
+        $this->ready = true;
+    }
+
     /** @var string 'default' (30 days) | 'monthly' (current month) | 'yearly' (12 months) */
     public string $period = 'default';
 
@@ -27,6 +34,7 @@ class Index extends Component
                 return;
             }
 
+            $this->ready = true;
             $this->period = $period;
         }
     }
@@ -44,6 +52,44 @@ class Index extends Component
     }
 
     /** @return array{dir: string, val: int} */
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyReportsPayload(): array
+    {
+        return [
+            'kpis' => [
+                'total' => 0,
+                'open' => 0,
+                'in_progress' => 0,
+                'pending' => 0,
+                'done' => 0,
+                'created_7d' => 0,
+                'done_7d' => 0,
+                'avg_open_age_hours' => 0,
+            ],
+            'byStatus' => [],
+            'createdLast7d' => [],
+            'createdLast30d' => [],
+            'topCategories' => [],
+            'topAssignees' => [],
+            'team' => [
+                'owners' => 0,
+                'admins' => 0,
+                'agents' => 0,
+                'members' => 0,
+            ],
+            'trendTotal' => ['dir' => 'up', 'val' => 0],
+            'trendNew30d' => ['dir' => 'up', 'val' => 0],
+            'trendNewInPeriod' => ['dir' => 'up', 'val' => 0],
+            'resolutionRate' => 0.0,
+            'teamCapacityPercent' => 0,
+            'performanceSeries' => [],
+            'createdInPeriod' => 0,
+            'slaKpis' => null,
+        ];
+    }
+
     private function percentChange(int $previous, int $currentMinusPrevious): array
     {
         if ($previous === 0) {
@@ -90,6 +136,10 @@ class Index extends Component
         // Only users with reports.view permission
         if (! ($user instanceof \App\Models\User) || ! $user->hasPermission(Permission::ReportsView)) {
             abort(403);
+        }
+
+        if (! $this->ready) {
+            return view('livewire.reports.index', $this->emptyReportsPayload());
         }
 
         $period = $this->period;

@@ -1,0 +1,1 @@
+props-mobile-<?php echo e($fb_selected_field_id ?? 'none'); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/970cefad18aea9cdc105a71a7e5b7e9f.blade.php ENDPATH**/ ?>

@@ -9,6 +9,8 @@ use App\Models\Ticket;
 use App\Models\TicketChecklistItem;
 use App\Notifications\TaskReportSharedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -25,6 +27,13 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class TaskReport extends Component
 {
     use WithPagination;
+
+    public bool $ready = false;
+
+    public function loadPage(): void
+    {
+        $this->ready = true;
+    }
 
     public string $period = 'week';
 
@@ -70,6 +79,7 @@ class TaskReport extends Component
             return;
         }
 
+        $this->ready = true;
         $this->period = $value;
         $this->resetPage();
         $this->resetPage('closed_page');
@@ -78,6 +88,7 @@ class TaskReport extends Component
 
     public function updatedPeriod(string $value): void
     {
+        $this->ready = true;
         if (! in_array($value, ['today', 'week', 'month', 'custom'], true)) {
             $this->period = 'week';
         }
@@ -89,12 +100,14 @@ class TaskReport extends Component
 
     public function updatedDateFrom(): void
     {
+        $this->ready = true;
         $this->resetPage();
         $this->resetPage('closed_page');
     }
 
     public function updatedDateTo(): void
     {
+        $this->ready = true;
         $this->resetPage();
         $this->resetPage('closed_page');
     }
@@ -203,6 +216,25 @@ class TaskReport extends Component
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    private function emptyTaskReportStats(): array
+    {
+        return [
+            'closedTicketsCount' => 0,
+            'byCategoryClosed' => [],
+            'byUserClosed' => [],
+            'topCategoryClosed' => null,
+            'topUserClosed' => null,
+            'tasksTotal' => 0,
+            'byUserTasks' => [],
+            'byCategoryTasks' => [],
+            'topUserTasks' => null,
+            'topCategoryTasks' => null,
+        ];
+    }
+
+    /**
      * Stats: primary = tickets clôturés, secondary = sous-tâches (checklist).
      */
     private function computeStats(Carbon $from, Carbon $to): array
@@ -284,6 +316,13 @@ class TaskReport extends Component
     #[Computed]
     public function closedTickets()
     {
+        if (! $this->ready) {
+            return new LengthAwarePaginator([], 0, 20, 1, [
+                'path' => Paginator::resolveCurrentPath(),
+                'pageName' => 'closed_page',
+            ]);
+        }
+
         [$from, $to] = $this->dateRange();
 
         return $this->closedTicketsQuery($from, $to)
@@ -297,6 +336,10 @@ class TaskReport extends Component
     #[Computed]
     public function completedItems()
     {
+        if (! $this->ready) {
+            return new LengthAwarePaginator([], 0, 20);
+        }
+
         [$from, $to] = $this->dateRange();
 
         return $this->baseQuery($from, $to)
@@ -495,6 +538,10 @@ class TaskReport extends Component
     #[Computed]
     public function staffMembers()
     {
+        if (! $this->ready) {
+            return collect();
+        }
+
         $currentUserId = Auth::id();
 
         return OrganizationMembership::query()
@@ -518,6 +565,17 @@ class TaskReport extends Component
         }
 
         [$from, $to] = $this->dateRange();
+
+        if (! $this->ready) {
+            return view('livewire.reports.task-report', [
+                'stats' => $this->emptyTaskReportStats(),
+                'from' => $from,
+                'to' => $to,
+                'canShare' => $this->canShare(),
+                'canViewAll' => $this->canViewAll(),
+            ]);
+        }
+
         $scope = $this->canViewAll() ? 'all' : 'self';
         $viewerId = (int) Auth::id();
         $statsKey = sprintf(
