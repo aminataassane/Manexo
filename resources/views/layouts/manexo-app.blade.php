@@ -27,9 +27,29 @@
         [x-cloak] { display: none !important; }
         html { overflow-x: hidden; }
 
-        /* Animations */
+        /* Animations (tickets / discussions ; pas sur le layout pour éviter 0,5s à chaque wire:navigate) */
         @keyframes subtleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-enter { animation: subtleFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-enter { animation: subtleFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+            .animate-enter { animation: none; opacity: 1; transform: none; }
+        }
+        html.manexo-is-navigating .manexo-app-main-scroll { pointer-events: none; }
+        html.manexo-is-navigating .manexo-content-wrap {
+            opacity: 0.93;
+            transform: translateY(1px);
+            transition: opacity 0.06s ease-out, transform 0.06s ease-out;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            html.manexo-is-navigating .manexo-content-wrap { opacity: 1; transform: none; transition: none; }
+        }
+
+        /* Livewire navigate progress bar */
+        [x-ref="progressBar"] {
+            height: 3px !important;
+            background-color: var(--accent) !important;
+            box-shadow: 0 0 8px var(--accent), 0 0 2px var(--accent) !important;
+            transition: width 0.1s ease !important;
+        }
 
         /* Organization accent color */
         ::selection { background: var(--accent-soft); color: var(--accent); }
@@ -71,6 +91,7 @@
         --accent-soft-2: color-mix(in srgb, var(--accent) 25%, white);
         --accent-dark: color-mix(in srgb, var(--accent) 20%, black);
         --accent-ring: color-mix(in srgb, var(--accent) 20%, transparent);
+        --livewire-progress-bar-color: var(--accent);
     "
     x-data="{ sidebarOpen: true, mobileOpen: false }"
     x-init="sidebarOpen = (localStorage.getItem('manexo_sidebar') !== 'false'); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)'); document.addEventListener('livewire:navigated', () => { mobileOpen = false })"
@@ -138,8 +159,8 @@
             class="manexo-shell-transition flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] {{ isset($activeSupportSession) && $activeSupportSession ? 'pt-24 sm:pt-[6.5rem]' : 'pt-14 sm:pt-16' }} pl-0 md:pl-[var(--manexo-shell-offset)]"
     >
         <!-- PAGE BODY (scrollable) -->
-        <div class="page-content-safe manexo-shell-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
-            <div class="mx-auto manexo-content-wrap animate-enter space-y-[var(--manexo-space-section)]">
+        <div class="manexo-app-main-scroll page-content-safe manexo-shell-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar">
+            <div class="mx-auto manexo-content-wrap space-y-[var(--manexo-space-section)]">
                 {{ $slot }}
             </div>
         </div>

@@ -22,15 +22,15 @@
     $volumeChartMinWidth = $needsWideVolumeChart ? max(1200, $volumePointCount * 52) : 0;
 @endphp
 
-<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadReportBody">
+<div class="w-full max-w-full min-w-0 mx-auto">
     {{-- ═══ HEADER ═══ --}}
     <div class="page-header">
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
             <h1 class="page-title">{{ __('reports.title') }}</h1>
             <p class="page-subtitle">{{ __('reports.subtitle') }}</p>
         </div>
-        <div class="page-actions">
-            <div class="view-toggle flex-shrink-0">
+        <div class="page-actions reports-page-actions">
+            <div class="view-toggle view-toggle--scroll flex-shrink-0">
                 <button wire:click="setPeriod('default')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? 'default') === 'default' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.view_default') }}</button>
                 <button wire:click="setPeriod('monthly')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? '') === 'monthly' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.monthly') }}</button>
                 <button wire:click="setPeriod('yearly')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="view-toggle-btn whitespace-nowrap {{ ($period ?? '') === 'yearly' ? 'view-toggle-btn-active' : 'view-toggle-btn-default' }}">{{ __('reports.yearly') }}</button>
@@ -58,7 +58,6 @@
         </div>
     </div>
 
-    @if($loadStage >= 2)
     <!-- TOP KPI CARDS -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <!-- Card 1: Total Users (Blue Highlight) -->
@@ -76,11 +75,11 @@
                             </button>
                         </x-slot>
                         <x-slot name="content">
-                            <a href="{{ route('tickets.index') }}" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-t-lg flex items-center gap-2">
+                            <a href="{{ route('tickets.index') }}" wire:navigate.hover class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-t-lg flex items-center gap-2">
                                 <iconify-icon icon="solar:document-text-bold-duotone" width="16"></iconify-icon>
                                 {{ __('reports.menu_view_tickets') }}
                             </a>
-                            <a href="{{ route('reports.index') }}" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-b-lg flex items-center gap-2">
+                            <a href="{{ route('reports.index') }}" wire:navigate.hover class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-b-lg flex items-center gap-2">
                                 <iconify-icon icon="solar:refresh-bold-duotone" width="16"></iconify-icon>
                                 {{ __('reports.menu_refresh') }}
                             </a>
@@ -176,20 +175,22 @@
     </div>
 
     <!-- MAIN CHARTS SECTION -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
 
         <!-- Large Bar Chart (Statistics) -->
-        <div class="lg:col-span-2 content-card p-6">
-            <div class="flex items-center justify-between mb-8">
-                <h3 class="text-lg font-bold text-slate-900">{{ __('reports.ticket_volume') }}</h3>
-                <div class="flex items-center gap-2">
+        <div class="lg:col-span-2 content-card p-4 sm:p-6 min-w-0">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+                <h3 class="text-base sm:text-lg font-bold text-slate-900 shrink-0">{{ __('reports.ticket_volume') }}</h3>
+                <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center min-w-0 w-full sm:w-auto">
+                    <div class="hidden sm:flex items-center gap-2 flex-wrap">
                     <span class="flex items-center gap-1.5 text-xs font-medium text-slate-600">
                         <span class="w-2.5 h-2.5 rounded-full bg-[var(--accent)]"></span> {{ __('reports.created') }}
                     </span>
                     <span class="flex items-center gap-1.5 text-xs font-medium text-slate-600">
                         <span class="w-2.5 h-2.5 rounded-full bg-slate-200"></span> {{ __('reports.resolved') }}
                     </span>
-                    <div class="h-4 w-px bg-slate-200 mx-2"></div>
+                    <div class="h-4 w-px bg-slate-200 mx-2 hidden md:block"></div>
+                    </div>
                     <x-select-input
                         :options="$reportPeriodChartOptions"
                         :label="$reportPeriodChartLabel"
@@ -252,9 +253,9 @@
         </div>
 
         <!-- Secondary Chart (Performance/Financial style) -->
-        <div class="content-card p-6 flex flex-col">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-lg font-bold text-slate-900">{{ __('reports.performance') }}</h3>
+        <div class="content-card p-4 sm:p-6 flex flex-col min-w-0">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6">
+                <h3 class="text-base sm:text-lg font-bold text-slate-900">{{ __('reports.performance') }}</h3>
                 <x-dropdown align="right" width="48" contentClasses="py-1 bg-white rounded-lg shadow-xl border border-slate-200">
                     <x-slot name="trigger">
                         <button type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="{{ __('reports.menu_settings') }}">
@@ -348,8 +349,8 @@
                     </x-slot>
                 </x-dropdown>
             </div>
-            <div class="p-0">
-                <table class="w-full">
+            <div class="p-0 overflow-x-auto -mx-1 sm:mx-0">
+                <table class="w-full min-w-[520px]">
                     <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
                         <tr>
                             <th class="px-6 py-3 text-left">{{ __('reports.agent') }}</th>
@@ -400,11 +401,11 @@
                         </button>
                     </x-slot>
                     <x-slot name="content">
-                        <a href="{{ route('tickets.index') }}" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-t-lg flex items-center gap-2">
+                        <a href="{{ route('tickets.index') }}" wire:navigate.hover class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-t-lg flex items-center gap-2">
                             <iconify-icon icon="solar:document-text-bold-duotone" width="16"></iconify-icon>
                             {{ __('reports.menu_view_tickets') }}
                         </a>
-                        <a href="{{ route('reports.index') }}" class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-b-lg flex items-center gap-2">
+                        <a href="{{ route('reports.index') }}" wire:navigate.hover class="block w-full px-4 py-2 text-start text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-b-lg flex items-center gap-2">
                             <iconify-icon icon="solar:refresh-bold-duotone" width="16"></iconify-icon>
                             {{ __('reports.menu_refresh') }}
                         </a>
@@ -487,8 +488,8 @@
                 <div class="px-6 py-5 border-b border-slate-100">
                     <h3 class="text-base font-bold text-slate-900">{{ __('Conformité SLA par priorité') }}</h3>
                 </div>
-                <div class="p-0">
-                    <table class="w-full">
+                <div class="p-0 overflow-x-auto">
+                    <table class="w-full min-w-[480px]">
                         <thead class="bg-slate-50 text-xs uppercase font-semibold text-slate-500">
                             <tr>
                                 <th class="px-6 py-3 text-left">{{ __('Priorité') }}</th>
@@ -515,10 +516,6 @@
                 </div>
             </div>
         @endif
-    @endif
-
-    @else
-        <x-page-skeleton variant="list" />
     @endif
 
 </div>

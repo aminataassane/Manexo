@@ -10,19 +10,11 @@
         return $m . __('daily_report.minutes_short');
     };
 
-    if ($loadStage >= 2) {
-        $atRisk = $this->atRiskTickets;
-        $activeTickets = $this->activeTickets;
-        $agentPerf = $this->agentPerformance;
-        $distCategory = $this->distributionByCategory;
-        $distPriority = $this->distributionByPriority;
-    } else {
-        $atRisk = ['overdue' => collect(), 'due_soon' => collect()];
-        $activeTickets = collect();
-        $agentPerf = [];
-        $distCategory = [];
-        $distPriority = [];
-    }
+    $atRisk = $this->atRiskTickets;
+    $activeTickets = $this->activeTickets;
+    $agentPerf = $this->agentPerformance;
+    $distCategory = $this->distributionByCategory;
+    $distPriority = $this->distributionByPriority;
     $totalCat = collect($distCategory)->sum('count') ?: 1;
     $totalPri = collect($distPriority)->sum('count') ?: 1;
     $maxAgentHandled = collect($agentPerf)->max('handled') ?: 1;
@@ -48,21 +40,21 @@
     }
 @endphp
 
-<div class="daily-report w-full max-w-full min-w-0 mx-auto space-y-6 sm:space-y-8" wire:init="loadReportBody">
+<div class="daily-report w-full max-w-full min-w-0 mx-auto space-y-6 sm:space-y-8">
 
     {{-- ════════════════════════════════════════════════════════════════
          HEADER — même style que la page Rapport des tâches
          ════════════════════════════════════════════════════════════════ --}}
     <div class="page-header !mb-2">
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
             <h1 class="page-title">{{ __('daily_report.title') }}</h1>
             <p class="page-subtitle">{{ __('daily_report.subtitle') }}</p>
         </div>
-        <div class="page-actions">
+        <div class="page-actions reports-page-actions">
             <input
                 type="date"
                 wire:model.live="date"
-                class="h-10 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors"
+                class="h-10 w-full min-w-0 sm:w-auto sm:min-w-[10.5rem] rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors"
             />
 
             <x-dropdown align="right" width="72" contentClasses="py-3 bg-white rounded-xl shadow-xl border border-slate-200">
@@ -157,7 +149,6 @@
         </div>
     </div>
 
-    @if($loadStage >= 2)
     {{-- ════════════════════════════════════════════════════════════════
          KPI CARDS — même style que Rapport des tâches
          ════════════════════════════════════════════════════════════════ --}}
@@ -251,7 +242,7 @@
             <div class="h-full bg-slate-300 transition-all duration-500" style="width:{{ $bPend }}%"></div>
         </div>
 
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             <div class="flex items-center gap-3">
                 <span class="h-3 w-3 rounded-full bg-blue-500 shrink-0"></span>
                 <div>
@@ -324,7 +315,7 @@
                                     </td>
                                     <td class="px-4 py-3 text-xs font-mono font-semibold text-slate-500">{{ $ticket->public_id }}</td>
                                     <td class="px-4 py-3 text-sm font-medium text-slate-900 max-w-[200px]">
-                                        <a href="{{ route('tickets.discussion', $ticket) }}" class="hover:text-[var(--accent)] transition-colors truncate block">{{ $ticket->subject }}</a>
+                                        <a href="{{ route('tickets.discussion', $ticket) }}" wire:navigate class="hover:text-[var(--accent)] transition-colors truncate block">{{ $ticket->subject }}</a>
                                     </td>
                                     <td class="px-4 py-3 text-xs text-slate-500">{{ $ticket->group?->name ?? __('daily_report.no_group_label') }}</td>
                                     <td class="px-4 py-3">
@@ -348,7 +339,7 @@
                                     </td>
                                     <td class="px-4 py-3 text-xs font-mono font-semibold text-slate-500">{{ $ticket->public_id }}</td>
                                     <td class="px-4 py-3 text-sm font-medium text-slate-900 max-w-[200px]">
-                                        <a href="{{ route('tickets.discussion', $ticket) }}" class="hover:text-[var(--accent)] transition-colors truncate block">{{ $ticket->subject }}</a>
+                                        <a href="{{ route('tickets.discussion', $ticket) }}" wire:navigate class="hover:text-[var(--accent)] transition-colors truncate block">{{ $ticket->subject }}</a>
                                     </td>
                                     <td class="px-4 py-3 text-xs text-slate-500">{{ $ticket->group?->name ?? __('daily_report.no_group_label') }}</td>
                                     <td class="px-4 py-3">
@@ -381,13 +372,13 @@
                 <h2 class="text-sm font-bold text-slate-800">{{ __('daily_report.active_tickets') }}</h2>
                 <span class="text-xs font-semibold text-slate-400 tabular-nums">({{ $activeTickets->count() }})</span>
             </div>
-            <div class="inline-flex items-center rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
+            <div class="inline-flex w-full max-w-full min-w-0 items-stretch overflow-x-auto rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:inline-flex">
                 @foreach([
                     ['key' => 'in_progress', 'label' => __('daily_report.tab_in_progress')],
                     ['key' => 'pending', 'label' => __('daily_report.tab_pending')],
                     ['key' => 'all_active', 'label' => __('daily_report.tab_all_active')],
                 ] as $tab)
-                    <button wire:click="$set('activeTab', '{{ $tab['key'] }}')" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-[10px] transition-all {{ $activeTab === $tab['key'] ? 'bg-slate-900 text-white shadow' : 'text-slate-500 hover:text-slate-700' }}">
+                    <button wire:click="$set('activeTab', '{{ $tab['key'] }}')" type="button" class="flex-1 min-w-0 shrink-0 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold rounded-[10px] transition-all whitespace-nowrap {{ $activeTab === $tab['key'] ? 'bg-slate-900 text-white shadow' : 'text-slate-500 hover:text-slate-700' }}">
                         {{ $tab['label'] }}
                     </button>
                 @endforeach
@@ -436,7 +427,7 @@
                                 <tr class="hover:bg-slate-50/60 transition-colors">
                                     <td class="px-4 py-3 text-xs font-mono font-semibold text-slate-500">{{ $ticket->public_id }}</td>
                                     <td class="px-4 py-3 text-sm font-medium text-slate-900 max-w-[200px]">
-                                        <a href="{{ route('tickets.discussion', $ticket) }}" class="hover:text-[var(--accent)] transition-colors truncate block">{{ $ticket->subject }}</a>
+                                        <a href="{{ route('tickets.discussion', $ticket) }}" wire:navigate class="hover:text-[var(--accent)] transition-colors truncate block">{{ $ticket->subject }}</a>
                                     </td>
                                     <td class="px-4 py-3 text-xs text-slate-500">{{ $ticket->group?->name ?? __('daily_report.no_group_label') }}</td>
                                     <td class="px-4 py-3">
@@ -555,8 +546,5 @@
         </div>
     </section>
 
-    @else
-        <x-page-skeleton variant="list" />
-    @endif
 
 </div>

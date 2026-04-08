@@ -1,5 +1,5 @@
 
-<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadReportBody">
+<div class="w-full max-w-full min-w-0 mx-auto">
 <?php
     $closedByCategoryTotal = max(1, array_sum(array_column($stats['byCategoryClosed'] ?? [], 'count')));
 ?>
@@ -17,12 +17,12 @@
 
     
     <div class="page-header">
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
             <h1 class="page-title"><?php echo e(__('task_report.title')); ?></h1>
             <p class="page-subtitle"><?php echo e(__('task_report.subtitle')); ?></p>
         </div>
-        <div class="page-actions">
-            <div class="view-toggle flex-shrink-0">
+        <div class="page-actions reports-page-actions">
+            <div class="view-toggle view-toggle--scroll flex-shrink-0">
                 <button wire:click="setPeriod('today')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap <?php echo e($period === 'today' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'); ?>"><?php echo e(__('task_report.today')); ?></button>
                 <button wire:click="setPeriod('week')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap <?php echo e($period === 'week' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'); ?>"><?php echo e(__('task_report.this_week')); ?></button>
                 <button wire:click="setPeriod('month')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap <?php echo e($period === 'month' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'); ?>"><?php echo e(__('task_report.this_month')); ?></button>
@@ -106,7 +106,6 @@
         </div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($loadStage >= 2): ?>
     
     <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8 lg:grid-cols-3 min-[1920px]:gap-6">
         <div class="stat-card">
@@ -154,7 +153,7 @@
                 <h3 class="text-base font-bold text-slate-900"><?php echo e(__('task_report.closed_by_category')); ?></h3>
             </div>
             <div class="p-4 sm:p-6 space-y-5">
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_4 = true; $__currentLoopData = $stats['byCategoryClosed'] ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_4 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $stats['byCategoryClosed'] ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <?php $pct = round(($cat['count'] / $closedByCategoryTotal) * 100); ?>
                         <div>
                             <div class="flex justify-between items-center mb-2">
@@ -165,7 +164,7 @@
                                 <div class="h-full rounded-full bg-slate-800 transition-all duration-500" style="width: <?php echo e($pct); ?>%"></div>
                             </div>
                         </div>
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_4): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <p class="text-center text-sm text-slate-500 py-8"><?php echo e(__('task_report.no_data')); ?></p>
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
             </div>
@@ -177,7 +176,7 @@
             <div class="overflow-x-auto">
                 <table class="w-full min-w-[240px]">
                         <tbody class="divide-y divide-slate-100">
-                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_4 = true; $__currentLoopData = $stats['byUserClosed'] ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_4 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $stats['byUserClosed'] ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                 <?php $total = $stats['closedTicketsCount'] ?? 1; $pct = $total > 0 ? round(($row['count'] / $total) * 100) : 0; ?>
                                 <tr class="hover:bg-slate-50/50 transition-colors">
                                     <td class="px-4 sm:px-6 py-3">
@@ -197,7 +196,7 @@
                                         </div>
                                     </td>
                                 </tr>
-                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_4): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                                 <tr><td colspan="2" class="px-4 sm:px-6 py-8 text-center text-sm text-slate-500"><?php echo e(__('task_report.no_data')); ?></td></tr>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         </tbody>
@@ -229,7 +228,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_4 = true; $__currentLoopData = $this->closedTickets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $ticket): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_4 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $this->closedTickets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $ticket): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="px-4 sm:px-6 py-3 sm:py-4">
                                     <a href="<?php echo e(route('tickets.discussion', $ticket)); ?>" wire:navigate class="text-sm font-medium text-[var(--accent)] hover:underline truncate max-w-[200px] sm:max-w-[280px] inline-block"><?php echo e(Str::limit($ticket->subject, 50)); ?></a>
@@ -246,7 +245,7 @@
                                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                 </td>
                             </tr>
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_4): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             <tr>
                                 <td colspan="5" class="px-4 sm:px-6 py-16 text-center">
                                     <div class="flex flex-col items-center gap-2">
@@ -332,30 +331,6 @@
             </div>
         </div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-    <?php else: ?>
-        <?php if (isset($component)) { $__componentOriginalaf396ce572a47c4e4be638fe5b46798c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalaf396ce572a47c4e4be638fe5b46798c = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.page-skeleton','data' => ['variant' => 'list']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('page-skeleton'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['variant' => 'list']); ?>
-<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
-
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginalaf396ce572a47c4e4be638fe5b46798c)): ?>
-<?php $attributes = $__attributesOriginalaf396ce572a47c4e4be638fe5b46798c; ?>
-<?php unset($__attributesOriginalaf396ce572a47c4e4be638fe5b46798c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginalaf396ce572a47c4e4be638fe5b46798c)): ?>
-<?php $component = $__componentOriginalaf396ce572a47c4e4be638fe5b46798c; ?>
-<?php unset($__componentOriginalaf396ce572a47c4e4be638fe5b46798c); ?>
-<?php endif; ?>
-    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 </div>
 
 
@@ -363,12 +338,12 @@
 <div class="w-full max-w-full min-w-0 mx-auto">
     
     <div class="page-header">
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
             <h1 class="page-title"><?php echo e(__('task_report.my_tasks_title')); ?></h1>
             <p class="page-subtitle"><?php echo e(__('task_report.my_tasks_subtitle')); ?></p>
         </div>
-        <div class="page-actions">
-            <div class="view-toggle flex-shrink-0">
+        <div class="page-actions reports-page-actions">
+            <div class="view-toggle view-toggle--scroll flex-shrink-0">
                 <button wire:click="setPeriod('week')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap <?php echo e($period === 'week' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'); ?>"><?php echo e(__('task_report.this_week')); ?></button>
                 <button wire:click="setPeriod('month')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap <?php echo e($period === 'month' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'); ?>"><?php echo e(__('task_report.this_month')); ?></button>
                 <button wire:click="setPeriod('custom')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap <?php echo e($period === 'custom' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'); ?>"><?php echo e(__('task_report.custom')); ?></button>
@@ -443,7 +418,6 @@
         </div>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($loadStage >= 2): ?>
     
     <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div class="stat-card">
@@ -494,7 +468,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_4 = true; $__currentLoopData = $this->closedTickets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $ticket): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_4 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $this->closedTickets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $ticket): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="px-4 sm:px-6 py-3 sm:py-4">
                                     <a href="<?php echo e(route('tickets.discussion', $ticket)); ?>" wire:navigate class="group flex items-center gap-3 min-w-0">
@@ -524,7 +498,11 @@
                                 </td>
                                 <td class="px-4 sm:px-6 py-3 sm:py-4 text-right text-sm text-slate-500 whitespace-nowrap"><?php echo e($ticket->updated_at->format('d/m/Y')); ?></td>
                             </tr>
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                            <tr>
+                                <td colspan="4" class="px-4 sm:px-6 py-12 text-center text-sm text-slate-500"><?php echo e(__('task_report.no_data')); ?></td>
+                            </tr>
+                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -544,30 +522,6 @@
             </div>
         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
     </div>
-    <?php else: ?>
-        <?php if (isset($component)) { $__componentOriginalaf396ce572a47c4e4be638fe5b46798c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginalaf396ce572a47c4e4be638fe5b46798c = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.page-skeleton','data' => ['variant' => 'list']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('page-skeleton'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['variant' => 'list']); ?>
-<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
-
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginalaf396ce572a47c4e4be638fe5b46798c)): ?>
-<?php $attributes = $__attributesOriginalaf396ce572a47c4e4be638fe5b46798c; ?>
-<?php unset($__attributesOriginalaf396ce572a47c4e4be638fe5b46798c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginalaf396ce572a47c4e4be638fe5b46798c)): ?>
-<?php $component = $__componentOriginalaf396ce572a47c4e4be638fe5b46798c; ?>
-<?php unset($__componentOriginalaf396ce572a47c4e4be638fe5b46798c); ?>
-<?php endif; ?>
-    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 </div>
 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 

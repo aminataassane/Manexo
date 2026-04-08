@@ -232,7 +232,7 @@
     </div>
 
     {{-- STATS CARDS --}}
-    <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8 lg:grid-cols-4">
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div class="stat-card">
             <div class="flex justify-between items-start gap-2">
                 <div class="min-w-0">
@@ -255,35 +255,43 @@
                 </div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="flex justify-between items-start gap-2">
-                <div class="min-w-0">
-                    <span class="stat-card-label">{{ __('Filtre') }}</span>
-                    <div class="mt-1 sm:mt-2 text-lg sm:text-xl font-bold text-slate-900 truncate">{{ $filter === 'unread' ? __('Non lues') : __('Toutes') }}</div>
-                </div>
-                <div class="stat-card-icon bg-amber-50 text-amber-600">
-                    <iconify-icon icon="solar:filter-bold-duotone" width="20"></iconify-icon>
-                </div>
-            </div>
+    </div>
+
+    {{-- MOBILE FILTERS (horizontal pills, visible < lg) --}}
+    <div class="lg:hidden mb-4 space-y-3">
+        {{-- Statut de lecture --}}
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <button type="button" wire:click="setFilter('all')" wire:loading.attr="disabled" wire:target="setFilter,setCategory"
+                class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all {{ $filter === 'all' ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-[var(--accent)] hover:text-[var(--accent)]' }}">
+                <iconify-icon icon="solar:inbox-bold-duotone" width="14"></iconify-icon>
+                {{ __('pages.notifications.all') }}
+            </button>
+            <button type="button" wire:click="setFilter('unread')" wire:loading.attr="disabled" wire:target="setFilter,setCategory"
+                class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all {{ $filter === 'unread' ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-[var(--accent)] hover:text-[var(--accent)]' }}">
+                <iconify-icon icon="solar:bell-bold-duotone" width="14"></iconify-icon>
+                {{ __('pages.notifications.unread') }}
+                @if($unreadCount > 0)
+                    <span class="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] font-bold {{ $filter === 'unread' ? 'bg-white/25 text-white' : 'bg-[var(--accent-soft)] text-[var(--accent)]' }}">{{ $unreadCount }}</span>
+                @endif
+            </button>
         </div>
-        <div class="stat-card">
-            <div class="flex justify-between items-start gap-2">
-                <div class="min-w-0">
-                    <span class="stat-card-label">{{ __('Catégorie') }}</span>
-                    <div class="mt-1 sm:mt-2 text-lg sm:text-xl font-bold text-slate-900 truncate">{{ $categoryFilters[$activeCategory]['label'] ?? 'Tous' }}</div>
-                </div>
-                <div class="stat-card-icon bg-emerald-50 text-emerald-600">
-                    <iconify-icon icon="{{ $categoryFilters[$activeCategory]['icon'] ?? 'solar:layers-bold-duotone' }}" width="20"></iconify-icon>
-                </div>
-            </div>
+        {{-- Catégories --}}
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            @foreach ($categoryFilters as $catKey => $catInfo)
+                <button type="button" wire:click="setCategory('{{ $catKey }}')" wire:loading.attr="disabled" wire:target="setFilter,setCategory"
+                    class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all {{ $category === $catKey ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-[var(--accent)] hover:text-[var(--accent)]' }}">
+                    <iconify-icon icon="{{ $catInfo['icon'] }}" width="14"></iconify-icon>
+                    {{ $catInfo['label'] }}
+                </button>
+            @endforeach
         </div>
     </div>
 
     {{-- MAIN CONTENT --}}
     <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-4">
 
-        {{-- SIDEBAR FILTERS --}}
-        <div class="lg:col-span-1">
+        {{-- SIDEBAR FILTERS (desktop only) --}}
+        <div class="hidden lg:block lg:col-span-1">
             <div class="sticky top-24 space-y-4 sm:space-y-6">
 
                 {{-- Lecture --}}
@@ -356,14 +364,14 @@
                 <div class="divide-y divide-slate-100">
                     @forelse($notifications as $notification)
                         @php $n = $parseNotification($notification); @endphp
+                        {{-- x-data on a wrapper (not the <a>): wire:navigate + morph can detach Alpine children from the anchor scope and break optimisticRead. --}}
+                        <div wire:key="notif-{{ $notification->id }}" x-data="{ optimisticRead: false }" class="contents">
                         <a
                             href="{{ $n['notifActionable'] ? $n['notifUrl'] : 'javascript:void(0)' }}"
                             @if($n['notifInternal']) wire:navigate @endif
                             wire:click="markAsRead('{{ $notification->id }}')"
                             wire:loading.attr="disabled"
                             wire:target="markAsRead"
-                            wire:key="notif-{{ $notification->id }}"
-                            x-data="{ optimisticRead: false }"
                             @click="optimisticRead = true"
                             :class="optimisticRead ? 'hover:bg-slate-50/70 bg-slate-50/40' : ''"
                             class="group flex items-start gap-4 px-4 py-4 transition-all duration-200 sm:px-6 sm:py-5 {{ $n['isRead'] ? 'hover:bg-slate-50/70' : 'bg-[var(--accent-soft)]/20 hover:bg-[var(--accent-soft)]/30' }}"
@@ -409,6 +417,7 @@
                                 </div>
                             </div>
                         </a>
+                        </div>
                     @empty
                         <div class="empty-state">
                             <div class="empty-state-icon">

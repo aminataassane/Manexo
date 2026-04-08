@@ -1,5 +1,5 @@
 {{-- Un seul élément racine pour Livewire (évite "Snapshot missing" / "Component not found") --}}
-<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadReportBody">
+<div class="w-full max-w-full min-w-0 mx-auto">
 @php
     $closedByCategoryTotal = max(1, array_sum(array_column($stats['byCategoryClosed'] ?? [], 'count')));
 @endphp
@@ -18,12 +18,12 @@
 
     {{-- Header : titre à gauche, période + export à droite (comme Tickets) --}}
     <div class="page-header">
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
             <h1 class="page-title">{{ __('task_report.title') }}</h1>
             <p class="page-subtitle">{{ __('task_report.subtitle') }}</p>
         </div>
-        <div class="page-actions">
-            <div class="view-toggle flex-shrink-0">
+        <div class="page-actions reports-page-actions">
+            <div class="view-toggle view-toggle--scroll flex-shrink-0">
                 <button wire:click="setPeriod('today')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'today' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.today') }}</button>
                 <button wire:click="setPeriod('week')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'week' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_week') }}</button>
                 <button wire:click="setPeriod('month')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'month' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_month') }}</button>
@@ -85,7 +85,6 @@
         </div>
     @endif
 
-    @if($loadStage >= 2)
     {{-- KPI cards — même style que Tickets (grille large) --}}
     <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8 lg:grid-cols-3 min-[1920px]:gap-6">
         <div class="stat-card">
@@ -287,9 +286,6 @@
             </div>
         </div>
     @endif
-    @else
-        <x-page-skeleton variant="list" />
-    @endif
 </div>
 
 {{-- =====================================================================
@@ -299,12 +295,12 @@
 <div class="w-full max-w-full min-w-0 mx-auto">
     {{-- Header : titre à gauche, période + export à droite (comme la page Tickets) --}}
     <div class="page-header">
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
             <h1 class="page-title">{{ __('task_report.my_tasks_title') }}</h1>
             <p class="page-subtitle">{{ __('task_report.my_tasks_subtitle') }}</p>
         </div>
-        <div class="page-actions">
-            <div class="view-toggle flex-shrink-0">
+        <div class="page-actions reports-page-actions">
+            <div class="view-toggle view-toggle--scroll flex-shrink-0">
                 <button wire:click="setPeriod('week')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'week' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_week') }}</button>
                 <button wire:click="setPeriod('month')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'month' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.this_month') }}</button>
                 <button wire:click="setPeriod('custom')" wire:loading.attr="disabled" wire:target="setPeriod,period" type="button" class="px-2.5 sm:px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap {{ $period === 'custom' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">{{ __('task_report.custom') }}</button>
@@ -358,7 +354,6 @@
         </div>
     @endif
 
-    @if($loadStage >= 2)
     {{-- KPI : 2 cartes simples (comme la page Tickets) --}}
     <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div class="stat-card">
@@ -439,7 +434,11 @@
                                 </td>
                                 <td class="px-4 sm:px-6 py-3 sm:py-4 text-right text-sm text-slate-500 whitespace-nowrap">{{ $ticket->updated_at->format('d/m/Y') }}</td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-4 sm:px-6 py-12 text-center text-sm text-slate-500">{{ __('task_report.no_data') }}</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -458,9 +457,6 @@
             </div>
         @endif
     </div>
-    @else
-        <x-page-skeleton variant="list" />
-    @endif
 </div>
 @endif
 

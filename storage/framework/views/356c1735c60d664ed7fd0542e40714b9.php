@@ -1,1 +1,0 @@
-grp-<?php echo e($grp->id); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/07e84a8945422f08f9aaee570e00f04b.blade.php ENDPATH**/ ?>

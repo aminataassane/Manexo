@@ -18,7 +18,7 @@
                 </p>
             </div>
             <div class="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:flex-shrink-0">
-                <a href="{{ route('tickets.index') }}" wire:navigate class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0">
+                <a href="{{ route('tickets.index') }}" wire:navigate.hover class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0">
                     <iconify-icon icon="solar:list-bold" width="18"></iconify-icon>
                     {{ __('pages.dashboard.view_tickets') }}
                 </a>
@@ -31,6 +31,11 @@
         <div class="absolute top-0 right-0 -mt-20 -mr-20 h-64 w-64 rounded-full bg-[var(--accent-soft)] opacity-20 blur-3xl"></div>
         <div class="absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 rounded-full bg-blue-50 opacity-50 blur-3xl"></div>
     </div>
+
+    {{-- Onboarding checklist (auto-hidden once all steps completed or dismissed) --}}
+    @if ($this->isAdminView)
+        <livewire:dashboard.onboarding-checklist />
+    @endif
 
     @if ($this->isAdminView)
         <livewire:dashboard.admin-kpi-cards />

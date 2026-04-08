@@ -54,7 +54,7 @@
                 </p>
             </div>
             <div class="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:flex-shrink-0">
-                <a href="<?php echo e(route('tickets.index')); ?>" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0">
+                <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate.hover class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0">
                     <iconify-icon icon="solar:list-bold" width="18"></iconify-icon>
                     <?php echo e(__('pages.dashboard.view_tickets')); ?>
 
@@ -221,7 +221,7 @@
                 <div class="rounded-xl sm:rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden min-w-0">
                     <div class="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <h3 class="text-base sm:text-lg font-bold text-slate-900"><?php echo e(__('pages.dashboard.priority_tickets')); ?></h3>
-                        <a href="<?php echo e(route('tickets.index')); ?>" class="text-sm font-semibold hover:underline w-fit" style="color: var(--accent);"><?php echo e(__('pages.dashboard.see_all')); ?></a>
+                        <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate.hover class="text-sm font-semibold hover:underline w-fit" style="color: var(--accent);"><?php echo e(__('pages.dashboard.see_all')); ?></a>
                     </div>
                     <div class="responsive-table-wrap">
                         <table class="w-full text-left min-w-[600px] sm:min-w-0">
@@ -359,7 +359,7 @@
             <h2 class="text-lg sm:text-xl font-bold text-slate-900"><?php echo e(__('pages.dashboard.welcome_space')); ?></h2>
             <p class="mt-2 text-sm sm:text-base text-slate-500"><?php echo e(__('pages.dashboard.dashboard_loading')); ?></p>
             <div class="mt-4 sm:mt-6">
-                 <a href="<?php echo e(route('tickets.index')); ?>" class="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-lg hover:opacity-90 transition-all touch-target sm:min-h-0 w-full sm:w-auto" style="background-color: var(--accent);">
+                 <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate.hover class="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-lg hover:opacity-90 transition-all touch-target sm:min-h-0 w-full sm:w-auto" style="background-color: var(--accent);">
                     <iconify-icon icon="solar:list-bold" width="18"></iconify-icon>
                     <?php echo e(__('pages.dashboard.access_my_tickets')); ?>
 

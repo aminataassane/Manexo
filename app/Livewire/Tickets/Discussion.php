@@ -48,7 +48,7 @@ class Discussion extends Component
     {
         $layout = $this->embedded ? 'layouts.manexo-embed' : 'layouts.manexo-app';
 
-        $ticket = Ticket::query()
+        $ticket = once(fn () => Ticket::query()
             ->select(['id', 'public_id', 'organization_id', 'created_by', 'ticket_category_id', 'ticket_priority_id', 'ticket_group_id', 'assigned_to', 'status', 'subject', 'description'])
             ->with([
                 'creator:id,name,email,mention_tag',
@@ -60,7 +60,7 @@ class Discussion extends Component
             ])
             ->whereKey($this->ticketId)
             ->where('organization_id', session('current_organization_id'))
-            ->firstOrFail();
+            ->firstOrFail());
 
         /** @var User|null $authUser */
         $authUser = Auth::user();

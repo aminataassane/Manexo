@@ -15,6 +15,13 @@ use Livewire\Component;
 #[Title('Groupes')]
 class Groups extends Component
 {
+    public bool $ready = true;
+
+    public function loadPage(): void
+    {
+        $this->ready = true;
+    }
+
     public function mount(): void
     {
         $user = Auth::user();
@@ -42,6 +49,18 @@ class Groups extends Component
             Permission::SettingsManageRoles,
             Permission::SettingsDeleteOrg,
         ]);
+
+        // Skeleton: zero queries
+        if (! $this->ready) {
+            return view('livewire.tickets.groups', [
+                'groups' => collect(),
+                'ungroupedStats' => null,
+                'canSeeSettings' => $canSeeSettings,
+                'topTicketsByGroup' => [],
+                'agentsByGroup' => [],
+                'alerts' => [],
+            ]);
+        }
 
         $groups = collect();
         $ungroupedStats = null;

@@ -1,7 +1,7 @@
 <div class="rounded-xl sm:rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden min-w-0">
     <div class="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between">
         <h3 class="text-base sm:text-lg font-bold text-slate-900">{{ __('pages.dashboard.my_recent_tickets') }}</h3>
-        <a href="{{ route('tickets.index') }}" class="text-sm font-semibold hover:underline" style="color: var(--accent);" wire:navigate>{{ __('pages.dashboard.see_all') }}</a>
+        <a href="{{ route('tickets.index') }}" class="text-sm font-semibold hover:underline" style="color: var(--accent);" wire:navigate.hover>{{ __('pages.dashboard.see_all') }}</a>
     </div>
     <div class="responsive-table-wrap">
         <table class="w-full text-left min-w-[500px] sm:min-w-0">

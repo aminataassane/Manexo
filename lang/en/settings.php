@@ -4,6 +4,7 @@ return [
     'title' => 'Settings',
     'subtitle' => 'Manage your company configuration.',
     'back' => 'Back',
+    'loading_tab' => 'Loading…',
     'fix_errors' => 'Please fix the errors below.',
     'appearance' => 'Appearance',
     'categories' => 'Categories',

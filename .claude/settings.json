@@ -14,7 +14,10 @@
       "Bash(npx vite:*)",
       "Bash(echo \"No protected $with found\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/admin/settings)",
-      "Bash(timeout 60 bash -c 'while ! composer show pragmarx/google2fa 2>/dev/null | head -1; do sleep 3; done')"
+      "Bash(timeout 60 bash -c 'while ! composer show pragmarx/google2fa 2>/dev/null | head -1; do sleep 3; done')",
+      "Bash(npm run:*)",
+      "Bash(kill %1)",
+      "Bash(wait)"
     ],
     "additionalDirectories": [
       "\\tmp"

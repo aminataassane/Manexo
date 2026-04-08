@@ -2,12 +2,13 @@
 
 namespace Tests\Feature\Security;
 
+use App\Enums\TicketSource;
 use App\Enums\TicketStatus;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
+use App\Models\Scopes\OrganizationScope;
 use App\Models\Ticket;
 use App\Models\User;
-use App\Models\Scopes\OrganizationScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -55,12 +56,17 @@ class AuthorizationTest extends TestCase
         [$creator, $org] = $this->createOrgWithUser('admin');
         [$outsider, $orgB] = $this->createOrgWithUser('member');
 
+        [$categoryId, $priorityId] = $this->createTicketCategoryAndPriority($org->id);
+
         $ticket = Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $org->id,
             'created_by' => $creator->id,
+            'ticket_category_id' => $categoryId,
+            'ticket_priority_id' => $priorityId,
             'subject' => 'Private ticket',
             'description' => 'Test',
             'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         // Outsider should not be able to view ticket (different org)
@@ -71,12 +77,17 @@ class AuthorizationTest extends TestCase
     {
         [$creator, $org] = $this->createOrgWithUser('member');
 
+        [$categoryId, $priorityId] = $this->createTicketCategoryAndPriority($org->id);
+
         $ticket = Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $org->id,
             'created_by' => $creator->id,
+            'ticket_category_id' => $categoryId,
+            'ticket_priority_id' => $priorityId,
             'subject' => 'My ticket',
             'description' => 'Test',
             'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         $this->assertTrue($ticket->hasDiscussionAccess($creator->id));
@@ -93,12 +104,17 @@ class AuthorizationTest extends TestCase
             'role' => 'member',
         ]);
 
+        [$categoryId, $priorityId] = $this->createTicketCategoryAndPriority($org->id);
+
         $ticket = Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $org->id,
             'created_by' => $creator->id,
+            'ticket_category_id' => $categoryId,
+            'ticket_priority_id' => $priorityId,
             'subject' => 'Team ticket',
             'description' => 'Test',
             'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         $this->assertTrue($ticket->hasDiscussionAccess($member->id));
@@ -109,8 +125,9 @@ class AuthorizationTest extends TestCase
         [$user, $org] = $this->createOrgWithUser('admin');
 
         $response = $this->actingAs($user)
-            ->get('/platform-admin/dashboard');
+            ->get(route('platform-admin.dashboard'));
 
-        $response->assertRedirect(route('platform-admin.login'));
+        // Authenticated org user without platform role: forbidden (not redirected to platform login)
+        $response->assertStatus(403);
     }
 }

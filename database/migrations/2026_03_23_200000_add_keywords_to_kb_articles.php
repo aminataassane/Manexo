@@ -9,17 +9,30 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('kb_articles', function (Blueprint $table) {
-            $table->jsonb('keywords')->nullable()->after('content');
+        $driver = Schema::getConnection()->getDriverName();
+
+        Schema::table('kb_articles', function (Blueprint $table) use ($driver) {
+            if ($driver === 'pgsql') {
+                $table->jsonb('keywords')->nullable()->after('content');
+            } else {
+                $table->json('keywords')->nullable()->after('content');
+            }
         });
 
-        DB::statement('CREATE INDEX kb_articles_keywords_gin ON kb_articles USING GIN (keywords)');
+        if ($driver === 'pgsql') {
+            DB::statement('CREATE INDEX kb_articles_keywords_gin ON kb_articles USING GIN (keywords)');
+        }
     }
 
     public function down(): void
     {
+        $driver = Schema::getConnection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            DB::statement('DROP INDEX IF EXISTS kb_articles_keywords_gin');
+        }
+
         Schema::table('kb_articles', function (Blueprint $table) {
-            $table->dropIndex('kb_articles_keywords_gin');
             $table->dropColumn('keywords');
         });
     }

@@ -6,6 +6,7 @@ use App\Helpers\CacheHelper;
 use App\Models\User;
 use App\Notifications\DiscussionInviteNotification;
 use App\Notifications\DiscussionNewMessageNotification;
+use App\Support\NotificationOrganizationScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Auth;
@@ -68,15 +69,26 @@ class NotificationsBell extends Component
         $this->pushSidebarBadgeCountsToBrowser($user);
     }
 
+    private function currentOrgId(): int
+    {
+        return (int) session('current_organization_id', 0);
+    }
+
     private function pushSidebarBadgeCountsToBrowser(User $user): void
     {
-        $notifications = (int) $user->unreadNotifications()->count();
-        $discussions = (int) $user->unreadNotifications()
+        $orgId = $this->currentOrgId();
+
+        $notificationsQuery = $user->unreadNotifications();
+        NotificationOrganizationScope::apply($notificationsQuery, $orgId);
+        $notifications = (int) $notificationsQuery->count();
+
+        $discussionsQuery = $user->unreadNotifications()
             ->whereIn('type', [
                 DiscussionNewMessageNotification::class,
                 DiscussionInviteNotification::class,
-            ])
-            ->count();
+            ]);
+        NotificationOrganizationScope::apply($discussionsQuery, $orgId);
+        $discussions = (int) $discussionsQuery->count();
 
         $this->js('window.dispatchEvent(new CustomEvent("manexo-sidebar-badges",{detail:{notifications:'.$notifications.',discussions:'.$discussions.'}}))');
     }
@@ -110,11 +122,17 @@ class NotificationsBell extends Component
         }
 
         $userId = (int) $user->id;
+        $orgId = $this->currentOrgId();
 
         return (int) Cache::remember(
-            CacheHelper::notificationsUnreadCountKey($userId),
+            CacheHelper::notificationsUnreadCountKey($userId, $orgId),
             CacheHelper::TTL_SHORT,
-            fn () => $user->unreadNotifications()->count()
+            function () use ($user, $orgId) {
+                $q = $user->unreadNotifications();
+                NotificationOrganizationScope::apply($q, $orgId);
+
+                return (int) $q->count();
+            }
         );
     }
 
@@ -130,7 +148,11 @@ class NotificationsBell extends Component
             return new EloquentCollection([]);
         }
 
-        return $user->notifications()->latest()->limit(20)->get(['id', 'type', 'data', 'read_at', 'created_at']);
+        $orgId = $this->currentOrgId();
+        $query = $user->notifications();
+        NotificationOrganizationScope::apply($query, $orgId);
+
+        return $query->latest()->limit(20)->get(['id', 'type', 'data', 'read_at', 'created_at']);
     }
 
     public function markAsRead(string $id): void
@@ -138,7 +160,10 @@ class NotificationsBell extends Component
         /** @var User|null $user */
         $user = Auth::user();
         if ($user instanceof User) {
-            $user->unreadNotifications()->where('id', $id)->first()?->markAsRead();
+            $orgId = $this->currentOrgId();
+            $query = $user->unreadNotifications()->where('id', $id);
+            NotificationOrganizationScope::apply($query, $orgId);
+            $query->first()?->markAsRead();
             CacheHelper::invalidateNotificationsCount((int) $user->id);
             CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
             $this->pushSidebarBadgeCountsToBrowser($user);
@@ -150,7 +175,10 @@ class NotificationsBell extends Component
         /** @var User|null $user */
         $user = Auth::user();
         if ($user instanceof User) {
-            $user->unreadNotifications()->update(['read_at' => now()]);
+            $orgId = $this->currentOrgId();
+            $query = $user->unreadNotifications();
+            NotificationOrganizationScope::apply($query, $orgId);
+            $query->update(['read_at' => now()]);
             CacheHelper::invalidateNotificationsCount((int) $user->id);
             CacheHelper::invalidateSidebarDiscussionsUnread((int) $user->id);
             $this->pushSidebarBadgeCountsToBrowser($user);

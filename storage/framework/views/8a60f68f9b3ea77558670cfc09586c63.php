@@ -1,0 +1,1 @@
+onboarding-checklist-root<?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/c7a5675ea195289aa28decc83af6f16c.blade.php ENDPATH**/ ?>

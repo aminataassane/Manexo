@@ -10,6 +10,7 @@ use App\Models\TicketCategory;
 use App\Models\TicketGroup;
 use App\Models\TicketPriority;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -18,23 +19,12 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[Layout('layouts.manexo-app')]
 #[Title('Rapport journalier')]
 class DailyReport extends Component
 {
-    /** 1 = shell instantané, 2 = KPI + listes (progressif). */
-    public int $loadStage = 1;
-
-    public function loadReportBody(): void
-    {
-        if ($this->loadStage < 2) {
-            $this->loadStage = 2;
-        }
-    }
-
     public string $date = '';
 
     public string $filterGroup = '';
@@ -347,7 +337,7 @@ class DailyReport extends Component
             return $this->baseTicketQuery()
                 ->whereBetween('tickets.created_at', [$start, $end])
                 ->leftJoin('ticket_categories as tc', 'tickets.ticket_category_id', '=', 'tc.id')
-                ->selectRaw("coalesce(tc.name, ?) as name, count(*) as c", [__('daily_report.no_category')])
+                ->selectRaw('coalesce(tc.name, ?) as name, count(*) as c', [__('daily_report.no_category')])
                 ->groupBy('tc.name')
                 ->orderByDesc('c')
                 ->limit(8)
@@ -370,7 +360,7 @@ class DailyReport extends Component
             return $this->baseTicketQuery()
                 ->whereBetween('tickets.created_at', [$start, $end])
                 ->leftJoin('ticket_priorities as tp', 'tickets.ticket_priority_id', '=', 'tp.id')
-                ->selectRaw("coalesce(tp.name, ?) as name, count(*) as c", [__('daily_report.no_priority')])
+                ->selectRaw('coalesce(tp.name, ?) as name, count(*) as c', [__('daily_report.no_priority')])
                 ->groupBy('tp.name')
                 ->orderByDesc('c')
                 ->limit(8)
@@ -384,11 +374,11 @@ class DailyReport extends Component
     private function getLogoBase64(?object $org): ?string
     {
         if ($org && $org->logo_path) {
-            $path = storage_path('app/public/' . ltrim($org->logo_path, '/'));
+            $path = storage_path('app/public/'.ltrim($org->logo_path, '/'));
             if (file_exists($path)) {
                 $mime = mime_content_type($path) ?: 'image/png';
 
-                return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+                return 'data:'.$mime.';base64,'.base64_encode(file_get_contents($path));
             }
         }
 
@@ -407,8 +397,8 @@ class DailyReport extends Component
             fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM
 
             // Manexo branding header
-            fputcsv($handle, ['Manexo — ' . $orgName], ';');
-            fputcsv($handle, [__('daily_report.title') . ' — ' . $this->date], ';');
+            fputcsv($handle, ['Manexo — '.$orgName], ';');
+            fputcsv($handle, [__('daily_report.title').' — '.$this->date], ';');
             fputcsv($handle, [__('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')])], ';');
             fputcsv($handle, [], ';');
 
@@ -419,9 +409,9 @@ class DailyReport extends Component
             fputcsv($handle, [__('daily_report.resolved_closed_today'), $summary['resolved_today']], ';');
             fputcsv($handle, [__('daily_report.avg_first_response'), $this->formatDuration($summary['avg_first_response_seconds'])], ';');
             fputcsv($handle, [__('daily_report.avg_resolution_time'), $this->formatDuration($summary['avg_resolution_seconds'])], ';');
-            fputcsv($handle, [__('daily_report.backlog') . ' - ' . __('daily_report.open'), $summary['backlog_open']], ';');
-            fputcsv($handle, [__('daily_report.backlog') . ' - ' . __('daily_report.in_progress'), $summary['backlog_in_progress']], ';');
-            fputcsv($handle, [__('daily_report.backlog') . ' - ' . __('daily_report.pending'), $summary['backlog_pending']], ';');
+            fputcsv($handle, [__('daily_report.backlog').' - '.__('daily_report.open'), $summary['backlog_open']], ';');
+            fputcsv($handle, [__('daily_report.backlog').' - '.__('daily_report.in_progress'), $summary['backlog_in_progress']], ';');
+            fputcsv($handle, [__('daily_report.backlog').' - '.__('daily_report.pending'), $summary['backlog_pending']], ';');
             fputcsv($handle, [], ';');
 
             // Section 2: At-risk tickets
@@ -487,7 +477,7 @@ class DailyReport extends Component
                 });
 
             fclose($handle);
-        }, 'rapport-journalier-' . $this->date . '.csv', [
+        }, 'rapport-journalier-'.$this->date.'.csv', [
             'Content-Type' => 'text/csv; charset=utf-8',
         ]);
     }
@@ -523,7 +513,7 @@ class DailyReport extends Component
 
         return response()->streamDownload(
             fn () => print $pdf->output(),
-            'rapport-journalier-' . $this->date . '.pdf',
+            'rapport-journalier-'.$this->date.'.pdf',
             ['Content-Type' => 'application/pdf'],
         );
     }
@@ -537,10 +527,10 @@ class DailyReport extends Component
         $minutes = (int) round(($seconds % 3600) / 60);
 
         if ($hours > 0) {
-            return $hours . __('daily_report.hours_short') . ' ' . $minutes . __('daily_report.minutes_short');
+            return $hours.__('daily_report.hours_short').' '.$minutes.__('daily_report.minutes_short');
         }
 
-        return $minutes . __('daily_report.minutes_short');
+        return $minutes.__('daily_report.minutes_short');
     }
 
     public function render()
@@ -558,33 +548,16 @@ class DailyReport extends Component
 
         [$start, $end] = $this->dateRange();
 
-        if ($this->loadStage < 2) {
-            $summary = [
-                'created_total' => 0,
-                'created_open' => 0,
-                'created_in_progress' => 0,
-                'created_pending' => 0,
-                'created_resolved' => 0,
-                'created_closed' => 0,
-                'resolved_today' => 0,
-                'backlog_open' => 0,
-                'backlog_in_progress' => 0,
-                'backlog_pending' => 0,
-                'avg_first_response_seconds' => null,
-                'avg_resolution_seconds' => null,
-            ];
+        // Cache summary only if date = today AND no filters active
+        $isToday = $this->date === now()->toDateString();
+        if ($isToday && ! $this->hasActiveFilters()) {
+            $summary = Cache::remember(
+                CacheHelper::dailyReportKey($orgId, $this->date),
+                CacheHelper::TTL,
+                fn () => $this->computeSummary($start, $end),
+            );
         } else {
-            // Cache summary only if date = today AND no filters active
-            $isToday = $this->date === now()->toDateString();
-            if ($isToday && ! $this->hasActiveFilters()) {
-                $summary = Cache::remember(
-                    CacheHelper::dailyReportKey($orgId, $this->date),
-                    CacheHelper::TTL,
-                    fn () => $this->computeSummary($start, $end),
-                );
-            } else {
-                $summary = $this->computeSummary($start, $end);
-            }
+            $summary = $this->computeSummary($start, $end);
         }
 
         // Load filter options from cache

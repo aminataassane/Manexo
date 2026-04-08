@@ -42,7 +42,7 @@ class AppServiceProvider extends ServiceProvider
         // sessions/cookies are available (and decrypted).
 
         // Password complexity rules
-        Password::defaults(fn () => Password::min(8)->letters()->mixedCase()->numbers());
+        Password::defaults(fn () => Password::min(8)->letters()->mixedCase()->numbers()->symbols());
 
         Broadcast::routes(['middleware' => ['web', 'auth']]);
 

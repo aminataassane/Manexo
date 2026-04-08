@@ -23,7 +23,7 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">{{ __('pages.history.heading') }}</h1>
             <p class="text-sm text-slate-500 mt-1">{{ __('pages.history.subheading') }}</p>
         </div>
-        <a href="{{ route('profile') }}"
+        <a href="{{ route('profile') }}" wire:navigate.hover
            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors">
             <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
             {{ __('pages.history.back_to_profile') }}

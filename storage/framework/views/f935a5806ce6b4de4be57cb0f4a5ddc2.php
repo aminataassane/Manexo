@@ -14,7 +14,7 @@
             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
         </div>
 
-        <form wire:submit="sendMessage" wire:loading.class="pointer-events-none opacity-90" wire:target="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-<?php echo e($ticketPublicId); ?>')" class="discussion-composer-box relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)]/25 focus-within:border-[var(--accent)] transition-all min-w-0"
+        <form wire:submit="sendMessage" wire:loading.class="pointer-events-none opacity-90" wire:target="sendMessage,attachmentFiles" x-on:submit="localStorage.removeItem('ticket-draft-<?php echo e($ticketPublicId); ?>')" class="discussion-composer-box relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)]/25 focus-within:border-[var(--accent)] transition-all min-w-0"
         x-data="{
             users: <?php echo e(\Illuminate\Support\Js::from($mentionableUsers ?? [])); ?>,
             mentionOpen: false,
@@ -77,7 +77,7 @@
             <div class="p-1.5 sm:p-2 relative">
                 <textarea
                     x-ref="mentionInput"
-                    wire:model.defer="body"
+                    wire:model="body"
                     rows="2"
                     wire:loading.attr="disabled"
                     wire:target="sendMessage"
@@ -107,7 +107,7 @@
                         multiple
                         class="hidden"
                         id="composer-file-input-<?php echo e($ticketId); ?>"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif,.ppt,.pptx,image/*"
                         x-on:change="async (e) => {
                             const list = e.target.files;
                             if (!list?.length) return;
@@ -138,14 +138,14 @@
 
                 <?php if (isset($component)) { $__componentOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal2828f6ab6d1aa1f13d376de189a6d1c7 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.action-button','data' => ['type' => 'submit','wireTarget' => 'sendMessage','variant' => 'primary','spinnerSize' => 'sm','xRef' => 'submitBtn','class' => 'rounded-lg px-3 sm:px-3.5 py-1.5 sm:py-2 min-h-[34px] sm:min-h-0 text-xs touch-manipulation shrink-0','style' => 'background-color: '.e($asInternalNote ? '#d97706' : 'var(--accent)').';','loadingLabel' => __('ui.tickets.sending')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.action-button','data' => ['type' => 'submit','wireTarget' => 'sendMessage,attachmentFiles','variant' => 'primary','spinnerSize' => 'sm','xRef' => 'submitBtn','class' => 'rounded-lg px-3 sm:px-3.5 py-1.5 sm:py-2 min-h-[34px] sm:min-h-0 text-xs touch-manipulation shrink-0','style' => 'background-color: '.e($asInternalNote ? '#d97706' : 'var(--accent)').';','loadingLabel' => __('ui.tickets.sending')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('manexo.action-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['type' => 'submit','wire-target' => 'sendMessage','variant' => 'primary','spinner-size' => 'sm','x-ref' => 'submitBtn','class' => 'rounded-lg px-3 sm:px-3.5 py-1.5 sm:py-2 min-h-[34px] sm:min-h-0 text-xs touch-manipulation shrink-0','style' => 'background-color: '.e($asInternalNote ? '#d97706' : 'var(--accent)').';','loading-label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('ui.tickets.sending'))]); ?>
+<?php $component->withAttributes(['type' => 'submit','wire-target' => 'sendMessage,attachmentFiles','variant' => 'primary','spinner-size' => 'sm','x-ref' => 'submitBtn','class' => 'rounded-lg px-3 sm:px-3.5 py-1.5 sm:py-2 min-h-[34px] sm:min-h-0 text-xs touch-manipulation shrink-0','style' => 'background-color: '.e($asInternalNote ? '#d97706' : 'var(--accent)').';','loading-label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('ui.tickets.sending'))]); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
                     <iconify-icon icon="solar:plain-bold" width="12"></iconify-icon>
@@ -162,16 +162,19 @@
 <?php endif; ?>
             </div>
         </form>
+        <?php
+            $composerErrors = collect($errors->getMessages())->flatten()->values()->all();
+        ?>
         <?php if (isset($component)) { $__componentOriginalf94ed9c5393ef72725d159fe01139746 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalf94ed9c5393ef72725d159fe01139746 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.input-error','data' => ['messages' => $errors->get('body'),'class' => 'mt-2']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.input-error','data' => ['messages' => $composerErrors,'class' => 'mt-2']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('input-error'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['messages' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($errors->get('body')),'class' => 'mt-2']); ?>
+<?php $component->withAttributes(['messages' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($composerErrors),'class' => 'mt-2']); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
 <?php echo $__env->renderComponent(); ?>

@@ -235,7 +235,7 @@
     </div>
 
     
-    <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8 lg:grid-cols-4">
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div class="stat-card">
             <div class="flex justify-between items-start gap-2">
                 <div class="min-w-0">
@@ -258,27 +258,38 @@
                 </div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="flex justify-between items-start gap-2">
-                <div class="min-w-0">
-                    <span class="stat-card-label"><?php echo e(__('Filtre')); ?></span>
-                    <div class="mt-1 sm:mt-2 text-lg sm:text-xl font-bold text-slate-900 truncate"><?php echo e($filter === 'unread' ? __('Non lues') : __('Toutes')); ?></div>
-                </div>
-                <div class="stat-card-icon bg-amber-50 text-amber-600">
-                    <iconify-icon icon="solar:filter-bold-duotone" width="20"></iconify-icon>
-                </div>
-            </div>
+    </div>
+
+    
+    <div class="lg:hidden mb-4 space-y-3">
+        
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <button type="button" wire:click="setFilter('all')" wire:loading.attr="disabled" wire:target="setFilter,setCategory"
+                class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all <?php echo e($filter === 'all' ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-[var(--accent)] hover:text-[var(--accent)]'); ?>">
+                <iconify-icon icon="solar:inbox-bold-duotone" width="14"></iconify-icon>
+                <?php echo e(__('pages.notifications.all')); ?>
+
+            </button>
+            <button type="button" wire:click="setFilter('unread')" wire:loading.attr="disabled" wire:target="setFilter,setCategory"
+                class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all <?php echo e($filter === 'unread' ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-[var(--accent)] hover:text-[var(--accent)]'); ?>">
+                <iconify-icon icon="solar:bell-bold-duotone" width="14"></iconify-icon>
+                <?php echo e(__('pages.notifications.unread')); ?>
+
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($unreadCount > 0): ?>
+                    <span class="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] font-bold <?php echo e($filter === 'unread' ? 'bg-white/25 text-white' : 'bg-[var(--accent-soft)] text-[var(--accent)]'); ?>"><?php echo e($unreadCount); ?></span>
+                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+            </button>
         </div>
-        <div class="stat-card">
-            <div class="flex justify-between items-start gap-2">
-                <div class="min-w-0">
-                    <span class="stat-card-label"><?php echo e(__('Catégorie')); ?></span>
-                    <div class="mt-1 sm:mt-2 text-lg sm:text-xl font-bold text-slate-900 truncate"><?php echo e($categoryFilters[$activeCategory]['label'] ?? 'Tous'); ?></div>
-                </div>
-                <div class="stat-card-icon bg-emerald-50 text-emerald-600">
-                    <iconify-icon icon="<?php echo e($categoryFilters[$activeCategory]['icon'] ?? 'solar:layers-bold-duotone'); ?>" width="20"></iconify-icon>
-                </div>
-            </div>
+        
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $categoryFilters; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $catKey => $catInfo): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                <button type="button" wire:click="setCategory('<?php echo e($catKey); ?>')" wire:loading.attr="disabled" wire:target="setFilter,setCategory"
+                    class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all <?php echo e($category === $catKey ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-[var(--accent)] hover:text-[var(--accent)]'); ?>">
+                    <iconify-icon icon="<?php echo e($catInfo['icon']); ?>" width="14"></iconify-icon>
+                    <?php echo e($catInfo['label']); ?>
+
+                </button>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
         </div>
     </div>
 
@@ -286,7 +297,7 @@
     <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8 lg:grid-cols-4">
 
         
-        <div class="lg:col-span-1">
+        <div class="hidden lg:block lg:col-span-1">
             <div class="sticky top-24 space-y-4 sm:space-y-6">
 
                 
@@ -363,16 +374,16 @@
 
                 
                 <div class="divide-y divide-slate-100">
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_4 = true; $__currentLoopData = $notifications; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $notification): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_4 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $notifications; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $notification): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <?php $n = $parseNotification($notification); ?>
+                        
+                        <div <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processElementKey('notif-{{ $notification->id }}', get_defined_vars()); ?>wire:key="notif-<?php echo e($notification->id); ?>" x-data="{ optimisticRead: false }" class="contents">
                         <a
                             href="<?php echo e($n['notifActionable'] ? $n['notifUrl'] : 'javascript:void(0)'); ?>"
                             <?php if($n['notifInternal']): ?> wire:navigate <?php endif; ?>
                             wire:click="markAsRead('<?php echo e($notification->id); ?>')"
                             wire:loading.attr="disabled"
                             wire:target="markAsRead"
-                            <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processElementKey('notif-{{ $notification->id }}', get_defined_vars()); ?>wire:key="notif-<?php echo e($notification->id); ?>"
-                            x-data="{ optimisticRead: false }"
                             @click="optimisticRead = true"
                             :class="optimisticRead ? 'hover:bg-slate-50/70 bg-slate-50/40' : ''"
                             class="group flex items-start gap-4 px-4 py-4 transition-all duration-200 sm:px-6 sm:py-5 <?php echo e($n['isRead'] ? 'hover:bg-slate-50/70' : 'bg-[var(--accent-soft)]/20 hover:bg-[var(--accent-soft)]/30'); ?>"
@@ -421,7 +432,8 @@
                                 </div>
                             </div>
                         </a>
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_4): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                        </div>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <div class="empty-state">
                             <div class="empty-state-icon">
                                 <iconify-icon icon="solar:bell-off-bold-duotone" width="28" class="text-slate-300"></iconify-icon>

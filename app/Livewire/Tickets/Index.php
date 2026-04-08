@@ -39,7 +39,7 @@ class Index extends Component
     /** Max tickets per Kanban column (one query per status). */
     private const KANBAN_PER_COLUMN = 50;
 
-    /** Fast path: render list directly without extra init request. */
+    /** 0 = skeleton, 2 = full data. Set to 2 immediately — queries are cached. */
     public int $loadStage = 2;
 
     /** Desktop tickets sidebar (quick views / filters). Kept on Livewire to survive morph + Alpine scope issues. */
@@ -71,8 +71,7 @@ class Index extends Component
         $orgId = (int) session('current_organization_id');
         abort_if(! $orgId, 403);
 
-        // Keep stage loaded to avoid wire:init round-trip latency.
-        $this->loadStage = 2;
+        // Skeleton renders immediately; data loads via wire:init="loadPage".
     }
 
     public function getListeners(): array
@@ -667,6 +666,31 @@ class Index extends Component
         }
         $orgId = (int) session('current_organization_id');
 
+        // Skeleton: zero queries, instant render
+        if ($this->loadStage < 2) {
+            return view('livewire.tickets.index', [
+                'loadStage' => $this->loadStage,
+                'org' => $orgId ? request()->attributes->get('currentOrganization') : null,
+                'role' => 'member',
+                'isStaff' => false,
+                'tickets' => new LengthAwarePaginator([], 0, $this->perPage),
+                'priorities' => collect(),
+                'assignees' => collect(),
+                'stats' => ['open' => 0, 'in_progress' => 0, 'pending' => 0, 'resolved_7d' => 0],
+                'viewCounts' => ['created_by_me' => 0, 'assigned_to_me' => 0, 'past_due' => 0, 'high_priority' => 0, 'unassigned' => 0, 'all' => 0, 'archived' => 0, 'trash' => 0, 'from_form' => 0, 'from_platform' => 0],
+                'viewKey' => $this->viewKey === 'my' ? 'assigned_to_me' : $this->viewKey,
+                'displayMode' => $this->displayMode,
+                'statusColumns' => [],
+                'kanbanTickets' => [],
+                'box' => $this->box,
+                'source' => $this->source,
+                'ticketGroups' => collect(),
+                'groupCounts' => collect(),
+                'activeGroup' => null,
+                'checklistProgress' => collect(),
+            ]);
+        }
+
         $org = $orgId ? request()->attributes->get('currentOrganization') : null;
 
         $role = $org?->pivot?->role ?? 'member';
@@ -871,6 +895,16 @@ class Index extends Component
                 'tickets.updated_at',
                 'tickets.archived_at',
                 'tickets.deleted_at',
+                'tickets.sla_policy_id',
+                'tickets.sla_first_response_deadline',
+                'tickets.sla_resolution_deadline',
+                'tickets.sla_first_response_met_at',
+                'tickets.sla_resolution_met_at',
+                'tickets.sla_first_response_breached',
+                'tickets.sla_resolution_breached',
+                'tickets.sla_paused_at',
+                'tickets.sla_paused_seconds',
+                'tickets.approval_status',
             ])
             ->with([
                 'category:id,name',
@@ -878,6 +912,8 @@ class Index extends Component
                 'group:id,name,color',
                 'creator:id,name',
                 'assignees:id,name',
+                'organization:id,settings',
+                'slaPolicy:id,resolution_minutes',
             ])
             ->where('tickets.organization_id', $orgId);
 
@@ -1102,6 +1138,8 @@ class Index extends Component
             'group:id,name,color',
             'creator:id,name',
             'assignees:id,name',
+            'organization:id,settings',
+            'slaPolicy:id,resolution_minutes',
             'formResponse',
         ]);
 

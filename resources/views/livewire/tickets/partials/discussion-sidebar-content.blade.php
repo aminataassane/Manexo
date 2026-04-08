@@ -505,7 +505,7 @@
                     @php
                         $canToggleThis = (($isStaffOrTicketOwner ?? false) || ($item->assigned_to && (int)$item->assigned_to === ($authUserId ?? 0)) || ($item->relationLoaded('assignees') && $item->assignees->contains('id', $authUserId ?? 0))) && !(($isLocked ?? false) && !($canBypassLock ?? false));
                     @endphp
-                    <li class="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3" x-data="{ editing: false, editTitle: '{{ str_replace("'", "\\'", $item->title) }}' }">
+                    <li class="flex min-w-0 items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3" x-data="{ editing: false, editTitle: '{{ str_replace("'", "\\'", $item->title) }}' }">
                         @if($canToggleThis)
                             <button type="button" wire:click="toggleChecklistItem({{ $item->id }})" class="cursor-pointer mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded border-2 transition-colors {{ $item->is_done ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-slate-300 bg-white text-transparent hover:border-[var(--accent)]' }}">
                                 @if($item->is_done)
@@ -519,11 +519,11 @@
                                 @endif
                             </span>
                         @endif
-                        <div class="min-w-0 flex-1">
-                            {{-- Inline edit title --}}
+                        <div class="min-w-0 flex-1 overflow-hidden">
+                            {{-- Inline edit title — block + overflow-wrap pour noms longs / PascalCase --}}
                             <template x-if="!editing">
                                 <span
-                                    class="text-sm font-medium {{ $item->is_done ? 'text-slate-500 line-through' : 'text-slate-900' }} {{ ($canEditChecklist ?? false) ? 'cursor-pointer hover:text-[var(--accent)]' : '' }}"
+                                    class="block w-full min-w-0 max-w-full text-sm font-medium break-words [overflow-wrap:anywhere] {{ $item->is_done ? 'text-slate-500 line-through' : 'text-slate-900' }} {{ ($canEditChecklist ?? false) ? 'cursor-pointer hover:text-[var(--accent)]' : '' }}"
                                     @if($canEditChecklist ?? false) @click="editing = true; $nextTick(() => $refs['editInput{{ $item->id }}']?.focus())" @endif
                                 >{{ $item->title }}</span>
                             </template>
@@ -536,16 +536,16 @@
                                         @blur="editing = false; if (editTitle.trim() && editTitle !== '{{ str_replace("'", "\\'", $item->title) }}') $wire.updateChecklistItemTitle({{ $item->id }}, editTitle)"
                                         @keydown.enter.prevent="$event.target.blur()"
                                         @keydown.escape.prevent="editing = false; editTitle = '{{ str_replace("'", "\\'", $item->title) }}'"
-                                        class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                        class="w-full min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                     />
                                 </template>
                             @endif
                             @if($item->relationLoaded('assignees') && $item->assignees->isNotEmpty())
-                                <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                                <div class="mt-0.5 flex min-w-0 flex-wrap items-center gap-1">
                                     @foreach($item->assignees as $itemAsg)
-                                        <span class="inline-flex items-center gap-1 text-[11px] {{ ($itemAsg->pivot->role ?? '') === 'responsible' ? 'text-[var(--accent)] font-bold' : 'text-slate-500' }}">
-                                            <span class="h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-semibold shrink-0 {{ ($itemAsg->pivot->role ?? '') === 'responsible' ? 'ring-1 ring-[var(--accent)]' : 'ring-1 ring-slate-200' }}" style="background: var(--accent-soft); color: var(--accent);">{{ strtoupper(mb_substr($itemAsg->name ?? '?', 0, 1)) }}</span>
-                                            {{ $itemAsg->name }}
+                                        <span class="inline-flex min-w-0 max-w-full items-center gap-1 text-[11px] {{ ($itemAsg->pivot->role ?? '') === 'responsible' ? 'text-[var(--accent)] font-bold' : 'text-slate-500' }}">
+                                            <span class="h-4 w-4 shrink-0 rounded-full flex items-center justify-center text-[8px] font-semibold {{ ($itemAsg->pivot->role ?? '') === 'responsible' ? 'ring-1 ring-[var(--accent)]' : 'ring-1 ring-slate-200' }}" style="background: var(--accent-soft); color: var(--accent);">{{ strtoupper(mb_substr($itemAsg->name ?? '?', 0, 1)) }}</span>
+                                            <span class="min-w-0 break-words [overflow-wrap:anywhere]">{{ $itemAsg->name }}</span>
                                             @if(($canEditChecklist ?? false) && !($isLocked ?? false))
                                                 <button type="button" @click="$dispatch('confirm-action', { title: '{{ __('Retirer') }}', message: '{{ __('Retirer cet assigné de la tâche ?') }}', confirmLabel: '{{ __('Retirer') }}', variant: 'danger', onConfirm: () => $wire.removeChecklistItemAssignee({{ $item->id }}, {{ $itemAsg->id }}) })" class="text-slate-400 hover:text-red-500" title="{{ __('Retirer') }}">
                                                     <iconify-icon icon="solar:close-circle-linear" width="12"></iconify-icon>
@@ -555,7 +555,7 @@
                                     @endforeach
                                 </div>
                             @elseif($item->assignee)
-                                <div class="mt-0.5 text-[11px] text-slate-500">{{ __('Responsable') }}: {{ $item->assignee->name }}</div>
+                                <div class="mt-0.5 min-w-0 text-[11px] text-slate-500 break-words [overflow-wrap:anywhere]">{{ __('Responsable') }}: {{ $item->assignee->name }}</div>
                             @endif
                             @if(($canEditChecklist ?? false) && !($isLocked ?? false))
                                 <div class="mt-1" x-data="{ open: false }">
@@ -574,8 +574,8 @@
                                 </div>
                             @endif
                             @if($item->assigned_to_function_id && !$item->assigned_to)
-                                <div class="mt-0.5 flex items-center gap-2">
-                                    <span class="text-[11px] text-amber-600 font-medium">
+                                <div class="mt-0.5 flex min-w-0 flex-wrap items-center gap-2">
+                                    <span class="min-w-0 text-[11px] font-medium text-amber-600 break-words [overflow-wrap:anywhere]">
                                         {{ $item->assignedToFunction?->name ?? '—' }} — {{ __('checklist_items.to_claim') }}
                                     </span>
                                     @if(in_array((int)$item->assigned_to_function_id, $userFunctionIds ?? []))
@@ -589,7 +589,7 @@
                                 <div class="mt-0.5 text-[11px] text-slate-500">{{ __('Échéance') }}: {{ $item->due_date->translatedFormat('d M Y') }}</div>
                             @endif
                             @if($item->is_done && $item->done_at)
-                                <div class="mt-1 text-[10px] text-slate-400">
+                                <div class="mt-1 min-w-0 text-[10px] text-slate-400 break-words [overflow-wrap:anywhere]">
                                     {{ __('checklist_items.done_by_at', ['name' => $item->doneByUser?->name ?? '—', 'time' => $item->done_at->format('H:i')]) }}
                                 </div>
                             @endif

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\UserNotificationReceived;
+use App\Helpers\CacheHelper;
 use App\Models\OrganizationInvitation;
 use App\Models\OrganizationMembership;
 use App\Models\Scopes\OrganizationScope;
@@ -199,6 +200,8 @@ class InvitationController extends Controller
             'status' => 'accepted',
             'accepted_at' => now(),
         ]);
+
+        CacheHelper::forgetProfileIndexBootstrap((int) $user->id);
 
         // Notify the inviter that the invitation was accepted
         if ($invitation->invited_by) {

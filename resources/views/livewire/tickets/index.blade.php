@@ -166,7 +166,7 @@
                     </button>
                 </div>
             </div>
-            <a href="{{ route('tickets.index') }}" wire:navigate class="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[var(--accent)] transition-colors">
+            <a href="{{ route('tickets.index') }}" wire:navigate.hover class="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[var(--accent)] transition-colors">
                 <iconify-icon icon="solar:close-circle-linear" width="14"></iconify-icon>
                 {{ __('pages.groups.all_tickets') }}
             </a>
@@ -483,13 +483,23 @@
                                                 $pct = $prog && (int) $prog->total > 0 ? (int) round(100 * (int) $prog->done / (int) $prog->total) : null;
                                             @endphp
                                             {{-- No nested x-data here: Alpine $root must be the page root with dragId (nested x-data made $root = card, so dragId never reached the drop handler). --}}
+                                            @if($t->public_id)
+                                            <a
+                                                href="{{ route('tickets.discussion', ['ticket' => $t->public_id]) }}"
+                                                wire:navigate.hover
+                                                class="kanban-card group block no-underline text-inherit"
+                                                draggable="true"
+                                                @dragover.prevent
+                                                @dragstart="$root.dragId = {{ (int) $t->id }}"
+                                                @dragend="$root.dragId = null">
+                                            @else
                                             <div
                                                 class="kanban-card group"
                                                 draggable="true"
                                                 @dragover.prevent
-                                                @click="Livewire.navigate('{{ $t->public_id ? url('/tickets/' . e($t->public_id)) : '#' }}')"
                                                 @dragstart="$root.dragId = {{ (int) $t->id }}"
                                                 @dragend="$root.dragId = null">
+                                            @endif
                                                 <div class="flex justify-between items-start mb-2">
                                                     <span class="text-[11px] font-mono font-bold text-slate-400">{{ $t->shortReference() }}</span>
                                                     <span class="h-2 w-2 rounded-full {{ $prio['dot'] }}" title="{{ $prio['label'] }}"></span>
@@ -536,7 +546,11 @@
                                                     </div>
                                                     <span class="text-[10px] text-slate-300">{{ $t->updated_at?->diffForHumans() }}</span>
                                                 </div>
+                                            @if($t->public_id)
+                                            </a>
+                                            @else
                                             </div>
+                                            @endif
                                         @empty
                                             <div class="py-8 text-center text-xs text-slate-300 italic" @dragover.prevent>{{ __('pages.tickets.empty_column') }}</div>
                                         @endforelse
@@ -639,8 +653,23 @@
                                         $pill = $statusPill($t->status->value);
                                         $prio = $priorityMeta($t->priority?->level);
                                     @endphp
-                                    <tr class="{{ $boxKey !== 'trash' ? 'cursor-pointer' : '' }}" @if($boxKey !== 'trash' && $t->public_id) onclick="Livewire.navigate('{{ url('/tickets/' . e($t->public_id)) }}')" @endif>
+                                    <tr class="{{ $boxKey !== 'trash' ? 'cursor-pointer hover:bg-slate-50/80 group' : '' }}"
+                                        @if($boxKey !== 'trash' && $t->public_id)
+                                            onmouseenter="(function(tr){ if (tr.dataset.ticketRowPf) return; tr.dataset.ticketRowPf='1'; queueMicrotask(function(){ try { var a = tr.querySelector('[data-ticket-prefetch]'); if (a) a.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false })); } finally { delete tr.dataset.ticketRowPf; } }); })(this)"
+                                            onclick="Livewire.navigate({{ \Illuminate\Support\Js::from(route('tickets.discussion', ['ticket' => $t->public_id])) }})"
+                                        @endif
+                                    >
                                         <td class="min-w-[200px] sm:min-w-[260px] lg:min-w-[300px]">
+                                            @if($boxKey !== 'trash' && $t->public_id)
+                                                <a
+                                                    href="{{ route('tickets.discussion', ['ticket' => $t->public_id]) }}"
+                                                    wire:navigate.hover
+                                                    data-ticket-prefetch
+                                                    class="sr-only w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
+                                                    tabindex="-1"
+                                                    aria-hidden="true"
+                                                ></a>
+                                            @endif
                                             <div class="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0">
                                                 <span class="shrink-0 inline-flex items-center justify-center rounded-lg px-2 py-1.5 sm:px-2.5 sm:py-1.5 text-[11px] sm:text-xs font-semibold font-mono tracking-tight bg-[var(--accent-soft)] text-[var(--accent)]">
                                                     {{ $t->shortReference() }}

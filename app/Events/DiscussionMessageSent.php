@@ -19,6 +19,11 @@ class DiscussionMessageSent implements ShouldBroadcastNow
         public ?array $attachments,
         public ?array $meta,
         public string $createdAt,
+        public ?string $userEmail = null,
+        public ?string $mentionTag = null,
+        public bool $isThreadCreator = false,
+        public ?string $orgRoleLabel = null,
+        public bool $threadIsGroup = false,
     ) {}
 
     public function broadcastOn(): array
@@ -42,6 +47,11 @@ class DiscussionMessageSent implements ShouldBroadcastNow
             'attachments' => $this->attachments,
             'meta' => $this->meta,
             'created_at' => $this->createdAt,
+            'user_email' => $this->userEmail,
+            'mention_tag' => $this->mentionTag,
+            'is_thread_creator' => $this->isThreadCreator,
+            'org_role_label' => $this->orgRoleLabel,
+            'thread_is_group' => $this->threadIsGroup,
         ];
     }
 }

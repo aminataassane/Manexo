@@ -49,7 +49,7 @@
                     <iconify-icon icon="solar:magnifer-linear" class="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" width="15"></iconify-icon>
                     <input
                         type="text"
-                        wire:model.live.debounce.500ms="search"
+                        wire:model.live.debounce.200ms="search"
                         placeholder="{{ __('pages.discussions.search') }}"
                         wire:loading.attr="disabled"
                         wire:target="search,setScope,setView"
@@ -115,7 +115,7 @@
             @endif
 
             {{-- Conversation list --}}
-            <div class="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar" wire:poll.15s.visible>
+            <div class="relative flex-1 min-h-0 overflow-y-auto custom-scrollbar" wire:poll.8s.visible>
                 <div wire:loading.flex wire:target="search,setScope,setView,nextPage,previousPage,gotoPage,setPage" class="absolute inset-0 z-10 items-center justify-center bg-white/55 backdrop-blur-[1px] text-xs text-slate-500">
                     {{ __('pages.discussions.search') }}...
                 </div>

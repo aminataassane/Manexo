@@ -4,6 +4,7 @@ return [
     'title' => 'Paramètres',
     'subtitle' => 'Gérez la configuration de votre entreprise.',
     'back' => 'Retour',
+    'loading_tab' => 'Chargement…',
     'fix_errors' => 'Veuillez corriger les erreurs ci-dessous.',
     'appearance' => 'Apparence',
     'categories' => 'Catégories',

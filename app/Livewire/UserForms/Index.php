@@ -22,11 +22,6 @@ class Index extends Component
     /** Limite d’affichage par onglet (évite les requêtes trop lourdes). */
     public const ASSIGNMENTS_LIST_LIMIT = 200;
 
-    /** Fast path: render stats/lists directly on page open. */
-    public int $loadStage = 2;
-
-    public function mount(): void {}
-
     public string $tab = 'pending'; // pending | overdue | submitted | expired | all
 
     public function setTab(string $tab): void

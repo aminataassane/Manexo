@@ -12,7 +12,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -26,16 +25,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class TaskReport extends Component
 {
     use WithPagination;
-
-    /** 1 = shell instantané, 2 = stats + tableaux (progressif). */
-    public int $loadStage = 1;
-
-    public function loadReportBody(): void
-    {
-        if ($this->loadStage < 2) {
-            $this->loadStage = 2;
-        }
-    }
 
     public string $period = 'week';
 
@@ -206,7 +195,7 @@ class TaskReport extends Component
             $userId = Auth::id();
             $query->where(function ($q) use ($userId) {
                 $q->where('tickets.created_by', $userId)
-                    ->orWhereHas('assignees', fn($a) => $a->where('users.id', $userId));
+                    ->orWhereHas('assignees', fn ($a) => $a->where('users.id', $userId));
             });
         }
 
@@ -230,7 +219,7 @@ class TaskReport extends Component
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn($r) => ['name' => $r->category_name ?? __('task_report.no_category'), 'count' => (int) $r->count])
+            ->map(fn ($r) => ['name' => $r->category_name ?? __('task_report.no_category'), 'count' => (int) $r->count])
             ->all();
 
         // Primary: répartition par qui a clôturé (closed_by), avec repli sur créateur (created_by) si closed_by vide (anciens tickets)
@@ -243,7 +232,7 @@ class TaskReport extends Component
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn($r) => ['name' => $r->user_name ?? __('task_report.not_assigned'), 'count' => (int) $r->count])
+            ->map(fn ($r) => ['name' => $r->user_name ?? __('task_report.not_assigned'), 'count' => (int) $r->count])
             ->all();
 
         $topCategoryClosed = $byCategoryClosed[0] ?? null;
@@ -261,7 +250,7 @@ class TaskReport extends Component
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn($r) => ['name' => $r->user_name ?? __('task_report.not_assigned'), 'count' => (int) $r->count])
+            ->map(fn ($r) => ['name' => $r->user_name ?? __('task_report.not_assigned'), 'count' => (int) $r->count])
             ->all();
 
         $byCategoryTasks = (clone $base)
@@ -272,7 +261,7 @@ class TaskReport extends Component
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(fn($r) => ['name' => $r->category_name ?? __('task_report.no_category'), 'count' => (int) $r->count])
+            ->map(fn ($r) => ['name' => $r->category_name ?? __('task_report.no_category'), 'count' => (int) $r->count])
             ->all();
 
         $topUserTasks = $byUserTasks[0] ?? null;
@@ -292,27 +281,6 @@ class TaskReport extends Component
         );
     }
 
-    /**
-     * Structure identique à computeStats pour le premier rendu (sans requêtes).
-     *
-     * @return array<string, mixed>
-     */
-    private static function emptyTaskReportStats(): array
-    {
-        return [
-            'closedTicketsCount' => 0,
-            'byCategoryClosed' => [],
-            'byUserClosed' => [],
-            'topCategoryClosed' => ['name' => null, 'count' => 0],
-            'topUserClosed' => ['name' => null, 'count' => 0],
-            'tasksTotal' => 0,
-            'byUserTasks' => [],
-            'byCategoryTasks' => [],
-            'topUserTasks' => ['name' => null, 'count' => 0],
-            'topCategoryTasks' => ['name' => null, 'count' => 0],
-        ];
-    }
-
     #[Computed]
     public function closedTickets()
     {
@@ -321,7 +289,7 @@ class TaskReport extends Component
         return $this->closedTicketsQuery($from, $to)
             ->with(['category:id,name', 'creator:id,name', 'assignees:id,name', 'closedByUser:id,name'])
             ->withCount('checklistItems')
-            ->withCount(['checklistItems as checklist_done_count' => fn($q) => $q->where('is_done', true)])
+            ->withCount(['checklistItems as checklist_done_count' => fn ($q) => $q->where('is_done', true)])
             ->orderByDesc('updated_at')
             ->paginate(20, ['*'], 'closed_page');
     }
@@ -345,11 +313,11 @@ class TaskReport extends Component
     private function getLogoBase64(?object $org): ?string
     {
         if ($org && $org->logo_path) {
-            $path = storage_path('app/public/' . ltrim($org->logo_path, '/'));
+            $path = storage_path('app/public/'.ltrim($org->logo_path, '/'));
             if (file_exists($path)) {
                 $mime = mime_content_type($path) ?: 'image/png';
 
-                return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+                return 'data:'.$mime.';base64,'.base64_encode(file_get_contents($path));
             }
         }
 
@@ -367,8 +335,8 @@ class TaskReport extends Component
             fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM
 
             // Manexo branding header
-            fputcsv($handle, ['Manexo — ' . $orgName], ';');
-            fputcsv($handle, [__('task_report.shared_report_title') . ' — ' . $from->format('d/m/Y') . ' au ' . $to->format('d/m/Y')], ';');
+            fputcsv($handle, ['Manexo — '.$orgName], ';');
+            fputcsv($handle, [__('task_report.shared_report_title').' — '.$from->format('d/m/Y').' au '.$to->format('d/m/Y')], ';');
             fputcsv($handle, [__('task_report.report_generated', ['date' => now()->format('d/m/Y H:i')])], ';');
             fputcsv($handle, [], ';');
 
@@ -428,7 +396,7 @@ class TaskReport extends Component
                 });
 
             fclose($handle);
-        }, 'taches-terminees-' . now()->format('Y-m-d') . '.csv', [
+        }, 'taches-terminees-'.now()->format('Y-m-d').'.csv', [
             'Content-Type' => 'text/csv; charset=utf-8',
         ]);
     }
@@ -470,8 +438,8 @@ class TaskReport extends Component
         ])->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
-            fn() => print $pdf->output(),
-            'rapport-taches-' . now()->format('Y-m-d') . '.pdf',
+            fn () => print $pdf->output(),
+            'rapport-taches-'.now()->format('Y-m-d').'.pdf',
             ['Content-Type' => 'application/pdf'],
         );
     }
@@ -550,22 +518,18 @@ class TaskReport extends Component
         }
 
         [$from, $to] = $this->dateRange();
-        if ($this->loadStage < 2) {
-            $stats = self::emptyTaskReportStats();
-        } else {
-            $scope = $this->canViewAll() ? 'all' : 'self';
-            $viewerId = (int) Auth::id();
-            $statsKey = sprintf(
-                'reports:tasks:stats:%d:%s:%s:%s:%s:%d',
-                $this->orgId(),
-                $this->period,
-                $from->toDateString(),
-                $to->toDateString(),
-                $scope,
-                $viewerId
-            );
-            $stats = Cache::remember($statsKey, 120, fn () => $this->computeStats($from, $to));
-        }
+        $scope = $this->canViewAll() ? 'all' : 'self';
+        $viewerId = (int) Auth::id();
+        $statsKey = sprintf(
+            'reports:tasks:stats:%d:%s:%s:%s:%s:%d',
+            $this->orgId(),
+            $this->period,
+            $from->toDateString(),
+            $to->toDateString(),
+            $scope,
+            $viewerId
+        );
+        $stats = Cache::remember($statsKey, 120, fn () => $this->computeStats($from, $to));
 
         return view('livewire.reports.task-report', [
             'stats' => $stats,

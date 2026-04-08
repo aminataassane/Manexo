@@ -1,27 +1,7 @@
 <div
-    <?php if(isset($assignment) && $assignment): ?> wire:init="loadFormFields" <?php endif; ?>
     class="flex flex-col w-full max-w-3xl mx-auto min-w-0 px-0 sm:px-2 pb-6 sm:pb-8"
     style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0));"
 >
-<?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(! $formReady): ?>
-    
-    <div class="animate-pulse space-y-4">
-        <div class="flex items-center gap-3">
-            <div class="h-10 w-10 rounded-lg bg-slate-200"></div>
-            <div class="flex-1 space-y-2">
-                <div class="h-6 bg-slate-200 rounded-lg w-2/3"></div>
-                <div class="h-4 bg-slate-100 rounded w-1/2"></div>
-            </div>
-        </div>
-        <div class="rounded-xl border border-slate-100 bg-white p-6 space-y-4 shadow-sm">
-            <div class="h-4 bg-slate-100 rounded w-1/4"></div>
-            <div class="h-10 bg-slate-100 rounded w-full"></div>
-            <div class="h-4 bg-slate-100 rounded w-1/3"></div>
-            <div class="h-24 bg-slate-50 rounded-lg w-full"></div>
-            <div class="h-10 bg-slate-100 rounded w-full"></div>
-        </div>
-    </div>
-<?php else: ?>
 <?php
     $form = isset($assignment) && $assignment ? $assignment->form : ($form ?? null);
     abort_if(! $form, 404);
@@ -63,7 +43,7 @@
     }"
 >
     
-    <?php if(isset($assignment) && $assignment && $assignment->isOverdue() && !$assignment->isExpired()): ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(isset($assignment) && $assignment && $assignment->isOverdue() && !$assignment->isExpired()): ?>
         <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3 shadow-sm mb-4 sm:mb-6 shrink-0">
             <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
                 <iconify-icon icon="solar:danger-triangle-bold" width="18"></iconify-icon>
@@ -362,5 +342,4 @@
         </div>
     </form>
 </div>
-<?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 </div><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\resources\views\livewire\user-forms\fill.blade.php ENDPATH**/ ?>

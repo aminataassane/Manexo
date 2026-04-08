@@ -99,7 +99,7 @@
                 </div>
 
                 <div class="py-1">
-                    <a href="{{ route('profile') }}" wire:navigate class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <a href="{{ route('profile') }}" wire:navigate.hover class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:user-linear" width="16"></iconify-icon>
                         {{ __('menu.my_profile') }}
                     </a>

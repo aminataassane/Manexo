@@ -21,22 +21,38 @@
         \App\Enums\Permission::SettingsDeleteOrg,
     ]);
     $isStaff = $canSeeTeam || $canSeeReports || $canSeeForms || $canSeeSettings;
-    // Badges sidebar : mêmes clés que CacheHelper (invalidées par la cloche / temps réel).
+    // Badges sidebar : mêmes clés que CacheHelper (invalidées par la cloche / temps réel), filtrées par org courante.
     $sidebarUserId = (int) ($authUser?->id ?? 0);
+    $sidebarOrgId = (int) ($org?->id ?? session('current_organization_id', 0));
     $discussionsUnreadCount = \Illuminate\Support\Facades\Cache::remember(
-        \App\Helpers\CacheHelper::sidebarDiscussionsUnreadKey($sidebarUserId),
+        \App\Helpers\CacheHelper::sidebarDiscussionsUnreadKey($sidebarUserId, $sidebarOrgId),
         \App\Helpers\CacheHelper::TTL_SHORT,
-        fn () => $authUser?->unreadNotifications()
-            ->whereIn('type', [
-                \App\Notifications\DiscussionNewMessageNotification::class,
-                \App\Notifications\DiscussionInviteNotification::class,
-            ])
-            ->count() ?? 0
+        function () use ($authUser, $sidebarOrgId) {
+            if (! $authUser) {
+                return 0;
+            }
+            $q = $authUser->unreadNotifications()
+                ->whereIn('type', [
+                    \App\Notifications\DiscussionNewMessageNotification::class,
+                    \App\Notifications\DiscussionInviteNotification::class,
+                ]);
+            \App\Support\NotificationOrganizationScope::apply($q, $sidebarOrgId);
+
+            return (int) $q->count();
+        }
     );
     $notificationsUnreadCount = \Illuminate\Support\Facades\Cache::remember(
-        \App\Helpers\CacheHelper::notificationsUnreadCountKey($sidebarUserId),
+        \App\Helpers\CacheHelper::notificationsUnreadCountKey($sidebarUserId, $sidebarOrgId),
         \App\Helpers\CacheHelper::TTL_SHORT,
-        fn () => (int) ($authUser?->unreadNotifications()->count() ?? 0)
+        function () use ($authUser, $sidebarOrgId) {
+            if (! $authUser) {
+                return 0;
+            }
+            $q = $authUser->unreadNotifications();
+            \App\Support\NotificationOrganizationScope::apply($q, $sidebarOrgId);
+
+            return (int) $q->count();
+        }
     );
     // Logo: organisation (URL relative à la requête pour éviter erreur de chargement)
     $logoUrl = $org && $org->logo_path ? asset('storage/' . ltrim($org->logo_path, '/')) : null;
@@ -76,7 +92,7 @@
 >
     <!-- LOGO AREA : logo entreprise (repli sur initiale si image ne charge pas) -->
     <div class="flex h-16 shrink-0 items-center px-4 xl:px-5" :class="sidebarOpen ? 'justify-start' : 'justify-center'">
-        <a href="<?php echo e(route('dashboard')); ?>" wire:navigate class="flex items-center gap-3 group transition-all duration-300">
+        <a href="<?php echo e(route('dashboard')); ?>" wire:navigate.hover class="flex items-center gap-3 group transition-all duration-300">
             <span class="relative h-9 w-9 shrink-0 rounded-xl overflow-hidden ring-1 ring-white/10 shadow-lg shadow-[var(--accent-ring)]">
                 
                 <span id="sidebar-org-logo-fallback"
@@ -149,7 +165,7 @@
         <!-- Dashboard -->
         <a
             href="<?php echo e(route('dashboard')); ?>"
-            wire:navigate
+            wire:navigate.hover
             class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
             :class="[
                 isDashboard ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
@@ -186,7 +202,7 @@
                 <div x-show="ticketsOpen" x-collapse class="mt-1 space-y-1 px-3">
                     <a
                         href="<?php echo e(route('tickets.index')); ?>"
-                        wire:navigate
+                        wire:navigate.hover
                         class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                         :class="isTicketsAll ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                     >
@@ -196,7 +212,7 @@
                     </a>
                     <a
                         href="<?php echo e(route('tickets.groups')); ?>"
-                        wire:navigate
+                        wire:navigate.hover
                         class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                         :class="isTicketsGroups ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                     >
@@ -211,7 +227,7 @@
             <a
                 x-show="!sidebarOpen"
                 href="<?php echo e(route('tickets.index')); ?>"
-                wire:navigate
+                wire:navigate.hover
                 class="group relative flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
                 :class="isTickets ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white'"
             >
@@ -227,7 +243,7 @@
         <!-- Discussions -->
         <a
             href="<?php echo e(route('discussions.index')); ?>"
-            wire:navigate
+            wire:navigate.hover
             class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
             :class="[
                 isDiscussions ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
@@ -236,7 +252,7 @@
         >
             <div x-show="isDiscussions && sidebarOpen" class="absolute left-0 h-6 w-1 rounded-r-full bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]"></div>
             <span class="relative shrink-0">
-                <iconify-icon icon="solar:chat-round-bold-duotone" width="20" :class="isDiscussions ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
+                <iconify-icon icon="solar:inbox-bold-duotone" width="20" :class="isDiscussions ? 'text-[var(--accent-soft)]' : 'text-white/50 group-hover:text-white/80'" class="transition-colors"></iconify-icon>
                 <span x-show="discUnread > 0 && !sidebarOpen" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[color:var(--accent-dark)]" x-cloak x-text="discUnread > 99 ? '99+' : discUnread"></span>
             </span>
             <span x-show="sidebarOpen" class="truncate"><?php echo e(__('menu.discussions')); ?></span>
@@ -251,7 +267,7 @@
         <!-- Formulaires -->
         <a
             href="<?php echo e(route('forms.index')); ?>"
-            wire:navigate
+            wire:navigate.hover
             class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
             :class="[
                 isForms ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
@@ -271,7 +287,7 @@
         <!-- <?php echo e(__('menu.knowledge_base')); ?> -->
         <a
             href="<?php echo e(route('knowledge-base.index')); ?>"
-            wire:navigate
+            wire:navigate.hover
             class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
             :class="[
                 isKnowledgeBase ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
@@ -292,7 +308,7 @@
         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$canSeeReports && $authUser && $authUser->hasPermission(\App\Enums\Permission::ReportsViewTasks)): ?>
         <a
             href="<?php echo e(route('reports.tasks')); ?>"
-            wire:navigate
+            wire:navigate.hover
             class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
             :class="[
                 isMyTasks ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
@@ -312,7 +328,7 @@
         <!-- Notifications -->
         <a
             href="<?php echo e(route('notifications.index')); ?>"
-            wire:navigate
+            wire:navigate.hover
             class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
             :class="[
                 isNotifications ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
@@ -368,7 +384,7 @@
             <!-- Team -->
             <a
                 href="<?php echo e(route('admin.users')); ?>"
-                wire:navigate
+                wire:navigate.hover
                 class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
                 :class="[
                     isAdminUsers ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
@@ -405,7 +421,7 @@
                     <div x-show="reportsOpen" x-collapse class="mt-1 space-y-1 px-3">
                         <a
                             href="<?php echo e(route('reports.index')); ?>"
-                            wire:navigate
+                            wire:navigate.hover
                             class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                             :class="isReportsOverview ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                         >
@@ -415,7 +431,7 @@
                         </a>
                         <a
                             href="<?php echo e(route('reports.tasks')); ?>"
-                            wire:navigate
+                            wire:navigate.hover
                             class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                             :class="isReportsTasks ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                         >
@@ -425,7 +441,7 @@
                         </a>
                         <a
                             href="<?php echo e(route('reports.daily')); ?>"
-                            wire:navigate
+                            wire:navigate.hover
                             class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                             :class="isReportsDaily ? 'bg-white/10 text-[var(--accent-soft)]' : 'text-white/40 hover:text-white hover:bg-white/5'"
                         >
@@ -440,7 +456,7 @@
                 <a
                     x-show="!sidebarOpen"
                     href="<?php echo e(route('reports.index')); ?>"
-                    wire:navigate
+                    wire:navigate.hover
                     class="group relative flex items-center justify-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
                     :class="isReports ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white'"
                 >
@@ -458,7 +474,7 @@
             <!-- Admin Formulaires -->
             <a
                 href="<?php echo e(route('admin.forms')); ?>"
-                wire:navigate
+                wire:navigate.hover
                 class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
                 :class="[
                     isAdminForms ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',
@@ -475,7 +491,7 @@
             <!-- Settings -->
             <a
                 href="<?php echo e(route('admin.settings')); ?>"
-                wire:navigate
+                wire:navigate.hover
                 class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200"
                 :class="[
                     isSettings ? 'text-white bg-white/10 shadow-sm ring-1 ring-white/5' : 'text-white/60 hover:bg-white/5 hover:text-white',

@@ -19,7 +19,7 @@
                 </p>
             </div>
             <div class="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:flex-shrink-0">
-                <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0">
+                <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate.hover class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0">
                     <iconify-icon icon="solar:list-bold" width="18"></iconify-icon>
                     <?php echo e(__('pages.dashboard.view_tickets')); ?>
 
@@ -35,6 +35,31 @@
         <div class="absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 rounded-full bg-blue-50 opacity-50 blur-3xl"></div>
     </div>
 
+    
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($this->isAdminView): ?>
+        <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('dashboard.onboarding-checklist', []);
+
+$key = null;
+$__componentSlots = [];
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-0', $key);
+
+$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__componentSlots);
+unset($__split);
+?>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($this->isAdminView): ?>
         <?php
 $__split = function ($name, $params = []) {
@@ -45,7 +70,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-0', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-1', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -69,7 +94,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-1', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-2', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -90,7 +115,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-2', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-3', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -114,7 +139,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-3', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-4', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -135,7 +160,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-4', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-5', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -156,7 +181,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-5', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-6', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -180,7 +205,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-6', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-7', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -204,7 +229,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-7', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-8', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -228,7 +253,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-8', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-9', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -249,7 +274,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-9', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-10', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -270,7 +295,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-10', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-278411379-11', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 

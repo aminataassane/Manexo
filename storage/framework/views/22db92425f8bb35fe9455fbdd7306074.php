@@ -19,7 +19,7 @@
                 </p>
             </div>
             <div class="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:flex-shrink-0">
-                <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0">
+                <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate.hover class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-all touch-target sm:min-h-0 sm:min-w-0">
                     <iconify-icon icon="solar:list-bold" width="18"></iconify-icon>
                     <?php echo e(__('pages.dashboard.view_tickets')); ?>
 
@@ -35,6 +35,31 @@
         <div class="absolute bottom-0 left-0 -mb-20 -ml-20 h-64 w-64 rounded-full bg-blue-50 opacity-50 blur-3xl"></div>
     </div>
 
+    
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($this->isAdminView): ?>
+        <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('dashboard.onboarding-checklist', []);
+
+$key = null;
+$__componentSlots = [];
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-36', $key);
+
+$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__componentSlots);
+unset($__split);
+?>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($this->isAdminView): ?>
         <?php
 $__split = function ($name, $params = []) {
@@ -45,7 +70,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-33', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-37', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -69,7 +94,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-34', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-38', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -90,7 +115,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-35', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-39', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -114,96 +139,6 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-36', $key);
-
-$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
-
-echo $__html;
-
-unset($__html);
-unset($__name);
-unset($__params);
-unset($__componentSlots);
-unset($__split);
-?>
-                <?php
-$__split = function ($name, $params = []) {
-    return [$name, $params];
-};
-[$__name, $__params] = $__split('dashboard.pending-forms-panel', []);
-
-$key = null;
-$__componentSlots = [];
-
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-37', $key);
-
-$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
-
-echo $__html;
-
-unset($__html);
-unset($__name);
-unset($__params);
-unset($__componentSlots);
-unset($__split);
-?>
-                <?php
-$__split = function ($name, $params = []) {
-    return [$name, $params];
-};
-[$__name, $__params] = $__split('dashboard.recent-activity-panel', []);
-
-$key = null;
-$__componentSlots = [];
-
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-38', $key);
-
-$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
-
-echo $__html;
-
-unset($__html);
-unset($__name);
-unset($__params);
-unset($__componentSlots);
-unset($__split);
-?>
-            </div>
-        </div>
-    <?php else: ?>
-        <?php
-$__split = function ($name, $params = []) {
-    return [$name, $params];
-};
-[$__name, $__params] = $__split('dashboard.member-kpi-cards', []);
-
-$key = null;
-$__componentSlots = [];
-
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-39', $key);
-
-$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
-
-echo $__html;
-
-unset($__html);
-unset($__name);
-unset($__params);
-unset($__componentSlots);
-unset($__split);
-?>
-
-        <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-            <div class="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0">
-                <?php
-$__split = function ($name, $params = []) {
-    return [$name, $params];
-};
-[$__name, $__params] = $__split('dashboard.my-recent-tickets-table', []);
-
-$key = null;
-$__componentSlots = [];
-
 $key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-40', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
@@ -216,9 +151,6 @@ unset($__params);
 unset($__componentSlots);
 unset($__split);
 ?>
-            </div>
-
-            <div class="space-y-4 sm:space-y-6 min-w-0">
                 <?php
 $__split = function ($name, $params = []) {
     return [$name, $params];
@@ -244,12 +176,105 @@ unset($__split);
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('dashboard.discussions-panel', []);
+[$__name, $__params] = $__split('dashboard.recent-activity-panel', []);
 
 $key = null;
 $__componentSlots = [];
 
 $key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-42', $key);
+
+$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__componentSlots);
+unset($__split);
+?>
+            </div>
+        </div>
+    <?php else: ?>
+        <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('dashboard.member-kpi-cards', []);
+
+$key = null;
+$__componentSlots = [];
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-43', $key);
+
+$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__componentSlots);
+unset($__split);
+?>
+
+        <div class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+            <div class="space-y-4 sm:space-y-6 lg:col-span-2 min-w-0">
+                <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('dashboard.my-recent-tickets-table', []);
+
+$key = null;
+$__componentSlots = [];
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-44', $key);
+
+$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__componentSlots);
+unset($__split);
+?>
+            </div>
+
+            <div class="space-y-4 sm:space-y-6 min-w-0">
+                <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('dashboard.pending-forms-panel', []);
+
+$key = null;
+$__componentSlots = [];
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-45', $key);
+
+$__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__componentSlots);
+unset($__split);
+?>
+                <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('dashboard.discussions-panel', []);
+
+$key = null;
+$__componentSlots = [];
+
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-46', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 
@@ -270,7 +295,7 @@ $__split = function ($name, $params = []) {
 $key = null;
 $__componentSlots = [];
 
-$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-43', $key);
+$key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-4083346036-47', $key);
 
 $__html = app('livewire')->mount($__name, $__params, $key, $__componentSlots);
 

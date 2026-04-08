@@ -1,27 +1,7 @@
 <div
-    @if(isset($assignment) && $assignment) wire:init="loadFormFields" @endif
     class="flex flex-col w-full max-w-3xl mx-auto min-w-0 px-0 sm:px-2 pb-6 sm:pb-8"
     style="padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0));"
 >
-@if(! $formReady)
-    {{-- Coquille immédiate : pas de requête lourde avant wire:init --}}
-    <div class="animate-pulse space-y-4">
-        <div class="flex items-center gap-3">
-            <div class="h-10 w-10 rounded-lg bg-slate-200"></div>
-            <div class="flex-1 space-y-2">
-                <div class="h-6 bg-slate-200 rounded-lg w-2/3"></div>
-                <div class="h-4 bg-slate-100 rounded w-1/2"></div>
-            </div>
-        </div>
-        <div class="rounded-xl border border-slate-100 bg-white p-6 space-y-4 shadow-sm">
-            <div class="h-4 bg-slate-100 rounded w-1/4"></div>
-            <div class="h-10 bg-slate-100 rounded w-full"></div>
-            <div class="h-4 bg-slate-100 rounded w-1/3"></div>
-            <div class="h-24 bg-slate-50 rounded-lg w-full"></div>
-            <div class="h-10 bg-slate-100 rounded w-full"></div>
-        </div>
-    </div>
-@else
 @php
     $form = isset($assignment) && $assignment ? $assignment->form : ($form ?? null);
     abort_if(! $form, 404);
@@ -300,5 +280,4 @@
         </div>
     </form>
 </div>
-@endif
 </div>

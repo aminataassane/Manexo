@@ -170,43 +170,97 @@
 
             {{-- ==================== SUCCESS STATE ==================== --}}
             @if(session('public_form_success'))
-                <div class="mnx-card rounded-2xl border border-white/60 shadow-xl {{ $embedMode ? 'p-8' : 'p-10 sm:p-14' }} text-center mnx-animate-in"
-                     x-data="{ show: false }" x-init="setTimeout(() => show = true, 100)">
+                <div class="mnx-card rounded-2xl border border-white/60 shadow-xl {{ $embedMode ? 'p-8' : 'p-10 sm:p-14' }} mnx-animate-in"
+                     x-data="{ show: false, copied: false }" x-init="setTimeout(() => show = true, 100)">
 
                     {{-- Animated check --}}
-                    <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full mb-6 transition-all duration-700"
-                         style="background: var(--accent-soft); color: var(--accent);"
-                         :class="show ? 'scale-100 opacity-100' : 'scale-50 opacity-0'">
-                        <iconify-icon icon="solar:check-circle-bold-duotone" width="48"></iconify-icon>
+                    <div class="text-center">
+                        <div class="mx-auto flex h-20 w-20 items-center justify-center rounded-full mb-6 transition-all duration-700"
+                             style="background: var(--accent-soft); color: var(--accent);"
+                             :class="show ? 'scale-100 opacity-100' : 'scale-50 opacity-0'">
+                            <iconify-icon icon="solar:check-circle-bold-duotone" width="48"></iconify-icon>
+                        </div>
+
+                        <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight transition-all duration-500 delay-200"
+                            :class="show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
+                            {{ __('public_form.success_title') }}
+                        </h2>
+
+                        <p class="mt-3 text-slate-500 text-[15px] max-w-md mx-auto leading-relaxed transition-all duration-500 delay-300"
+                           :class="show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
+                            {{ session('public_form_success') }}
+                        </p>
                     </div>
 
-                    <h2 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight transition-all duration-500 delay-200"
-                        :class="show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
-                        {{ __('Envoyé avec succès !') }}
-                    </h2>
+                    {{-- Récapitulatif --}}
+                    <div class="mt-8 rounded-xl border border-slate-100 bg-slate-50/50 divide-y divide-slate-100 transition-all duration-500 delay-[350ms]"
+                         :class="show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
 
-                    <p class="mt-3 text-slate-500 text-[15px] max-w-sm mx-auto leading-relaxed transition-all duration-500 delay-300"
-                       :class="show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
-                        {{ session('public_form_success') }}
-                    </p>
+                        {{-- Référence ticket --}}
+                        @if(session('public_form_ticket_ref'))
+                            <div class="flex items-center justify-between px-5 py-3.5">
+                                <div class="flex items-center gap-2.5 text-sm text-slate-600">
+                                    <iconify-icon icon="solar:ticket-bold" width="17" style="color: var(--accent);"></iconify-icon>
+                                    {{ __('public_form.ticket_reference') }}
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-bold text-slate-900">{{ session('public_form_ticket_ref') }}</span>
+                                    <button type="button"
+                                            @click="navigator.clipboard.writeText('{{ session('public_form_ticket_ref') }}'); copied = true; setTimeout(() => copied = false, 2000)"
+                                            class="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                                            :title="copied ? '{{ __('public_form.copied') }}' : '{{ __('public_form.copy') }}'">
+                                        <iconify-icon :icon="copied ? 'solar:check-read-linear' : 'solar:copy-linear'" width="14"></iconify-icon>
+                                    </button>
+                                </div>
+                            </div>
+                        @endif
 
-                    @if(session('public_form_ticket_id'))
-                        <div class="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-500 delay-400"
-                             style="background: var(--accent-soft); color: var(--accent);"
-                             :class="show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
-                            <iconify-icon icon="solar:ticket-bold" width="18"></iconify-icon>
-                            {{ __('Référence') }}
-                            <span class="font-bold">#{{ session('public_form_ticket_id') }}</span>
+                        {{-- Référence réponse --}}
+                        @if(session('public_form_response_ref'))
+                            <div class="flex items-center justify-between px-5 py-3.5">
+                                <div class="flex items-center gap-2.5 text-sm text-slate-600">
+                                    <iconify-icon icon="solar:document-text-bold" width="17" class="text-slate-400"></iconify-icon>
+                                    {{ __('public_form.response_reference') }}
+                                </div>
+                                <span class="text-sm font-semibold text-slate-700">{{ session('public_form_response_ref') }}</span>
+                            </div>
+                        @endif
+
+                        {{-- Email de confirmation --}}
+                        @if(session('public_form_email'))
+                            <div class="flex items-center justify-between px-5 py-3.5">
+                                <div class="flex items-center gap-2.5 text-sm text-slate-600">
+                                    <iconify-icon icon="solar:letter-bold" width="17" class="text-slate-400"></iconify-icon>
+                                    {{ __('public_form.confirmation_email') }}
+                                </div>
+                                <span class="text-sm font-semibold text-slate-700">{{ session('public_form_email') }}</span>
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Suivi --}}
+                    <div class="mt-5 rounded-xl border border-blue-100 bg-blue-50/50 px-5 py-4 transition-all duration-500 delay-[400ms]"
+                         :class="show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
+                        <div class="flex items-start gap-3">
+                            <iconify-icon icon="solar:info-circle-bold" width="18" class="text-blue-500 mt-0.5 shrink-0"></iconify-icon>
+                            <div class="text-[13px] text-blue-800 leading-relaxed">
+                                @if(session('public_form_ticket_ref'))
+                                    {{ __('public_form.followup_with_ticket', ['ref' => session('public_form_ticket_ref'), 'org' => session('public_form_org_name', '')]) }}
+                                @else
+                                    {{ __('public_form.followup_no_ticket', ['org' => session('public_form_org_name', '')]) }}
+                                @endif
+                            </div>
                         </div>
-                    @endif
+                    </div>
 
-                    <div class="mt-8 transition-all duration-500 delay-500"
+                    {{-- Actions --}}
+                    <div class="mt-8 text-center transition-all duration-500 delay-500"
                          :class="show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'">
                         <a href="{{ request()->url() }}"
                            class="mnx-btn-primary inline-flex items-center gap-2 h-12 px-7 rounded-xl text-sm font-bold text-white"
                            style="background: var(--accent);">
                             <iconify-icon icon="solar:restart-linear" width="16"></iconify-icon>
-                            {{ __('Envoyer une autre demande') }}
+                            {{ __('public_form.submit_another') }}
                         </a>
                     </div>
                 </div>

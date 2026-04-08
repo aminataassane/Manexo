@@ -1,0 +1,1 @@
+discussion-<?php echo e($selectedTicket->id); ?><?php /**PATH C:\Users\Aminata_an\OneDrive\Bureau\QUALITY_CENTER\Manexo\manexo\storage\framework\views/84a251ece2bcd8f0216f1b780cbed5e0.blade.php ENDPATH**/ ?>

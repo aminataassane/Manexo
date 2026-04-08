@@ -12,7 +12,7 @@
             @endif
         </div>
 
-        <form wire:submit="sendMessage" wire:loading.class="pointer-events-none opacity-90" wire:target="sendMessage" x-on:submit="localStorage.removeItem('ticket-draft-{{ $ticketPublicId }}')" class="discussion-composer-box relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)]/25 focus-within:border-[var(--accent)] transition-all min-w-0"
+        <form wire:submit="sendMessage" wire:loading.class="pointer-events-none opacity-90" wire:target="sendMessage,attachmentFiles" x-on:submit="localStorage.removeItem('ticket-draft-{{ $ticketPublicId }}')" class="discussion-composer-box relative rounded-xl border border-slate-200 bg-white shadow-sm focus-within:ring-2 focus-within:ring-[var(--accent)]/25 focus-within:border-[var(--accent)] transition-all min-w-0"
         x-data="{
             users: {{ \Illuminate\Support\Js::from($mentionableUsers ?? []) }},
             mentionOpen: false,
@@ -75,7 +75,7 @@
             <div class="p-1.5 sm:p-2 relative">
                 <textarea
                     x-ref="mentionInput"
-                    wire:model.defer="body"
+                    wire:model="body"
                     rows="2"
                     wire:loading.attr="disabled"
                     wire:target="sendMessage"
@@ -105,7 +105,7 @@
                         multiple
                         class="hidden"
                         id="composer-file-input-{{ $ticketId }}"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*"
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.heic,.heif,.ppt,.pptx,image/*"
                         x-on:change="async (e) => {
                             const list = e.target.files;
                             if (!list?.length) return;
@@ -136,7 +136,7 @@
 
                 <x-manexo.action-button
                     type="submit"
-                    wire-target="sendMessage"
+                    wire-target="sendMessage,attachmentFiles"
                     variant="primary"
                     spinner-size="sm"
                     x-ref="submitBtn"
@@ -149,6 +149,9 @@
                 </x-manexo.action-button>
             </div>
         </form>
-        <x-input-error :messages="$errors->get('body')" class="mt-2" />
+        @php
+            $composerErrors = collect($errors->getMessages())->flatten()->values()->all();
+        @endphp
+        <x-input-error :messages="$composerErrors" class="mt-2" />
     </div>
 </div>

@@ -38,4 +38,11 @@ return [
 
     'discussion_fab_go_top' => 'Back to top of thread',
     'discussion_fab_go_latest' => 'Jump to latest message',
+
+    'composer_send_in_progress' => 'A send is already in progress. Wait a few seconds and try again.',
+
+    'timeline_user_card_open' => 'View participant information',
+    'timeline_badge_creator' => 'Ticket creator',
+    'timeline_badge_assignee' => 'Assigned to ticket',
+    'timeline_badge_participant' => 'Discussion participant',
 ];

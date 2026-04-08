@@ -25,7 +25,18 @@
         [x-cloak] { display: none !important; }
         html { overflow-x: hidden; }
         @keyframes subtleFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-enter { animation: subtleFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-enter { animation: subtleFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+            .animate-enter { animation: none; opacity: 1; transform: none; }
+        }
+        html.manexo-is-navigating .manexo-app-main-scroll { pointer-events: none; }
+        html.manexo-is-navigating .manexo-content-wrap {
+            opacity: 0.9;
+            transition: opacity 0.12s ease-out;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            html.manexo-is-navigating .manexo-content-wrap { opacity: 1; transition: none; }
+        }
         ::selection { background: #F2E3BB; color: #005F02; }
         /* En sidebar repliée, on neutralise les mini-tooltips (évite texte qui déborde) */
         aside .group > .absolute.left-full { display: none !important; }
@@ -109,6 +120,7 @@
 </head>
 <body
     class="manexo-fluid-root flex h-screen w-full min-h-0 overflow-hidden bg-slate-50 text-slate-900"
+    style="--livewire-progress-bar-color: #005F02;"
     data-echo-enabled="1"
     x-data="{ sidebarOpen: true, mobileOpen: false }"
     x-init="sidebarOpen = (localStorage.getItem('sa_sidebar') !== 'false'); document.body.style.setProperty('--manexo-shell-offset', sidebarOpen ? 'var(--manexo-sidebar-expanded)' : 'var(--manexo-sidebar-collapsed)'); document.addEventListener('livewire:navigated', () => { mobileOpen = false })"
@@ -411,8 +423,8 @@
     <main
         class="manexo-shell-transition flex-1 flex flex-col min-w-0 min-h-0 w-full max-w-full relative z-10 transition-[padding] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pt-14 sm:pt-16 pl-0 md:pl-[var(--manexo-shell-offset)]"
     >
-        <div class="page-content-safe manexo-shell-scroll flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar">
-            <div class="mx-auto manexo-content-wrap animate-enter space-y-[var(--manexo-space-section)]">
+        <div class="manexo-app-main-scroll page-content-safe manexo-shell-scroll flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar">
+            <div class="mx-auto manexo-content-wrap space-y-[var(--manexo-space-section)]">
                 {{-- Session flash messages --}}
                 @if (session('success'))
                     <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">

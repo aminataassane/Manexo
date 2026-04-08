@@ -19,24 +19,38 @@
         $cacheTtl = 60;
         $loadActivity = request()->boolean('load_activity', false);
 
-        $organizations = $user
-            ? \Illuminate\Support\Facades\Cache::remember("profile:orgs:{$user->id}", $cacheTtl, function () use ($user) {
-                return $user->organizations()
-                    ->withPivot(['role'])
-                    ->orderBy('name')
-                    ->get();
-            })
-            : collect();
+        $bootstrap = $user
+            ? \Illuminate\Support\Facades\Cache::remember(
+                \App\Helpers\CacheHelper::profileIndexBootstrapKey($user->id),
+                $cacheTtl,
+                function () use ($user) {
+                    return [
+                        'organizations' => $user->organizations()
+                            ->withPivot(['role'])
+                            ->orderBy('name')
+                            ->get(),
+                        'sessions' => \Illuminate\Support\Facades\DB::table('sessions')
+                            ->where('user_id', $user->id)
+                            ->orderByDesc('last_activity')
+                            ->limit(10)
+                            ->get(),
+                        'pending_invitations' => \App\Models\OrganizationInvitation::withoutOrganizationScope()
+                            ->where('email', $user->email)
+                            ->pending()
+                            ->with(['organization', 'inviter'])
+                            ->get(),
+                    ];
+                }
+            )
+            : [
+                'organizations' => collect(),
+                'sessions' => collect(),
+                'pending_invitations' => collect(),
+            ];
 
-        $sessions = $user
-            ? \Illuminate\Support\Facades\Cache::remember("profile:sessions:{$user->id}", $cacheTtl, function () use ($user) {
-                return \Illuminate\Support\Facades\DB::table('sessions')
-                    ->where('user_id', $user->id)
-                    ->orderByDesc('last_activity')
-                    ->limit(10)
-                    ->get();
-            })
-            : collect();
+        $organizations = $bootstrap['organizations'];
+        $sessions = $bootstrap['sessions'];
+        $pendingInvitations = $bootstrap['pending_invitations'];
 
         $activityFilter = request('activity', 'all'); // all | tickets | assignations | commentaires
 
@@ -104,16 +118,6 @@
         $statusLabel = function (string $status): string {
             return __('tickets.status.' . $status);
         };
-
-        $pendingInvitations = $user
-            ? \Illuminate\Support\Facades\Cache::remember("profile:pending_invitations:{$user->id}", $cacheTtl, function () use ($user) {
-                return \App\Models\OrganizationInvitation::withoutOrganizationScope()
-                    ->where('email', $user->email)
-                    ->pending()
-                    ->with(['organization', 'inviter'])
-                    ->get();
-            })
-            : collect();
     ?>
 
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(session('profile_status')): ?>
@@ -234,14 +238,14 @@ unset($__split);
                         <h2 class="text-base font-semibold text-slate-900"><?php echo e(__('pages.profile.my_companies')); ?></h2>
                         <p class="text-xs text-slate-500 mt-0.5"><?php echo e(__('pages.profile.companies_subtitle')); ?></p>
                     </div>
-                    <a href="<?php echo e(route('organizations.select', ['mode' => 'switch'])); ?>" class="text-xs font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50">
+                    <a href="<?php echo e(route('organizations.select', ['mode' => 'switch'])); ?>" wire:navigate.hover class="text-xs font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50">
                         <?php echo e(__('pages.profile.manage_change')); ?>
 
                     </a>
                 </div>
                 <div class="p-6">
                     <div class="grid gap-3 sm:grid-cols-2">
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_2 = true; $__currentLoopData = $organizations; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $org): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_2 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $organizations; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $org): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                             <div class="group flex items-center gap-4 rounded-xl border border-slate-200 p-4 transition-all hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/10">
                                 <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold shadow-sm"
                                      style="background: <?php echo e($org->primary_color ? 'color-mix(in srgb, '.$org->primary_color.' 15%, white)' : '#F3F4F6'); ?>; color: <?php echo e($org->primary_color ?: '#4B5563'); ?>;">
@@ -257,7 +261,7 @@ unset($__split);
                                     </p>
                                 </div>
                             </div>
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_2): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             <div class="col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
                                 <?php echo e(__('pages.profile.no_organization')); ?>
 
@@ -284,6 +288,7 @@ unset($__split);
                                 <p class="text-sm text-slate-600 mb-3">Charge l'activité à la demande pour accélérer l'ouverture du profil.</p>
                                 <a
                                     href="<?php echo e(route('profile', array_filter(['load_activity' => 1, 'activity' => request('activity')]))); ?>"
+                                    wire:navigate.hover
                                     class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
                                 >
                                     <iconify-icon icon="solar:bolt-linear" width="14"></iconify-icon>
@@ -300,13 +305,14 @@ unset($__split);
                                     ?>
                                     <a
                                         href="<?php echo e(route('profile', array_filter(['load_activity' => 1, 'activity' => $key !== 'all' ? $key : null]))); ?>"
+                                        <?php if (! ($disabled)): ?> wire:navigate.hover <?php endif; ?>
                                         class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all <?php echo e($isActive ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900'); ?> <?php echo e($disabled ? 'pointer-events-none opacity-50' : ''); ?>"
                                     ><?php echo e(__('pages.profile.' . $labelKey)); ?></a>
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                             </div>
 
                             <div class="relative pl-4 space-y-6 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_2 = true; $__currentLoopData = $events; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $e): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_2 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $events; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $e): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                     <div class="relative pl-8">
                                         <div class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white shadow-sm" style="background: var(--accent);"></div>
                                         <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
@@ -324,7 +330,7 @@ unset($__split);
                                             </span>
                                         </div>
                                     </div>
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_2): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                                     <div class="py-8 text-center text-sm text-slate-500 italic">
                                         <?php echo e(__('pages.profile.no_activity_found')); ?>
 
@@ -334,7 +340,7 @@ unset($__split);
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                         
                         <div class="mt-6 pt-4 border-t border-slate-100 text-center">
-                            <a href="<?php echo e(route('profile.history')); ?>" class="text-sm font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors inline-flex items-center gap-1">
+                            <a href="<?php echo e(route('profile.history')); ?>" wire:navigate.hover class="text-sm font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors inline-flex items-center gap-1">
                                 <?php echo e(__('pages.profile.view_full_history')); ?>
 
                                 <iconify-icon icon="solar:arrow-right-linear" width="16"></iconify-icon>

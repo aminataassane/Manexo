@@ -67,7 +67,7 @@ class Thread extends Component
         $orgId = (int) session('current_organization_id');
 
         $this->threadCache = DiscussionThread::query()
-            ->with(['participants:id,name,email'])
+            ->with(['participants:id,name,email,mention_tag'])
             ->whereKey($this->threadId)
             ->where('organization_id', $orgId)
             ->firstOrFail();
@@ -83,7 +83,7 @@ class Thread extends Component
         }
 
         $thread = $this->getThread();
-        if (! $thread->participants()->where('users.id', $user->id)->exists()) {
+        if (! $thread->participants->contains('id', $user->id)) {
             abort(403);
         }
     }
@@ -251,7 +251,7 @@ class Thread extends Component
         }
 
         $thread = $this->getThread();
-        if (! $thread->participants()->where('users.id', $user->id)->exists()) {
+        if (! $thread->participants->contains('id', $user->id)) {
             abort(403);
         }
 
@@ -303,7 +303,25 @@ class Thread extends Component
         $body = $message->body;
         $attachments = $message->attachments;
         $meta = $message->meta ?? null;
-        dispatch(function () use ($messageId, $threadId, $userId, $userName, $body, $attachments, $meta, $createdAt) {
+        $orgId = (int) session('current_organization_id');
+        $orgRole = DB::table('organization_memberships')
+            ->where('organization_id', $orgId)
+            ->where('user_id', $user->id)
+            ->value('role');
+        $roleLabels = [
+            'owner' => __('Admin'),
+            'admin' => __('Admin'),
+            'agent' => __('Agent'),
+            'member' => __('Membre'),
+        ];
+        $orgRoleLabel = ($orgRole && $orgRole !== 'member')
+            ? ($roleLabels[(string) $orgRole] ?? (string) $orgRole)
+            : null;
+        $isThreadCreator = (int) $thread->created_by === (int) $user->id;
+        $userEmail = $user->email;
+        $mentionTag = $user->mention_tag;
+        $threadIsGroup = (bool) $thread->is_group;
+        dispatch(function () use ($messageId, $threadId, $userId, $userName, $body, $attachments, $meta, $createdAt, $userEmail, $mentionTag, $isThreadCreator, $orgRoleLabel, $threadIsGroup) {
             try {
                 event(new DiscussionMessageSent(
                     messageId: $messageId,
@@ -314,6 +332,11 @@ class Thread extends Component
                     attachments: $attachments,
                     meta: $meta,
                     createdAt: $createdAt,
+                    userEmail: $userEmail,
+                    mentionTag: $mentionTag,
+                    isThreadCreator: $isThreadCreator,
+                    orgRoleLabel: $orgRoleLabel,
+                    threadIsGroup: $threadIsGroup,
                 ));
             } catch (BroadcastException $e) {
                 Log::warning('Broadcast failed (Pusher/WebSocket may be down).', ['exception' => $e->getMessage()]);
@@ -408,13 +431,30 @@ class Thread extends Component
         $messages = DiscussionMessage::query()
             ->where('thread_id', $thread->id)
             ->select(['id', 'thread_id', 'user_id', 'body', 'attachments', 'created_at'])
-            ->with('user:id,name')
+            ->with('user:id,name,email,mention_tag')
             ->latest('id')
             ->limit($this->messagesLimit)
             ->get()
             ->reverse()
             ->values();
         $thread->setRelation('messages', $messages);
+
+        $orgId = (int) session('current_organization_id');
+        $messageUserIds = $messages->pluck('user_id')->unique()->filter()->values();
+        $orgRolesByUserId = [];
+        if ($messageUserIds->isNotEmpty()) {
+            $orgRolesByUserId = DB::table('organization_memberships')
+                ->where('organization_id', $orgId)
+                ->whereIn('user_id', $messageUserIds)
+                ->pluck('role', 'user_id')
+                ->all();
+        }
+        $roleLabels = [
+            'owner' => __('Admin'),
+            'admin' => __('Admin'),
+            'agent' => __('Agent'),
+            'member' => __('Membre'),
+        ];
 
         $totalMessages = cache()->remember(
             "disc:thread_total_messages:{$thread->id}",
@@ -425,7 +465,6 @@ class Thread extends Component
         );
         $hasMoreMessages = $totalMessages > $messages->count();
 
-        $orgId = (int) session('current_organization_id');
         $canManageParticipants = $this->canManageParticipants;
         $orgUsers = ($thread->is_group && $canManageParticipants)
             ? cache()->remember(
@@ -448,6 +487,8 @@ class Thread extends Component
             'embedded' => $this->embedded,
             'canManageParticipants' => $canManageParticipants,
             'hasMoreMessages' => $hasMoreMessages,
+            'orgRolesByUserId' => $orgRolesByUserId,
+            'roleLabels' => $roleLabels,
         ]);
 
         return $view->layout($layout);

@@ -8,6 +8,7 @@ use App\Enums\Permission;
 use App\Enums\TicketMessageType;
 use App\Enums\TicketStatus;
 use App\Events\TicketAssigneeChanged;
+use App\Events\TicketMessageSent;
 use App\Events\UserNotificationReceived;
 use App\Helpers\CacheHelper;
 use App\Models\FormResponse;
@@ -111,6 +112,11 @@ class TicketSidebar extends Component
         return $this->ticketCache;
     }
 
+    private function broadcastSystemTimelineMessage(array $attributes): void
+    {
+        event(new TicketMessageSent(TicketMessage::create($attributes)));
+    }
+
     private function guardAgainstLock(Ticket $ticket): void
     {
         if (! $ticket->isLocked()) {
@@ -206,7 +212,7 @@ class TicketSidebar extends Component
         $auditBody = $previousAssignee && (int) $previousAssignee->id !== $userId
             ? __('tickets.assignment_audit.reassign_responsible', ['actor' => $user->name, 'target' => $orgMember->name])
             : __('tickets.assignment_audit.assign_user', ['actor' => $user->name, 'target' => $orgMember->name]);
-        TicketMessage::create([
+        $this->broadcastSystemTimelineMessage([
             'ticket_id' => $ticket->id,
             'user_id' => null,
             'type' => TicketMessageType::System,
@@ -244,7 +250,7 @@ class TicketSidebar extends Component
         if (! $ticket->assigned_to) {
             $ticket->update(['assigned_to' => $userId, 'assigned_by' => $user->id, 'assigned_at' => now()]);
         }
-        TicketMessage::create([
+        $this->broadcastSystemTimelineMessage([
             'ticket_id' => $ticket->id,
             'user_id' => null,
             'type' => TicketMessageType::System,
@@ -291,7 +297,7 @@ class TicketSidebar extends Component
         $newResponsible = $ticket->assignees()->wherePivot('role', 'responsible')->first();
         $ticket->update(['assigned_to' => $newResponsible?->id, 'assigned_by' => $newResponsible ? $user->id : null, 'assigned_at' => $newResponsible ? now() : null]);
         if ($removedUser) {
-            TicketMessage::create([
+            $this->broadcastSystemTimelineMessage([
                 'ticket_id' => $ticket->id,
                 'user_id' => null,
                 'type' => TicketMessageType::System,
@@ -332,7 +338,7 @@ class TicketSidebar extends Component
         $ticket->assignees()->updateExistingPivot($userId, ['role' => 'responsible']);
         $ticket->update(['assigned_to' => $userId, 'assigned_by' => $user->id, 'assigned_at' => now()]);
         if ($promoted) {
-            TicketMessage::create([
+            $this->broadcastSystemTimelineMessage([
                 'ticket_id' => $ticket->id,
                 'user_id' => null,
                 'type' => TicketMessageType::System,
@@ -361,7 +367,7 @@ class TicketSidebar extends Component
             return;
         }
         $ticket->participants()->syncWithoutDetaching([$userId => ['added_by' => $user->id]]);
-        TicketMessage::create(['ticket_id' => $ticket->id, 'user_id' => null, 'type' => TicketMessageType::System, 'body' => __(':user a été ajouté à la discussion.', ['user' => $orgMember->name]), 'meta' => ['action' => 'participant_added', 'user_id' => $userId]]);
+        $this->broadcastSystemTimelineMessage(['ticket_id' => $ticket->id, 'user_id' => null, 'type' => TicketMessageType::System, 'body' => __(':user a été ajouté à la discussion.', ['user' => $orgMember->name]), 'meta' => ['action' => 'participant_added', 'user_id' => $userId]]);
         $orgMember->notify(new TicketAssigneeNotification($ticket, $user, 'participant_added'));
         event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'participant_added', $user->name, $ticket->public_id));
         event(new UserNotificationReceived($userId, 'ticket_assignee'));
@@ -378,7 +384,7 @@ class TicketSidebar extends Component
         $removedUser = User::find($userId);
         $ticket->participants()->detach($userId);
         if ($removedUser) {
-            TicketMessage::create(['ticket_id' => $ticket->id, 'user_id' => null, 'type' => TicketMessageType::System, 'body' => __(':user a été retiré de la discussion.', ['user' => $removedUser->name]), 'meta' => ['action' => 'participant_removed', 'user_id' => $userId]]);
+            $this->broadcastSystemTimelineMessage(['ticket_id' => $ticket->id, 'user_id' => null, 'type' => TicketMessageType::System, 'body' => __(':user a été retiré de la discussion.', ['user' => $removedUser->name]), 'meta' => ['action' => 'participant_removed', 'user_id' => $userId]]);
             $removedUser->notify(new TicketAssigneeNotification($ticket, $user, 'participant_removed'));
             event(new TicketAssigneeChanged($ticket->id, $ticket->subject, $userId, 'participant_removed', $user->name, $ticket->public_id));
             event(new UserNotificationReceived($userId, 'ticket_assignee'));
@@ -412,7 +418,7 @@ class TicketSidebar extends Component
 
         $isClosed = in_array($newStatus, [TicketStatus::Resolved, TicketStatus::Closed], true);
         $ticket->update(['status' => $newStatus, 'closed_by' => $isClosed ? $user->id : null, 'closed_at' => $isClosed ? now() : null]);
-        TicketMessage::create([
+        $this->broadcastSystemTimelineMessage([
             'ticket_id' => $ticket->id,
             'user_id' => null,
             'type' => TicketMessageType::System,
@@ -498,7 +504,7 @@ class TicketSidebar extends Component
         }
         $ticket->update(['ticket_priority_id' => $newPriority->id]);
         SlaService::onPriorityChanged($ticket, $oldPriority?->id);
-        TicketMessage::create([
+        $this->broadcastSystemTimelineMessage([
             'ticket_id' => $ticket->id,
             'user_id' => null,
             'type' => TicketMessageType::System,
@@ -538,7 +544,7 @@ class TicketSidebar extends Component
         $auditBody = $group
             ? __('tickets.assignment_audit.assign_group', ['actor' => $user->name, 'group' => $group->name])
             : __('tickets.assignment_audit.clear_group', ['actor' => $user->name]);
-        TicketMessage::create([
+        $this->broadcastSystemTimelineMessage([
             'ticket_id' => $ticket->id,
             'user_id' => null,
             'type' => TicketMessageType::System,
@@ -593,7 +599,7 @@ class TicketSidebar extends Component
         $auditBody = $id !== null
             ? __('tickets.assignment_audit.assign_function', ['actor' => $user->name, 'name' => $fnName ?? (string) $id])
             : __('tickets.assignment_audit.clear_function', ['actor' => $user->name]);
-        TicketMessage::create([
+        $this->broadcastSystemTimelineMessage([
             'ticket_id' => $ticket->id,
             'user_id' => null,
             'type' => TicketMessageType::System,
@@ -626,7 +632,7 @@ class TicketSidebar extends Component
             return;
         }
         $ticket->update(['due_date' => $newDate]);
-        TicketMessage::create([
+        $this->broadcastSystemTimelineMessage([
             'ticket_id' => $ticket->id,
             'user_id' => null,
             'type' => TicketMessageType::System,
@@ -1197,18 +1203,23 @@ class TicketSidebar extends Component
      */
     private function sidebarAttachmentsPayload(Ticket $ticket): array
     {
-        $attachmentRows = TicketMessage::query()
-            ->where('ticket_id', $ticket->id)
-            ->whereNotNull('attachments')
-            ->get(['attachments']);
-        $allAttachments = $attachmentRows
-            ->pluck('attachments')
-            ->flatMap(fn ($a) => is_array($a) ? $a : [])
-            ->filter()
-            ->values();
-        $lastActivityRaw = TicketMessage::query()
-            ->where('ticket_id', $ticket->id)
-            ->max('created_at');
+        $cacheKey = "ticket_sidebar_attachments:{$ticket->id}:{$ticket->updated_at->timestamp}";
+        [$allAttachments, $lastActivityRaw] = cache()->remember($cacheKey, 120, function () use ($ticket) {
+            $attachmentRows = TicketMessage::query()
+                ->where('ticket_id', $ticket->id)
+                ->whereNotNull('attachments')
+                ->get(['attachments']);
+            $all = $attachmentRows
+                ->pluck('attachments')
+                ->flatMap(fn ($a) => is_array($a) ? $a : [])
+                ->filter()
+                ->values();
+            $lastRaw = TicketMessage::query()
+                ->where('ticket_id', $ticket->id)
+                ->max('created_at');
+
+            return [$all, $lastRaw];
+        });
         $lastActivity = $lastActivityRaw ? \Illuminate\Support\Carbon::parse($lastActivityRaw) : $ticket->updated_at;
         $ticketAttachments = [];
         if (is_array($ticket->attachments)) {
@@ -1226,20 +1237,23 @@ class TicketSidebar extends Component
 
     private function sidebarGroupMembersForTicket(Ticket $ticket): Collection
     {
-        $groupMembers = collect();
         if (! $ticket->ticket_group_id) {
-            return $groupMembers;
-        }
-        try {
-            $group = $ticket->group;
-            if ($group) {
-                $groupMembers = $group->members()->get(['users.id', 'users.name', 'users.email']);
-            }
-        } catch (\Throwable) {
-            // Table may not exist yet
+            return collect();
         }
 
-        return $groupMembers;
+        return cache()->remember(
+            "ticket_group_members:{$ticket->ticket_group_id}",
+            CacheHelper::TTL,
+            function () use ($ticket) {
+                try {
+                    $group = $ticket->group;
+
+                    return $group ? $group->members()->get(['users.id', 'users.name', 'users.email']) : collect();
+                } catch (\Throwable) {
+                    return collect();
+                }
+            }
+        );
     }
 
     private function sidebarFunctionMembersForTicket(Ticket $ticket): Collection
@@ -1248,14 +1262,18 @@ class TicketSidebar extends Component
             return collect();
         }
 
-        return User::query()
-            ->where('status', '!=', 'guest')
-            ->whereHas('organizations', function ($q) use ($ticket) {
-                $q->where('organization_memberships.organization_id', $ticket->organization_id)
-                    ->where('organization_memberships.organization_function_id', $ticket->assigned_to_function_id);
-            })
-            ->orderBy('name')
-            ->get(['id', 'name', 'email']);
+        return cache()->remember(
+            "function_members:{$ticket->organization_id}:{$ticket->assigned_to_function_id}",
+            CacheHelper::TTL,
+            fn () => User::query()
+                ->where('status', '!=', 'guest')
+                ->whereHas('organizations', function ($q) use ($ticket) {
+                    $q->where('organization_memberships.organization_id', $ticket->organization_id)
+                        ->where('organization_memberships.organization_function_id', $ticket->assigned_to_function_id);
+                })
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+        );
     }
 
     /**
@@ -1294,10 +1312,12 @@ class TicketSidebar extends Component
                 'organization:id,name',
                 'assignedToFunction:id,name',
                 'group:id,name,color',
-                'checklistItems.assignee:id,name,email',
-                'checklistItems.assignees:id,name,email',
-                'checklistItems.doneByUser:id,name,email',
-                'checklistItems.assignedToFunction:id,name',
+                'checklistItems' => fn ($q) => $q->with([
+                    'assignee:id,name,email',
+                    'assignees:id,name,email',
+                    'doneByUser:id,name,email',
+                    'assignedToFunction:id,name',
+                ])->orderBy('sort_order'),
                 'approvals.approver:id,name',
                 'approvals.requester:id,name',
             ])

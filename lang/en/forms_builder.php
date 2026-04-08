@@ -41,6 +41,8 @@ return [
     'no_assignments' => 'No assignments for this form.',
     'view_responses_hint' => 'View detailed responses on the dedicated page.',
     'view_responses' => 'View responses',
+    'view_all_responses' => 'View all',
+    'view_remaining_responses' => 'View :count more responses',
     'close' => 'Close',
     'forms' => 'Forms',
     'new_form_placeholder' => 'New form...',

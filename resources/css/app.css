@@ -672,7 +672,7 @@
 @layer components {
     /* Page header — unified across all pages */
     .page-header {
-        @apply flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8;
+        @apply flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-start sm:justify-between mb-5 sm:mb-8 min-w-0;
     }
     .page-title {
         @apply text-xl font-bold text-slate-900 tracking-tight sm:text-2xl lg:text-3xl;
@@ -681,7 +681,16 @@
         @apply mt-1 text-xs sm:text-sm text-slate-500;
     }
     .page-actions {
-        @apply flex flex-wrap items-center gap-2 sm:gap-3;
+        @apply flex flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0;
+    }
+
+    /* Rapports / analytics : barre d’actions empilée sur très petit écran */
+    .reports-page-actions {
+        @apply flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center;
+    }
+    .view-toggle--scroll {
+        @apply max-w-full overflow-x-auto flex-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden;
+        -webkit-overflow-scrolling: touch;
     }
 
     /* Stat cards — consistent KPI styling */
@@ -831,7 +840,7 @@
 
     /* View toggle — list/kanban switcher */
     .view-toggle {
-        @apply inline-flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm;
+        @apply inline-flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm max-w-full min-w-0;
     }
     .view-toggle-btn {
         @apply px-3 py-2 rounded-lg text-sm font-semibold transition-all;

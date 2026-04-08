@@ -25,7 +25,6 @@
         </div>
     @endif
 
-    @if($loadStage >= 2)
     @php $stats = $this->formStats; @endphp
 
     {{-- Navigation : tabs + compteurs inline --}}
@@ -62,7 +61,7 @@
     </div>
 
     {{-- Formulaires d'équipe --}}
-    @if($this->teamForms->isNotEmpty() && in_array($tab, ['pending', 'all']))
+    @if(in_array($tab, ['pending', 'all'], true) && $this->teamForms->isNotEmpty())
         <div class="mb-8">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">{{ __('pages.forms.team_forms_title') }}</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -87,7 +86,7 @@
     @endif
 
     {{-- Liste des formulaires assignés --}}
-    @if($this->teamForms->isNotEmpty() && in_array($tab, ['pending', 'all']))
+    @if(in_array($tab, ['pending', 'all'], true) && $this->teamForms->isNotEmpty())
         <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">{{ __('pages.forms.assigned_to_you') }}</h2>
     @endif
 
@@ -187,29 +186,4 @@
             </div>
         @endforelse
     </div>
-
-    @else
-        {{-- Skeleton --}}
-        <div class="mb-6 sm:mb-8">
-            <div class="flex items-center gap-1 pb-px">
-                @for($i = 0; $i < 5; $i++)
-                    <div class="h-10 w-24 rounded bg-slate-100 animate-pulse"></div>
-                @endfor
-            </div>
-            <div class="h-px bg-slate-200 mt-px"></div>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            @for($i = 0; $i < 5; $i++)
-                <div class="flex items-center gap-4 px-5 py-4 {{ $i < 4 ? 'border-b border-slate-100' : '' }} animate-pulse">
-                    <div class="h-2.5 w-2.5 rounded-full bg-slate-200"></div>
-                    <div class="flex-1 space-y-2">
-                        <div class="h-4 bg-slate-100 rounded w-2/5"></div>
-                        <div class="h-3 bg-slate-50 rounded w-1/4"></div>
-                    </div>
-                    <div class="h-3 w-16 bg-slate-100 rounded hidden sm:block"></div>
-                    <div class="h-8 w-20 bg-slate-100 rounded-lg"></div>
-                </div>
-            @endfor
-        </div>
-    @endif
 </div>

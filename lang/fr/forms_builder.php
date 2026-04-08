@@ -41,6 +41,8 @@ return [
     'no_assignments' => 'Aucune assignation pour ce formulaire.',
     'view_responses_hint' => 'Consultez les réponses détaillées sur la page dédiée.',
     'view_responses' => 'Voir les réponses',
+    'view_all_responses' => 'Tout voir',
+    'view_remaining_responses' => 'Voir les :count autres réponses',
     'close' => 'Fermer',
     'forms' => 'Formulaires',
     'new_form_placeholder' => 'Nouveau formulaire...',

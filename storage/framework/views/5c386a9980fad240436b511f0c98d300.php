@@ -77,14 +77,31 @@
                             </button>
                         </div>
                         <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
-                            <?php
+                            <?php if (isset($__component)) { $__componentOriginal = $__component; } ?>
+<?php if (isset($__key)) { $__keyOriginal = $__key; } ?>
+<?php if (isset($__attributes)) { $__attributesOriginal = $__attributes; } ?>
+<?php if (isset($__slots)) { $__slotsOriginal = $__slots; } ?>
+<?php $__component = 'tickets.ticket-sidebar'; ?>
+<?php $__key = 'sidebar-drawer-'.e($ticket->id).''; ?>
+<?php $__attributes = ['lazy' => true,'ticket-id' => $ticket->id,'ticket-public-id' => $ticketPublicId,'can-see-internal-notes' => $canSeeInternalNotes,'can-write-internal-notes' => $canWriteInternalNotes]; ?>
+<?php $__slots = []; ?>
+<?php ob_start(); ?>
+
+                                <div class="space-y-4 py-2 animate-pulse" aria-hidden="true">
+                                    <div class="h-4 w-2/3 rounded-lg bg-slate-100"></div>
+                                    <div class="h-24 rounded-xl bg-slate-100"></div>
+                                    <div class="h-4 w-1/2 rounded-lg bg-slate-100"></div>
+                                    <div class="h-32 rounded-xl bg-slate-100"></div>
+                                </div>
+                            <?php $__slots['default'] = ob_get_clean(); ?>
+<?php
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('tickets.ticket-sidebar', ['ticket-id' => $ticket->id,'ticket-public-id' => $ticketPublicId,'can-see-internal-notes' => $canSeeInternalNotes,'can-write-internal-notes' => $canWriteInternalNotes]);
+[$__name, $__params] = $__split($__component, $__attributes);
 
-$key = 'sidebar-mobile-'.e($ticket->id).'';
-$__componentSlots = [];
+$key = $__key;
+$__componentSlots = $__slots ?? [];
 
 $key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1682800250-12', $key);
 
@@ -98,6 +115,11 @@ unset($__params);
 unset($__componentSlots);
 unset($__split);
 ?>
+<?php if (isset($__componentOriginal)) { $__component = $__componentOriginal; unset($__componentOriginal); } ?>
+<?php if (isset($__keyOriginal)) { $__key = $__keyOriginal; unset($__keyOriginal); } ?>
+<?php if (isset($__attributesOriginal)) { $__attributes = $__attributesOriginal; unset($__attributesOriginal); } ?>
+<?php if (isset($__slotsOriginal)) { $__slots = $__slotsOriginal; unset($__slotsOriginal); } ?>
+
                         </div>
                     </section>
                 </div>
@@ -123,14 +145,31 @@ unset($__split);
                         </button>
                     </div>
                     <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-5" style="padding-bottom: max(1rem, env(safe-area-inset-bottom));">
-                        <?php
+                        <?php if (isset($__component)) { $__componentOriginal = $__component; } ?>
+<?php if (isset($__key)) { $__keyOriginal = $__key; } ?>
+<?php if (isset($__attributes)) { $__attributesOriginal = $__attributes; } ?>
+<?php if (isset($__slots)) { $__slotsOriginal = $__slots; } ?>
+<?php $__component = 'tickets.ticket-sidebar'; ?>
+<?php $__key = 'sidebar-inline-'.e($ticket->id).''; ?>
+<?php $__attributes = ['lazy' => true,'ticket-id' => $ticket->id,'ticket-public-id' => $ticketPublicId,'can-see-internal-notes' => $canSeeInternalNotes,'can-write-internal-notes' => $canWriteInternalNotes]; ?>
+<?php $__slots = []; ?>
+<?php ob_start(); ?>
+
+                            <div class="space-y-4 py-2 animate-pulse" aria-hidden="true">
+                                <div class="h-4 w-2/3 rounded-lg bg-slate-100"></div>
+                                <div class="h-24 rounded-xl bg-slate-100"></div>
+                                <div class="h-4 w-1/2 rounded-lg bg-slate-100"></div>
+                                <div class="h-32 rounded-xl bg-slate-100"></div>
+                            </div>
+                        <?php $__slots['default'] = ob_get_clean(); ?>
+<?php
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('tickets.ticket-sidebar', ['ticket-id' => $ticket->id,'ticket-public-id' => $ticketPublicId,'can-see-internal-notes' => $canSeeInternalNotes,'can-write-internal-notes' => $canWriteInternalNotes]);
+[$__name, $__params] = $__split($__component, $__attributes);
 
-$key = 'sidebar-'.e($ticket->id).'';
-$__componentSlots = [];
+$key = $__key;
+$__componentSlots = $__slots ?? [];
 
 $key ??= \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::generateKey('lw-1682800250-13', $key);
 
@@ -144,6 +183,11 @@ unset($__params);
 unset($__componentSlots);
 unset($__split);
 ?>
+<?php if (isset($__componentOriginal)) { $__component = $__componentOriginal; unset($__componentOriginal); } ?>
+<?php if (isset($__keyOriginal)) { $__key = $__keyOriginal; unset($__keyOriginal); } ?>
+<?php if (isset($__attributesOriginal)) { $__attributes = $__attributesOriginal; unset($__attributesOriginal); } ?>
+<?php if (isset($__slotsOriginal)) { $__slots = $__slotsOriginal; unset($__slotsOriginal); } ?>
+
                     </div>
                 </div>
             </aside>
@@ -165,7 +209,7 @@ unset($__split);
                                 <span class="hidden sm:inline font-medium"><?php echo e(__('Retour')); ?></span>
                             </a>
                         <?php else: ?>
-                            <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
+                            <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate.hover class="inline-flex items-center gap-1 shrink-0 text-slate-500 hover:text-slate-900 transition-colors touch-manipulation py-1">
                                 <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
                                 <span class="hidden sm:inline font-medium"><?php echo e(__('Retour')); ?></span>
                             </a>
@@ -386,6 +430,9 @@ unset($__split);
         }
     }));
 
+    window.__manexoTicketUserCard = <?php echo json_encode([
+        'open' => __('tickets.timeline_user_card_open'), ], 512) ?>;
+
     Alpine.data('discussionWebSocket', (ticketPublicId, currentUserId, canSeeInternalNotes) => ({
         ticketPublicId,
         currentUserId,
@@ -576,14 +623,41 @@ unset($__split);
             html += `</div>`;
             return html;
         },
+        buildTicketUserPopoverHtml(e, initials, nameEscaped) {
+            const cfg = window.__manexoTicketUserCard || {};
+            const esc = (s) => this.escapeHtml(s ?? '');
+            const t = esc(cfg.open || '');
+            const badges = Array.isArray(e.popover_badges) ? e.popover_badges : [];
+            const badgeHtml = badges.filter(Boolean).map((b) =>
+                `<span class="inline-flex max-w-full items-center rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[9px] font-bold leading-tight text-[var(--accent)] ring-1 ring-[var(--accent)]/15 sm:text-[10px] [overflow-wrap:anywhere]">${esc(b)}</span>`
+            ).join('');
+            const emailLine = e.user_email ? `<div class="mt-1 text-[11px] leading-snug text-slate-500 sm:text-xs [overflow-wrap:anywhere] break-all">${esc(e.user_email)}</div>` : '';
+            const tagLine = e.mention_tag ? `<div class="mt-1.5 text-xs font-medium text-slate-600 [overflow-wrap:anywhere] break-all"><span class="text-slate-400">@</span>${esc(e.mention_tag)}</div>` : '';
+            const badgesBlock = badgeHtml ? `<div class="mt-2 flex flex-wrap gap-1.5">${badgeHtml}</div>` : '';
+            return `<details class="relative isolate shrink-0 group/avatar-pop">
+<summary class="list-none cursor-pointer touch-manipulation select-none min-h-11 min-w-11 h-11 w-11 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0 rounded-full ring-2 ring-white shadow-md border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0 hover:ring-2 hover:ring-[var(--accent)]/35 hover:bg-slate-50 active:scale-[0.98] transition-all [details[open]_&]:ring-2 [details[open]_&]:ring-[var(--accent)]/40 [&::-webkit-details-marker]:hidden" title="${t}" aria-label="${t}">${esc(initials)}</summary>
+<div class="absolute bottom-full left-1/2 z-[100] mb-2 w-[min(20rem,calc(100vw-1.25rem))] max-w-[calc(100vw-1.25rem)] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl shadow-slate-900/15 ring-1 ring-slate-900/5 sm:left-0 sm:translate-x-0 sm:max-w-[min(20rem,calc(100vw-2rem))]" style="padding-left:max(0.75rem,env(safe-area-inset-left,0px));padding-right:max(0.75rem,env(safe-area-inset-right,0px))" onclick="event.stopPropagation()">
+<div class="text-sm font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] break-words">${nameEscaped}</div>
+${emailLine}
+${tagLine}
+${badgesBlock}
+</div>
+</details>`;
+        },
         renderBubble(e) {
             const isNote = e.type === 'internal_note';
             const isSystem = e.type === 'system';
             const isOwn = e.user_id && parseInt(e.user_id, 10) === parseInt(this.currentUserId, 10);
             const timeAgo = e.created_at ? (function(d){const s=Math.floor((Date.now()-new Date(d))/1000); return s<60?'à l\'instant':s<3600?Math.floor(s/60)+' min':s<86400?Math.floor(s/3600)+' h':Math.floor(s/86400)+' j';})(e.created_at) : '';
-            const name = this.escapeHtml(e.user_name || '');
+            const rawName = e.user_name || '';
+            const name = this.escapeHtml(rawName);
             const body = this.escapeHtml(e.body || '').replace(/\n/g, '<br>');
-            const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'U') + '&size=40&background=e2e8f0&color=475569';
+            const initials = rawName.split(' ').filter(Boolean).slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join('') || 'U';
+            const avatarUrl = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(rawName || 'U') + '&size=40&background=e2e8f0&color=475569';
+            const hasUserCard = e.user_id && e.type === 'message';
+            const avatarBlock = hasUserCard
+                ? this.buildTicketUserPopoverHtml(e, initials, name)
+                : `<div class="h-11 w-11 sm:h-9 sm:w-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="h-full w-full object-cover" alt=""></div>`;
             const hasAtt = (e.attachments && e.attachments.length > 0);
             const attVariant = isNote ? 'note' : (isOwn ? 'mine' : 'theirs');
             const attBlock = this.attachmentsHtml(e.attachments || [], attVariant);
@@ -601,9 +675,9 @@ unset($__split);
                     ? ' style="background: color-mix(in srgb, var(--accent) 8%, white); border: 1px solid color-mix(in srgb, var(--accent) 18%, #e2e8f0);"'
                     : ' style="background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 85%, #1e293b) 100%); color: #fff;"';
                 const textCls = hasAtt ? 'text-slate-800' : 'text-white';
-                return `<div class="message-row message-own flex justify-end py-3"><div class="flex items-end gap-3 max-w-[85%] min-w-0 flex-row-reverse"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="flex flex-col items-end min-w-0 max-w-full"><div class="flex items-center gap-2 mb-1.5 flex-row-reverse"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400">${timeAgo}</span></div><div class="message-bubble ${bubbleCls}"${bubbleStyle}><div class="px-3 py-2.5 sm:px-4 sm:py-3 text-left break-words ${textCls}">${body}</div>${attPad}</div></div></div></div>`;
+                return `<div class="message-row message-own flex justify-end py-3"><div class="flex items-end gap-3 max-w-[85%] min-w-0 flex-row-reverse">${avatarBlock}<div class="flex flex-col items-end min-w-0 max-w-full"><div class="flex items-center gap-2 mb-1.5 flex-row-reverse"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400">${timeAgo}</span></div><div class="message-bubble ${bubbleCls}"${bubbleStyle}><div class="px-3 py-2.5 sm:px-4 sm:py-3 text-left break-words ${textCls}">${body}</div>${attPad}</div></div></div></div>`;
             }
-            return `<div class="message-row message-incoming flex gap-3 py-3 min-w-0 max-w-[85%]"><div class="w-9 h-9 shrink-0 rounded-full ring-2 ring-white shadow-md overflow-hidden bg-slate-100"><img src="${avatarUrl}" class="w-full h-full object-cover" alt=""></div><div class="min-w-0 max-w-full w-fit"><div class="flex flex-wrap items-center gap-2 mb-1.5"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400 ml-auto">${timeAgo}</span></div><div class="message-bubble rounded-2xl rounded-bl-md text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0 overflow-hidden"><div class="px-3 py-2.5 sm:px-4 sm:py-3">${body}</div>${attPad}</div></div></div>`;
+            return `<div class="message-row message-incoming flex gap-3 py-3 min-w-0 max-w-[85%]">${avatarBlock}<div class="min-w-0 max-w-full w-fit"><div class="flex flex-wrap items-center gap-2 mb-1.5"><span class="text-xs font-semibold text-slate-800">${name}</span><span class="text-[10px] text-slate-400 ml-auto">${timeAgo}</span></div><div class="message-bubble rounded-2xl rounded-bl-md text-sm leading-relaxed bg-white border border-slate-200 shadow-sm break-words w-fit max-w-full min-w-0 overflow-hidden"><div class="px-3 py-2.5 sm:px-4 sm:py-3">${body}</div>${attPad}</div></div></div>`;
         },
         escapeHtml(text) {
             const div = document.createElement('div');

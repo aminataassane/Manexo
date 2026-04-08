@@ -173,7 +173,7 @@
                     </button>
                 </div>
             </div>
-            <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate class="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[var(--accent)] transition-colors">
+            <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate.hover class="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[var(--accent)] transition-colors">
                 <iconify-icon icon="solar:close-circle-linear" width="14"></iconify-icon>
                 <?php echo e(__('pages.groups.all_tickets')); ?>
 
@@ -502,13 +502,23 @@
                                                 $pct = $prog && (int) $prog->total > 0 ? (int) round(100 * (int) $prog->done / (int) $prog->total) : null;
                                             ?>
                                             
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($t->public_id): ?>
+                                            <a
+                                                href="<?php echo e(route('tickets.discussion', ['ticket' => $t->public_id])); ?>"
+                                                wire:navigate.hover
+                                                class="kanban-card group block no-underline text-inherit"
+                                                draggable="true"
+                                                @dragover.prevent
+                                                @dragstart="$root.dragId = <?php echo e((int) $t->id); ?>"
+                                                @dragend="$root.dragId = null">
+                                            <?php else: ?>
                                             <div
                                                 class="kanban-card group"
                                                 draggable="true"
                                                 @dragover.prevent
-                                                @click="Livewire.navigate('<?php echo e($t->public_id ? url('/tickets/' . e($t->public_id)) : '#'); ?>')"
                                                 @dragstart="$root.dragId = <?php echo e((int) $t->id); ?>"
                                                 @dragend="$root.dragId = null">
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                                 <div class="flex justify-between items-start mb-2">
                                                     <span class="text-[11px] font-mono font-bold text-slate-400"><?php echo e($t->shortReference()); ?></span>
                                                     <span class="h-2 w-2 rounded-full <?php echo e($prio['dot']); ?>" title="<?php echo e($prio['label']); ?>"></span>
@@ -620,7 +630,11 @@
                                                     </div>
                                                     <span class="text-[10px] text-slate-300"><?php echo e($t->updated_at?->diffForHumans()); ?></span>
                                                 </div>
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($t->public_id): ?>
+                                            </a>
+                                            <?php else: ?>
                                             </div>
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                                             <div class="py-8 text-center text-xs text-slate-300 italic" @dragover.prevent><?php echo e(__('pages.tickets.empty_column')); ?></div>
                                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -752,8 +766,23 @@
                                         $pill = $statusPill($t->status->value);
                                         $prio = $priorityMeta($t->priority?->level);
                                     ?>
-                                    <tr class="<?php echo e($boxKey !== 'trash' ? 'cursor-pointer' : ''); ?>" <?php if($boxKey !== 'trash' && $t->public_id): ?> onclick="Livewire.navigate('<?php echo e(url('/tickets/' . e($t->public_id))); ?>')" <?php endif; ?>>
+                                    <tr class="<?php echo e($boxKey !== 'trash' ? 'cursor-pointer hover:bg-slate-50/80 group' : ''); ?>"
+                                        <?php if($boxKey !== 'trash' && $t->public_id): ?>
+                                            onmouseenter="(function(tr){ if (tr.dataset.ticketRowPf) return; tr.dataset.ticketRowPf='1'; queueMicrotask(function(){ try { var a = tr.querySelector('[data-ticket-prefetch]'); if (a) a.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false })); } finally { delete tr.dataset.ticketRowPf; } }); })(this)"
+                                            onclick="Livewire.navigate(<?php echo e(\Illuminate\Support\Js::from(route('tickets.discussion', ['ticket' => $t->public_id]))); ?>)"
+                                        <?php endif; ?>
+                                    >
                                         <td class="min-w-[200px] sm:min-w-[260px] lg:min-w-[300px]">
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($boxKey !== 'trash' && $t->public_id): ?>
+                                                <a
+                                                    href="<?php echo e(route('tickets.discussion', ['ticket' => $t->public_id])); ?>"
+                                                    wire:navigate.hover
+                                                    data-ticket-prefetch
+                                                    class="sr-only w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
+                                                    tabindex="-1"
+                                                    aria-hidden="true"
+                                                ></a>
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                             <div class="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0">
                                                 <span class="shrink-0 inline-flex items-center justify-center rounded-lg px-2 py-1.5 sm:px-2.5 sm:py-1.5 text-[11px] sm:text-xs font-semibold font-mono tracking-tight bg-[var(--accent-soft)] text-[var(--accent)]">
                                                     <?php echo e($t->shortReference()); ?>

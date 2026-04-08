@@ -4,6 +4,18 @@
         ? ($thread->name ?: __('pages.discussions.discussion_group'))
         : ($participants->where('id', '!=', auth()->id())->first()?->name ?: __('pages.discussions.discussion'));
     $participantIds = $participants->pluck('id')->all();
+    $orgRolesByUserId = $orgRolesByUserId ?? [];
+    $roleLabels = $roleLabels ?? [
+        'owner' => __('Admin'),
+        'admin' => __('Admin'),
+        'agent' => __('Agent'),
+        'member' => __('Membre'),
+    ];
+    $discussionCardTranslations = [
+        'open' => __('pages.discussions.user_card_open'),
+        'creator' => __('pages.discussions.badge_thread_creator'),
+        'inGroup' => __('pages.discussions.badge_in_group'),
+    ];
 @endphp
 
 <div
@@ -75,6 +87,16 @@
                             $bodyEscaped = e($msg->body);
                             $bodyFormatted = nl2br($bodyEscaped);
                             $messageAttachments = is_array($msg->attachments) ? $msg->attachments : [];
+                            $senderBadges = [];
+                            if ($msg->user_id && (int) $msg->user_id === (int) $thread->created_by) {
+                                $senderBadges[] = __('pages.discussions.badge_thread_creator');
+                            } elseif ($thread->is_group && $msg->user_id) {
+                                $senderBadges[] = __('pages.discussions.badge_in_group');
+                            }
+                            $senderOrgRole = $orgRolesByUserId[(int) $msg->user_id] ?? null;
+                            if ($senderOrgRole && $senderOrgRole !== 'member') {
+                                $senderBadges[] = $roleLabels[$senderOrgRole] ?? $senderOrgRole;
+                            }
                         @endphp
 
                         <div wire:key="disc-msg-{{ $msg->id }}" data-discussion-message-id="{{ $msg->id }}">
@@ -99,12 +121,16 @@
                             </div>
                         @else
                             <div class="flex items-end gap-2">
-                                <span class="w-7 h-7 rounded-full border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0">
-                                    {{ $avatarInitials }}
-                                </span>
+                                <x-manexo.user-avatar-popover
+                                    :initials="$avatarInitials"
+                                    :name="$msg->user?->name ?? '—'"
+                                    :email="$msg->user?->email"
+                                    :mention-tag="$msg->user?->mention_tag"
+                                    :badges="$senderBadges"
+                                />
                                 <div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-[11px] font-semibold text-slate-600">{{ $msg->user?->name ?? '—' }}</span>
+                                    <div class="mb-1 flex flex-col gap-0.5 min-[380px]:flex-row min-[380px]:flex-wrap min-[380px]:items-baseline min-[380px]:gap-x-2">
+                                        <span class="text-[11px] font-semibold leading-snug text-slate-600 [overflow-wrap:anywhere]">{{ $msg->user?->name ?? '—' }}</span>
                                         <span class="text-[10px] text-slate-400">{{ $time }}</span>
                                     </div>
                                     <div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">
@@ -394,6 +420,7 @@
 
 @script
 <script>
+    window.__manexoDiscussionCard = @json($discussionCardTranslations);
     Alpine.data('threadWebSocket', (threadId, currentUserId) => ({
         threadId,
         currentUserId,
@@ -413,7 +440,7 @@
                         });
                     return;
                 }
-                setTimeout(tryConnect, 300);
+                setTimeout(tryConnect, 50);
             };
             tryConnect();
         },
@@ -435,9 +462,10 @@
 
             const isOwn = e.user_id && parseInt(e.user_id, 10) === parseInt(this.currentUserId, 10);
             const time = e.created_at ? new Date(e.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-            const name = this.escapeHtml(e.user_name || '');
+            const rawName = e.user_name || '';
+            const name = this.escapeHtml(rawName);
             const body = this.escapeHtml(e.body || '').replace(/\n/g, '<br>');
-            const initials = (name || 'U')
+            const initials = rawName
                 .split(' ')
                 .filter(Boolean)
                 .slice(0, 2)
@@ -455,9 +483,10 @@
                   `</div>`
                 : '';
 
+            const incomingAvatar = !isOwn ? this.buildIncomingUserCard(e, initials, name) : '';
             const html = isOwn
                 ? `<div class="flex justify-end"><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center justify-end gap-2 mb-1"><span class="text-[10px] text-slate-400">${time}</span><span class="text-[11px] font-semibold text-slate-600">${name}</span></div><div class="messaging-bubble-own rounded-2xl rounded-br-sm px-4 py-2.5 text-[0.88rem] leading-relaxed text-white" style="background-color: var(--accent);">${body}${attachmentsHtml}</div></div></div>`
-                : `<div class="flex items-end gap-2"><span class="w-7 h-7 rounded-full border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0">${this.escapeHtml(initials)}</span><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center gap-2 mb-1"><span class="text-[11px] font-semibold text-slate-600">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">${body}${attachmentsHtml}</div></div></div>`;
+                : `<div class="flex items-end gap-2">${incomingAvatar}<div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center gap-2 mb-1"><span class="text-[11px] font-semibold text-slate-600">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">${body}${attachmentsHtml}</div></div></div>`;
 
             const div = document.createElement('div');
             div.className = 'animate-enter';
@@ -485,6 +514,32 @@
             div.innerHTML = html;
             timeline.appendChild(div);
             scroll.scrollTop = scroll.scrollHeight;
+        },
+        buildIncomingUserCard(e, initials, nameEscaped) {
+            const cfg = window.__manexoDiscussionCard || {};
+            const esc = (s) => this.escapeHtml(s ?? '');
+            const badges = [];
+            if (e.is_thread_creator) badges.push(cfg.creator || '');
+            else if (e.thread_is_group) badges.push(cfg.inGroup || '');
+            if (e.org_role_label) badges.push(e.org_role_label);
+            const badgeHtml = badges.filter(Boolean).map((b) =>
+                `<span class="inline-flex max-w-full items-center rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-[10px] font-bold leading-tight text-[var(--accent)] ring-1 ring-[var(--accent)]/15 sm:text-[11px] [overflow-wrap:anywhere]">${esc(b)}</span>`
+            ).join('');
+            const emailLine = e.user_email ? `<div class="mt-2 text-xs leading-relaxed text-slate-500 [overflow-wrap:anywhere] break-all">${esc(e.user_email)}</div>` : '';
+            const tagLine = e.mention_tag ? `<div class="mt-2 text-sm font-medium text-slate-600 [overflow-wrap:anywhere] break-all"><span class="text-slate-400">@</span>${esc(e.mention_tag)}</div>` : '';
+            const badgesBlock = badgeHtml ? `<div class="mt-3 flex flex-wrap gap-2">${badgeHtml}</div>` : '';
+            const t = esc(cfg.open || '');
+            const pid = 'mxc-' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+            const btnCls = 'list-none cursor-pointer touch-manipulation select-none min-h-11 min-w-11 h-11 w-11 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0 rounded-full border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0 hover:ring-2 hover:ring-[var(--accent)]/35 hover:bg-slate-50 active:scale-[0.98] transition-all';
+            return `<div data-manexo-user-card-root class="relative isolate shrink-0">
+<button type="button" popovertarget="${pid}" class="${btnCls}" title="${t}" aria-label="${t}" aria-haspopup="dialog">${esc(initials)}</button>
+<div id="${pid}" popover="manual" data-manexo-user-card role="dialog" aria-label="${t}" class="pointer-events-auto m-0 w-[min(24rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/[0.06]" style="padding-left:max(1rem,env(safe-area-inset-left,0px));padding-right:max(1rem,env(safe-area-inset-right,0px))" onclick="event.stopPropagation()">
+<div class="text-[15px] font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] break-words">${nameEscaped}</div>
+${emailLine}
+${tagLine}
+${badgesBlock}
+</div>
+</div>`;
         },
         escapeHtml(text) {
             const div = document.createElement('div');

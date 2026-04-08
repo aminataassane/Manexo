@@ -3,7 +3,10 @@
 namespace App\DataTransferObjects;
 
 use App\Enums\TicketMessageType;
+use App\Models\Ticket;
 use App\Models\TicketMessage;
+use App\Support\TicketMessageUserCard;
+use Illuminate\Support\Str;
 
 final class TimelineItem
 {
@@ -33,6 +36,11 @@ final class TimelineItem
         public readonly ?string $badgeSecondary,
         public readonly string $avatarUrl,
         public readonly string $createdAt,
+        public readonly string $initials,
+        public readonly ?string $mentionTag,
+        /** @var list<string> */
+        public readonly array $popoverBadges,
+        public readonly bool $showAvatarPopover,
     ) {}
 
     /**
@@ -40,8 +48,18 @@ final class TimelineItem
      *
      * All display logic previously in timeline-item.blade.php is centralised here.
      */
-    public static function fromMessage(TicketMessage $msg, int $ticketCreatorId, int $authUserId): self
-    {
+    /**
+     * @param  array<int|string, string>  $orgRolesByUserId
+     * @param  array<string, string>  $roleLabels
+     */
+    public static function fromMessage(
+        TicketMessage $msg,
+        Ticket $ticket,
+        int $ticketCreatorId,
+        int $authUserId,
+        array $orgRolesByUserId,
+        array $roleLabels,
+    ): self {
         $isSystem = $msg->type === TicketMessageType::System;
         $isInternal = $msg->type === TicketMessageType::InternalNote;
         $isCreator = (int) $msg->user_id === $ticketCreatorId;
@@ -77,6 +95,24 @@ final class TimelineItem
         // Author info
         $authorName = $msg->user?->name ?? null;
         $authorEmail = $msg->user?->email ?? null;
+        $mentionTag = $msg->user?->mention_tag ? trim((string) $msg->user->mention_tag) : null;
+        if ($mentionTag === '') {
+            $mentionTag = null;
+        }
+
+        $initials = Str::of($authorName ?? 'U')
+            ->explode(' ')
+            ->filter()
+            ->take(2)
+            ->map(fn ($p) => Str::upper(Str::substr($p, 0, 1)))
+            ->implode('') ?: 'U';
+
+        $uid = (int) ($msg->user_id ?? 0);
+        $orgRole = $uid ? ($orgRolesByUserId[$uid] ?? $orgRolesByUserId[(string) $uid] ?? null) : null;
+        $popoverBadges = (! $isSystem && ! $isInternal && $uid)
+            ? TicketMessageUserCard::badgesForTicketUser($ticket, $uid, $orgRole ? (string) $orgRole : null, $roleLabels)
+            : [];
+        $showAvatarPopover = ! $isSystem && ! $isInternal && $uid > 0;
 
         // Avatar URL
         $avatarUrl = $authorName
@@ -124,6 +160,10 @@ final class TimelineItem
             badgeSecondary: null,
             avatarUrl: $avatarUrl,
             createdAt: $createdAt?->toIso8601String() ?? '',
+            initials: $initials,
+            mentionTag: $mentionTag,
+            popoverBadges: $popoverBadges,
+            showAvatarPopover: $showAvatarPopover,
         );
     }
 

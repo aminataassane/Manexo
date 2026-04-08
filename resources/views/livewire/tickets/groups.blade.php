@@ -1,4 +1,4 @@
-<div class="w-full max-w-full min-w-0 mx-auto" wire:poll.45s>
+<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadPage" wire:poll.45s>
     {{-- Header --}}
     <div class="page-header">
         <div class="min-w-0">
@@ -14,7 +14,28 @@
         </div>
     </div>
 
-    @if($groups->isEmpty() && !$ungroupedStats)
+    @if(! $ready)
+        {{-- Skeleton --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-pulse">
+            @for($i = 0; $i < 4; $i++)
+                <div class="content-card p-5 space-y-3">
+                    <div class="flex items-center gap-3">
+                        <div class="h-4 w-4 rounded-full bg-slate-200"></div>
+                        <div class="h-5 w-32 rounded bg-slate-200"></div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="h-12 rounded-lg bg-slate-100"></div>
+                        <div class="h-12 rounded-lg bg-slate-100"></div>
+                        <div class="h-12 rounded-lg bg-slate-100"></div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="h-3 w-full rounded bg-slate-50"></div>
+                        <div class="h-3 w-2/3 rounded bg-slate-50"></div>
+                    </div>
+                </div>
+            @endfor
+        </div>
+    @elseif($groups->isEmpty() && !$ungroupedStats)
         {{-- Empty state --}}
         <div class="content-card">
             <div class="empty-state py-16">

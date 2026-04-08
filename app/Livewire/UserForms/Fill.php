@@ -27,10 +27,11 @@ class Fill extends Component
 
     public FormAssignment $assignment;
 
-    /** Champs chargés côté client (wire:init) pour un premier rendu rapide. */
+    /** Champs initialisés dans mount (pas de wire:init — un seul rendu utile). */
     public bool $formReady = false;
 
     public array $answers = [];
+
     public array $fileUploads = [];
 
     public function mount(FormAssignment $assignment): void
@@ -70,14 +71,6 @@ class Fill extends Component
         abort_if($assignment->isExpired(), 403, __('pages.forms.form_expired'));
 
         $this->assignment = $assignment;
-    }
-
-    public function loadFormFields(): void
-    {
-        if ($this->formReady) {
-            return;
-        }
-
         $this->assignment->loadMissing('form.fields');
 
         foreach ($this->assignment->form->fields as $field) {
@@ -90,6 +83,11 @@ class Fill extends Component
         }
 
         $this->formReady = true;
+    }
+
+    public function loadFormFields(): void
+    {
+        // No-op: fields loaded in mount().
     }
 
     public function submit(): void
@@ -125,7 +123,7 @@ class Fill extends Component
             } elseif ($type === 'checkbox') {
                 if (is_array($f->options) && count($f->options) > 0) {
                     $fieldRules[] = 'array';
-                    $fieldRules[] = 'max:' . count($f->options);
+                    $fieldRules[] = 'max:'.count($f->options);
                     if ($f->required) {
                         $fieldRules[] = 'min:1';
                     }
@@ -166,6 +164,7 @@ class Fill extends Component
                 if ($uploaded instanceof \Illuminate\Http\UploadedFile) {
                     $fileFields[$key] = $uploaded;
                 }
+
                 continue;
             }
 

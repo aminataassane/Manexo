@@ -8,24 +8,38 @@
         $cacheTtl = 60;
         $loadActivity = request()->boolean('load_activity', false);
 
-        $organizations = $user
-            ? \Illuminate\Support\Facades\Cache::remember("profile:orgs:{$user->id}", $cacheTtl, function () use ($user) {
-                return $user->organizations()
-                    ->withPivot(['role'])
-                    ->orderBy('name')
-                    ->get();
-            })
-            : collect();
+        $bootstrap = $user
+            ? \Illuminate\Support\Facades\Cache::remember(
+                \App\Helpers\CacheHelper::profileIndexBootstrapKey($user->id),
+                $cacheTtl,
+                function () use ($user) {
+                    return [
+                        'organizations' => $user->organizations()
+                            ->withPivot(['role'])
+                            ->orderBy('name')
+                            ->get(),
+                        'sessions' => \Illuminate\Support\Facades\DB::table('sessions')
+                            ->where('user_id', $user->id)
+                            ->orderByDesc('last_activity')
+                            ->limit(10)
+                            ->get(),
+                        'pending_invitations' => \App\Models\OrganizationInvitation::withoutOrganizationScope()
+                            ->where('email', $user->email)
+                            ->pending()
+                            ->with(['organization', 'inviter'])
+                            ->get(),
+                    ];
+                }
+            )
+            : [
+                'organizations' => collect(),
+                'sessions' => collect(),
+                'pending_invitations' => collect(),
+            ];
 
-        $sessions = $user
-            ? \Illuminate\Support\Facades\Cache::remember("profile:sessions:{$user->id}", $cacheTtl, function () use ($user) {
-                return \Illuminate\Support\Facades\DB::table('sessions')
-                    ->where('user_id', $user->id)
-                    ->orderByDesc('last_activity')
-                    ->limit(10)
-                    ->get();
-            })
-            : collect();
+        $organizations = $bootstrap['organizations'];
+        $sessions = $bootstrap['sessions'];
+        $pendingInvitations = $bootstrap['pending_invitations'];
 
         $activityFilter = request('activity', 'all'); // all | tickets | assignations | commentaires
 
@@ -93,16 +107,6 @@
         $statusLabel = function (string $status): string {
             return __('tickets.status.' . $status);
         };
-
-        $pendingInvitations = $user
-            ? \Illuminate\Support\Facades\Cache::remember("profile:pending_invitations:{$user->id}", $cacheTtl, function () use ($user) {
-                return \App\Models\OrganizationInvitation::withoutOrganizationScope()
-                    ->where('email', $user->email)
-                    ->pending()
-                    ->with(['organization', 'inviter'])
-                    ->get();
-            })
-            : collect();
     @endphp
 
     @if (session('profile_status'))
@@ -199,7 +203,7 @@
                         <h2 class="text-base font-semibold text-slate-900">{{ __('pages.profile.my_companies') }}</h2>
                         <p class="text-xs text-slate-500 mt-0.5">{{ __('pages.profile.companies_subtitle') }}</p>
                     </div>
-                    <a href="{{ route('organizations.select', ['mode' => 'switch']) }}" class="text-xs font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50">
+                    <a href="{{ route('organizations.select', ['mode' => 'switch']) }}" wire:navigate.hover class="text-xs font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50">
                         {{ __('pages.profile.manage_change') }}
                     </a>
                 </div>
@@ -245,6 +249,7 @@
                                 <p class="text-sm text-slate-600 mb-3">Charge l'activité à la demande pour accélérer l'ouverture du profil.</p>
                                 <a
                                     href="{{ route('profile', array_filter(['load_activity' => 1, 'activity' => request('activity')])) }}"
+                                    wire:navigate.hover
                                     class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
                                 >
                                     <iconify-icon icon="solar:bolt-linear" width="14"></iconify-icon>
@@ -261,6 +266,7 @@
                                     @endphp
                                     <a
                                         href="{{ route('profile', array_filter(['load_activity' => 1, 'activity' => $key !== 'all' ? $key : null])) }}"
+                                        @unless($disabled) wire:navigate.hover @endunless
                                         class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all {{ $isActive ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900' }} {{ $disabled ? 'pointer-events-none opacity-50' : '' }}"
                                     >{{ __('pages.profile.' . $labelKey) }}</a>
                                 @endforeach
@@ -292,7 +298,7 @@
                         @endif
                         
                         <div class="mt-6 pt-4 border-t border-slate-100 text-center">
-                            <a href="{{ route('profile.history') }}" class="text-sm font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors inline-flex items-center gap-1">
+                            <a href="{{ route('profile.history') }}" wire:navigate.hover class="text-sm font-semibold text-[var(--accent)] hover:text-slate-900 transition-colors inline-flex items-center gap-1">
                                 {{ __('pages.profile.view_full_history') }}
                                 <iconify-icon icon="solar:arrow-right-linear" width="16"></iconify-icon>
                             </a>

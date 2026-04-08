@@ -114,9 +114,9 @@
                         @endif
                     @endforeach
                 </div>
-                <div wire:loading.flex wire:target="setActiveTab" class="items-center justify-center gap-2 px-3 py-2 text-xs text-slate-500">
+                <div wire:loading.delay.400ms.flex wire:target="setActiveTab" class="items-center justify-center gap-2 px-3 py-2 text-xs text-slate-500">
                     <iconify-icon icon="solar:refresh-linear" class="animate-spin" width="14"></iconify-icon>
-                    Chargement...
+                    {{ __('settings.loading_tab') }}
                 </div>
             </div>
 
@@ -136,20 +136,6 @@
 
         <!-- RIGHT CONTENT AREA -->
         <div class="lg:col-span-9 space-y-6">
-            @if($loadStage < 2)
-                <div class="content-card p-8 min-h-[24rem] animate-pulse space-y-6">
-                    <div class="h-7 bg-slate-200 rounded-lg w-2/5 max-w-xs"></div>
-                    <div class="space-y-3">
-                        <div class="h-4 bg-slate-100 rounded w-full"></div>
-                        <div class="h-4 bg-slate-100 rounded w-11/12"></div>
-                        <div class="h-4 bg-slate-100 rounded w-4/5"></div>
-                    </div>
-                    <div class="grid sm:grid-cols-2 gap-4 pt-4">
-                        <div class="h-32 bg-slate-50 rounded-xl" style="border: 1px solid #f1f5f9;"></div>
-                        <div class="h-32 bg-slate-50 rounded-xl" style="border: 1px solid #f1f5f9;"></div>
-                    </div>
-                </div>
-            @else
             @if (! $canManage)
                 <div class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 flex items-center gap-3" style="border: 1px solid #fde68a;">
                     <iconify-icon icon="solar:lock-keyhole-bold" width="20" class="shrink-0"></iconify-icon>
@@ -927,7 +913,7 @@
                             <iconify-icon icon="solar:check-circle-bold" width="18"></iconify-icon>
                             {{ __('settings.save') }}
                         </x-manexo.action-button>
-                        <a href="{{ route('admin.forms') }}" class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
+                        <a href="{{ route('admin.forms') }}" wire:navigate.hover class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-all">
                             <iconify-icon icon="solar:magic-stick-3-bold-duotone" width="18"></iconify-icon>
                             {{ __('settings.open_builder') }}
                         </a>
@@ -1104,7 +1090,7 @@
                                     'forms' => 'solar:clipboard-list-bold-duotone',
                                     'settings' => 'solar:settings-bold-duotone',
                                     'reports' => 'solar:chart-2-bold-duotone',
-                                    'discussions' => 'solar:chat-round-bold-duotone',
+                                    'discussions' => 'solar:inbox-bold-duotone',
                                 ];
                             @endphp
 
@@ -1335,7 +1321,6 @@
                 </div>
             </div>
             @endif
-        @endif
         </div>
     </div>
 </div>

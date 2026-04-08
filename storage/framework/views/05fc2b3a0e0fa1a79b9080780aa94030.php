@@ -4,6 +4,18 @@
         ? ($thread->name ?: __('pages.discussions.discussion_group'))
         : ($participants->where('id', '!=', auth()->id())->first()?->name ?: __('pages.discussions.discussion'));
     $participantIds = $participants->pluck('id')->all();
+    $orgRolesByUserId = $orgRolesByUserId ?? [];
+    $roleLabels = $roleLabels ?? [
+        'owner' => __('Admin'),
+        'admin' => __('Admin'),
+        'agent' => __('Agent'),
+        'member' => __('Membre'),
+    ];
+    $discussionCardTranslations = [
+        'open' => __('pages.discussions.user_card_open'),
+        'creator' => __('pages.discussions.badge_thread_creator'),
+        'inGroup' => __('pages.discussions.badge_in_group'),
+    ];
 ?>
 
 <div
@@ -65,7 +77,7 @@
                         </div>
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                     <div id="thread-timeline" class="space-y-3">
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_4 = true; $__currentLoopData = $thread->messages; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $msg): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_4 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $thread->messages; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $msg): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                         <?php
                             $isOwn = $msg->user_id && (int) $msg->user_id === (int) auth()->id();
                             $avatarInitials = \Illuminate\Support\Str::of($msg->user?->name ?? 'U')
@@ -77,8 +89,19 @@
                             $bodyEscaped = e($msg->body);
                             $bodyFormatted = nl2br($bodyEscaped);
                             $messageAttachments = is_array($msg->attachments) ? $msg->attachments : [];
+                            $senderBadges = [];
+                            if ($msg->user_id && (int) $msg->user_id === (int) $thread->created_by) {
+                                $senderBadges[] = __('pages.discussions.badge_thread_creator');
+                            } elseif ($thread->is_group && $msg->user_id) {
+                                $senderBadges[] = __('pages.discussions.badge_in_group');
+                            }
+                            $senderOrgRole = $orgRolesByUserId[(int) $msg->user_id] ?? null;
+                            if ($senderOrgRole && $senderOrgRole !== 'member') {
+                                $senderBadges[] = $roleLabels[$senderOrgRole] ?? $senderOrgRole;
+                            }
                         ?>
 
+                        <div <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processElementKey('disc-msg-{{ $msg->id }}', get_defined_vars()); ?>wire:key="disc-msg-<?php echo e($msg->id); ?>" data-discussion-message-id="<?php echo e($msg->id); ?>">
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isOwn): ?>
                             <div class="flex justify-end">
                                 <div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0">
@@ -101,13 +124,31 @@
                             </div>
                         <?php else: ?>
                             <div class="flex items-end gap-2">
-                                <span class="w-7 h-7 rounded-full border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0">
-                                    <?php echo e($avatarInitials); ?>
+                                <?php if (isset($component)) { $__componentOriginalfac35cd68d3e581fb028d29d830dd47b = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginalfac35cd68d3e581fb028d29d830dd47b = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.manexo.user-avatar-popover','data' => ['initials' => $avatarInitials,'name' => $msg->user?->name ?? '—','email' => $msg->user?->email,'mentionTag' => $msg->user?->mention_tag,'badges' => $senderBadges]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('manexo.user-avatar-popover'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['initials' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($avatarInitials),'name' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($msg->user?->name ?? '—'),'email' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($msg->user?->email),'mention-tag' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($msg->user?->mention_tag),'badges' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($senderBadges)]); ?>
+<?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
-                                </span>
+<?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginalfac35cd68d3e581fb028d29d830dd47b)): ?>
+<?php $attributes = $__attributesOriginalfac35cd68d3e581fb028d29d830dd47b; ?>
+<?php unset($__attributesOriginalfac35cd68d3e581fb028d29d830dd47b); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginalfac35cd68d3e581fb028d29d830dd47b)): ?>
+<?php $component = $__componentOriginalfac35cd68d3e581fb028d29d830dd47b; ?>
+<?php unset($__componentOriginalfac35cd68d3e581fb028d29d830dd47b); ?>
+<?php endif; ?>
                                 <div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-[11px] font-semibold text-slate-600"><?php echo e($msg->user?->name ?? '—'); ?></span>
+                                    <div class="mb-1 flex flex-col gap-0.5 min-[380px]:flex-row min-[380px]:flex-wrap min-[380px]:items-baseline min-[380px]:gap-x-2">
+                                        <span class="text-[11px] font-semibold leading-snug text-slate-600 [overflow-wrap:anywhere]"><?php echo e($msg->user?->name ?? '—'); ?></span>
                                         <span class="text-[10px] text-slate-400"><?php echo e($time); ?></span>
                                     </div>
                                     <div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">
@@ -124,7 +165,8 @@
                                 </div>
                             </div>
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_4): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                        </div>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                         <div class="py-16 text-center" data-empty-thread>
                             <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full text-slate-300" style="background: var(--accent-soft);">
                                 <iconify-icon icon="solar:chat-round-dots-linear" width="24" style="color: var(--accent); opacity: 0.5;"></iconify-icon>
@@ -139,7 +181,7 @@
             
             <div class="shrink-0 messaging-composer border-t border-slate-100 p-2 sm:p-3 z-10" data-composer style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));">
                 <div class="mx-auto w-full max-w-3xl">
-                    <form wire:submit="sendMessage" class="flex items-end gap-2 bg-[#F1F5F9]/80 rounded-2xl border border-slate-200 p-1.5 focus-within:ring-2 focus-within:ring-[var(--accent)]/30 focus-within:border-[var(--accent)]/30 transition-all"
+                    <form wire:submit="sendMessage" wire:loading.class="pointer-events-none opacity-90" wire:target="sendMessage" class="flex items-end gap-2 bg-[#F1F5F9]/80 rounded-2xl border border-slate-200 p-1.5 focus-within:ring-2 focus-within:ring-[var(--accent)]/30 focus-within:border-[var(--accent)]/30 transition-all"
                         x-data="{
                             draftKey: 'discussion-draft-<?php echo e($thread->id); ?>',
                             draftTimer: null,
@@ -174,7 +216,20 @@
                         "
                     >
                         
-                        <input type="file" wire:model="attachmentFiles" multiple class="hidden" id="thread-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*">
+                        <input
+                            type="file"
+                            multiple
+                            class="hidden"
+                            id="thread-file-input"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,image/*"
+                            x-on:change="async (e) => {
+                                const list = e.target.files;
+                                if (!list?.length) return;
+                                const ready = await window.manexoCompressFilesForUpload(list);
+                                e.target.value = '';
+                                $wire.uploadMultiple('attachmentFiles', ready);
+                            }"
+                        >
                         <button type="button" onclick="document.getElementById('thread-file-input').click()" class="shrink-0 h-10 w-10 sm:h-9 sm:w-9 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-white/70 transition-colors inline-flex items-center justify-center" title="<?php echo e(__('pages.discussions.attach_file')); ?>">
                             <iconify-icon icon="solar:paperclip-linear" width="19"></iconify-icon>
                         </button>
@@ -183,6 +238,8 @@
                         <textarea
                             wire:model="body"
                             rows="1"
+                            wire:loading.attr="disabled"
+                            wire:target="sendMessage"
                             class="flex-1 bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:ring-0 resize-none text-sm py-2 px-1 max-h-32"
                             style="min-height: 2.25rem;"
                             placeholder="<?php echo e(__('pages.discussions.write_message')); ?>"
@@ -425,6 +482,7 @@
         ob_start();
     ?>
 <script>
+    window.__manexoDiscussionCard = <?php echo json_encode($discussionCardTranslations, 15, 512) ?>;
     Alpine.data('threadWebSocket', (threadId, currentUserId) => ({
         threadId,
         currentUserId,
@@ -453,18 +511,23 @@
             const scroll = document.getElementById('thread-messages');
             if (!timeline || !scroll) return;
 
-            // Replace one optimistic pending bubble by the confirmed message.
-            const pending = timeline.querySelector('[data-pending-own="1"]');
-            if (pending) pending.remove();
+            const messageId = e.id != null && String(e.id).match(/^\d+$/) ? String(e.id) : '';
+            if (messageId !== '' && timeline.querySelector('[data-discussion-message-id="' + messageId + '"]')) {
+                timeline.querySelectorAll('[data-pending-own="1"]').forEach((el) => el.remove());
+                return;
+            }
+
+            timeline.querySelectorAll('[data-pending-own="1"]').forEach((el) => el.remove());
 
             const empty = timeline.querySelector('[data-empty-thread]');
             if (empty) empty.remove();
 
             const isOwn = e.user_id && parseInt(e.user_id, 10) === parseInt(this.currentUserId, 10);
             const time = e.created_at ? new Date(e.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
-            const name = this.escapeHtml(e.user_name || '');
+            const rawName = e.user_name || '';
+            const name = this.escapeHtml(rawName);
             const body = this.escapeHtml(e.body || '').replace(/\n/g, '<br>');
-            const initials = (name || 'U')
+            const initials = rawName
                 .split(' ')
                 .filter(Boolean)
                 .slice(0, 2)
@@ -482,12 +545,14 @@
                   `</div>`
                 : '';
 
+            const incomingAvatar = !isOwn ? this.buildIncomingUserCard(e, initials, name) : '';
             const html = isOwn
                 ? `<div class="flex justify-end"><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center justify-end gap-2 mb-1"><span class="text-[10px] text-slate-400">${time}</span><span class="text-[11px] font-semibold text-slate-600">${name}</span></div><div class="messaging-bubble-own rounded-2xl rounded-br-sm px-4 py-2.5 text-[0.88rem] leading-relaxed text-white" style="background-color: var(--accent);">${body}${attachmentsHtml}</div></div></div>`
-                : `<div class="flex items-end gap-2"><span class="w-7 h-7 rounded-full border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0">${this.escapeHtml(initials)}</span><div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center gap-2 mb-1"><span class="text-[11px] font-semibold text-slate-600">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">${body}${attachmentsHtml}</div></div></div>`;
+                : `<div class="flex items-end gap-2">${incomingAvatar}<div class="max-w-[85%] sm:max-w-[80%] md:max-w-[75%] min-w-0"><div class="flex items-center gap-2 mb-1"><span class="text-[11px] font-semibold text-slate-600">${name}</span><span class="text-[10px] text-slate-400">${time}</span></div><div class="messaging-bubble-incoming rounded-2xl rounded-bl-sm px-4 py-2.5 text-[0.88rem] leading-relaxed bg-white border border-slate-100 text-slate-700">${body}${attachmentsHtml}</div></div></div>`;
 
             const div = document.createElement('div');
             div.className = 'animate-enter';
+            if (messageId !== '') div.setAttribute('data-discussion-message-id', messageId);
             div.innerHTML = html;
             timeline.appendChild(div);
             scroll.scrollTop = scroll.scrollHeight;
@@ -496,6 +561,8 @@
             const timeline = document.getElementById('thread-timeline');
             const scroll = document.getElementById('thread-messages');
             if (!timeline || !scroll) return;
+
+            timeline.querySelectorAll('[data-pending-own="1"]').forEach((el) => el.remove());
 
             const empty = timeline.querySelector('[data-empty-thread]');
             if (empty) empty.remove();
@@ -509,6 +576,30 @@
             div.innerHTML = html;
             timeline.appendChild(div);
             scroll.scrollTop = scroll.scrollHeight;
+        },
+        buildIncomingUserCard(e, initials, nameEscaped) {
+            const cfg = window.__manexoDiscussionCard || {};
+            const esc = (s) => this.escapeHtml(s ?? '');
+            const badges = [];
+            if (e.is_thread_creator) badges.push(cfg.creator || '');
+            else if (e.thread_is_group) badges.push(cfg.inGroup || '');
+            if (e.org_role_label) badges.push(e.org_role_label);
+            const badgeHtml = badges.filter(Boolean).map((b) =>
+                `<span class="inline-flex max-w-full items-center rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[9px] font-bold leading-tight text-[var(--accent)] ring-1 ring-[var(--accent)]/15 sm:text-[10px] [overflow-wrap:anywhere]">${esc(b)}</span>`
+            ).join('');
+            const emailLine = e.user_email ? `<div class="mt-1 text-[11px] leading-snug text-slate-500 sm:text-xs [overflow-wrap:anywhere] break-all">${esc(e.user_email)}</div>` : '';
+            const tagLine = e.mention_tag ? `<div class="mt-1.5 text-xs font-medium text-slate-600 [overflow-wrap:anywhere] break-all"><span class="text-slate-400">@</span>${esc(e.mention_tag)}</div>` : '';
+            const badgesBlock = badgeHtml ? `<div class="mt-2 flex flex-wrap gap-1.5">${badgeHtml}</div>` : '';
+            const t = esc(cfg.open || '');
+            return `<details class="relative isolate shrink-0 group/avatar-pop">
+<summary class="list-none cursor-pointer touch-manipulation select-none min-h-11 min-w-11 h-11 w-11 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0 rounded-full border border-slate-100 bg-slate-100 text-slate-700 inline-flex items-center justify-center text-[10px] font-semibold shrink-0 hover:ring-2 hover:ring-[var(--accent)]/35 hover:bg-slate-50 active:scale-[0.98] transition-all [details[open]_&]:ring-2 [details[open]_&]:ring-[var(--accent)]/40 [&::-webkit-details-marker]:hidden" title="${t}" aria-label="${t}">${esc(initials)}</summary>
+<div class="absolute bottom-full left-1/2 z-[100] mb-2 w-[min(20rem,calc(100vw-1.25rem))] max-w-[calc(100vw-1.25rem)] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-xl shadow-slate-900/15 ring-1 ring-slate-900/5 sm:left-0 sm:translate-x-0 sm:max-w-[min(20rem,calc(100vw-2rem))]" style="padding-left:max(0.75rem,env(safe-area-inset-left,0px));padding-right:max(0.75rem,env(safe-area-inset-right,0px))" onclick="event.stopPropagation()">
+<div class="text-sm font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] break-words">${nameEscaped}</div>
+${emailLine}
+${tagLine}
+${badgesBlock}
+</div>
+</details>`;
         },
         escapeHtml(text) {
             const div = document.createElement('div');

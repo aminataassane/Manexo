@@ -4,9 +4,11 @@ namespace App\Livewire\Tickets;
 
 use App\DataTransferObjects\TimelineItem;
 use App\Enums\TicketMessageType;
+use App\Models\Ticket;
 use App\Models\TicketMessage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class TicketTimeline extends Component
@@ -57,7 +59,35 @@ class TicketTimeline extends Component
         $this->ticketCreatorId = $ticketCreatorId;
         $this->canSeeInternalNotes = $canSeeInternalNotes;
 
+        $this->hydrateMessageStats();
+    }
+
+    /**
+     * Pré-charge compteurs en une requête (PostgreSQL) ou deux max (autres drivers).
+     */
+    private function hydrateMessageStats(): void
+    {
+        $internal = TicketMessageType::InternalNote->value;
+
+        if ($this->canSeeInternalNotes && DB::connection()->getDriverName() === 'pgsql') {
+            $row = DB::table('ticket_messages')
+                ->where('ticket_id', $this->ticketId)
+                ->selectRaw('count(*) as total')
+                ->selectRaw('count(*) filter (where type = ?) as internal_notes', [$internal])
+                ->first();
+            $this->totalCount = (int) ($row->total ?? 0);
+            $this->notesCount = (int) ($row->internal_notes ?? 0);
+
+            return;
+        }
+
         $this->totalCount = $this->baseQuery()->count();
+        $this->notesCount = $this->canSeeInternalNotes
+            ? (int) TicketMessage::query()
+                ->where('ticket_id', $this->ticketId)
+                ->where('type', TicketMessageType::InternalNote)
+                ->count()
+            : 0;
     }
 
     /**
@@ -102,7 +132,7 @@ class TicketTimeline extends Component
         $minId = min($this->loadedMessageIds);
         $batch = $this->baseQuery()
             ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
-            ->with('user:id,name,email')
+            ->with('user:id,name,email,mention_tag')
             ->where('id', '<', $minId)
             ->orderByDesc('id')
             ->limit(self::PAGE_SIZE + 1)
@@ -146,7 +176,7 @@ class TicketTimeline extends Component
 
         $messages = $this->baseQuery()
             ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
-            ->with('user:id,name,email')
+            ->with('user:id,name,email,mention_tag')
             ->orderByDesc('id')
             ->limit(self::PAGE_SIZE + 1)
             ->get();
@@ -173,15 +203,45 @@ class TicketTimeline extends Component
 
         $messages = TicketMessage::query()
             ->select(['id', 'ticket_id', 'user_id', 'type', 'body', 'attachments', 'meta', 'email_message_id', 'created_at'])
-            ->with('user:id,name,email')
+            ->with('user:id,name,email,mention_tag')
             ->whereIn('id', $this->loadedMessageIds)
             ->orderBy('id')
             ->get();
 
+        $ticket = Ticket::query()
+            ->select(['id', 'organization_id', 'created_by'])
+            ->with(['assignees:id', 'participants:id'])
+            ->whereKey($this->ticketId)
+            ->firstOrFail();
+
+        $messageUserIds = $messages->pluck('user_id')->unique()->filter()->values();
+        $orgRolesByUserId = [];
+        if ($messageUserIds->isNotEmpty()) {
+            $orgRolesByUserId = DB::table('organization_memberships')
+                ->where('organization_id', $ticket->organization_id)
+                ->whereIn('user_id', $messageUserIds)
+                ->pluck('role', 'user_id')
+                ->all();
+        }
+
+        $roleLabels = [
+            'owner' => __('Admin'),
+            'admin' => __('Admin'),
+            'agent' => __('Agent'),
+            'member' => __('Membre'),
+        ];
+
         $authUserId = (int) (Auth::user()?->id ?? 0);
 
         return $messages->map(
-            fn (TicketMessage $m) => TimelineItem::fromMessage($m, $this->ticketCreatorId, $authUserId)
+            fn (TicketMessage $m) => TimelineItem::fromMessage(
+                $m,
+                $ticket,
+                $this->ticketCreatorId,
+                $authUserId,
+                $orgRolesByUserId,
+                $roleLabels,
+            )
         );
     }
 

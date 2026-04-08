@@ -2,13 +2,15 @@
 
 namespace Tests\Feature\Security;
 
+use App\Enums\TicketSource;
+use App\Enums\TicketStatus;
 use App\Models\DiscussionThread;
 use App\Models\Form;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
+use App\Models\Scopes\OrganizationScope;
 use App\Models\Ticket;
 use App\Models\User;
-use App\Models\Scopes\OrganizationScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -34,18 +36,29 @@ class TenantIsolationTest extends TestCase
         [$userA, $orgA] = $this->createOrgWithUser();
         [$userB, $orgB] = $this->createOrgWithUser();
 
+        [$catA, $priA] = $this->createTicketCategoryAndPriority($orgA->id);
+        [$catB, $priB] = $this->createTicketCategoryAndPriority($orgB->id);
+
         $ticketA = Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $orgA->id,
             'created_by' => $userA->id,
+            'ticket_category_id' => $catA,
+            'ticket_priority_id' => $priA,
             'subject' => 'Org A Ticket',
             'description' => 'Test',
+            'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         $ticketB = Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $orgB->id,
             'created_by' => $userB->id,
+            'ticket_category_id' => $catB,
+            'ticket_priority_id' => $priB,
             'subject' => 'Org B Ticket',
             'description' => 'Test',
+            'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         // Simulate user A's session
@@ -85,18 +98,29 @@ class TenantIsolationTest extends TestCase
         [$userA, $orgA] = $this->createOrgWithUser();
         [$userB, $orgB] = $this->createOrgWithUser();
 
+        [$catA, $priA] = $this->createTicketCategoryAndPriority($orgA->id);
+        [$catB, $priB] = $this->createTicketCategoryAndPriority($orgB->id);
+
         Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $orgA->id,
             'created_by' => $userA->id,
+            'ticket_category_id' => $catA,
+            'ticket_priority_id' => $priA,
             'subject' => 'Ticket A',
             'description' => 'Test',
+            'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $orgB->id,
             'created_by' => $userB->id,
+            'ticket_category_id' => $catB,
+            'ticket_priority_id' => $priB,
             'subject' => 'Ticket B',
             'description' => 'Test',
+            'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         // No session set — scope should not filter
@@ -130,23 +154,34 @@ class TenantIsolationTest extends TestCase
         $this->assertEquals('Thread A', $threads->first()->name);
     }
 
-    public function test_withoutOrganizationScope_bypasses_filter(): void
+    public function test_without_organization_scope_bypasses_filter(): void
     {
         [$userA, $orgA] = $this->createOrgWithUser();
         [$userB, $orgB] = $this->createOrgWithUser();
 
+        [$catA, $priA] = $this->createTicketCategoryAndPriority($orgA->id);
+        [$catB, $priB] = $this->createTicketCategoryAndPriority($orgB->id);
+
         Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $orgA->id,
             'created_by' => $userA->id,
+            'ticket_category_id' => $catA,
+            'ticket_priority_id' => $priA,
             'subject' => 'Ticket A',
             'description' => 'Test',
+            'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         Ticket::withoutGlobalScope(OrganizationScope::class)->create([
             'organization_id' => $orgB->id,
             'created_by' => $userB->id,
+            'ticket_category_id' => $catB,
+            'ticket_priority_id' => $priB,
             'subject' => 'Ticket B',
             'description' => 'Test',
+            'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         session(['current_organization_id' => $orgA->id]);
@@ -162,11 +197,16 @@ class TenantIsolationTest extends TestCase
 
         session(['current_organization_id' => $org->id]);
 
+        [$categoryId, $priorityId] = $this->createTicketCategoryAndPriority($org->id);
+
         $ticket = Ticket::create([
             'created_by' => $user->id,
+            'ticket_category_id' => $categoryId,
+            'ticket_priority_id' => $priorityId,
             'subject' => 'Auto-filled org',
             'description' => 'Test',
-            'status' => 'open',
+            'status' => TicketStatus::Open,
+            'source' => TicketSource::Platform,
         ]);
 
         $this->assertEquals($org->id, $ticket->organization_id);

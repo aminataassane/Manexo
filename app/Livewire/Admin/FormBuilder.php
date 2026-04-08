@@ -5,7 +5,6 @@ namespace App\Livewire\Admin;
 use App\Enums\FormAssignmentStatus;
 use App\Enums\FormStatus;
 use App\Enums\Permission;
-use App\Services\OrganizationAuditService;
 use App\Events\UserNotificationReceived;
 use App\Helpers\CacheHelper;
 use App\Models\Form;
@@ -16,6 +15,7 @@ use App\Models\OrganizationFunction;
 use App\Models\OrganizationMembership;
 use App\Models\TicketCategory;
 use App\Notifications\FormAssignmentNotification;
+use App\Services\OrganizationAuditService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -31,42 +31,73 @@ class FormBuilder extends Component
     /** Deferred loading: page shell renders immediately, data loads via wire:init */
     public bool $ready = true;
 
+    /**
+     * First full-page load only: form + fields already loaded in mount to skip a duplicate query in render().
+     * Not serialized; cleared after render. Always null on subsequent Livewire requests.
+     */
+    private ?Form $formSnapshotForFirstRender = null;
+
     public function loadPage(): void {}
 
     public bool $canManageForms = false;
+
     public bool $canAssignForms = false;
+
     public bool $canViewResponses = false;
 
     // Active tab: champs | assignations | reponses
     public string $activeTab = 'champs';
+
     private const ALLOWED_TABS = ['champs', 'assignations', 'reponses'];
 
     // Form selection
     public ?int $fb_selected_form_id = null;
+
     public string $fb_selected_form_name = '';
+
     public ?int $fb_selected_form_category_id = null;
+
     public ?int $fb_selected_form_target_user_id = null;
+
     public string $fb_selected_form_status = 'draft';
+
     public bool $fb_selected_form_public = false;
+
     public bool $fb_selected_form_creates_ticket = true;
+
     public string $fb_selected_form_slug = '';
+
     public string $fb_selected_form_public_title = '';
+
     public string $fb_selected_form_public_description = '';
+
     public string $fb_selected_form_public_thank_you = '';
+
     public string $fb_selected_form_description = '';
+
     public ?string $fb_selected_form_due_date = null;
+
     public ?string $fb_selected_form_expires_at = null;
 
     // Field selection
     public ?int $fb_selected_field_id = null;
+
     public string $fb_selected_field_key = '';
+
     public string $fb_selected_field_type = '';
+
     public string $fb_selected_field_label = '';
+
     public string $fb_selected_field_placeholder = '';
+
     public string $fb_selected_field_help_text = '';
+
     public bool $fb_selected_field_required = false;
+
     public string $fb_selected_field_layout = 'full';
+
     public string $fb_selected_field_display_mode = 'list';
+
     /** @var array<int, string> Options for select/radio/checkbox (one entry per option) */
     public array $fb_selected_field_options_list = [];
 
@@ -75,6 +106,7 @@ class FormBuilder extends Component
 
     // Assignment form
     public ?int $assign_user_id = null;
+
     public ?int $assign_function_id = null;
 
     private function orgId(): int
@@ -91,14 +123,18 @@ class FormBuilder extends Component
         $this->canManageForms = $user && $user->hasAnyPermission([Permission::FormsManage, Permission::SettingsManageForms]);
         $this->canAssignForms = $user && $user->hasAnyPermission([Permission::FormsAssign, Permission::FormsManage, Permission::SettingsManageForms]);
         $this->canViewResponses = $user && $user->hasAnyPermission([Permission::FormsViewResponses, Permission::FormsManage, Permission::SettingsManageForms]);
-        $this->fb_selected_form_id = Form::query()
-            ->forOrg($orgId)
-            ->orderBy('name')
-            ->value('id');
-        $this->loadSelectedForm();
+
+        $firstForm = Form::query()->forOrg($orgId)->orderBy('name')->first();
+        $this->fb_selected_form_id = $firstForm?->id;
+        $this->loadSelectedForm($firstForm);
+
+        if ($firstForm !== null && $this->activeTab === 'champs') {
+            $firstForm->load(['fields' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')]);
+            $this->formSnapshotForFirstRender = $firstForm;
+        }
     }
 
-    private function loadSelectedForm(): void
+    private function loadSelectedForm(?Form $preloaded = null): void
     {
         $orgId = $this->orgId();
         if (! $orgId || ! $this->fb_selected_form_id) {
@@ -117,15 +153,20 @@ class FormBuilder extends Component
             $this->fb_selected_form_expires_at = null;
             $this->fb_selected_field_id = null;
             $this->resetSelectedField();
+
             return;
         }
-        $form = Form::query()
-            ->forOrg($orgId)
-            ->whereKey((int) $this->fb_selected_form_id)
-            ->first();
+        $form = $preloaded;
+        if ($form === null || (int) $form->id !== (int) $this->fb_selected_form_id) {
+            $form = Form::query()
+                ->forOrg($orgId)
+                ->whereKey((int) $this->fb_selected_form_id)
+                ->first();
+        }
         if (! $form) {
             $this->fb_selected_form_id = null;
             $this->loadSelectedForm();
+
             return;
         }
         $this->fb_selected_form_name = (string) $form->name;
@@ -198,7 +239,7 @@ class FormBuilder extends Component
         abort_if(! $orgId || ! $this->fb_selected_form_id, 404);
         $field = FormField::query()
             ->whereKey($fieldId)
-            ->whereHas('form', fn($q) => $q->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id))
+            ->whereHas('form', fn ($q) => $q->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id))
             ->firstOrFail();
         $this->fb_selected_field_id = (int) $field->id;
         $this->fb_selected_field_key = (string) $field->key;
@@ -237,12 +278,14 @@ class FormBuilder extends Component
         if (($validated['fb_selected_form_category_id'] ?? null) !== null) {
             if (! TicketCategory::query()->where('organization_id', $orgId)->whereKey((int) $validated['fb_selected_form_category_id'])->exists()) {
                 $this->addError('fb_selected_form_category_id', 'Catégorie invalide.');
+
                 return;
             }
         }
         if (($validated['fb_selected_form_target_user_id'] ?? null) !== null) {
             if (! OrganizationMembership::query()->where('organization_id', $orgId)->where('user_id', (int) $validated['fb_selected_form_target_user_id'])->exists()) {
                 $this->addError('fb_selected_form_target_user_id', 'Utilisateur invalide.');
+
                 return;
             }
         }
@@ -252,11 +295,13 @@ class FormBuilder extends Component
         if ($isPublic) {
             if ($slug === '') {
                 $this->addError('fb_selected_form_slug', 'Le slug est requis pour publier.');
+
                 return;
             }
             $slug = Str::slug($slug);
             if ($slug === '') {
                 $this->addError('fb_selected_form_slug', 'Slug invalide.');
+
                 return;
             }
             $exists = Form::query()
@@ -266,6 +311,7 @@ class FormBuilder extends Component
                 ->exists();
             if ($exists) {
                 $this->addError('fb_selected_form_slug', 'Ce slug est déjà utilisé.');
+
                 return;
             }
         } else {
@@ -367,7 +413,7 @@ class FormBuilder extends Component
         $candidate = $slug;
         $i = 2;
         while (Form::query()->where('slug', $candidate)->where('id', '!=', (int) $this->fb_selected_form_id)->exists()) {
-            $candidate = Str::limit($slug . '-' . $i, 140, '');
+            $candidate = Str::limit($slug.'-'.$i, 140, '');
             $i++;
         }
 
@@ -406,13 +452,14 @@ class FormBuilder extends Component
         ]);
         $field = FormField::query()
             ->whereKey((int) $this->fb_selected_field_id)
-            ->whereHas('form', fn($q) => $q->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id))
+            ->whereHas('form', fn ($q) => $q->forOrg($orgId)->whereKey((int) $this->fb_selected_form_id))
             ->firstOrFail();
 
         $key = Str::lower(trim((string) $validated['fb_selected_field_key']));
         $key = Str::limit($key, 64, '');
         if ($key === '') {
             $this->addError('fb_selected_field_key', 'Clé invalide.');
+
             return;
         }
         $exists = FormField::query()
@@ -422,6 +469,7 @@ class FormBuilder extends Component
             ->exists();
         if ($exists) {
             $this->addError('fb_selected_field_key', 'Cette clé est déjà utilisée dans ce formulaire.');
+
             return;
         }
 
@@ -436,7 +484,7 @@ class FormBuilder extends Component
 
         if (in_array((string) $field->type, ['select', 'radio', 'checkbox'], true)) {
             $list = collect($validated['fb_selected_field_options_list'] ?? [])
-                ->map(fn($v) => trim((string) $v))
+                ->map(fn ($v) => trim((string) $v))
                 ->filter()
                 ->values()
                 ->all();
@@ -444,7 +492,7 @@ class FormBuilder extends Component
         }
 
         // Remove null values from config
-        $config = array_filter($config, fn($v) => $v !== null);
+        $config = array_filter($config, fn ($v) => $v !== null);
 
         $field->update([
             'key' => $key,
@@ -480,12 +528,12 @@ class FormBuilder extends Component
             'section' => 'Section',
             default => 'Texte court',
         };
-        $key = Str::slug($defaultLabel, '_') ?: ('field_' . Str::lower(Str::random(6)));
+        $key = Str::slug($defaultLabel, '_') ?: ('field_'.Str::lower(Str::random(6)));
         $key = Str::limit($key, 64, '');
         $baseKey = $key;
         $suffix = 2;
         while (FormField::query()->where('form_id', $form->id)->where('key', $key)->exists()) {
-            $key = Str::limit($baseKey . '_' . $suffix, 64, '');
+            $key = Str::limit($baseKey.'_'.$suffix, 64, '');
             $suffix++;
         }
         $config = [];
@@ -577,7 +625,7 @@ class FormBuilder extends Component
             $new = Form::query()->create([
                 'organization_id' => $orgId,
                 'ticket_category_id' => $src->ticket_category_id,
-                'name' => (string) $src->name . ' (Copie)',
+                'name' => (string) $src->name.' (Copie)',
                 'description' => $src->description,
                 'target_user_id' => $src->target_user_id,
                 'status' => FormStatus::Draft,
@@ -641,7 +689,7 @@ class FormBuilder extends Component
         abort_if(! $orgId, 403);
         $field = FormField::query()
             ->whereKey($fieldId)
-            ->whereHas('form', fn($q) => $q->forOrg($orgId))
+            ->whereHas('form', fn ($q) => $q->forOrg($orgId))
             ->firstOrFail();
         $field->delete();
         if ($this->fb_selected_field_id === $fieldId) {
@@ -668,7 +716,7 @@ class FormBuilder extends Component
             return;
         }
 
-        $ids = array_values(array_filter($ids, fn($id) => $id !== $movedFieldId));
+        $ids = array_values(array_filter($ids, fn ($id) => $id !== $movedFieldId));
         if ($afterFieldId === 0) {
             $index = 0;
         } else {
@@ -708,12 +756,14 @@ class FormBuilder extends Component
 
         if (! $validated['assign_user_id'] && ! $validated['assign_function_id']) {
             $this->addError('assign_user_id', 'Sélectionnez un utilisateur ou une fonction.');
+
             return;
         }
 
         if ($validated['assign_user_id']) {
             if (! OrganizationMembership::query()->where('organization_id', $orgId)->where('user_id', (int) $validated['assign_user_id'])->exists()) {
                 $this->addError('assign_user_id', 'Utilisateur invalide.');
+
                 return;
             }
         }
@@ -721,6 +771,7 @@ class FormBuilder extends Component
         if ($validated['assign_function_id']) {
             if (! OrganizationFunction::query()->where('organization_id', $orgId)->whereKey((int) $validated['assign_function_id'])->exists()) {
                 $this->addError('assign_function_id', 'Fonction invalide.');
+
                 return;
             }
         }
@@ -864,7 +915,7 @@ class FormBuilder extends Component
             });
         }
 
-        $forms = $orgId ? Cache::remember(CacheHelper::formsListKey($orgId), CacheHelper::TTL, function () use ($orgId) {
+        $forms = $orgId ? Cache::remember(CacheHelper::formsListAdminKey($orgId), CacheHelper::TTL, function () use ($orgId) {
             return Form::query()
                 ->forOrg($orgId)
                 ->with(['category:id,name', 'targetUser:id,name,email'])
@@ -874,25 +925,35 @@ class FormBuilder extends Component
 
         $selectedForm = null;
         if ($orgId && $this->fb_selected_form_id) {
-            $selectedFormQuery = Form::query()
-                ->forOrg($orgId)
-                ->whereKey((int) $this->fb_selected_form_id);
+            $snapshot = $this->formSnapshotForFirstRender;
+            $this->formSnapshotForFirstRender = null;
 
-            if ($this->activeTab === 'champs') {
-                $selectedFormQuery->with(['fields' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')]);
+            if ($snapshot !== null
+                && (int) $snapshot->id === (int) $this->fb_selected_form_id
+                && $this->activeTab === 'champs'
+                && $snapshot->relationLoaded('fields')) {
+                $selectedForm = $snapshot;
+            } else {
+                $selectedFormQuery = Form::query()
+                    ->forOrg($orgId)
+                    ->whereKey((int) $this->fb_selected_form_id);
+
+                if ($this->activeTab === 'champs') {
+                    $selectedFormQuery->with(['fields' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')]);
+                }
+
+                $selectedForm = $selectedFormQuery->first([
+                    'id',
+                    'organization_id',
+                    'name',
+                    'description',
+                    'status',
+                    'ticket_category_id',
+                    'target_user_id',
+                    'slug',
+                    'current_version',
+                ]);
             }
-
-            $selectedForm = $selectedFormQuery->first([
-                'id',
-                'organization_id',
-                'name',
-                'description',
-                'status',
-                'ticket_category_id',
-                'target_user_id',
-                'slug',
-                'current_version',
-            ]);
         }
 
         $assignments = collect();
@@ -912,6 +973,17 @@ class FormBuilder extends Component
             });
         }
 
+        $recentResponses = collect();
+        $responsesTotal = 0;
+        if ($orgId && $this->fb_selected_form_id && $this->activeTab === 'reponses') {
+            $responsesTotal = FormResponse::where('form_id', (int) $this->fb_selected_form_id)->count();
+            $recentResponses = FormResponse::where('form_id', (int) $this->fb_selected_form_id)
+                ->with('user:id,name,email')
+                ->latest()
+                ->limit(5)
+                ->get();
+        }
+
         return view('livewire.admin.form-builder', [
             'categories' => $categories,
             'members' => $members,
@@ -919,6 +991,8 @@ class FormBuilder extends Component
             'selectedForm' => $selectedForm,
             'assignments' => $assignments,
             'organizationFunctions' => $organizationFunctions,
+            'recentResponses' => $recentResponses,
+            'responsesTotal' => $responsesTotal,
             'stats' => ['forms_total' => 0, 'forms_published' => 0, 'assignments_pending' => 0, 'responses_total' => 0],
         ]);
     }

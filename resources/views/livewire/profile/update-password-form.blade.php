@@ -28,9 +28,15 @@ new class extends Component
             throw $e;
         }
 
-        Auth::user()->update([
+        $user = Auth::user();
+
+        $user->update([
             'password' => Hash::make($validated['password']),
+            'password_changed_at' => now(),
         ]);
+
+        // Invalidate all other sessions to prevent compromised sessions from persisting
+        Auth::logoutOtherDevices($validated['password']);
 
         $this->reset('current_password', 'password', 'password_confirmation');
 

@@ -42,17 +42,10 @@ class Settings extends Component
 {
     use WithFileUploads;
 
-    /** 1 = en-tête + navigation, 2 = listes / onglets (requêtes cache) */
-    public int $loadStage = 1;
-
     public string $activeTab = 'branding';
 
-    public function loadSettingsBody(): void
-    {
-        if ($this->loadStage < 2) {
-            $this->loadStage = 2;
-        }
-    }
+    /** Tracks which tabs have already had their data loaded. */
+    private array $loadedTabs = [];
 
     public function setActiveTab(string $tab): void
     {
@@ -81,7 +74,28 @@ class Settings extends Component
 
         if (in_array($tab, $allowedTabs, true)) {
             $this->activeTab = $tab;
+            $this->loadTabData($tab);
         }
+    }
+
+    /**
+     * Load heavy data only when the relevant tab is first visited.
+     */
+    private function loadTabData(string $tab): void
+    {
+        if (in_array($tab, $this->loadedTabs, true)) {
+            return;
+        }
+
+        $this->loadedTabs[] = $tab;
+
+        match ($tab) {
+            'email' => $this->mountMailbox(),
+            'sla' => $this->mountSla(),
+            'automations' => $this->mountAutomations(),
+            'roles' => $this->loadRolePermissions(),
+            default => null,
+        };
     }
 
     public bool $canManage = false;
@@ -339,10 +353,6 @@ class Settings extends Component
 
     public function mount(): void
     {
-        // Ensure settings body is immediately available even with wire:navigate.
-        // Some clients may skip/lag wire:init, which left the page in stage 1 skeleton.
-        $this->loadStage = 2;
-
         $org = $this->orgOrFail();
 
         /** @var \App\Models\User $user */
@@ -389,10 +399,13 @@ class Settings extends Component
         $this->forms_notify_on_response = (bool) ($forms['notify_on_response'] ?? true);
         $this->forms_default_expiry_days = isset($forms['default_expiry_days']) ? (int) $forms['default_expiry_days'] : 30;
 
-        $this->loadRolePermissions();
-        $this->mountMailbox();
-        $this->mountSla();
-        $this->mountAutomations();
+        $tabFromUrl = request()->query('tab');
+        if (is_string($tabFromUrl) && $tabFromUrl !== '') {
+            $this->setActiveTab($tabFromUrl);
+        }
+
+        // Lazy-load heavy data only for the active tab
+        $this->loadTabData($this->activeTab);
     }
 
     public function mountMailbox(): void
@@ -2396,34 +2409,6 @@ class Settings extends Component
         $orgId = $this->orgId();
         $tab = $this->activeTab;
         $needs = static fn (array $tabs) => in_array($tab, $tabs, true);
-
-        if ($this->loadStage < 2) {
-            $org = null;
-            if ($orgId) {
-                $org = request()->attributes->get('currentOrganization');
-                if (! $org instanceof Organization) {
-                    $org = Organization::query()->find($orgId);
-                }
-            }
-
-            return [
-                'org' => $org,
-                'categories' => collect(),
-                'priorities' => collect(),
-                'organizationFunctions' => collect(),
-                'ticketGroups' => collect(),
-                'forms' => collect(),
-                'members' => collect(),
-                'roles' => collect(),
-                'roleMemberCounts' => [],
-                'automationRules' => collect(),
-                'maintenanceStats' => [],
-                'apiTokens' => collect(),
-                'webhookEndpoints' => collect(),
-                'kbCategories' => collect(),
-                'kbArticles' => collect(),
-            ];
-        }
 
         $org = null;
         if ($orgId) {

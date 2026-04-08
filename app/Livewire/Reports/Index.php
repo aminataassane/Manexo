@@ -9,7 +9,6 @@ use App\Models\Ticket;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -18,16 +17,6 @@ use Livewire\Component;
 #[Title('Rapports')]
 class Index extends Component
 {
-    /** 1 = shell instantané, 2 = KPI + graphiques (progressif). */
-    public int $loadStage = 1;
-
-    public function loadReportBody(): void
-    {
-        if ($this->loadStage < 2) {
-            $this->loadStage = 2;
-        }
-    }
-
     /** @var string 'default' (30 days) | 'monthly' (current month) | 'yearly' (12 months) */
     public string $period = 'default';
 
@@ -64,41 +53,6 @@ class Index extends Component
         $pct = max(-99, min(99, $pct));
 
         return ['dir' => $pct >= 0 ? 'up' : 'down', 'val' => (int) abs($pct)];
-    }
-
-    /**
-     * Données vides pour le premier rendu (évite le cache lourd avant wire:init).
-     *
-     * @return array<string, mixed>
-     */
-    private function emptyReportsIndexData(): array
-    {
-        return [
-            'kpis' => [
-                'total' => 0,
-                'open' => 0,
-                'in_progress' => 0,
-                'pending' => 0,
-                'done' => 0,
-                'created_7d' => 0,
-                'done_7d' => 0,
-                'avg_open_age_hours' => 0,
-            ],
-            'byStatus' => [],
-            'createdLast7d' => [],
-            'createdLast30d' => [],
-            'topCategories' => [],
-            'topAssignees' => [],
-            'team' => ['owners' => 0, 'admins' => 0, 'agents' => 0, 'members' => 0],
-            'trendTotal' => ['dir' => 'up', 'val' => 0],
-            'trendNew30d' => ['dir' => 'up', 'val' => 0],
-            'trendNewInPeriod' => ['dir' => 'up', 'val' => 0],
-            'resolutionRate' => 0.0,
-            'teamCapacityPercent' => 0,
-            'performanceSeries' => [],
-            'createdInPeriod' => 0,
-            'slaKpis' => null,
-        ];
     }
 
     /**
@@ -139,10 +93,6 @@ class Index extends Component
         }
 
         $period = $this->period;
-
-        if ($this->loadStage < 2) {
-            return view('livewire.reports.index', $this->emptyReportsIndexData());
-        }
 
         $cacheKey = CacheHelper::reportsKey($orgId, $period);
         $data = Cache::get($cacheKey);

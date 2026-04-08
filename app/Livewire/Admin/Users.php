@@ -20,6 +20,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -35,9 +36,12 @@ class Users extends Component
 {
     use WithPagination;
 
-    public bool $ready = true;
+    public bool $ready = false;
 
-    public function loadPage(): void {}
+    public function loadPage(): void
+    {
+        $this->ready = true;
+    }
 
     public string $search = '';
 
@@ -100,7 +104,10 @@ class Users extends Component
         }
 
         return (string) Cache::remember("admin_users_current_role:{$orgId}:{$user->id}", 120, function () use ($user, $orgId) {
-            return (string) ($user->organizations()->whereKey($orgId)->first()?->pivot?->role ?? OrganizationRole::Member->value);
+            return (string) (OrganizationMembership::query()
+                ->where('organization_id', $orgId)
+                ->where('user_id', $user->id)
+                ->value('role') ?? OrganizationRole::Member->value);
         });
     }
 
@@ -491,6 +498,20 @@ class Users extends Component
             return redirect()->route('organizations.select');
         }
 
+        // Skeleton: render the page shell immediately, data loads via wire:init
+        if (! $this->ready) {
+            return view('livewire.admin.users', [
+                'memberships' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, $this->perPage),
+                'stats' => ['total' => 0, 'owners' => 0, 'admins' => 0, 'agents' => 0, 'members' => 0, 'external' => 0, 'pending_invites' => 0],
+                'currentRole' => 'member',
+                'organizationFunctions' => collect(),
+                'roles' => collect(),
+                'pendingInvitations' => new EloquentCollection,
+                'externalContacts' => $this->emptyExternalPaginator(),
+                'teamTab' => $this->teamTab,
+            ]);
+        }
+
         $currentRole = $this->currentRole();
         $memberships = $this->membershipsPaginator($orgId);
         $stats = $this->teamStats($orgId);
@@ -530,7 +551,14 @@ class Users extends Component
         $search = trim($this->search);
 
         return OrganizationMembership::query()
-            ->select('organization_memberships.*')
+            ->select([
+                'organization_memberships.id',
+                'organization_memberships.organization_id',
+                'organization_memberships.user_id',
+                'organization_memberships.role',
+                'organization_memberships.organization_function_id',
+                'organization_memberships.created_at',
+            ])
             ->join('users', 'users.id', '=', 'organization_memberships.user_id')
             ->where('organization_memberships.organization_id', $orgId)
             ->where('users.status', '!=', 'guest')
@@ -541,7 +569,10 @@ class Users extends Component
                         ->orWhere('users.email', 'ilike', "%{$search}%");
                 });
             })
-            ->with(['user', 'organizationFunction'])
+            ->with([
+                'user:id,name,email',
+                'organizationFunction:id,name',
+            ])
             ->orderByRaw("case organization_memberships.role when 'owner' then 0 when 'admin' then 1 when 'agent' then 2 else 3 end")
             ->orderByDesc('organization_memberships.created_at')
             ->paginate($this->perPage);
@@ -550,37 +581,31 @@ class Users extends Component
     private function teamStats(int $orgId): array
     {
         return Cache::remember("admin_users_stats:{$orgId}", 120, function () use ($orgId) {
-            $statsRow = OrganizationMembership::query()
-                ->join('users', 'users.id', '=', 'organization_memberships.user_id')
-                ->where('organization_memberships.organization_id', $orgId)
-                ->where('users.status', '!=', 'guest')
-                ->selectRaw('count(*) as total')
-                ->selectRaw("count(*) filter (where organization_memberships.role = 'owner') as owners")
-                ->selectRaw("count(*) filter (where organization_memberships.role = 'admin') as admins")
-                ->selectRaw("count(*) filter (where organization_memberships.role = 'agent') as agents")
-                ->selectRaw("count(*) filter (where organization_memberships.role = 'member') as members")
-                ->first();
-
-            $externalCount = OrganizationMembership::query()
-                ->join('users', 'users.id', '=', 'organization_memberships.user_id')
-                ->where('organization_memberships.organization_id', $orgId)
-                ->where('users.status', 'guest')
-                ->count();
-
-            $pendingInvites = OrganizationInvitation::query()
-                ->where('organization_id', $orgId)
-                ->where('status', 'pending')
-                ->where('expires_at', '>', now())
-                ->count();
+            // Single raw query: member stats + external + pending invites in one DB call
+            $row = DB::selectOne("
+                SELECT
+                    count(*) FILTER (WHERE u.status != 'guest') AS total,
+                    count(*) FILTER (WHERE om.role = 'owner' AND u.status != 'guest') AS owners,
+                    count(*) FILTER (WHERE om.role = 'admin' AND u.status != 'guest') AS admins,
+                    count(*) FILTER (WHERE om.role = 'agent' AND u.status != 'guest') AS agents,
+                    count(*) FILTER (WHERE om.role = 'member' AND u.status != 'guest') AS members,
+                    count(*) FILTER (WHERE u.status = 'guest') AS external,
+                    (SELECT count(*) FROM organization_invitations
+                     WHERE organization_id = ? AND status = 'pending' AND expires_at > NOW()
+                    ) AS pending_invites
+                FROM organization_memberships om
+                JOIN users u ON u.id = om.user_id
+                WHERE om.organization_id = ?
+            ", [$orgId, $orgId]);
 
             return [
-                'total' => (int) ($statsRow?->total ?? 0),
-                'owners' => (int) ($statsRow?->owners ?? 0),
-                'admins' => (int) ($statsRow?->admins ?? 0),
-                'agents' => (int) ($statsRow?->agents ?? 0),
-                'members' => (int) ($statsRow?->members ?? 0),
-                'external' => $externalCount,
-                'pending_invites' => $pendingInvites,
+                'total' => (int) ($row->total ?? 0),
+                'owners' => (int) ($row->owners ?? 0),
+                'admins' => (int) ($row->admins ?? 0),
+                'agents' => (int) ($row->agents ?? 0),
+                'members' => (int) ($row->members ?? 0),
+                'external' => (int) ($row->external ?? 0),
+                'pending_invites' => (int) ($row->pending_invites ?? 0),
             ];
         });
     }

@@ -70,15 +70,29 @@
         <div class="page-actions">
             
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($boxKey !== 'trash'): ?>
-                <div class="view-toggle">
-                    <button type="button" wire:click="setDisplayMode('list')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
-                        class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'list' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
-                        <iconify-icon icon="solar:list-bold" width="16"></iconify-icon>
-                    </button>
-                    <button type="button" wire:click="setDisplayMode('kanban')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
-                        class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'kanban' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
-                        <iconify-icon icon="solar:widget-4-bold" width="16"></iconify-icon>
-                    </button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="view-toggle shrink-0">
+                        <button type="button" wire:click="setDisplayMode('list')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
+                            class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'list' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
+                            <iconify-icon icon="solar:list-bold" width="16"></iconify-icon>
+                        </button>
+                        <button type="button" wire:click="setDisplayMode('kanban')" wire:loading.attr="disabled" wire:target="setDisplayMode,setBox,setView,setSource,group,search,status,priority,resetFilters"
+                            class="view-toggle-btn <?php echo e(($displayMode ?? 'list') === 'kanban' ? 'view-toggle-btn-active' : 'view-toggle-btn-default'); ?>">
+                            <iconify-icon icon="solar:widget-4-bold" width="16"></iconify-icon>
+                        </button>
+                    </div>
+                    <div
+                        wire:loading.flex
+                        wire:target="setDisplayMode"
+                        class="items-center gap-2 rounded-lg border border-[color:color-mix(in_srgb,var(--accent)_25%,#e2e8f0)] bg-[color:color-mix(in_srgb,var(--accent)_8%,white)] px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span class="relative flex h-4 w-4 shrink-0">
+                            <span class="absolute inset-0 rounded-full border-2 border-[color:color-mix(in_srgb,var(--accent)_35%,#e2e8f0)] border-t-[color:var(--accent)] animate-spin"></span>
+                        </span>
+                        <span><?php echo e(__('pages.tickets.view_switch_loading')); ?>…</span>
+                    </div>
                 </div>
             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
@@ -106,6 +120,17 @@
             </a>
         </div>
     </div>
+
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($boxKey !== 'trash'): ?>
+        <div
+            wire:loading.block
+            wire:target="setDisplayMode"
+            class="mb-5 sm:mb-6 h-1 w-full overflow-hidden rounded-full bg-slate-200/90"
+            aria-hidden="true"
+        >
+            <div class="manexo-kanban-progress-indeterminate h-full w-full rounded-full"></div>
+        </div>
+    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($activeGroup ?? null) || ($group ?? '') === 'none'): ?>
@@ -148,7 +173,7 @@
                     </button>
                 </div>
             </div>
-            <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate class="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[var(--accent)] transition-colors">
+            <a href="<?php echo e(route('tickets.index')); ?>" wire:navigate.hover class="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[var(--accent)] transition-colors">
                 <iconify-icon icon="solar:close-circle-linear" width="14"></iconify-icon>
                 <?php echo e(__('pages.groups.all_tickets')); ?>
 
@@ -374,6 +399,27 @@
         <div class="flex-1 min-w-0">
 
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($loadStage ?? 0) >= 2): ?>
+            <div class="relative min-h-[min(420px,58vh)]">
+                
+                <div
+                    wire:loading.flex
+                    wire:target="setDisplayMode"
+                    class="absolute inset-0 z-40 flex-col items-center justify-center gap-3 rounded-2xl bg-white/88 p-6 backdrop-blur-sm"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                >
+                    <div class="flex max-w-sm flex-col items-center gap-4 rounded-2xl border border-slate-200/90 bg-white px-8 py-7 text-center shadow-xl ring-1 ring-slate-900/[0.04]">
+                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:color-mix(in_srgb,var(--accent)_12%,white)] text-[color:var(--accent)]">
+                            <iconify-icon icon="solar:widget-4-bold-duotone" width="36" class="animate-pulse"></iconify-icon>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-[15px] font-bold text-slate-900"><?php echo e(__('pages.tickets.view_switch_loading')); ?></p>
+                            <p class="text-sm text-slate-500 leading-snug"><?php echo e(__('pages.tickets.view_switch_loading_hint')); ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div wire:loading.class="pointer-events-none opacity-45" wire:target="setDisplayMode" class="transition-opacity duration-200">
 
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($displayMode ?? 'list') === 'kanban' && $boxKey !== 'trash'): ?>
                 
@@ -449,20 +495,30 @@
                                     </div>
                                     
                                     <div class="p-2.5 space-y-2.5 overflow-y-auto custom-scrollbar flex-1" @dragover.prevent>
-                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_5 = true; $__currentLoopData = $cards; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_5 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $cards; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                             <?php
                                                 $prio = $priorityMeta($t->priority?->level);
                                                 $prog = $checklistProgress[$t->id] ?? null;
                                                 $pct = $prog && (int) $prog->total > 0 ? (int) round(100 * (int) $prog->done / (int) $prog->total) : null;
                                             ?>
                                             
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($t->public_id): ?>
+                                            <a
+                                                href="<?php echo e(route('tickets.discussion', ['ticket' => $t->public_id])); ?>"
+                                                wire:navigate.hover
+                                                class="kanban-card group block no-underline text-inherit"
+                                                draggable="true"
+                                                @dragover.prevent
+                                                @dragstart="$root.dragId = <?php echo e((int) $t->id); ?>"
+                                                @dragend="$root.dragId = null">
+                                            <?php else: ?>
                                             <div
                                                 class="kanban-card group"
                                                 draggable="true"
                                                 @dragover.prevent
-                                                @click="Livewire.navigate('<?php echo e($t->public_id ? url('/tickets/' . e($t->public_id)) : '#'); ?>')"
                                                 @dragstart="$root.dragId = <?php echo e((int) $t->id); ?>"
                                                 @dragend="$root.dragId = null">
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                                 <div class="flex justify-between items-start mb-2">
                                                     <span class="text-[11px] font-mono font-bold text-slate-400"><?php echo e($t->shortReference()); ?></span>
                                                     <span class="h-2 w-2 rounded-full <?php echo e($prio['dot']); ?>" title="<?php echo e($prio['label']); ?>"></span>
@@ -574,8 +630,12 @@
                                                     </div>
                                                     <span class="text-[10px] text-slate-300"><?php echo e($t->updated_at?->diffForHumans()); ?></span>
                                                 </div>
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($t->public_id): ?>
+                                            </a>
+                                            <?php else: ?>
                                             </div>
-                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_5): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                                             <div class="py-8 text-center text-xs text-slate-300 italic" @dragover.prevent><?php echo e(__('pages.tickets.empty_column')); ?></div>
                                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </div>
@@ -700,14 +760,29 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_5 = true; $__currentLoopData = $tickets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_5 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__empty_1 = true; $__currentLoopData = $tickets; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
                                     <?php
                                         [$label, $icon] = $statusLabel($t->status->value);
                                         $pill = $statusPill($t->status->value);
                                         $prio = $priorityMeta($t->priority?->level);
                                     ?>
-                                    <tr class="<?php echo e($boxKey !== 'trash' ? 'cursor-pointer' : ''); ?>" <?php if($boxKey !== 'trash' && $t->public_id): ?> onclick="Livewire.navigate('<?php echo e(url('/tickets/' . e($t->public_id))); ?>')" <?php endif; ?>>
+                                    <tr class="<?php echo e($boxKey !== 'trash' ? 'cursor-pointer hover:bg-slate-50/80 group' : ''); ?>"
+                                        <?php if($boxKey !== 'trash' && $t->public_id): ?>
+                                            onmouseenter="(function(tr){ if (tr.dataset.ticketRowPf) return; tr.dataset.ticketRowPf='1'; queueMicrotask(function(){ try { var a = tr.querySelector('[data-ticket-prefetch]'); if (a) a.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false })); } finally { delete tr.dataset.ticketRowPf; } }); })(this)"
+                                            onclick="Livewire.navigate(<?php echo e(\Illuminate\Support\Js::from(route('tickets.discussion', ['ticket' => $t->public_id]))); ?>)"
+                                        <?php endif; ?>
+                                    >
                                         <td class="min-w-[200px] sm:min-w-[260px] lg:min-w-[300px]">
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($boxKey !== 'trash' && $t->public_id): ?>
+                                                <a
+                                                    href="<?php echo e(route('tickets.discussion', ['ticket' => $t->public_id])); ?>"
+                                                    wire:navigate.hover
+                                                    data-ticket-prefetch
+                                                    class="sr-only w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
+                                                    tabindex="-1"
+                                                    aria-hidden="true"
+                                                ></a>
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                             <div class="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0">
                                                 <span class="shrink-0 inline-flex items-center justify-center rounded-lg px-2 py-1.5 sm:px-2.5 sm:py-1.5 text-[11px] sm:text-xs font-semibold font-mono tracking-tight bg-[var(--accent-soft)] text-[var(--accent)]">
                                                     <?php echo e($t->shortReference()); ?>
@@ -869,7 +944,7 @@
                                             </td>
                                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                     </tr>
-                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_5): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                                     <tr>
                                         <td colspan="<?php echo e(($boxKey === 'trash' ? 6 : 5) + (($ticketGroups ?? collect())->isNotEmpty() ? 1 : 0)); ?>">
                                             <div class="empty-state">
@@ -895,6 +970,8 @@
                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                </div>
+            </div>
 
             <?php else: ?>
             

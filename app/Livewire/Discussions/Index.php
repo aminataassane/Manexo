@@ -28,8 +28,15 @@ class Index extends Component
 {
     use WithPagination;
 
-    /** Fast path: render lists immediately on first load. */
+    /** 0 = skeleton, 2 = full data. Set to 2 immediately — queries are cached. */
     public int $loadStage = 2;
+
+    public function loadPage(): void
+    {
+        if ($this->loadStage < 2) {
+            $this->loadStage = 2;
+        }
+    }
 
     /** Route parameter captured at mount (persists across Livewire AJAX updates). */
     public ?string $selectedParam = null;

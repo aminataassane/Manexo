@@ -443,22 +443,91 @@
     @elseif($activeTab === 'reponses')
         {{-- ═══════ ONGLET RÉPONSES ═══════ --}}
         <div class="flex-1 overflow-y-auto overscroll-y-contain custom-scrollbar bg-[#fafbfc]">
-            <div class="mx-auto w-full max-w-4xl px-3 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8 lg:px-8">
-                <div class="rounded-2xl border border-slate-100 bg-white shadow-sm p-8 sm:p-10 text-center">
-                    <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-300 mx-auto mb-4">
-                        <iconify-icon icon="solar:chart-2-bold-duotone" width="28"></iconify-icon>
+            <div class="mx-auto w-full max-w-4xl px-3 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8 lg:px-8 space-y-4">
+
+                {{-- Header avec compteur et lien --}}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                            <iconify-icon icon="solar:chart-2-bold-duotone" width="18"></iconify-icon>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900">{{ __('forms_builder.responses_tab') }}</h3>
+                            <p class="text-[11px] text-slate-400">{{ trans_choice('forms_builder.response_count', $responsesTotal, ['count' => $responsesTotal]) }}</p>
+                        </div>
                     </div>
-                    <h3 class="text-base font-bold text-slate-900 mb-1.5">{{ __('forms_builder.responses_tab') }}</h3>
-                    <p class="text-xs sm:text-sm text-slate-400 mb-6">{{ __('forms_builder.view_responses_hint') }}</p>
-                    @if($selectedForm)
-                        <a href="{{ route('admin.forms.responses', $selectedForm) }}"
-                           class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 transition-all"
+                    @if($selectedForm && $responsesTotal > 0)
+                        <a href="{{ route('admin.forms.responses', ['form' => $selectedForm->id]) }}"
+                           wire:navigate.hover
+                           class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm hover:opacity-90 transition-all"
                            style="background: var(--accent);">
-                            <iconify-icon icon="solar:eye-bold" width="18"></iconify-icon>
-                            {{ __('forms_builder.view_responses') }}
+                            <iconify-icon icon="solar:eye-bold" width="15"></iconify-icon>
+                            {{ __('forms_builder.view_all_responses') }}
                         </a>
                     @endif
                 </div>
+
+                {{-- Liste des réponses récentes --}}
+                @if($recentResponses->isNotEmpty())
+                    <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                        @foreach($recentResponses as $response)
+                            @php
+                                $sourceBadge = match($response->submitted_from) {
+                                    'public' => ['bg' => 'bg-blue-50', 'text' => 'text-blue-600', 'label' => __('forms_builder.source_public')],
+                                    'internal_assignment' => ['bg' => 'bg-violet-50', 'text' => 'text-violet-600', 'label' => __('forms_builder.source_internal_assignment')],
+                                    'internal_team', 'internal_team_slug' => ['bg' => 'bg-slate-50', 'text' => 'text-slate-500', 'label' => __('forms_builder.source_internal_team')],
+                                    default => ['bg' => 'bg-slate-50', 'text' => 'text-slate-500', 'label' => __('forms_builder.source_internal')],
+                                };
+                            @endphp
+                            <div class="px-4 sm:px-5 py-3 flex items-center justify-between gap-3 {{ !$loop->last ? 'border-b border-slate-100/80' : '' }}">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="text-xs font-semibold text-slate-900 truncate">
+                                            {{ $response->respondent_name ?? $response->user?->name ?? __('Anonyme') }}
+                                        </p>
+                                        <span class="shrink-0 px-1.5 py-0.5 rounded-md text-[9px] font-medium {{ $sourceBadge['bg'] }} {{ $sourceBadge['text'] }}">
+                                            {{ $sourceBadge['label'] }}
+                                        </span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-0.5">
+                                        {{ $response->respondent_email ?? $response->user?->email ?? '' }}
+                                        @if($response->respondent_email || $response->user?->email)
+                                            <span class="text-slate-300 mx-1">&middot;</span>
+                                        @endif
+                                        {{ $response->created_at->format('d/m/Y H:i') }}
+                                        <span class="text-slate-300 mx-1">&middot;</span>
+                                        v{{ $response->form_version }}
+                                        @if($response->ticket_id)
+                                            <span class="text-slate-300 mx-1">&middot;</span>
+                                            <span class="text-[var(--accent)]">#{{ $response->ticket_id }}</span>
+                                        @endif
+                                    </p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    {{-- Lien vers toutes les réponses si plus de 5 --}}
+                    @if($responsesTotal > 5 && $selectedForm)
+                        <div class="text-center">
+                            <a href="{{ route('admin.forms.responses', ['form' => $selectedForm->id]) }}"
+                               wire:navigate.hover
+                               class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors">
+                                <iconify-icon icon="solar:arrow-right-linear" width="14"></iconify-icon>
+                                {{ __('forms_builder.view_remaining_responses', ['count' => $responsesTotal - 5]) }}
+                            </a>
+                        </div>
+                    @endif
+                @else
+                    {{-- État vide --}}
+                    <div class="rounded-2xl border border-slate-100 bg-white shadow-sm p-8 sm:p-10 text-center">
+                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-300 mx-auto mb-4">
+                            <iconify-icon icon="solar:inbox-linear" width="28"></iconify-icon>
+                        </div>
+                        <h3 class="text-sm font-semibold text-slate-600 mb-1">{{ __('forms_builder.no_responses') }}</h3>
+                        <p class="text-xs text-slate-400">{{ __('forms_builder.no_responses_hint') }}</p>
+                    </div>
+                @endif
             </div>
         </div>
     @endif

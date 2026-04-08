@@ -60,7 +60,10 @@ class TicketComposer extends Component
     {
         $this->validate([
             'body' => ['nullable', 'string', 'max:10000'],
-            'attachmentFiles.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip'],
+            'attachmentFiles.*' => ['nullable', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,heic,heif,pdf,doc,docx,xls,xlsx,csv,txt,zip,ppt,pptx'],
+        ], [], [
+            'body' => __('Message'),
+            'attachmentFiles.*' => __('Pièce jointe'),
         ]);
 
         if (! $this->canSendMessagePayload()) {
@@ -74,6 +77,8 @@ class TicketComposer extends Component
 
         $sendLock = Cache::lock('ticket:composer:send:'.$this->ticketId.':'.$user->id, 15);
         if (! $sendLock->get()) {
+            $this->dispatch('toast', type: 'warning', message: __('tickets.composer_send_in_progress'));
+
             return;
         }
 

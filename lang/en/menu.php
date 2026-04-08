@@ -5,7 +5,7 @@ return [
     'dashboard' => 'Dashboard',
     'tickets' => 'Tickets',
     'groups_view' => 'Groups',
-    'discussions' => 'Discussions',
+    'discussions' => 'Inbox',
     'forms' => 'Forms',
     'knowledge_base' => 'Knowledge Base',
     'notifications' => 'Notifications',

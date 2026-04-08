@@ -4,10 +4,12 @@ namespace App\Events;
 
 use App\Enums\TicketMessageType;
 use App\Models\TicketMessage;
+use App\Support\TicketMessageUserCard;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 
 class TicketMessageSent implements ShouldBroadcastNow
 {
@@ -34,7 +36,32 @@ class TicketMessageSent implements ShouldBroadcastNow
 
     public function broadcastWith(): array
     {
-        $this->message->load(['user:id,name,email', 'ticket:id,public_id']);
+        $this->message->load([
+            'user:id,name,email,mention_tag',
+            'ticket' => fn ($q) => $q->select(['id', 'public_id', 'organization_id', 'created_by'])
+                ->with(['assignees:id', 'participants:id']),
+        ]);
+
+        $ticket = $this->message->ticket;
+        $user = $this->message->user;
+        $uid = (int) ($this->message->user_id ?? 0);
+        $orgRole = ($ticket && $uid)
+            ? DB::table('organization_memberships')
+                ->where('organization_id', $ticket->organization_id)
+                ->where('user_id', $uid)
+                ->value('role')
+            : null;
+
+        $roleLabels = [
+            'owner' => __('Admin'),
+            'admin' => __('Admin'),
+            'agent' => __('Agent'),
+            'member' => __('Membre'),
+        ];
+
+        $popoverBadges = ($ticket && $uid && $this->message->type !== TicketMessageType::System && $this->message->type !== TicketMessageType::InternalNote)
+            ? TicketMessageUserCard::badgesForTicketUser($ticket, $uid, $orgRole ? (string) $orgRole : null, $roleLabels)
+            : [];
 
         return [
             'id' => $this->message->id,
@@ -42,6 +69,9 @@ class TicketMessageSent implements ShouldBroadcastNow
             'ticket_public_id' => $this->message->ticket?->public_id,
             'user_id' => $this->message->user_id,
             'user_name' => $this->message->user?->name,
+            'user_email' => $user?->email,
+            'mention_tag' => $user?->mention_tag,
+            'popover_badges' => $popoverBadges,
             'type' => $this->message->type->value,
             'body' => $this->message->body,
             'attachments' => $this->message->attachments,

@@ -89,10 +89,40 @@
 
     <?php else: ?>
         
+
+        
+        <div class="lg:hidden mb-5">
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <button
+                    wire:click="filterByCategory(null)"
+                    wire:loading.attr="disabled"
+                    wire:target="filterByCategory"
+                    class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all <?php echo e(!$categoryId ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-[var(--accent)] hover:text-[var(--accent)]'); ?>"
+                >
+                    <iconify-icon icon="solar:layers-bold-duotone" width="14"></iconify-icon>
+                    <?php echo e(__('Toutes')); ?>
+
+                    <span class="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full text-[10px] font-bold <?php echo e(!$categoryId ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'); ?>"><?php echo e($articles->count()); ?></span>
+                </button>
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $categories; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $cat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
+                    <button
+                        wire:click="filterByCategory(<?php echo e($cat->id); ?>)"
+                        wire:loading.attr="disabled"
+                        wire:target="filterByCategory"
+                        class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all <?php echo e($categoryId === $cat->id ? 'bg-[var(--accent)] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-[var(--accent)] hover:text-[var(--accent)]'); ?>"
+                    >
+                        <iconify-icon icon="<?php echo e($cat->icon ?: 'solar:folder-bold-duotone'); ?>" width="14"></iconify-icon>
+                        <?php echo e($cat->name); ?>
+
+                    </button>
+                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
 
             
-            <div class="lg:col-span-3">
+            <div class="hidden lg:block lg:col-span-3">
                 <div class="lg:sticky lg:top-24 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                     <div class="px-5 py-4 border-b border-slate-100">
                         <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider"><?php echo e(__('Catégories')); ?></h3>

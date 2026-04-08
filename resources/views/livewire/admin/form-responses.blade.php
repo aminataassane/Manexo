@@ -3,7 +3,7 @@
     <div class="shrink-0 px-4 sm:px-5 lg:px-6 py-3 bg-white border-b border-slate-200/60">
         <div class="flex items-center justify-between gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
-                <a href="{{ route('admin.forms') }}" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors shrink-0">
+                <a href="{{ route('admin.forms') }}" wire:navigate.hover class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors shrink-0">
                     <iconify-icon icon="solar:arrow-left-linear" width="18"></iconify-icon>
                 </a>
                 <div class="min-w-0">

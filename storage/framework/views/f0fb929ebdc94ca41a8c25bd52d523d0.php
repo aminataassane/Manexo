@@ -120,7 +120,7 @@ unset($__split);
                 </div>
 
                 <div class="py-1">
-                    <a href="<?php echo e(route('profile')); ?>" wire:navigate class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <a href="<?php echo e(route('profile')); ?>" wire:navigate.hover class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                         <iconify-icon icon="solar:user-linear" width="16"></iconify-icon>
                         <?php echo e(__('menu.my_profile')); ?>
 

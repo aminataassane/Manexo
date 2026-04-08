@@ -1,47 +1,100 @@
-<div class="relative" x-data="{ open: false }" @click.outside="open = false" wire:poll.50s.visible="refreshBellAndSidebarBadges">
-    <button
-        type="button"
-        @click="open = !open; if (open) $wire.loadNotifications()"
-        class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
-        title="{{ __('Notifications') }}"
-    >
-        <iconify-icon icon="solar:bell-linear" width="20"></iconify-icon>
-        @if($this->unreadCount > 0)
-            <span class="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-            </span>
-        @endif
-    </button>
+<div
+    class="relative"
+    x-data="{ open: false }"
+    @click.window="if (open && ! $event.target.closest('.manexo-notifications-bell-scope')) open = false"
+    @keydown.escape.window="open = false"
+    wire:poll.50s.visible="refreshBellAndSidebarBadges"
+>
+    {{-- Téléporté sur body : le backdrop-blur du header casse sinon position:fixed des descendants. --}}
+    <div class="manexo-notifications-bell-scope">
+        <button
+            type="button"
+            @click="open = !open; if (open) $wire.loadNotifications()"
+            :aria-expanded="open"
+            aria-haspopup="dialog"
+            aria-controls="manexo-notifications-panel"
+            class="relative flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            title="{{ __('Notifications') }}"
+        >
+            <iconify-icon icon="solar:bell-linear" width="20"></iconify-icon>
+            @if($this->unreadCount > 0)
+                <span class="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                </span>
+            @endif
+        </button>
+    </div>
 
-    <div
-        x-show="open"
-        x-cloak
-        x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0 translate-y-1"
-        x-transition:enter-end="opacity-100 translate-y-0"
-        x-transition:leave="transition ease-in duration-150"
-        x-transition:leave-start="opacity-100 translate-y-0"
-        x-transition:leave-end="opacity-0 translate-y-1"
-        class="absolute right-0 top-full z-50 mt-3 w-96 max-h-[80vh] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5"
-    >
-            <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 bg-slate-50/50 backdrop-blur-sm">
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-bold text-slate-900">{{ __('Notifications') }}</span>
-                    @if($this->unreadCount > 0)
-                        <span class="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
-                            {{ $this->unreadCount }}
-                        </span>
-                    @endif
-                </div>
-                @if($this->unreadCount > 0)
-                    <button type="button" wire:click="markAllAsRead" class="text-xs font-medium text-slate-500 hover:text-[var(--accent)] transition-colors">
-                        {{ __('Tout lire') }}
-                    </button>
-                @endif
-            </div>
+    <template x-teleport="body">
+        <div class="manexo-notifications-bell-scope" x-show="open" x-cloak>
+            <div class="fixed inset-0 z-[260]">
+                <div
+                    class="absolute inset-0 bg-slate-900/45 backdrop-blur-[2px] motion-safe:transition-opacity"
+                    @click="open = false"
+                    aria-hidden="true"
+                ></div>
 
-            <div class="max-h-[65vh] overflow-y-auto custom-scrollbar">
+                {{-- Mobile : feuille en bas pleine largeur. md+ : panneau sous la topbar, aligné à droite, largeur bornée. --}}
+                <div
+                    class="pointer-events-none absolute inset-0 z-10 flex max-md:items-end md:items-start md:justify-end md:px-3 md:pt-[calc(4rem+env(safe-area-inset-top,0px)+0.5rem)] lg:px-5"
+                >
+                    <div
+                        id="manexo-notifications-panel"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="manexo-notifications-panel-title"
+                        x-transition:enter="transition ease-out duration-300"
+                        x-transition:enter-start="opacity-0 translate-y-8 md:translate-y-2 md:scale-[0.98]"
+                        x-transition:enter-end="opacity-100 translate-y-0 md:scale-100"
+                        x-transition:leave="transition ease-in duration-200"
+                        x-transition:leave-start="opacity-100 translate-y-0"
+                        x-transition:leave-end="opacity-0 translate-y-6 md:translate-y-1"
+                        class="pointer-events-auto flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-0.5rem))] w-full min-w-0 flex-col overflow-hidden border border-slate-200 bg-white shadow-2xl ring-1 ring-black/5 max-md:max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-bottom,0px)-0.5rem))] max-md:rounded-b-none max-md:rounded-t-2xl md:max-h-[min(80vh,calc(100dvh-5rem))] md:w-[min(26rem,calc(100vw-1.5rem-env(safe-area-inset-left,0px)-env(safe-area-inset-right,0px)))] md:rounded-2xl"
+                    >
+                        <div class="flex shrink-0 flex-col gap-2 border-b border-slate-100 bg-slate-50/80 px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-3.5">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0 flex flex-1 flex-wrap items-center gap-2">
+                                    <h2 id="manexo-notifications-panel-title" class="text-sm font-bold text-slate-900">{{ __('Notifications') }}</h2>
+                                    @if($this->unreadCount > 0)
+                                        <span class="inline-flex items-center rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
+                                            {{ $this->unreadCount }}
+                                        </span>
+                                    @endif
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="open = false"
+                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                                    aria-label="{{ __('Fermer') }}"
+                                >
+                                    <iconify-icon icon="solar:close-circle-linear" width="22"></iconify-icon>
+                                </button>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                @if($this->unreadCount > 0)
+                                    <button
+                                        type="button"
+                                        wire:click="markAllAsRead"
+                                        wire:loading.attr="disabled"
+                                        class="inline-flex items-center rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/80 transition hover:bg-slate-50 hover:text-[var(--accent)]"
+                                    >
+                                        {{ __('Tout lire') }}
+                                    </button>
+                                @endif
+                                <a
+                                    href="{{ route('notifications.index') }}"
+                                    wire:navigate
+                                    @click="open = false"
+                                    class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[var(--accent)] ring-1 ring-[var(--accent-soft-2)] transition hover:bg-[var(--accent-soft)]"
+                                >
+                                    <iconify-icon icon="solar:list-linear" width="16"></iconify-icon>
+                                    {{ __('pages.profile.view_full_history') }}
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain custom-scrollbar">
                 @if($this->notifications->isEmpty())
                     <div class="flex flex-col items-center justify-center py-12 text-center">
                         <div class="flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-300 mb-3">
@@ -186,7 +239,7 @@
                         href="{{ $notifUrl }}"
                         wire:click="markAsRead('{{ $notification->id }}')"
                         @click="open = false"
-                        class="group block border-b border-slate-50 px-4 py-3.5 transition-all hover:bg-slate-50 {{ $isRead ? 'opacity-60 hover:opacity-100' : 'bg-white' }}"
+                        class="group block border-b border-slate-50 px-3 py-3.5 transition-all hover:bg-slate-50 sm:px-4 {{ $isRead ? 'opacity-60 hover:opacity-100' : 'bg-white' }}"
                     >
                         <div class="flex gap-3.5">
                             <div class="relative mt-1 shrink-0">
@@ -292,12 +345,20 @@
                 @endforeach
             </div>
             
-            @if($this->notifications->count() > 0)
-                <div class="border-t border-slate-100 bg-slate-50 p-2 text-center">
-                    <a href="{{ route('notifications.index') }}" @click="open = false" class="block w-full rounded-lg py-2 text-xs font-medium text-slate-600 hover:bg-white hover:text-[var(--accent)] hover:shadow-sm transition-all">
-                        {{ __('Voir tout l\'historique') }}
-                    </a>
+                        <div class="shrink-0 border-t border-slate-100 bg-slate-50/95 p-2 sm:p-3">
+                            <a
+                                href="{{ route('notifications.index') }}"
+                                wire:navigate
+                                @click="open = false"
+                                class="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-white hover:text-[var(--accent)] hover:shadow-sm"
+                            >
+                                <iconify-icon icon="solar:history-linear" width="18" class="text-slate-400"></iconify-icon>
+                                {{ __('pages.profile.view_full_history') }}
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            @endif
+            </div>
         </div>
+    </template>
 </div>

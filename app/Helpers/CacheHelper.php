@@ -78,6 +78,20 @@ class CacheHelper
         return "members:{$orgId}";
     }
 
+    /** Page `/profile` : organisations, sessions et invitations en un seul aller-retour cache. */
+    public static function profileIndexBootstrapKey(int $userId): string
+    {
+        return "profile:index_bootstrap:v1:{$userId}";
+    }
+
+    public static function forgetProfileIndexBootstrap(int $userId): void
+    {
+        Cache::forget(self::profileIndexBootstrapKey($userId));
+        Cache::forget("profile:orgs:{$userId}");
+        Cache::forget("profile:sessions:{$userId}");
+        Cache::forget("profile:pending_invitations:{$userId}");
+    }
+
     public static function orgFunctionsKey(int $orgId): string
     {
         return "org_functions:{$orgId}";
@@ -174,9 +188,16 @@ class CacheHelper
         return "tickets:kanban:{$orgId}:{$userId}:{$filterHash}:v{$ver}";
     }
 
+    /** Liste « formulaires d'équipe » (publiés, sans cible user) — Mes formulaires. */
     public static function formsListKey(int $orgId): string
     {
         return "forms_list:{$orgId}";
+    }
+
+    /** Liste complète des formulaires (admin éditeur + relations) — ne pas partager la clé user. */
+    public static function formsListAdminKey(int $orgId): string
+    {
+        return "forms_list_admin:{$orgId}";
     }
 
     /** Mes formulaires : liste des assignations (par onglet). */
@@ -266,16 +287,29 @@ class CacheHelper
         return "daily_report:{$orgId}:{$date}";
     }
 
-    /** Notifications: unread count (topbar bell). */
-    public static function notificationsUnreadCountKey(int $userId): string
+    /**
+     * Bump when any notification affecting this user changes (any org).
+     * Invalidates per-org cached counts without enumerating organization ids.
+     */
+    public static function bumpUserNotificationCachesVersion(int $userId): void
     {
-        return "notifications:unread_count:{$userId}";
+        Cache::increment("user_notification_caches_ver:{$userId}");
     }
 
-    /** Sidebar: discussions unread badge (DiscussionNewMessage + DiscussionInvite only). */
-    public static function sidebarDiscussionsUnreadKey(int $userId): string
+    /** Notifications: unread count (topbar bell), scoped to current org. */
+    public static function notificationsUnreadCountKey(int $userId, int $orgId): string
     {
-        return "sidebar:discussions_unread:{$userId}";
+        $ver = (int) Cache::get("user_notification_caches_ver:{$userId}", 0);
+
+        return "notifications:unread_count:{$userId}:org:{$orgId}:v{$ver}";
+    }
+
+    /** Sidebar: discussions unread badge (DiscussionNewMessage + DiscussionInvite only), per org. */
+    public static function sidebarDiscussionsUnreadKey(int $userId, int $orgId): string
+    {
+        $ver = (int) Cache::get("user_notification_caches_ver:{$userId}", 0);
+
+        return "sidebar:discussions_unread:{$userId}:org:{$orgId}:v{$ver}";
     }
 
     /** Permissions for a specific org + role combination. */
@@ -385,6 +419,7 @@ class CacheHelper
     public static function invalidateForms(int $orgId): void
     {
         Cache::forget(self::formsListKey($orgId));
+        Cache::forget(self::formsListAdminKey($orgId));
         Cache::forget(self::settingsPublishedFormsKey($orgId));
         self::invalidateSettingsMaintenanceStats($orgId);
     }
@@ -436,13 +471,13 @@ class CacheHelper
 
     public static function invalidateNotificationsCount(int $userId): void
     {
-        Cache::forget(self::notificationsUnreadCountKey($userId));
+        self::bumpUserNotificationCachesVersion($userId);
         Cache::forget('sidebar_notif_unread:'.$userId);
     }
 
     public static function invalidateSidebarDiscussionsUnread(int $userId): void
     {
-        Cache::forget(self::sidebarDiscussionsUnreadKey($userId));
+        self::bumpUserNotificationCachesVersion($userId);
         Cache::forget('sidebar_disc_unread:'.$userId);
     }
 

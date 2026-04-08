@@ -8,9 +8,15 @@
             default => ['label_key' => null, 'label' => $role, 'bg' => 'bg-indigo-50', 'text' => 'text-indigo-700', 'border' => 'border-indigo-100', 'icon' => 'solar:star-bold-duotone'],
         };
     };
+    $inviteRoleDropdownOptions = $roles
+        ->filter(fn ($r) => $r->slug !== 'owner')
+        ->map(fn ($r) => ['value' => $r->slug, 'label' => $r->name])
+        ->values()
+        ->all();
+    $inviteRoleLabel = $roles->firstWhere('slug', $inviteRole)?->name ?? __('pages.team.role');
 @endphp
 
-<div class="w-full max-w-full min-w-0 mx-auto">
+<div class="w-full max-w-full min-w-0 mx-auto" wire:init="loadPage">
 
     {{-- ═══ HEADER ═══ --}}
     <div class="page-header">
@@ -31,6 +37,43 @@
             </button>
         </div>
     </div>
+
+    {{-- ═══ SKELETON STATE ═══ --}}
+    @if(! $ready)
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        @for($i = 0; $i < 5; $i++)
+            <div class="stat-card animate-pulse">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0 space-y-2">
+                        <div class="h-3 w-16 rounded bg-slate-200"></div>
+                        <div class="h-7 w-10 rounded bg-slate-200"></div>
+                    </div>
+                    <div class="h-10 w-10 rounded-xl bg-slate-100"></div>
+                </div>
+            </div>
+        @endfor
+    </div>
+    <div class="content-card animate-pulse">
+        <div class="filter-bar">
+            <div class="filter-bar-row">
+                <div class="h-10 flex-1 rounded-xl bg-slate-100"></div>
+                <div class="h-10 w-36 rounded-xl bg-slate-100"></div>
+            </div>
+        </div>
+        <div class="divide-y divide-slate-100">
+            @for($i = 0; $i < 5; $i++)
+                <div class="flex items-center gap-4 px-6 py-4">
+                    <div class="h-10 w-10 rounded-full bg-slate-200"></div>
+                    <div class="flex-1 space-y-2">
+                        <div class="h-4 w-40 rounded bg-slate-200"></div>
+                        <div class="h-3 w-56 rounded bg-slate-100"></div>
+                    </div>
+                    <div class="h-6 w-20 rounded-full bg-slate-100"></div>
+                </div>
+            @endfor
+        </div>
+    </div>
+    @else
 
     {{-- ═══ STATS CARDS ═══ --}}
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
@@ -238,12 +281,6 @@
                     $organizationFunctions->map(fn ($fn) => ['value' => (string) $fn->id, 'label' => $fn->name])->all()
                 );
                 $memberRoleOptions = $roles->map(fn ($r) => ['value' => $r->slug, 'label' => $r->name])->all();
-                $inviteRoleDropdownOptions = $roles
-                    ->filter(fn ($r) => $r->slug !== 'owner')
-                    ->map(fn ($r) => ['value' => $r->slug, 'label' => $r->name])
-                    ->values()
-                    ->all();
-                $inviteRoleLabel = $roles->firstWhere('slug', $inviteRole)?->name ?? __('pages.team.role');
             @endphp
             {{-- Toolbar — listes HTML (pas de panneau OS) pour rôle / taille de page --}}
             <div class="filter-bar">
@@ -452,6 +489,7 @@
         </div>
     </div>
     @endif
+    @endif {{-- end !$ready / @else --}}
 
     {{-- ═══ INVITE MODAL ═══
          Téléport vers body : sinon le modal reste dans <main class="z-10"> et passe SOUS le header / overlay (z-40) — surtout visible sur mobile. --}}

@@ -360,57 +360,66 @@
 
     </div>
 
-    <!-- Invite Modal -->
-    <div x-data="{ open: $wire.$entangle('showInviteModal') }" x-show="open" x-cloak @keydown.escape.window="open && (open = false)" class="fixed inset-0 z-50" style="display:none;">
-    <div
-        x-show="open"
-        x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-        x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-        class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="$wire.closeInviteModal()"
-    ></div>
-
-    <div class="relative mx-auto flex min-h-full max-w-lg items-center justify-center px-6">
+    <!-- Invite Modal — bottom-sheet mobile, centered desktop -->
+    <div x-data="{ open: $wire.$entangle('showInviteModal') }" x-show="open" x-cloak @keydown.escape.window="open && (open = false)" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" style="display:none;">
         <div
             x-show="open"
-            x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-            x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
-            class="w-full rounded-2xl border border-white/30 bg-white/95 p-6 shadow-2xl ring-1 ring-black/5"
+            x-transition:enter="ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+            class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="$wire.closeInviteModal()"
+        ></div>
+
+        <div
+            x-show="open"
+            x-transition:enter="ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+            x-transition:leave="ease-in duration-150"
+            x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+            x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-0 sm:scale-95"
+            class="relative z-10 w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
             @click.stop
         >
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h3 class="text-base font-semibold text-slate-900">Rejoindre une entreprise</h3>
-                    <p class="mt-1 text-[11px] text-slate-500">Entrez le code d'invitation fourni par l'administrateur.</p>
-                </div>
-                <button type="button" @click="$wire.closeInviteModal()" class="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" aria-label="Fermer">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
-                </button>
+            {{-- Drag handle mobile --}}
+            <div class="flex justify-center pt-3 pb-1 sm:hidden">
+                <div class="h-1 w-10 rounded-full bg-slate-300"></div>
             </div>
 
-            <form wire:submit.prevent="joinWithInviteCode" class="mt-5 space-y-3">
-                <div class="space-y-1">
-                    <label for="invite_code" class="block text-[11px] font-medium text-slate-700">Code d'invitation</label>
-                    <input
-                        id="invite_code"
-                        type="text"
-                        wire:model.defer="invite_code"
-                        placeholder="Ex: MANEXO-8F3K2"
-                        class="block w-full rounded-lg border-0 bg-slate-50 py-2.5 px-3 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset text-sm transition-all"
-                        style="--tw-ring-color: var(--accent);"
-                    >
-                    <x-input-error :messages="$errors->get('invite_code')" />
+            <div class="px-5 pt-2 pb-6 sm:p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-900">Rejoindre une entreprise</h3>
+                        <p class="mt-1 text-xs text-slate-500">Entrez le code d'invitation fourni par l'administrateur.</p>
+                    </div>
+                    <button type="button" @click="$wire.closeInviteModal()" class="hidden sm:flex rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors" aria-label="Fermer">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                    </button>
                 </div>
 
-                <div class="flex items-center justify-end gap-2 pt-2">
-                    <button type="button" @click="$wire.closeInviteModal()" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
-                        Annuler
-                    </button>
-                    <x-manexo.action-button type="submit" wire-target="joinWithInviteCode" variant="primary" class="!rounded-lg !font-medium" style="background-color: var(--accent);" :loading-label="__('ui.action.loading')">
-                        Rejoindre
-                    </x-manexo.action-button>
-                </div>
-            </form>
+                <form wire:submit.prevent="joinWithInviteCode" class="mt-5 space-y-4">
+                    <div class="space-y-1.5">
+                        <label for="invite_code" class="block text-xs font-medium text-slate-700">Code d'invitation</label>
+                        <input
+                            id="invite_code"
+                            type="text"
+                            wire:model.defer="invite_code"
+                            placeholder="Ex: MANEXO-8F3K2"
+                            class="block w-full rounded-xl border-0 bg-slate-50 py-3 px-4 text-slate-900 shadow-sm ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-inset text-sm transition-all"
+                            style="--tw-ring-color: var(--accent);"
+                        >
+                        <x-input-error :messages="$errors->get('invite_code')" />
+                    </div>
+
+                    <div class="flex flex-col gap-2 pt-1" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom));">
+                        <x-manexo.action-button type="submit" wire-target="joinWithInviteCode" variant="primary" class="!rounded-xl !font-semibold w-full !py-3" style="background-color: var(--accent);" :loading-label="__('ui.action.loading')">
+                            Rejoindre
+                        </x-manexo.action-button>
+                        <button type="button" @click="$wire.closeInviteModal()" class="w-full rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors text-center">
+                            Annuler
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 </div>

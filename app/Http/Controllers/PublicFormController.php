@@ -20,6 +20,7 @@ use App\Notifications\FormResponseNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -383,10 +384,12 @@ class PublicFormController extends Controller
         $redirect = redirect()
             ->route('forms.public.show', ['slug' => $slug, 'embed' => $request->boolean('embed') ? 1 : null])
             ->with('public_form_success', $message)
-            ->with('public_form_email', $guestEmail);
+            ->with('public_form_email', $guestEmail)
+            ->with('public_form_response_ref', $formResponse->shortReference())
+            ->with('public_form_org_name', $org->name);
 
         if ($ticket) {
-            $redirect->with('public_form_ticket_id', $ticket->id);
+            $redirect->with('public_form_ticket_ref', $ticket->shortReference());
         }
 
         return $redirect;
@@ -403,6 +406,9 @@ class PublicFormController extends Controller
         $orgId = (int) session('current_organization_id');
         $form = $response->form;
         abort_if(! $form || (int) $form->organization_id !== $orgId, 403);
+
+        // Verify user has permission to view form responses
+        Gate::authorize('viewResponses', $form);
 
         $responses = $response->responses ?? [];
         $fileData = $responses[$fieldKey] ?? null;

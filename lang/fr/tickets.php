@@ -38,4 +38,11 @@ return [
 
     'discussion_fab_go_top' => 'Remonter en haut du fil',
     'discussion_fab_go_latest' => 'Aller au dernier message',
+
+    'composer_send_in_progress' => 'Un envoi est déjà en cours. Patientez quelques secondes puis réessayez.',
+
+    'timeline_user_card_open' => 'Voir les informations du participant',
+    'timeline_badge_creator' => 'Créateur du ticket',
+    'timeline_badge_assignee' => 'Assigné au ticket',
+    'timeline_badge_participant' => 'Participant à la discussion',
 ];

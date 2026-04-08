@@ -5,7 +5,7 @@ return [
     'dashboard' => 'Tableau de bord',
     'tickets' => 'Tickets',
     'groups_view' => 'Groupes',
-    'discussions' => 'Discussions',
+    'discussions' => 'Boîte de réception',
     'forms' => 'Formulaires',
     'knowledge_base' => 'Base de connaissances',
     'notifications' => 'Notifications',

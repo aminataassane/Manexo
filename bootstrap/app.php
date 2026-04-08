@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            \Illuminate\Session\Middleware\AuthenticateSession::class,
             \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\SetLocaleFromSession::class,
             \App\Http\Middleware\EnforceSessionLimits::class,

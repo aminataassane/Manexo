@@ -656,7 +656,7 @@
                     <?php
                         $canToggleThis = (($isStaffOrTicketOwner ?? false) || ($item->assigned_to && (int)$item->assigned_to === ($authUserId ?? 0)) || ($item->relationLoaded('assignees') && $item->assignees->contains('id', $authUserId ?? 0))) && !(($isLocked ?? false) && !($canBypassLock ?? false));
                     ?>
-                    <li class="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3" x-data="{ editing: false, editTitle: '<?php echo e(str_replace("'", "\\'", $item->title)); ?>' }">
+                    <li class="flex min-w-0 items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3" x-data="{ editing: false, editTitle: '<?php echo e(str_replace("'", "\\'", $item->title)); ?>' }">
                         <?php if($canToggleThis): ?>
                             <button type="button" wire:click="toggleChecklistItem(<?php echo e($item->id); ?>)" class="cursor-pointer mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded border-2 transition-colors <?php echo e($item->is_done ? 'bg-[var(--accent)] border-[var(--accent)] text-white' : 'border-slate-300 bg-white text-transparent hover:border-[var(--accent)]'); ?>">
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($item->is_done): ?>
@@ -670,11 +670,11 @@
                                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             </span>
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                        <div class="min-w-0 flex-1">
+                        <div class="min-w-0 flex-1 overflow-hidden">
                             
                             <template x-if="!editing">
                                 <span
-                                    class="text-sm font-medium <?php echo e($item->is_done ? 'text-slate-500 line-through' : 'text-slate-900'); ?> <?php echo e(($canEditChecklist ?? false) ? 'cursor-pointer hover:text-[var(--accent)]' : ''); ?>"
+                                    class="block w-full min-w-0 max-w-full text-sm font-medium break-words [overflow-wrap:anywhere] <?php echo e($item->is_done ? 'text-slate-500 line-through' : 'text-slate-900'); ?> <?php echo e(($canEditChecklist ?? false) ? 'cursor-pointer hover:text-[var(--accent)]' : ''); ?>"
                                     <?php if($canEditChecklist ?? false): ?> @click="editing = true; $nextTick(() => $refs['editInput<?php echo e($item->id); ?>']?.focus())" <?php endif; ?>
                                 ><?php echo e($item->title); ?></span>
                             </template>
@@ -687,17 +687,16 @@
                                         @blur="editing = false; if (editTitle.trim() && editTitle !== '<?php echo e(str_replace("'", "\\'", $item->title)); ?>') $wire.updateChecklistItemTitle(<?php echo e($item->id); ?>, editTitle)"
                                         @keydown.enter.prevent="$event.target.blur()"
                                         @keydown.escape.prevent="editing = false; editTitle = '<?php echo e(str_replace("'", "\\'", $item->title)); ?>'"
-                                        class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
+                                        class="w-full min-w-0 max-w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm focus:border-[var(--accent)] focus:ring-[var(--accent)]"
                                     />
                                 </template>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($item->relationLoaded('assignees') && $item->assignees->isNotEmpty()): ?>
-                                <div class="mt-0.5 flex flex-wrap items-center gap-1">
+                                <div class="mt-0.5 flex min-w-0 flex-wrap items-center gap-1">
                                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $item->assignees; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $itemAsg): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoop($loop->index); ?><?php endif; ?>
-                                        <span class="inline-flex items-center gap-1 text-[11px] <?php echo e(($itemAsg->pivot->role ?? '') === 'responsible' ? 'text-[var(--accent)] font-bold' : 'text-slate-500'); ?>">
-                                            <span class="h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-semibold shrink-0 <?php echo e(($itemAsg->pivot->role ?? '') === 'responsible' ? 'ring-1 ring-[var(--accent)]' : 'ring-1 ring-slate-200'); ?>" style="background: var(--accent-soft); color: var(--accent);"><?php echo e(strtoupper(mb_substr($itemAsg->name ?? '?', 0, 1))); ?></span>
-                                            <?php echo e($itemAsg->name); ?>
-
+                                        <span class="inline-flex min-w-0 max-w-full items-center gap-1 text-[11px] <?php echo e(($itemAsg->pivot->role ?? '') === 'responsible' ? 'text-[var(--accent)] font-bold' : 'text-slate-500'); ?>">
+                                            <span class="h-4 w-4 shrink-0 rounded-full flex items-center justify-center text-[8px] font-semibold <?php echo e(($itemAsg->pivot->role ?? '') === 'responsible' ? 'ring-1 ring-[var(--accent)]' : 'ring-1 ring-slate-200'); ?>" style="background: var(--accent-soft); color: var(--accent);"><?php echo e(strtoupper(mb_substr($itemAsg->name ?? '?', 0, 1))); ?></span>
+                                            <span class="min-w-0 break-words [overflow-wrap:anywhere]"><?php echo e($itemAsg->name); ?></span>
                                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($canEditChecklist ?? false) && !($isLocked ?? false)): ?>
                                                 <button type="button" @click="$dispatch('confirm-action', { title: '<?php echo e(__('Retirer')); ?>', message: '<?php echo e(__('Retirer cet assigné de la tâche ?')); ?>', confirmLabel: '<?php echo e(__('Retirer')); ?>', variant: 'danger', onConfirm: () => $wire.removeChecklistItemAssignee(<?php echo e($item->id); ?>, <?php echo e($itemAsg->id); ?>) })" class="text-slate-400 hover:text-red-500" title="<?php echo e(__('Retirer')); ?>">
                                                     <iconify-icon icon="solar:close-circle-linear" width="12"></iconify-icon>
@@ -707,7 +706,7 @@
                                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::endLoop(); ?><?php endif; ?><?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::closeLoop(); ?><?php endif; ?>
                                 </div>
                             <?php elseif($item->assignee): ?>
-                                <div class="mt-0.5 text-[11px] text-slate-500"><?php echo e(__('Responsable')); ?>: <?php echo e($item->assignee->name); ?></div>
+                                <div class="mt-0.5 min-w-0 text-[11px] text-slate-500 break-words [overflow-wrap:anywhere]"><?php echo e(__('Responsable')); ?>: <?php echo e($item->assignee->name); ?></div>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(($canEditChecklist ?? false) && !($isLocked ?? false)): ?>
                                 <div class="mt-1" x-data="{ open: false }">
@@ -746,8 +745,8 @@
                                 </div>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($item->assigned_to_function_id && !$item->assigned_to): ?>
-                                <div class="mt-0.5 flex items-center gap-2">
-                                    <span class="text-[11px] text-amber-600 font-medium">
+                                <div class="mt-0.5 flex min-w-0 flex-wrap items-center gap-2">
+                                    <span class="min-w-0 text-[11px] font-medium text-amber-600 break-words [overflow-wrap:anywhere]">
                                         <?php echo e($item->assignedToFunction?->name ?? '—'); ?> — <?php echo e(__('checklist_items.to_claim')); ?>
 
                                     </span>
@@ -763,7 +762,7 @@
                                 <div class="mt-0.5 text-[11px] text-slate-500"><?php echo e(__('Échéance')); ?>: <?php echo e($item->due_date->translatedFormat('d M Y')); ?></div>
                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($item->is_done && $item->done_at): ?>
-                                <div class="mt-1 text-[10px] text-slate-400">
+                                <div class="mt-1 min-w-0 text-[10px] text-slate-400 break-words [overflow-wrap:anywhere]">
                                     <?php echo e(__('checklist_items.done_by_at', ['name' => $item->doneByUser?->name ?? '—', 'time' => $item->done_at->format('H:i')])); ?>
 
                                 </div>
